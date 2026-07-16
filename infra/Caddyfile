@@ -1,0 +1,15 @@
+# Caddy reverse proxy for Atlas.
+# One origin: browser hits the web app; /api/* is stripped and forwarded to the API.
+# Auto-HTTPS when ATLAS_DOMAIN is a real domain; on localhost Caddy serves plain HTTP.
+
+{$ATLAS_DOMAIN} {
+	# API: /api/health -> api:4000/health
+	handle_path /api/* {
+		reverse_proxy api:4000
+	}
+
+	# Everything else -> Next.js web app
+	handle {
+		reverse_proxy web:3000
+	}
+}

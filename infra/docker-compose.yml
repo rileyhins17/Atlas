@@ -1,0 +1,83 @@
+# Atlas stack.
+#
+# Local dev (default): only Postgres runs in Docker; you run api/web with pnpm.
+#   docker compose --env-file ../.env -f docker-compose.yml up -d db
+#
+# Full stack (VPS / prod), builds and runs everything behind Caddy:
+#   docker compose --env-file ../.env -f docker-compose.yml --profile full up -d --build
+#
+# Run from the repo root instead with:  -f infra/docker-compose.yml  and  --env-file .env
+name: atlas
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-atlas}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-atlas}
+      POSTGRES_DB: ${POSTGRES_DB:-atlas}
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-atlas} -d ${POSTGRES_DB:-atlas}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    profiles: ['full']
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: production
+      # Inside the compose network the DB host is the service name `db`.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-atlas}:${POSTGRES_PASSWORD:-atlas}@db:5432/${POSTGRES_DB:-atlas}?schema=public
+      API_PORT: '4000'
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - '4000'
+
+  web:
+    profiles: ['full']
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Baked into the client bundle at build time; browser reaches the API via Caddy at /api.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
+    restart: unless-stopped
+    depends_on:
+      - api
+    expose:
+      - '3000'
+
+  caddy:
+    profiles: ['full']
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      ATLAS_DOMAIN: ${ATLAS_DOMAIN:-localhost}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - web
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
