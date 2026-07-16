@@ -1,0 +1,389 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Atlas core data model.
+//
+// Design principles (see docs/data-model.md):
+//   1. Every domain record belongs to a User (single-user today, multi-user ready).
+//   2. Anything that "happens" also writes a TimelineEvent  -> the unified life log
+//      the AI reads. Domain tables are the source of truth; the timeline is the
+//      chronological, cross-domain view.
+//   3. `type` / `kind` / `source` fields are Strings, NOT enums, wherever a future
+//      module might introduce new values. New modules must not require a migration
+//      of shared tables. Enums are used only where the set is truly fixed.
+//   4. Sensitive external secrets live ONLY in Credential.dataEnc, encrypted at the
+//      app layer (AES-256-GCM) before they ever reach the DB.
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgcrypto, vector]
+}
+
+// ── Identity / auth ──────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  displayName  String?
+  timezone     String   @default("UTC")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions       Session[]
+  credentials    Credential[]
+  tasks          Task[]
+  events         Event[]
+  habits         Habit[]
+  habitLogs      HabitLog[]
+  journalEntries JournalEntry[]
+  notes          Note[]
+  goals          Goal[]
+  accounts       Account[]
+  transactions   Transaction[]
+  timelineEvents TimelineEvent[]
+  embeddings     Embedding[]
+  insights       Insight[]
+  aiQuestions    AiQuestion[]
+  aiUsage        AiUsage[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Session token is stored hashed; the raw token lives only in the client cookie.
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  userAgent String?
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// ── Connector credentials (the "tons of API keys" store) ─────────────────────
+
+model Credential {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Which connector this belongs to, e.g. "google-calendar", "openrouter", "simplefin".
+  connector String
+  // Human label so a user can have >1 of the same connector.
+  label     String   @default("default")
+  // AES-256-GCM ciphertext (base64) of the secret payload. Never plaintext.
+  dataEnc   String
+  // Non-secret metadata safe to read (scopes, account name, expiry hints).
+  meta      Json?
+  status    String   @default("active") // active | error | revoked
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, connector, label])
+  @@index([userId])
+  @@map("credentials")
+}
+
+// ── Domain: Tasks (the Phase 0 vertical slice) ───────────────────────────────
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  ARCHIVED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model Task {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  notes       String?
+  status      TaskStatus   @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
+  dueAt       DateTime?
+  completedAt DateTime?
+  // Free-form tags; lets the AI and future modules group without schema changes.
+  tags        String[]     @default([])
+  // Optional link back to a goal.
+  goalId      String?
+  goal        Goal?        @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, dueAt])
+  @@map("tasks")
+}
+
+// ── Domain: Calendar events (Phase 1) ────────────────────────────────────────
+
+model Event {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  location    String?
+  startAt     DateTime
+  endAt       DateTime
+  allDay      Boolean   @default(false)
+  // Provenance for two-way sync (e.g. Google Calendar event id + connector).
+  source      String    @default("atlas")
+  externalId  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([source, externalId])
+  @@index([userId, startAt])
+  @@map("events")
+}
+
+// ── Domain: Habits & goals (Phase 1) ─────────────────────────────────────────
+
+model Habit {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  cadence   String     @default("daily") // daily | weekly | custom-rrule
+  target    Int        @default(1) // e.g. 1x/day, 3x/week
+  active    Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  logs      HabitLog[]
+
+  @@index([userId])
+  @@map("habits")
+}
+
+model HabitLog {
+  id      String   @id @default(cuid())
+  userId  String
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  habitId String
+  habit   Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  loggedAt DateTime @default(now())
+  value   Int      @default(1)
+  note    String?
+
+  @@index([habitId, loggedAt])
+  @@map("habit_logs")
+}
+
+model Goal {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  targetDate  DateTime?
+  status      String    @default("active") // active | achieved | paused | dropped
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  tasks       Task[]
+
+  @@index([userId, status])
+  @@map("goals")
+}
+
+// ── Domain: Journal & notes (Phase 1) ────────────────────────────────────────
+
+model JournalEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // The day this entry is *about* (may differ from createdAt).
+  entryDate DateTime
+  body      String
+  mood      Int? // optional 1..5 scale
+  tags      String[] @default([])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, entryDate])
+  @@map("journal_entries")
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String?
+  body      String
+  tags      String[] @default([])
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("notes")
+}
+
+// ── Domain: Finance (Phase 3) ────────────────────────────────────────────────
+
+model Account {
+  id           String        @id @default(cuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  type         String        @default("checking") // checking | savings | credit | cash | investment
+  currency     String        @default("USD")
+  // Balance in minor units (cents) to avoid float error.
+  balanceMinor BigInt        @default(0)
+  source       String        @default("manual")
+  externalId   String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  transactions Transaction[]
+
+  @@unique([source, externalId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId   String
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  // Signed amount in minor units. Negative = money out.
+  amountMinor BigInt
+  currency    String   @default("USD")
+  description String
+  category    String?
+  postedAt    DateTime
+  source      String   @default("manual")
+  externalId  String?
+  createdAt   DateTime @default(now())
+
+  @@unique([source, externalId])
+  @@index([userId, postedAt])
+  @@index([accountId, postedAt])
+  @@map("transactions")
+}
+
+// ── Unified life log: the cross-domain view the AI reads ──────────────────────
+
+model TimelineEvent {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // e.g. "task.created", "habit.logged", "journal.written", "txn.synced".
+  type       String
+  // Which module/connector produced it, e.g. "tasks", "google-calendar".
+  source     String
+  title      String
+  summary    String?
+  // Structured detail + a soft link to the originating record.
+  refType    String? // e.g. "task"
+  refId      String?
+  payload    Json?
+  occurredAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([userId, occurredAt])
+  @@index([userId, type])
+  @@map("timeline_events")
+}
+
+// ── AI memory & self-curation ────────────────────────────────────────────────
+
+// Vector store for semantic retrieval over any record (journal, notes, tasks…).
+// The `embedding` column is a pgvector type; Prisma can't type it, so similarity
+// search is done via $queryRaw (see packages/ai). Dimension is model-dependent;
+// 768 is a placeholder for small embedding models and can be changed early.
+model Embedding {
+  id        String                       @id @default(cuid())
+  userId    String
+  user      User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ownerType String // "journal" | "note" | "task" | ...
+  ownerId   String
+  content   String // the exact text that was embedded
+  model     String
+  embedding Unsupported("vector(768)")?
+  createdAt DateTime                     @default(now())
+
+  @@unique([ownerType, ownerId])
+  @@index([userId])
+  @@map("embeddings")
+}
+
+// Derived insights the AI writes back (patterns, summaries). First-class data so
+// the AI accumulates knowledge instead of re-deriving it every run.
+model Insight {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind       String // "daily_brief" | "pattern" | "rolling_summary" | ...
+  title      String
+  body       String
+  // Scope window this insight summarizes, for rolling summaries.
+  periodFrom DateTime?
+  periodTo   DateTime?
+  meta       Json?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, kind, createdAt])
+  @@map("insights")
+}
+
+enum AiQuestionStatus {
+  OPEN
+  ANSWERED
+  DISMISSED
+}
+
+// The unique hook: questions the AI asks the user to fill knowledge gaps.
+model AiQuestion {
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question   String
+  // Why the AI is asking / what it will do with the answer.
+  rationale  String?
+  // What domain this relates to, so the answer can be routed back.
+  relatesTo  String? // "finance" | "habits" | ...
+  status     AiQuestionStatus @default(OPEN)
+  answer     String?
+  answeredAt DateTime?
+  createdAt  DateTime         @default(now())
+
+  @@index([userId, status])
+  @@map("ai_questions")
+}
+
+// Cost guard ledger. One row per AI call; aggregated per day to enforce the cap.
+model AiUsage {
+  id               String   @id @default(cuid())
+  userId           String?
+  user             User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  day              DateTime @db.Date
+  model            String
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  // Cost in micro-USD (1e-6 USD) to keep integer precision.
+  costUsdMicros    Int      @default(0)
+  purpose          String // "daily_brief" | "chat" | "auto_organize" | ...
+  createdAt        DateTime @default(now())
+
+  @@index([day])
+  @@index([userId, day])
+  @@map("ai_usage")
+}

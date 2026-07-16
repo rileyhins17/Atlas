@@ -1,0 +1,26 @@
+{
+  "name": "atlas",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Atlas — a personal Life OS: one unified data layer for tasks, calendar, habits, journal and finance, with a cheap cross-domain AI.",
+  "packageManager": "pnpm@11.13.1",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "db:generate": "pnpm --filter @atlas/db generate",
+    "db:migrate": "pnpm --filter @atlas/db migrate",
+    "db:studio": "pnpm --filter @atlas/db studio",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "turbo": "^2.1.0",
+    "typescript": "^5.6.2"
+  }
+}
