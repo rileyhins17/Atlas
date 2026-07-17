@@ -20,20 +20,28 @@ export function CalendarPanel() {
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [location, setLocation] = useState('');
+  const [clientError, setClientError] = useState<string | null>(null);
   const eventsQuery = useEvents();
   const create = useCreateEvent();
   const remove = useDeleteEvent();
 
   const events = eventsQuery.data ?? [];
-  const error = create.error
-    ? errorMessage(create.error, 'Failed to add event')
-    : remove.error
-      ? errorMessage(remove.error, 'Failed to delete event')
-      : null;
+  const error =
+    clientError ??
+    (create.error
+      ? errorMessage(create.error, 'Failed to add event')
+      : remove.error
+        ? errorMessage(remove.error, 'Failed to delete event')
+        : null);
 
   function save(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim() || !start || !end) return;
+    if (!title.trim() || !start || !end || create.isPending) return;
+    if (new Date(end) < new Date(start)) {
+      setClientError('End must be at or after start.');
+      return;
+    }
+    setClientError(null);
     create.mutate(
       {
         title: title.trim(),
@@ -61,15 +69,26 @@ export function CalendarPanel() {
             placeholder="Event title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            required
           />
           <div className="row">
             <label className="stack" style={{ flex: 1, gap: 4 }}>
               <span className="muted" style={{ fontSize: 12 }}>Start</span>
-              <Input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} />
+              <Input
+                type="datetime-local"
+                value={start}
+                onChange={(e) => setStart(e.target.value)}
+                required
+              />
             </label>
             <label className="stack" style={{ flex: 1, gap: 4 }}>
               <span className="muted" style={{ fontSize: 12 }}>End</span>
-              <Input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} />
+              <Input
+                type="datetime-local"
+                value={end}
+                onChange={(e) => setEnd(e.target.value)}
+                required
+              />
             </label>
           </div>
           <Input

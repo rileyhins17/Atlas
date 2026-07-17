@@ -20,9 +20,16 @@ export function DataPrivacyPanel({ onSignOut }: { onSignOut: () => void }) {
 
   function submitDelete(e: React.FormEvent) {
     e.preventDefault();
-    if (!password) return;
+    if (!password || deleteAccount.isPending) return;
     // The session is dead server-side on success; drop straight back to the auth gate.
     deleteAccount.mutate(password, { onSuccess: onSignOut });
+  }
+
+  function cancelConfirm() {
+    setConfirming(false);
+    setPassword('');
+    deleteAccount.reset();
+    exportData.reset();
   }
 
   return (
@@ -58,28 +65,26 @@ export function DataPrivacyPanel({ onSignOut }: { onSignOut: () => void }) {
             </Button>
           </div>
         ) : (
-          <form className="stack" onSubmit={submitDelete}>
+          <form
+            className="stack"
+            onSubmit={submitDelete}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') cancelConfirm();
+            }}
+          >
             <Input
               type="password"
               placeholder="Enter your password to confirm"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
+              autoFocus
             />
             <div className="row">
               <Button variant="danger" type="submit" disabled={busy || !password}>
                 {deleteAccount.isPending ? 'Deleting…' : 'Permanently delete'}
               </Button>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setConfirming(false);
-                  setPassword('');
-                  deleteAccount.reset();
-                  exportData.reset();
-                }}
-                disabled={busy}
-              >
+              <Button variant="ghost" onClick={cancelConfirm} disabled={busy}>
                 Cancel
               </Button>
             </div>
