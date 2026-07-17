@@ -25,7 +25,7 @@ Monorepo, DB schema, auth, unified timeline, cost guard, one full vertical slice
 
 ## Productization track (commercial-grade — runs alongside, gates launch)
 Atlas is meant to be **sold**. Before public launch these must land (see the "Definition of Done" in `CLAUDE.md`):
-- **Test + CI:** unit tests (streaks, cost guard, crypto, auth) + one e2e per module; GitHub Actions running build/typecheck/test.
+- **Test + CI:** ✅ foundation DONE (2026-07-16): Vitest wired into the monorepo (`pnpm test` via turbo); unit tests for pricing, context-builder, password util, CryptoService, habit streaks; GitHub Actions CI (`.github/workflows/ci.yml`) runs build/typecheck/test on push + PR to main. Still open: cost-guard unit tests, one e2e happy-path per module.
 - **Security hardening:** rate limiting, security headers (helmet), CSRF for cookie mutations, password strength + optional 2FA, audit the authz scoping.
 - **Robustness:** pagination on all list endpoints, error boundaries, structured logging + request ids, error tracking (Sentry-class).
 - **Billing:** Stripe subscriptions + plan gating.

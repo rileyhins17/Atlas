@@ -19,7 +19,7 @@ Atlas is a product Riley intends to **sell** — build to a paid-SaaS standard, 
 - **Legal/data:** sensitive data (journal, finance) → user-facing data export + hard delete; privacy policy + ToS before launch.
 - **Billing (later):** Stripe subscription + plan gating.
 
-**Known tracked debt (not yet at bar — address in the Productization pass, see `docs/roadmap.md`):** no tests/CI yet; no rate-limiting/CSRF/security headers; list endpoints unpaginated; no structured logging/error tracking; no billing/legal. Don't let this list grow silently — either build to bar or add the gap here.
+**Known tracked debt (not yet at bar — address in the Productization pass, see `docs/roadmap.md`):** no rate-limiting/CSRF/security headers; list endpoints unpaginated (calendar is paginated); no structured logging/error tracking; no billing/legal; test coverage is unit-only (no e2e per module yet, no cost-guard tests). Don't let this list grow silently — either build to bar or add the gap here.
 
 ## What Atlas is
 Personal "Life OS": one unified data layer for tasks, calendar, habits, journal, finance, plus a cheap cross-domain AI (DeepSeek via OpenRouter) that briefs, auto-organizes messy input, nudges, chats over your life, and **asks you questions to fill its own gaps**. Self-hosted on a cheap VPS. Budget: AI credits < $5/mo. Accessible from phone + laptop (PWA).
@@ -58,6 +58,7 @@ docs/              (TODO) architecture, data-model, roadmap, guides, ADRs, GOTCH
 - ✅ Web UI driven in a real browser: register → Today screen → add task → task persists and displays. Cross-port session cookie works.
 - **LOCAL DB = Neon cloud Postgres** (Docker Desktop is broken on this machine — Model Runner crash, see GOTCHAS). `DATABASE_URL` in `.env` points at Neon. The VPS will use the Docker `db` service instead (Linux dockerd has no such bug). Neon has pgvector, so it's a faithful dev DB.
 - ✅ Docs backbone written: `README.md`, `docs/architecture.md`, `docs/data-model.md`, `docs/roadmap.md`, `docs/module-guide.md`, `docs/connector-guide.md`, `docs/GOTCHAS.md`, `docs/adr/`.
+- ✅ **Tests + CI (added 2026-07-16 overnight):** Vitest in `packages/ai` + `apps/api` (tests live in each package's `test/` dir, excluded from tsc build; `pnpm test` runs all via turbo). 27 unit tests: pricing, context-builder, password util, CryptoService (env vars stubbed in `apps/api/test/setup.ts` — no DB needed), habit streaks. `computeStreak`/`dayKey` extracted to `apps/api/src/modules/habits/habits.util.ts` (pure, exported; service imports it — behavior unchanged). GitHub Actions CI at `.github/workflows/ci.yml` (build + typecheck + test, no DB). `.gitattributes` normalizes line endings to LF. `esbuild` added to `allowBuilds` (vitest dep).
 
 ## How to run locally (verified working)
 ```
