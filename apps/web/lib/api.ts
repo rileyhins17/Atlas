@@ -122,6 +122,30 @@ export interface AiStatus {
   domains: string[];
 }
 
+export interface GoogleStatus {
+  /** Server has GOOGLE_CLIENT_ID/SECRET set. */
+  configured: boolean;
+  /** This user has authorized Google. */
+  connected: boolean;
+}
+
+export interface SyncResult {
+  connector: string;
+  imported: number;
+  updated: number;
+  pushed: number;
+  deleted: number;
+  errors: string[];
+}
+
+export const GoogleApi = {
+  status: () => request<GoogleStatus>('/connectors/google/status'),
+  start: () => request<{ url: string }>('/connectors/google/start'),
+  sync: () => request<SyncResult>('/connectors/google/sync', { method: 'POST', body: '{}' }),
+  disconnect: () =>
+    request<{ ok: true }>('/connectors/google/disconnect', { method: 'POST', body: '{}' }),
+};
+
 export const AiApi = {
   status: () => request<AiStatus>('/ai/status'),
   connectDeepSeek: (apiKey: string) =>
