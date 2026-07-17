@@ -52,7 +52,10 @@ export function HabitsPanel() {
             onRetry={() => void habitsQuery.refetch()}
           />
         ) : habits.length === 0 ? (
-          <EmptyState>No habits yet. Add one to start a streak.</EmptyState>
+          <EmptyState
+            title="No habits yet"
+            hint="Add one to start a streak — daily check-ins keep it alive."
+          />
         ) : (
           habits.map((h) => (
             <HabitRow

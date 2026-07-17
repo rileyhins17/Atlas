@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { errorMessage } from '@/lib/api';
 import { useCreateJournalEntry, useJournal } from '@/lib/hooks/journal';
-import { Button, Card, CardListSkeleton, ErrorState, Textarea } from '@/components/ui';
+import { Button, Card, CardListSkeleton, EmptyState, ErrorState, Textarea } from '@/components/ui';
 
 const MOODS = ['😞', '🙁', '😐', '🙂', '😄'];
 
@@ -69,6 +69,12 @@ export function JournalPanel() {
           <ErrorState
             message={errorMessage(journalQuery.error, 'Failed to load journal')}
             onRetry={() => void journalQuery.refetch()}
+          />
+        )}
+        {journalQuery.isSuccess && entries.length === 0 && (
+          <EmptyState
+            title="No entries yet"
+            hint="Write a line about your day — Atlas remembers it and learns what matters to you."
           />
         )}
         {entries.map((e) => (

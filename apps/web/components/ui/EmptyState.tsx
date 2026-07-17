@@ -3,20 +3,19 @@
 import type { ReactNode } from 'react';
 
 export interface EmptyStateProps {
-  children: ReactNode;
-  /** Optional call-to-action rendered under the message. */
+  title: string;
+  /** What to do next — every empty state should point somewhere. */
+  hint?: string;
+  /** Optional call-to-action rendered under the hint. */
   action?: ReactNode;
 }
 
-/**
- * "Nothing here yet" message. Phase 1 renders the same muted text the panels
- * always had; Phase 2 upgrades this in place (illustration + next action).
- */
-export function EmptyState({ children, action }: EmptyStateProps) {
-  if (!action) return <span className="muted">{children}</span>;
+/** "Nothing here yet" with a purposeful next step. */
+export function EmptyState({ title, hint, action }: EmptyStateProps) {
   return (
-    <div className="stack" style={{ alignItems: 'flex-start' }}>
-      <span className="muted">{children}</span>
+    <div className="empty-state">
+      <strong>{title}</strong>
+      {hint && <span className="muted" style={{ fontSize: 13 }}>{hint}</span>}
       {action}
     </div>
   );

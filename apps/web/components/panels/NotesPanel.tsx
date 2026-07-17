@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { errorMessage } from '@/lib/api';
 import { useCreateNote, useDeleteNote, useNotes } from '@/lib/hooks/notes';
-import { Button, Card, CardListSkeleton, ErrorState, Input, Textarea } from '@/components/ui';
+import { Button, Card, CardListSkeleton, EmptyState, ErrorState, Input, Textarea } from '@/components/ui';
 
 export function NotesPanel() {
   const [title, setTitle] = useState('');
@@ -70,6 +70,12 @@ export function NotesPanel() {
           <ErrorState
             message={errorMessage(notesQuery.error, 'Failed to load notes')}
             onRetry={() => void notesQuery.refetch()}
+          />
+        )}
+        {notesQuery.isSuccess && notes.length === 0 && (
+          <EmptyState
+            title="No notes yet"
+            hint="Save durable facts about you and your people — pinned notes are always in Atlas's context."
           />
         )}
         {notes.map((n) => (

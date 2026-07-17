@@ -60,7 +60,10 @@ export function TasksPanel() {
             onRetry={() => void tasksQuery.refetch()}
           />
         ) : open.length === 0 && done.length === 0 ? (
-          <EmptyState>No tasks yet. Add your first one above.</EmptyState>
+          <EmptyState
+            title="No tasks yet"
+            hint="Add your first task above — or paste a messy brain dump into Atlas AI and let it file things for you."
+          />
         ) : (
           <>
             {open.map((t) => (

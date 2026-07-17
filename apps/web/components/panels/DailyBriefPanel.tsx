@@ -2,7 +2,7 @@
 
 import { errorMessage } from '@/lib/api';
 import { useGenerateDailyBrief, useInsights } from '@/lib/hooks/ai';
-import { Button, Card, CardListSkeleton, ErrorState } from '@/components/ui';
+import { Button, Card, CardListSkeleton, EmptyState, ErrorState } from '@/components/ui';
 
 export function DailyBriefPanel() {
   const insightsQuery = useInsights();
@@ -28,7 +28,10 @@ export function DailyBriefPanel() {
           onRetry={() => void insightsQuery.refetch()}
         />
       ) : insights.length === 0 ? (
-        <span className="muted" style={{ fontSize: 13 }}>No briefs yet.</span>
+        <EmptyState
+          title="No briefs yet"
+          hint="Generate today's brief for a summary of your tasks, events, and how you've been doing."
+        />
       ) : (
         <div className="stack">
           {insights.map((i) => (

@@ -93,7 +93,10 @@ export function CalendarPanel() {
             onRetry={() => void eventsQuery.refetch()}
           />
         ) : events.length === 0 ? (
-          <EmptyState>No upcoming events.</EmptyState>
+          <EmptyState
+            title="No upcoming events"
+            hint="Add an event above, or connect Google Calendar in Settings to sync the ones you already have."
+          />
         ) : (
           events.map((ev) => (
             <div className="task" key={ev.id}>
