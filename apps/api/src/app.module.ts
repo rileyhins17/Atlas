@@ -5,6 +5,7 @@ import { TasksModule } from './modules/tasks/tasks.module.js';
 import { HabitsModule } from './modules/habits/habits.module.js';
 import { JournalModule } from './modules/journal/journal.module.js';
 import { NotesModule } from './modules/notes/notes.module.js';
+import { CalendarModule } from './modules/calendar/calendar.module.js';
 import { AiModule } from './modules/ai/ai.module.js';
 
 @Module({
@@ -15,6 +16,7 @@ import { AiModule } from './modules/ai/ai.module.js';
     HabitsModule,
     JournalModule,
     NotesModule,
+    CalendarModule,
     AiModule,
   ],
 })

@@ -4,6 +4,7 @@ import type {
   CreateJournalInput,
   CreateNoteInput,
   CreateTaskInput,
+  EventDTO,
   HabitDTO,
   JournalDTO,
   NoteDTO,
@@ -78,6 +79,23 @@ export const NotesApi = {
   create: (input: Partial<CreateNoteInput> & { body: string }) =>
     request<NoteDTO>('/notes', { method: 'POST', body: JSON.stringify(input) }),
   remove: (id: string) => request<{ ok: true }>(`/notes/${id}`, { method: 'DELETE' }),
+};
+
+// startAt/endAt sent as ISO strings; the API coerces them to Date via zod.
+export type NewEvent = {
+  title: string;
+  startAt: string;
+  endAt: string;
+  location?: string;
+  description?: string;
+  allDay?: boolean;
+};
+
+export const EventsApi = {
+  list: () => request<EventDTO[]>('/events'),
+  create: (input: NewEvent) =>
+    request<EventDTO>('/events', { method: 'POST', body: JSON.stringify(input) }),
+  remove: (id: string) => request<{ ok: true }>(`/events/${id}`, { method: 'DELETE' }),
 };
 
 export const AiQuestionsApi = {

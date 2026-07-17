@@ -77,12 +77,13 @@ Migrations: `cd packages/db` then set `$env:DATABASE_URL` from `.env` and run `p
 - New core service: **`core/memory.service.ts`** (`MemoryService`, global) — `queueForEmbedding`, `removeFromEmbeddings`, `askUser`. Use it from any AI-native domain.
 - Verified: low-mood journal → question created → answered; `embeddings` has pending rows for journal/note/qa; `ai/status` domains = `["tasks","habits","journal","notes"]`.
 
-## NEXT ACTION — finish Phase 1: Calendar (start here)
-Build **Calendar** (`modules/calendar`) over the existing `events` table + the first real external connector:
-1. `modules/calendar` module (service/controller/ai adapter) — manual event CRUD first, timeline `event.*`.
-2. **Google Calendar connector** (`packages/connectors/src/google-calendar.ts`) following `docs/connector-guide.md`: OAuth flow (add `/connectors/google/oauth` + callback routes), store tokens via `ConnectorsService.saveCredential`, `sync()` two-way against `events` (use `source`+`externalId` unique keys already in schema).
-3. Web: a Calendar panel + a minimal Settings screen to connect Google.
-Then Phase 2 (AI brain: real OpenRouter orchestrator via CostGuard, chat, daily brief, auto-organize, embed backfill + pgvector retrieval). See `docs/roadmap.md`.
+- ✅ **Calendar** (`modules/calendar`) DONE + verified: events CRUD over the `events` table, timeline `event.*`, pagination-bounded list (`MAX_PAGE`), zod validation (endAt≥startAt → 400), `summarize()` = next events. Web `CalendarPanel` (datetime-local inputs). `ai/status` domains = `["tasks","habits","journal","notes","calendar"]` (all 5). **Google OAuth sync intentionally NOT built yet** (biggest/riskiest piece — deferred to a fresh session so it isn't left half-done).
+
+## NEXT ACTION — pick one (start here)
+Two tracks are open; do whichever Riley wants:
+- **A) Google Calendar sync** (finishes Phase 1's external integration): build `packages/connectors/src/google-calendar.ts` per `docs/connector-guide.md` — Google OAuth (add `/connectors/google/oauth` start + callback routes in a new `modules/settings` or `modules/calendar`), store tokens via `ConnectorsService.saveCredential`, `sync()` two-way against `events` using the `source`+`externalId` unique key. Add a Settings screen to connect Google. Needs Google Cloud OAuth client id/secret. **Big chunk — start it fresh with budget.**
+- **B) Productization / commercial-grade hardening pass** (see the ⭐ product bar + `docs/roadmap.md`): rate limiting, security headers (helmet), global exception filter + structured logging, CSRF for cookie mutations, a Vitest + first tests (streaks, crypto, cost guard) + GitHub Actions CI. Then keep every new module at-bar.
+Then Phase 2 (AI brain: real OpenRouter orchestrator via CostGuard, chat, daily brief, auto-organize, embed backfill + pgvector retrieval).
 3. **Calendar** (`modules/calendar`): the `events` table + a **Google Calendar connector** (`packages/connectors/src/google-calendar.ts`) for two-way sync — the first real external connector; use the OAuth flow, store tokens via `ConnectorsService.saveCredential`.
 4. Add a web screen per domain (tabs/nav in `apps/web`).
 Then Phase 2 (AI brain: orchestrator that actually calls OpenRouter with the cost guard, chat, daily brief, auto-organize, `ai_questions` UI cards), Phase 3 (finance connector: SimpleFIN/Plaid), Phase 4 (proactive nudges). See `docs/roadmap.md` + the plan file.
