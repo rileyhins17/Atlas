@@ -1,15 +1,95 @@
+/*
+ * Design tokens. Two layers:
+ *   1. Primitives — raw values (palette, scales). Rarely referenced directly.
+ *   2. Semantic roles — what a thing IS (surface, text-primary, focus-ring).
+ *      Components use THESE, so a future light theme is a role remap, not a
+ *      component rewrite. See docs/ui-hardening-plan.md.
+ * The legacy short names (--bg, --panel, --text, --accent, --ok, --radius) are
+ * kept as aliases so the current UI keeps working during the migration.
+ */
 :root {
-  --bg: #0e1116;
-  --panel: #171b22;
-  --panel-2: #1e232c;
-  --border: #2a303b;
-  --text: #e6e9ef;
-  --muted: #9aa4b2;
-  --accent: #5b8cff;
-  --accent-2: #7c5cff;
-  --danger: #ef4444;
-  --ok: #22c55e;
-  --radius: 12px;
+  /* — palette primitives — */
+  --c-ink-900: #0e1116;
+  --c-ink-800: #171b22;
+  --c-ink-700: #1e232c;
+  --c-ink-600: #2a303b;
+  --c-fog-100: #e6e9ef;
+  --c-fog-400: #9aa4b2;
+  --c-blue-500: #5b8cff;
+  --c-violet-500: #7c5cff;
+  --c-red-500: #ef4444;
+  --c-green-500: #22c55e;
+
+  /* — spacing scale (4px base) — */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-8: 48px;
+
+  /* — type scale — */
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-lg: 18px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+
+  /* — radii — */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  /* — elevation — */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-2: 0 6px 24px rgba(0, 0, 0, 0.4);
+
+  /* — motion — */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+
+  /* — semantic roles (dark theme; light is a future remap) — */
+  --surface: var(--c-ink-900);
+  --surface-raised: var(--c-ink-800);
+  --surface-inset: var(--c-ink-700);
+  --border-subtle: var(--c-ink-600);
+  --text-primary: var(--c-fog-100);
+  --text-muted: var(--c-fog-400);
+  --brand: var(--c-blue-500);
+  --brand-alt: var(--c-violet-500);
+  --danger-role: var(--c-red-500);
+  --success-role: var(--c-green-500);
+  --focus-ring: var(--c-blue-500);
+
+  /* — legacy aliases (do not add new usages; migrate to roles above) — */
+  --bg: var(--surface);
+  --panel: var(--surface-raised);
+  --panel-2: var(--surface-inset);
+  --border: var(--border-subtle);
+  --text: var(--text-primary);
+  --muted: var(--text-muted);
+  --accent: var(--brand);
+  --accent-2: var(--brand-alt);
+  --danger: var(--danger-role);
+  --ok: var(--success-role);
+  --radius: var(--radius-md);
+}
+
+/* Visible keyboard focus everywhere — a11y baseline (Phase 4 expands this). */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 * {

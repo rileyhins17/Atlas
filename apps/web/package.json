@@ -11,6 +11,9 @@
   },
   "dependencies": {
     "@atlas/shared": "workspace:*",
+    "@radix-ui/react-dialog": "^1.1.19",
+    "@tanstack/react-query": "^5.101.2",
+    "lucide-react": "^1.24.0",
     "next": "^15.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
