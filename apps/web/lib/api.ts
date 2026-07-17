@@ -1,4 +1,4 @@
-import type { CreateTaskInput, TaskDTO, UserDTO } from '@atlas/shared';
+import type { CreateHabitInput, CreateTaskInput, HabitDTO, TaskDTO, UserDTO } from '@atlas/shared';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -46,4 +46,12 @@ export const TasksApi = {
     request<TaskDTO>('/tasks', { method: 'POST', body: JSON.stringify(input) }),
   complete: (id: string) => request<TaskDTO>(`/tasks/${id}/complete`, { method: 'POST' }),
   remove: (id: string) => request<{ ok: true }>(`/tasks/${id}`, { method: 'DELETE' }),
+};
+
+export const HabitsApi = {
+  list: () => request<HabitDTO[]>('/habits'),
+  create: (input: Partial<CreateHabitInput> & { name: string }) =>
+    request<HabitDTO>('/habits', { method: 'POST', body: JSON.stringify(input) }),
+  log: (id: string) => request<HabitDTO>(`/habits/${id}/log`, { method: 'POST', body: '{}' }),
+  remove: (id: string) => request<{ ok: true }>(`/habits/${id}`, { method: 'DELETE' }),
 };

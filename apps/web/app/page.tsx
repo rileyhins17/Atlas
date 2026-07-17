@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import type { TaskDTO, UserDTO } from '@atlas/shared';
-import { ApiError, AuthApi, TasksApi } from '@/lib/api';
+import type { HabitDTO, TaskDTO, UserDTO } from '@atlas/shared';
+import { ApiError, AuthApi, HabitsApi, TasksApi } from '@/lib/api';
 
 export default function Home() {
   const [user, setUser] = useState<UserDTO | null>(null);
@@ -36,7 +36,7 @@ export default function Home() {
         <h1>Atlas</h1>
         <span className="tag">your life, in one place</span>
       </div>
-      {user ? <Today user={user} onSignOut={() => setUser(null)} /> : <AuthGate onAuthed={setUser} />}
+      {user ? <Dashboard user={user} onSignOut={() => setUser(null)} /> : <AuthGate onAuthed={setUser} />}
     </div>
   );
 }
@@ -100,7 +100,44 @@ function AuthGate({ onAuthed }: { onAuthed: (u: UserDTO) => void }) {
   );
 }
 
-function Today({ user, onSignOut }: { user: UserDTO; onSignOut: () => void }) {
+function Dashboard({ user, onSignOut }: { user: UserDTO; onSignOut: () => void }) {
+  const [tab, setTab] = useState<'today' | 'habits'>('today');
+
+  async function signOut() {
+    await AuthApi.logout();
+    onSignOut();
+  }
+
+  return (
+    <>
+      <div className="row" style={{ justifyContent: 'space-between' }}>
+        <span className="muted">Hi, {user.displayName ?? user.email}</span>
+        <button className="btn ghost" onClick={signOut}>
+          Sign out
+        </button>
+      </div>
+
+      <div className="row" style={{ gap: 8, marginTop: 16 }}>
+        <button
+          className={`btn ${tab === 'today' ? '' : 'secondary'}`}
+          onClick={() => setTab('today')}
+        >
+          Today
+        </button>
+        <button
+          className={`btn ${tab === 'habits' ? '' : 'secondary'}`}
+          onClick={() => setTab('habits')}
+        >
+          Habits
+        </button>
+      </div>
+
+      {tab === 'today' ? <TasksPanel /> : <HabitsPanel />}
+    </>
+  );
+}
+
+function TasksPanel() {
   const [tasks, setTasks] = useState<TaskDTO[]>([]);
   const [title, setTitle] = useState('');
   const [busy, setBusy] = useState(false);
@@ -145,23 +182,11 @@ function Today({ user, onSignOut }: { user: UserDTO; onSignOut: () => void }) {
     await load();
   }
 
-  async function signOut() {
-    await AuthApi.logout();
-    onSignOut();
-  }
-
   const open = tasks.filter((t) => t.status !== 'DONE');
   const done = tasks.filter((t) => t.status === 'DONE');
 
   return (
     <>
-      <div className="row" style={{ justifyContent: 'space-between' }}>
-        <span className="muted">Hi, {user.displayName ?? user.email}</span>
-        <button className="btn ghost" onClick={signOut}>
-          Sign out
-        </button>
-      </div>
-
       <div className="section-title">Today</div>
       <form className="row" onSubmit={addTask}>
         <input
@@ -216,6 +241,100 @@ function TaskRow({
       <span className="title">{task.title}</span>
       {task.priority !== 'MEDIUM' && <span className={`pill ${task.priority}`}>{task.priority}</span>}
       <button className="btn ghost" onClick={() => onRemove(task)} aria-label="delete">
+        ✕
+      </button>
+    </div>
+  );
+}
+
+function HabitsPanel() {
+  const [habits, setHabits] = useState<HabitDTO[]>([]);
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      setHabits(await HabitsApi.list());
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to load habits');
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function addHabit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await HabitsApi.create({ name: name.trim() });
+      setName('');
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to add habit');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function checkIn(h: HabitDTO) {
+    await HabitsApi.log(h.id);
+    await load();
+  }
+
+  async function remove(h: HabitDTO) {
+    await HabitsApi.remove(h.id);
+    await load();
+  }
+
+  return (
+    <>
+      <div className="section-title">Habits</div>
+      <form className="row" onSubmit={addHabit}>
+        <input
+          className="input"
+          placeholder="New habit (e.g. Gym, Read, Water)…"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <button className="btn" type="submit" disabled={busy}>
+          Add
+        </button>
+      </form>
+      {error && <div className="error">{error}</div>}
+
+      <div className="card" style={{ marginTop: 14 }}>
+        {habits.length === 0 ? (
+          <span className="muted">No habits yet. Add one to start a streak.</span>
+        ) : (
+          habits.map((h) => (
+            <HabitRow key={h.id} habit={h} onCheckIn={checkIn} onRemove={remove} />
+          ))
+        )}
+      </div>
+    </>
+  );
+}
+
+function HabitRow({
+  habit,
+  onCheckIn,
+  onRemove,
+}: {
+  habit: HabitDTO;
+  onCheckIn: (h: HabitDTO) => void;
+  onRemove: (h: HabitDTO) => void;
+}) {
+  return (
+    <div className={`task ${habit.doneToday ? 'done' : ''}`}>
+      <button className="check" aria-label="check in" onClick={() => onCheckIn(habit)} />
+      <span className="title">{habit.name}</span>
+      {habit.streak > 0 && <span className="pill">🔥 {habit.streak}d</span>}
+      <button className="btn ghost" onClick={() => onRemove(habit)} aria-label="archive">
         ✕
       </button>
     </div>

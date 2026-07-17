@@ -54,10 +54,12 @@ pnpm --filter @atlas/web dev      # http://localhost:3000
 ```
 Migrations: `cd packages/db` then set `$env:DATABASE_URL` from `.env` and run `pnpm exec prisma migrate dev`.
 
-## NEXT ACTION — Phase 1 (start here)
-Add the next life-domains, each as a module copying the **`apps/api/src/modules/tasks/` shape** (service + controller + `*.ai.ts` DomainModule adapter + module) and following `docs/module-guide.md`:
-1. **Habits** (`modules/habits`): CRUD habits + daily log; timeline `habit.logged`; aiContext = streak summary. Simplest next slice — start here.
-2. **Journal** (`modules/journal`) + **Notes** (`modules/notes`): entries with tags; timeline events; aiContext = recent-entry summary. (These feed embeddings in Phase 2.)
+## Phase 1 progress
+- ✅ **Habits** (`modules/habits`) DONE + verified: CRUD + daily check-in (`habit.logged` timeline), streak logic, `summarize()` for AI. Web: Today/Habits tab switch in `apps/web/app/page.tsx` (`HabitsPanel`). Confirmed `ai/status` domains = `["tasks","habits"]` — module auto-registered into the AI brain with no core changes. This is the proof the plugin pattern scales.
+
+## NEXT ACTION — continue Phase 1 (start here)
+Add the next life-domains, each as a module copying the **`apps/api/src/modules/tasks/` or `modules/habits/` shape** (service + controller + `*.ai.ts` DomainModule adapter + module) and following `docs/module-guide.md`:
+1. **Journal** (`modules/journal`) + **Notes** (`modules/notes`): entries with tags; timeline events; aiContext = recent-entry summary. (These feed embeddings in Phase 2.) — **do these next.**
 3. **Calendar** (`modules/calendar`): the `events` table + a **Google Calendar connector** (`packages/connectors/src/google-calendar.ts`) for two-way sync — the first real external connector; use the OAuth flow, store tokens via `ConnectorsService.saveCredential`.
 4. Add a web screen per domain (tabs/nav in `apps/web`).
 Then Phase 2 (AI brain: orchestrator that actually calls OpenRouter with the cost guard, chat, daily brief, auto-organize, `ai_questions` UI cards), Phase 3 (finance connector: SimpleFIN/Plaid), Phase 4 (proactive nudges). See `docs/roadmap.md` + the plan file.
