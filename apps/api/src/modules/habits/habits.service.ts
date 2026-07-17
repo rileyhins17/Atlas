@@ -42,6 +42,8 @@ export class HabitsService {
     const habits = await this.prisma.client.habit.findMany({
       where: { userId, active: true },
       orderBy: { createdAt: 'asc' },
+      // Active habits are inherently few; cap anyway so this can never go unbounded.
+      take: 200,
     });
     if (habits.length === 0) return [];
     const since = new Date();

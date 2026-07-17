@@ -1,5 +1,15 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { CreateNoteInput, UpdateNoteInput, type NoteDTO } from '@atlas/shared';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { CreateNoteInput, PaginationQuery, UpdateNoteInput, type NoteDTO } from '@atlas/shared';
 import { ZodValidationPipe } from '../../common/zod.pipe.js';
 import { SessionGuard } from '../../auth/session.guard.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
@@ -12,8 +22,11 @@ export class NotesController {
   constructor(private readonly notes: NotesService) {}
 
   @Get()
-  list(@CurrentUser() user: AuthedUser): Promise<NoteDTO[]> {
-    return this.notes.list(user.id);
+  list(
+    @CurrentUser() user: AuthedUser,
+    @Query(new ZodValidationPipe(PaginationQuery)) page: PaginationQuery,
+  ): Promise<NoteDTO[]> {
+    return this.notes.list(user.id, page);
   }
 
   @Post()

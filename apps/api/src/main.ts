@@ -1,15 +1,31 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { AppModule } from './app.module.js';
 import { loadEnv } from './config/env.js';
 
 async function bootstrap(): Promise<void> {
   const env = loadEnv();
-  const app = await NestFactory.create(AppModule, { bodyParser: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: true });
 
+  // Security headers. The API serves JSON only, so a strict CSP is safe here —
+  // the web app sets its own policy.
+  app.use(helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'none'"] } } }));
   app.use(cookieParser());
+
+  // Cap request bodies. Journal entries are the largest legitimate payload
+  // (~20k chars), so 1mb is generous while still bounding abuse.
+  app.useBodyParser('json', { limit: '1mb' });
+  app.useBodyParser('urlencoded', { limit: '1mb', extended: true });
+
   app.enableCors({ origin: env.WEB_ORIGIN, credentials: true });
+
+  // Behind the Caddy reverse proxy in production, so rate limiting and logs see
+  // the real client IP rather than the proxy's.
+  app.set('trust proxy', 1);
+
   app.enableShutdownHooks();
 
   await app.listen(env.API_PORT, '0.0.0.0');

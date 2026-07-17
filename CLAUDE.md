@@ -19,7 +19,9 @@ Atlas is a product Riley intends to **sell** — build to a paid-SaaS standard, 
 - **Legal/data:** sensitive data (journal, finance) → user-facing data export + hard delete; privacy policy + ToS before launch.
 - **Billing (later):** Stripe subscription + plan gating.
 
-**Known tracked debt (not yet at bar — address in the Productization pass, see `docs/roadmap.md`):** no rate-limiting/CSRF/security headers; list endpoints unpaginated (calendar is paginated); no structured logging/error tracking; no billing/legal; test coverage is unit-only (no e2e per module yet, no cost-guard tests). Don't let this list grow silently — either build to bar or add the gap here.
+**Already at bar:** unit tests + GitHub Actions CI; rate limiting (`@nestjs/throttler`: 120/min global, 10/min login, 5/min register); security headers (helmet, JSON-only CSP); CSRF (sameSite=lax cookie + `OriginCheckMiddleware` on mutations); global error boundary (`AllExceptionsFilter` — no stack/internal leaks) + structured JSON request logging with `x-request-id` (`RequestIdMiddleware`); pagination on every list endpoint (shared `PaginationQuery`, hard cap 100); 1mb body limit; `trust proxy` for real client IPs behind Caddy.
+
+**Known tracked debt (not yet at bar — see `docs/roadmap.md` Productization track):** no error tracking (Sentry-class) wired; no billing (Stripe) or legal (privacy/ToS, data export + hard delete); tests are unit-only — no e2e per module (needs a test DB strategy) and no cost-guard tests (needs a Prisma mock); tests aren't covered by `pnpm typecheck`; 2FA + password strength rules absent. Don't let this list grow silently — either build to bar or add the gap here.
 
 ## What Atlas is
 Personal "Life OS": one unified data layer for tasks, calendar, habits, journal, finance, plus a cheap cross-domain AI (DeepSeek via OpenRouter) that briefs, auto-organizes messy input, nudges, chats over your life, and **asks you questions to fill its own gaps**. Self-hosted on a cheap VPS. Budget: AI credits < $5/mo. Accessible from phone + laptop (PWA).

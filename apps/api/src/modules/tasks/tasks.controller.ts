@@ -6,9 +6,10 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
-import { CreateTaskInput, UpdateTaskInput, type TaskDTO } from '@atlas/shared';
+import { CreateTaskInput, PaginationQuery, UpdateTaskInput, type TaskDTO } from '@atlas/shared';
 import { ZodValidationPipe } from '../../common/zod.pipe.js';
 import { SessionGuard } from '../../auth/session.guard.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
@@ -21,8 +22,11 @@ export class TasksController {
   constructor(private readonly tasks: TasksService) {}
 
   @Get()
-  list(@CurrentUser() user: AuthedUser): Promise<TaskDTO[]> {
-    return this.tasks.list(user.id);
+  list(
+    @CurrentUser() user: AuthedUser,
+    @Query(new ZodValidationPipe(PaginationQuery)) page: PaginationQuery,
+  ): Promise<TaskDTO[]> {
+    return this.tasks.list(user.id, page);
   }
 
   @Post()

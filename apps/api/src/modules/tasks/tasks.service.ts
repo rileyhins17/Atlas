@@ -57,10 +57,12 @@ export class TasksService {
     return toDto(task);
   }
 
-  async list(userId: string): Promise<TaskDTO[]> {
+  async list(userId: string, page: { limit: number; offset: number }): Promise<TaskDTO[]> {
     const tasks = await this.prisma.client.task.findMany({
       where: { userId, status: { not: 'ARCHIVED' } },
       orderBy: [{ status: 'asc' }, { dueAt: 'asc' }, { createdAt: 'desc' }],
+      take: page.limit,
+      skip: page.offset,
     });
     return tasks.map(toDto);
   }

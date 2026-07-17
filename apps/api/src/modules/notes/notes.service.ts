@@ -35,10 +35,12 @@ export class NotesService {
     return note;
   }
 
-  async list(userId: string): Promise<NoteDTO[]> {
+  async list(userId: string, page: { limit: number; offset: number }): Promise<NoteDTO[]> {
     const notes = await this.prisma.client.note.findMany({
       where: { userId },
       orderBy: [{ pinned: 'desc' }, { updatedAt: 'desc' }],
+      take: page.limit,
+      skip: page.offset,
     });
     return notes.map(toDto);
   }

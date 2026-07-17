@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { LoginInput, RegisterInput, type UserDTO } from '@atlas/shared';
 import { ZodValidationPipe } from '../common/zod.pipe.js';
@@ -25,6 +26,8 @@ function setSessionCookie(res: Response, token: string): void {
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
+  // Account creation is expensive and abusable: 5 per minute per IP.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('register')
   async register(
     @Body(new ZodValidationPipe(RegisterInput)) body: RegisterInput,
@@ -41,6 +44,8 @@ export class AuthController {
     return user;
   }
 
+  // Brute-force protection: 10 login attempts per minute per IP.
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('login')
   async login(
     @Body(new ZodValidationPipe(LoginInput)) body: LoginInput,

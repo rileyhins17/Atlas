@@ -70,11 +70,12 @@ export class JournalService {
     return toDto(entry);
   }
 
-  async list(userId: string, limit = 30): Promise<JournalDTO[]> {
+  async list(userId: string, page: { limit: number; offset: number }): Promise<JournalDTO[]> {
     const entries = await this.prisma.client.journalEntry.findMany({
       where: { userId },
       orderBy: { entryDate: 'desc' },
-      take: limit,
+      take: page.limit,
+      skip: page.offset,
     });
     return entries.map(toDto);
   }
