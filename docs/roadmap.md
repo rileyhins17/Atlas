@@ -39,7 +39,7 @@ Atlas is meant to be **sold**. Before public launch these must land (see the "De
 - **Robustness:** ✅ pagination on all list endpoints (hard cap 100), ✅ global error boundary, ✅ structured JSON logging + `x-request-id`. Remaining: error tracking (Sentry-class).
 - **Billing:** Stripe subscriptions + plan gating.
 - **Legal/data:** ✅ user data export + hard delete DONE (`modules/account`, verified live + in-browser 2026-07-17: export excludes all secrets; delete requires password re-auth and cascades every table). Still open: privacy policy + ToS pages.
-- **UX polish pass:** loading/error/empty states, mobile-first responsive, a11y.
+- **UX polish pass:** loading/error/empty states, mobile-first responsive, a11y. **Full phased plan: `docs/ui-hardening-plan.md`** (6 phases from decomposing the monolith `page.tsx` → PWA/offline → brand). Blocked on 5 stack decisions in that doc.
 Recommended timing: a dedicated **hardening pass after Phase 1 features**, then keep each new module at-bar.
 
 ## Deploy milestone (any time after Phase 1)

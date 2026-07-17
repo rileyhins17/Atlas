@@ -123,7 +123,8 @@ Commercial-grade privacy bar: `apps/api/src/modules/account/`.
 ## NEXT ACTION — pick one (start here)
 - **A) Verify Google Calendar end-to-end (do this first — it's untested).** Riley must click through consent: run the API + web, open Settings → Connect Google Calendar. Then check: tokens land encrypted in `credentials`, `POST /connectors/google/sync` imports real events, an Atlas-created event pushes to Google and flips to `source='google-calendar'`, a Google-side edit overwrites Atlas on the next sync, and a Google-side delete removes the local row. Also confirm the **token refresh** path (the riskiest untested bit — force it by editing the stored `expiresAt` to the past). Redirect URI must match the OAuth client exactly.
 - **B) Deploy to the VPS** (unblocked, and the AI brain is now worth using from a phone). Docker Compose + Caddy per `docs/architecture.md`; swap the Neon `DATABASE_URL` for the in-compose `db` service. **Bake the embedding model into the image or pre-warm it** — otherwise the first request on a cold box downloads ~110MB. Watch API-process RAM: the model lives in-process.
-- **C) Productization debt** (see "Known tracked debt" above): error tracking, Stripe billing, legal pages + data export/hard delete, e2e tests, 2FA/password rules.
+- **C) UI hardening to commercial grade** — the UI is a working prototype (one 1,229-line `page.tsx`, dark-only, raw fetch everywhere, no skeletons/toasts/routing). Full phased plan at **`docs/ui-hardening-plan.md`**. **5 stack decisions need Riley's sign-off before Phase 1 builds** (data layer, styling, component primitives, icons, light-mode scope — recommendations in the doc).
+- **D) Productization debt** (see "Known tracked debt" above): error tracking, Stripe billing, legal pages (privacy/ToS), e2e tests, 2FA/password rules. (Data export + hard delete: DONE.)
 
 Then Phase 3 (finance connector: SimpleFIN/Plaid), Phase 4 (proactive nudges). See `docs/roadmap.md` + the plan file.
 
