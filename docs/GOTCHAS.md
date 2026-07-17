@@ -7,6 +7,9 @@ Append every new setup/build snag here (root cause + fix) so no future thread wa
 - **PowerShell shows red `NativeCommandError` / a `pnpm.ps1` error block even on success** — it wraps native stderr. Judge success by the actual ✔/output, not the red text. Never `2>&1` a native exe in PowerShell here.
 - Launch working dir is usually `C:\`; project is `C:\Users\riley\atlas`.
 
+## Shell (PowerShell)
+- **git commit here-strings break on inner quotes.** A `@'...'@` message containing `"double quotes"` or `'` (e.g. `Atlas's`) gets word-split and git treats the words as pathspecs. Keep commit-message bodies quote-free (and apostrophe-free), or write the message to a file and use `git commit -F file`.
+
 ## TypeScript / build
 - **Node globals (`fetch`, `AbortSignal`, `process`, `Buffer`) → `TS2304 Cannot find name`.** pnpm is strict (no hoist), so EVERY package that uses them needs its own `@types/node` devDep. Added to db, ai, connectors, api.
 - **Prisma `Json` columns reject `Record<string,unknown>` / `unknown`.** Cast at the prisma call to `Prisma.InputJsonValue` (`import type { Prisma } from '@atlas/db'`). Never store a `Date` in JSON — `.toISOString()` first.
