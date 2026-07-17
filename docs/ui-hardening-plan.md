@@ -86,17 +86,12 @@ Rough order of impact-per-effort: **1 → 2 → 3 → 4 → 5 → 6**, with the 
 
 ---
 
-## Decisions to lock first (need Riley's sign-off before Phase 1 build)
+## Decided stack (locked 2026-07-17)
 
-These are architectural and costly to reverse, so decide up front. Recommendation given for each.
+1. **Data layer: TanStack Query.** Erases per-panel loading/error/refetch boilerplate; makes optimistic updates + cache invalidation trivial.
+2. **Styling: evolve the current CSS-variable system into a full token set.** No Tailwind, no component library. Keeps churn low and the bundle lean.
+3. **Primitives: build our own, on Radix for the fiddly ones.** Radix (unstyled, accessible) for `Dialog`, dropdowns, focus management; hand-rolled CSS for the trivial ones (`Button`, `Card`, `Input`). Accessibility for free where it's hard, no design-system lock-in.
+4. **Icons: Lucide.** Replaces emoji in UI chrome; tree-shakeable.
+5. **Theme: dark-only for now.** Build the token layer theme-ready (semantic roles, not raw hex) so light mode is a later token pass, not a rewrite — but don't design/ship light in Phase 1.
 
-1. **Data layer** — **TanStack Query** (recommended) vs SWR vs keep raw fetch.
-   *Recommend TanStack Query: it erases the per-panel loading/error/refetch boilerplate, and makes optimistic updates + cache invalidation trivial. Biggest single quality lever in the plan.*
-2. **Styling approach** — keep **hand-rolled CSS + tokens** (recommended for now) vs Tailwind vs CSS Modules vs a full component lib.
-   *Recommend evolving the current CSS-variable system into a proper token set rather than adopting Tailwind mid-project — less churn, keeps the bundle lean, and the app is small enough that a component lib would be overkill. Revisit if the design surface explodes.*
-3. **Component primitives** — **build our own** thin primitives (recommended) vs adopt Radix UI (unstyled, accessible) vs shadcn/ui.
-   *Recommend building a small set on top of Radix primitives for the hard-to-get-right ones (Dialog, focus trap, dropdown) and hand-rolling the trivial ones (Button, Card). Gets accessibility for free where it's fiddly without pulling in a whole design system.*
-4. **Icons** — **Lucide** (recommended) vs keep emoji vs Heroicons.
-5. **Scope of light mode** — ship light+dark from Phase 1 (recommended, cheap if done at token time) vs dark-only until later.
-
-Once these are settled I'll fold the chosen stack into this doc and start Phase 1.
+Dependencies to add (Phase 1): `@tanstack/react-query`, `@radix-ui/react-dialog` (+ other Radix primitives as needed), `lucide-react`.
