@@ -3,6 +3,8 @@
 **READ THIS FIRST, EVERY THREAD.** This file is the single source of truth for where the project is and what to do next. It is auto-loaded when a Claude thread starts in `C:\Users\riley\atlas`. Keep it accurate: **at the end of every work chunk, update the "Current status" and "NEXT ACTION" sections and append any new gotcha.** The approved foundation plan lives at `C:\Users\riley\.claude\plans\federated-gathering-tome.md`.
 
 > Owner: Riley (rileyhinsperger@gmail.com). Global CLAUDE.md forces **caveman mode** for chat replies (terse; code/commits normal). Multi-week project. Riley may start each session in a fresh thread — this file must carry all context so no rabbit hole is re-hit.
+>
+> **Git remote:** `origin` = https://github.com/rileyhins17/Atlas (**private**, GitHub account `rileyhins17`, gh CLI authed). **Push after every commit** (`git push`). `.env` is gitignored — never commit it.
 
 ## ⭐ COMMERCIAL-GRADE — permanent product bar (read every session)
 Atlas is a product Riley intends to **sell** — build to a paid-SaaS standard, not a hobby project. Apply this without being asked.
