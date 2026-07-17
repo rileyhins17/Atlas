@@ -55,11 +55,19 @@ pnpm --filter @atlas/web dev      # http://localhost:3000
 Migrations: `cd packages/db` then set `$env:DATABASE_URL` from `.env` and run `pnpm exec prisma migrate dev`.
 
 ## Phase 1 progress
-- ✅ **Habits** (`modules/habits`) DONE + verified: CRUD + daily check-in (`habit.logged` timeline), streak logic, `summarize()` for AI. Web: Today/Habits tab switch in `apps/web/app/page.tsx` (`HabitsPanel`). Confirmed `ai/status` domains = `["tasks","habits"]` — module auto-registered into the AI brain with no core changes. This is the proof the plugin pattern scales.
+- ✅ **Habits** (`modules/habits`): CRUD + daily check-in, streak logic. Web `HabitsPanel`.
+- ✅ **Journal** (`modules/journal`): mood + tags, tailored (NOT a generic journal) — writes timeline, **auto-queues to semantic memory** (`MemoryService.queueForEmbedding` → `embeddings` row, `model="pending"`, Phase 2 backfills the vector), and **seeds an `ai_question`** when an entry is thin/low-mood. Web `JournalPanel`.
+- ✅ **Notes** (`modules/notes`): durable "what Atlas should know about me" facts; `pinned` = always-in-context; queued to memory. `summarize()` surfaces pinned facts. Web `NotesPanel`.
+- ✅ **AI-questions loop** (the unique hook) live: `MemoryService.askUser()` creates them; endpoints `GET /ai/questions`, `POST /ai/questions/:id/answer|dismiss` (`modules/ai/ai-questions.service.ts`); answers get queued to memory as `qa`. Web: `AtlasAsks` cards at top of the dashboard.
+- New core service: **`core/memory.service.ts`** (`MemoryService`, global) — `queueForEmbedding`, `removeFromEmbeddings`, `askUser`. Use it from any AI-native domain.
+- Verified: low-mood journal → question created → answered; `embeddings` has pending rows for journal/note/qa; `ai/status` domains = `["tasks","habits","journal","notes"]`.
 
-## NEXT ACTION — continue Phase 1 (start here)
-Add the next life-domains, each as a module copying the **`apps/api/src/modules/tasks/` or `modules/habits/` shape** (service + controller + `*.ai.ts` DomainModule adapter + module) and following `docs/module-guide.md`:
-1. **Journal** (`modules/journal`) + **Notes** (`modules/notes`): entries with tags; timeline events; aiContext = recent-entry summary. (These feed embeddings in Phase 2.) — **do these next.**
+## NEXT ACTION — finish Phase 1: Calendar (start here)
+Build **Calendar** (`modules/calendar`) over the existing `events` table + the first real external connector:
+1. `modules/calendar` module (service/controller/ai adapter) — manual event CRUD first, timeline `event.*`.
+2. **Google Calendar connector** (`packages/connectors/src/google-calendar.ts`) following `docs/connector-guide.md`: OAuth flow (add `/connectors/google/oauth` + callback routes), store tokens via `ConnectorsService.saveCredential`, `sync()` two-way against `events` (use `source`+`externalId` unique keys already in schema).
+3. Web: a Calendar panel + a minimal Settings screen to connect Google.
+Then Phase 2 (AI brain: real OpenRouter orchestrator via CostGuard, chat, daily brief, auto-organize, embed backfill + pgvector retrieval). See `docs/roadmap.md`.
 3. **Calendar** (`modules/calendar`): the `events` table + a **Google Calendar connector** (`packages/connectors/src/google-calendar.ts`) for two-way sync — the first real external connector; use the OAuth flow, store tokens via `ConnectorsService.saveCredential`.
 4. Add a web screen per domain (tabs/nav in `apps/web`).
 Then Phase 2 (AI brain: orchestrator that actually calls OpenRouter with the cost guard, chat, daily brief, auto-organize, `ai_questions` UI cards), Phase 3 (finance connector: SimpleFIN/Plaid), Phase 4 (proactive nudges). See `docs/roadmap.md` + the plan file.

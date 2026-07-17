@@ -3,6 +3,7 @@ import { CostGuard } from '@atlas/ai';
 import { PrismaService } from './prisma.service.js';
 import { CryptoService } from './crypto.service.js';
 import { TimelineService } from './timeline.service.js';
+import { MemoryService } from './memory.service.js';
 import { ModuleRegistryService } from './domain-module.js';
 import { ConnectorsService } from './connectors.service.js';
 import { HealthController } from './health.controller.js';
@@ -19,6 +20,7 @@ import { HealthController } from './health.controller.js';
     PrismaService,
     CryptoService,
     TimelineService,
+    MemoryService,
     ModuleRegistryService,
     ConnectorsService,
     { provide: CostGuard, useFactory: () => CostGuard.fromEnv() },
@@ -27,6 +29,7 @@ import { HealthController } from './health.controller.js';
     PrismaService,
     CryptoService,
     TimelineService,
+    MemoryService,
     ModuleRegistryService,
     ConnectorsService,
     CostGuard,

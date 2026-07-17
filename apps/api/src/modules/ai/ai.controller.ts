@@ -1,10 +1,13 @@
-import { Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { buildContext, CostGuard, estimateTokens } from '@atlas/ai';
+import { AnswerQuestionInput, type AiQuestionDTO } from '@atlas/shared';
+import { ZodValidationPipe } from '../../common/zod.pipe.js';
 import { SessionGuard } from '../../auth/session.guard.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
 import type { AuthedUser } from '../../auth/auth.service.js';
 import { ModuleRegistryService } from '../../core/domain-module.js';
 import { ConnectorsService } from '../../core/connectors.service.js';
+import { AiQuestionsService } from './ai-questions.service.js';
 import { loadEnv } from '../../config/env.js';
 
 const CONTEXT_TOKEN_BUDGET = 2000;
@@ -16,7 +19,32 @@ export class AiController {
     private readonly registry: ModuleRegistryService,
     private readonly connectors: ConnectorsService,
     private readonly costGuard: CostGuard,
+    private readonly questions: AiQuestionsService,
   ) {}
+
+  // --- Self-curation loop: Atlas's questions to the user ---
+
+  @Get('questions')
+  listQuestions(@CurrentUser() user: AuthedUser): Promise<AiQuestionDTO[]> {
+    return this.questions.listOpen(user.id);
+  }
+
+  @Post('questions/:id/answer')
+  answerQuestion(
+    @CurrentUser() user: AuthedUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(AnswerQuestionInput)) body: AnswerQuestionInput,
+  ): Promise<AiQuestionDTO> {
+    return this.questions.answer(user.id, id, body.answer);
+  }
+
+  @Post('questions/:id/dismiss')
+  dismissQuestion(
+    @CurrentUser() user: AuthedUser,
+    @Param('id') id: string,
+  ): Promise<{ ok: true }> {
+    return this.questions.dismiss(user.id, id);
+  }
 
   @Get('status')
   async status(@CurrentUser() user: AuthedUser) {

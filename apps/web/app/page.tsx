@@ -1,8 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import type { HabitDTO, TaskDTO, UserDTO } from '@atlas/shared';
-import { ApiError, AuthApi, HabitsApi, TasksApi } from '@/lib/api';
+import type { AiQuestionDTO, HabitDTO, JournalDTO, NoteDTO, TaskDTO, UserDTO } from '@atlas/shared';
+import {
+  ApiError,
+  AiQuestionsApi,
+  AuthApi,
+  HabitsApi,
+  JournalApi,
+  NotesApi,
+  TasksApi,
+} from '@/lib/api';
 
 export default function Home() {
   const [user, setUser] = useState<UserDTO | null>(null);
@@ -100,8 +108,16 @@ function AuthGate({ onAuthed }: { onAuthed: (u: UserDTO) => void }) {
   );
 }
 
+type Tab = 'today' | 'habits' | 'journal' | 'notes';
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'today', label: 'Today' },
+  { id: 'habits', label: 'Habits' },
+  { id: 'journal', label: 'Journal' },
+  { id: 'notes', label: 'Notes' },
+];
+
 function Dashboard({ user, onSignOut }: { user: UserDTO; onSignOut: () => void }) {
-  const [tab, setTab] = useState<'today' | 'habits'>('today');
+  const [tab, setTab] = useState<Tab>('today');
 
   async function signOut() {
     await AuthApi.logout();
@@ -117,23 +133,88 @@ function Dashboard({ user, onSignOut }: { user: UserDTO; onSignOut: () => void }
         </button>
       </div>
 
-      <div className="row" style={{ gap: 8, marginTop: 16 }}>
-        <button
-          className={`btn ${tab === 'today' ? '' : 'secondary'}`}
-          onClick={() => setTab('today')}
-        >
-          Today
-        </button>
-        <button
-          className={`btn ${tab === 'habits' ? '' : 'secondary'}`}
-          onClick={() => setTab('habits')}
-        >
-          Habits
-        </button>
+      <AtlasAsks />
+
+      <div className="row" style={{ gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            className={`btn ${tab === t.id ? '' : 'secondary'}`}
+            onClick={() => setTab(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      {tab === 'today' ? <TasksPanel /> : <HabitsPanel />}
+      {tab === 'today' && <TasksPanel />}
+      {tab === 'habits' && <HabitsPanel />}
+      {tab === 'journal' && <JournalPanel />}
+      {tab === 'notes' && <NotesPanel />}
     </>
+  );
+}
+
+// The self-curation loop: questions Atlas is asking, surfaced everywhere.
+function AtlasAsks() {
+  const [questions, setQuestions] = useState<AiQuestionDTO[]>([]);
+  const [draft, setDraft] = useState<Record<string, string>>({});
+
+  const load = useCallback(async () => {
+    try {
+      setQuestions(await AiQuestionsApi.list());
+    } catch {
+      /* not signed in yet / ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function answer(q: AiQuestionDTO) {
+    const text = (draft[q.id] ?? '').trim();
+    if (!text) return;
+    await AiQuestionsApi.answer(q.id, text);
+    setDraft((d) => ({ ...d, [q.id]: '' }));
+    await load();
+  }
+
+  async function dismiss(q: AiQuestionDTO) {
+    await AiQuestionsApi.dismiss(q.id);
+    await load();
+  }
+
+  if (questions.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 16 }}>
+      <div className="section-title" style={{ marginLeft: 4 }}>
+        ✦ Atlas wants to know
+      </div>
+      <div className="stack">
+        {questions.map((q) => (
+          <div key={q.id} className="card stack" style={{ borderColor: 'var(--accent-2)' }}>
+            <div>{q.question}</div>
+            {q.rationale && <div className="muted" style={{ fontSize: 12 }}>{q.rationale}</div>}
+            <div className="row">
+              <input
+                className="input"
+                placeholder="Your answer…"
+                value={draft[q.id] ?? ''}
+                onChange={(e) => setDraft((d) => ({ ...d, [q.id]: e.target.value }))}
+              />
+              <button className="btn" onClick={() => answer(q)}>
+                Answer
+              </button>
+              <button className="btn ghost" onClick={() => dismiss(q)}>
+                Dismiss
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -338,5 +419,180 @@ function HabitRow({
         ✕
       </button>
     </div>
+  );
+}
+
+const MOODS = ['😞', '🙁', '😐', '🙂', '😄'];
+
+function JournalPanel() {
+  const [entries, setEntries] = useState<JournalDTO[]>([]);
+  const [body, setBody] = useState('');
+  const [mood, setMood] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      setEntries(await JournalApi.list());
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to load journal');
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    if (!body.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await JournalApi.create({ body: body.trim(), mood: mood ?? undefined });
+      setBody('');
+      setMood(null);
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to save entry');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="section-title">Journal</div>
+      <form className="card stack" onSubmit={save}>
+        <textarea
+          className="input"
+          rows={3}
+          placeholder="What's on your mind today?"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+        />
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <div className="row" style={{ gap: 6 }}>
+            {MOODS.map((m, i) => (
+              <button
+                type="button"
+                key={m}
+                className={`btn ghost`}
+                style={{ fontSize: 20, opacity: mood === i + 1 ? 1 : 0.4 }}
+                onClick={() => setMood(i + 1)}
+                aria-label={`mood ${i + 1}`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+          <button className="btn" type="submit" disabled={busy}>
+            Save
+          </button>
+        </div>
+        {error && <div className="error">{error}</div>}
+      </form>
+
+      <div className="stack" style={{ marginTop: 14 }}>
+        {entries.map((e) => (
+          <div key={e.id} className="card">
+            <div className="row" style={{ justifyContent: 'space-between' }}>
+              <span className="muted" style={{ fontSize: 12 }}>
+                {e.entryDate.slice(0, 10)}
+              </span>
+              {e.mood && <span>{MOODS[e.mood - 1]}</span>}
+            </div>
+            <div style={{ marginTop: 6, whiteSpace: 'pre-wrap' }}>{e.body}</div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function NotesPanel() {
+  const [notes, setNotes] = useState<NoteDTO[]>([]);
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [pinned, setPinned] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      setNotes(await NotesApi.list());
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to load notes');
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    if (!body.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await NotesApi.create({ title: title.trim() || undefined, body: body.trim(), pinned });
+      setTitle('');
+      setBody('');
+      setPinned(false);
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to save note');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="section-title">Notes — what Atlas should know about you</div>
+      <form className="card stack" onSubmit={save}>
+        <input
+          className="input"
+          placeholder="Title (optional) — e.g. 'My goals', 'Sarah'"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+        <textarea
+          className="input"
+          rows={2}
+          placeholder="A durable fact about you, your people, or your context…"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+        />
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <label className="row muted" style={{ gap: 6, fontSize: 13 }}>
+            <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} />
+            Pin (always in Atlas&apos;s context)
+          </label>
+          <button className="btn" type="submit" disabled={busy}>
+            Save
+          </button>
+        </div>
+        {error && <div className="error">{error}</div>}
+      </form>
+
+      <div className="stack" style={{ marginTop: 14 }}>
+        {notes.map((n) => (
+          <div key={n.id} className="card">
+            <div className="row" style={{ justifyContent: 'space-between' }}>
+              <strong>
+                {n.pinned && '📌 '}
+                {n.title ?? 'Note'}
+              </strong>
+              <button className="btn ghost" onClick={() => NotesApi.remove(n.id).then(load)}>
+                ✕
+              </button>
+            </div>
+            <div style={{ marginTop: 4, whiteSpace: 'pre-wrap' }}>{n.body}</div>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
