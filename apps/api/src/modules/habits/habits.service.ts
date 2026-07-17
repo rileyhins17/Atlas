@@ -3,26 +3,7 @@ import type { CreateHabitInput, HabitDTO, LogHabitInput, UpdateHabitInput } from
 import type { Habit, HabitLog } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
-
-function dayKey(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-/** Consecutive days (ending today or yesterday) whose total value met `target`. */
-function computeStreak(perDay: Map<string, number>, target: number): number {
-  let streak = 0;
-  const cursor = new Date();
-  // If today isn't done yet, start counting from yesterday so an in-progress day
-  // doesn't break an existing streak.
-  if ((perDay.get(dayKey(cursor)) ?? 0) < target) {
-    cursor.setUTCDate(cursor.getUTCDate() - 1);
-  }
-  while ((perDay.get(dayKey(cursor)) ?? 0) >= target) {
-    streak += 1;
-    cursor.setUTCDate(cursor.getUTCDate() - 1);
-  }
-  return streak;
-}
+import { computeStreak, dayKey } from './habits.util.js';
 
 @Injectable()
 export class HabitsService {
