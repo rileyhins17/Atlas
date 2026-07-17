@@ -1,6 +1,6 @@
 # UI hardening plan — to commercial grade
 
-**Status:** Phase 1 COMPLETE (2026-07-17) — panels decomposed (`components/panels/`, largest 116 lines), primitives built (`components/ui/`), every panel on TanStack Query (`lib/hooks/`), verified in-browser panel-by-panel. Phase 2 is next.
+**Status:** Phases 1 + 2 COMPLETE (2026-07-17). Phase 1: panels decomposed (`components/panels/`), primitives built (`components/ui/`), every panel on TanStack Query (`lib/hooks/`). Phase 2: skeletons per panel, real empty states, mutation toasts + one global error policy (400 inline / 401 bounce / rest toast), optimistic complete+check-in with rollback, client-side zod form validation. All verified in-browser, including the failure paths (API killed mid-session). Phase 3 (URL routes + mobile nav + app shell) is next.
 Stack decisions locked — see "Decided stack" at the bottom.
 
 Atlas's backend is at the commercial bar (multi-tenant, tested, secure, AI brain live). The **UI is not** — it's a working prototype. This plan takes it to a paid-SaaS standard without a rewrite: it's incremental, each phase ships independently, and nothing here blocks feature work.
@@ -39,7 +39,7 @@ Highest leverage. Do this first or every later phase fights the monolith.
 
 **Exit:** every existing panel rebuilt on the primitives + data layer, behaviour identical, no file over ~200 lines.
 
-## Phase 2 — Core UX polish (the "feel")
+## Phase 2 — Core UX polish (the "feel") ✅ DONE 2026-07-17
 
 5. **Skeleton loaders** per panel (match the real layout so there's no shift).
 6. **Real empty states** — each panel gets a purposeful empty state with a next action ("No habits yet — add one to start a streak").
