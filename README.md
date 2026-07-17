@@ -5,7 +5,9 @@ One unified data layer for tasks, calendar, habits, journal, and finance, with a
 > **Working on this repo (human or Claude)? Read [`CLAUDE.md`](./CLAUDE.md) first** — it is the living context anchor: current status, the exact next action, and every gotcha already solved. Keep it and [`docs/GOTCHAS.md`](./docs/GOTCHAS.md) updated at the end of each work session.
 
 ## Status
-Phase 0 (foundation) in progress. Backend + web code written and the backend builds green. Not yet: Docker/infra, first DB migration, end-to-end verification. See `CLAUDE.md` → "Current status" and "NEXT ACTION".
+**Phase 0 (foundation) — complete and verified end-to-end.** Monorepo builds green; DB migrated; auth + tasks + unified timeline + AI dry-run all verified over HTTP and in a browser (register → add task → persists). Next: Phase 1 domains (habits, journal/notes, calendar). See `CLAUDE.md` → "Current status" / "NEXT ACTION" and `docs/roadmap.md`.
+
+> Local dev DB is **Neon** (cloud Postgres) because Docker Desktop is broken on the dev machine; the VPS uses Docker Postgres. See `docs/adr/0002-neon-for-local-dev.md`.
 
 ## Stack
 TypeScript monorepo (pnpm workspaces + Turborepo, ESM). API: NestJS 11 (built with `tsc`). DB: Postgres + pgvector via Prisma 6. Web: Next.js 15 PWA. Deploy: Docker Compose + Caddy on a VPS; Cloudflare DNS.

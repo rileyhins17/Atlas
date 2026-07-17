@@ -33,24 +33,34 @@ infra/             (TODO) docker-compose, Caddyfile, Dockerfiles.
 docs/              (TODO) architecture, data-model, roadmap, guides, ADRs, GOTCHAS.
 ```
 
-## Current status (updated: 2026-07-15)
-- ✅ Monorepo root config, pnpm workspaces, turbo, tsconfig.base, .env.example, .gitignore, .npmrc, prettier.
-- ✅ `pnpm install` works (after allowBuilds fix). `pnpm build` → **all 5 backend packages/apps compile GREEN** (db, shared, connectors, ai, api).
-- ✅ Prisma client generates. Schema complete: users, sessions, credentials, tasks, events, habits, habit_logs, goals, journal_entries, notes, accounts, transactions, timeline_events, embeddings (pgvector), insights, ai_questions, ai_usage.
-- ✅ API code complete for Phase 0: health, auth (register/login/logout/me, scrypt, session cookie `atlas_session`), tasks CRUD writing timeline events, tasks AI adapter, AI status + `/ai/dry-run` (logs token estimate to ai_usage, $0 spend).
-- ✅ Web code complete for Phase 0: login/register + Today screen (add/complete/delete tasks). **NOT yet built/typechecked** (`next-env.d.ts` not generated; run `pnpm --filter @atlas/web build` to check).
-- ❌ NOT done: `infra/` (docker-compose + Caddyfile + Dockerfiles), first Prisma **migration** (no DB started yet), seed script, `docs/`, `README.md`, git commits. **Nothing verified end-to-end yet.**
+## Current status (updated: 2026-07-16) — PHASE 0 COMPLETE ✅ (verified end-to-end)
+- ✅ Monorepo + all 6 packages/apps build GREEN (`pnpm build`): db, shared, connectors, ai, api, web.
+- ✅ Prisma schema migrated to a live DB. Migration `packages/db/prisma/migrations/*_init` created all 17 tables + `pgcrypto`/`vector` extensions + `embeddings.embedding vector(768)`.
+- ✅ API verified over HTTP: `/health` ok, auth register/login/me/logout + 401 guard, tasks create/list/complete, `/ai/dry-run` (built context, logged 47 tokens to `ai_usage`, $0 spend), `/ai/status` (module registry reports domains `["tasks"]`).
+- ✅ Persistence confirmed in DB: `timeline_events` got `task.created` + `task.completed` rows; `ai_usage` got the dry-run row. The unified-timeline backbone works.
+- ✅ Web UI driven in a real browser: register → Today screen → add task → task persists and displays. Cross-port session cookie works.
+- **LOCAL DB = Neon cloud Postgres** (Docker Desktop is broken on this machine — Model Runner crash, see GOTCHAS). `DATABASE_URL` in `.env` points at Neon. The VPS will use the Docker `db` service instead (Linux dockerd has no such bug). Neon has pgvector, so it's a faithful dev DB.
+- ✅ Docs backbone written: `README.md`, `docs/architecture.md`, `docs/data-model.md`, `docs/roadmap.md`, `docs/module-guide.md`, `docs/connector-guide.md`, `docs/GOTCHAS.md`, `docs/adr/`.
 
-## NEXT ACTION (start here)
-1. **infra/docker-compose.yml** — services: `db` (image `pgvector/pgvector:pg17`, expose 5432, named volume, env `POSTGRES_*`), `api`, `web`, `caddy`. Make `docker compose up db` work standalone. Add `infra/Caddyfile` (`handle_path /api/*` → api:4000, `/` → web:3000, auto-HTTPS via `ATLAS_DOMAIN`), `apps/api/Dockerfile` + `apps/web/Dockerfile` (monorepo multi-stage: pnpm install → pnpm build → run `node dist/main.js` / `next start`).
-2. **Create root `.env`** from `.env.example`. Generate secrets: `SESSION_SECRET` and `APP_ENCRYPTION_KEY` = 64 hex chars each (`openssl rand -hex 32` or node `crypto.randomBytes(32).toString('hex')`). For LOCAL dev set `DATABASE_URL=postgresql://atlas:...@localhost:5432/atlas?schema=public` (host=localhost, since db port is exposed).
-3. Start db: `docker compose -f infra/docker-compose.yml up -d db`.
-4. **First migration**: `cd packages/db; pnpm prisma migrate dev --name init`. ⚠️ VERIFY the generated migration `CREATE EXTENSION`s `vector` and `pgcrypto` FIRST (Prisma `postgresqlExtensions` preview should add them; if not, prepend `CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS pgcrypto;` to the migration SQL). pgvector image already ships the `vector` extension.
-5. Build + run: `pnpm build` then in two shells `pnpm --filter @atlas/api dev` and `pnpm --filter @atlas/web dev`.
-6. **Verify Phase 0**: `curl localhost:4000/health` → ok; register at `localhost:3000`; add a task; confirm a `timeline_events` row (`pnpm --filter @atlas/db studio`); `POST localhost:4000/ai/dry-run` with the session cookie → returns token estimate + writes an `ai_usage` row (no model call).
-7. Write `docs/` + `README.md`, then `git add -A && git commit`.
+## How to run locally (verified working)
+```
+pnpm install
+# .env already exists with Neon DATABASE_URL + generated secrets (gitignored).
+pnpm build
+# API (loads ../../.env via --env-file-if-exists):
+pnpm --filter @atlas/api dev      # http://localhost:4000
+# Web (separate shell):
+pnpm --filter @atlas/web dev      # http://localhost:3000
+```
+Migrations: `cd packages/db` then set `$env:DATABASE_URL` from `.env` and run `pnpm exec prisma migrate dev`.
 
-After Phase 0 verified → Phase 1 (Google Calendar two-way, Habits, Journal, Notes), then Phase 2 (AI brain: orchestrator, chat, daily brief, auto-organize, ai_questions), Phase 3 (finance connector), Phase 4 (proactive). See plan file.
+## NEXT ACTION — Phase 1 (start here)
+Add the next life-domains, each as a module copying the **`apps/api/src/modules/tasks/` shape** (service + controller + `*.ai.ts` DomainModule adapter + module) and following `docs/module-guide.md`:
+1. **Habits** (`modules/habits`): CRUD habits + daily log; timeline `habit.logged`; aiContext = streak summary. Simplest next slice — start here.
+2. **Journal** (`modules/journal`) + **Notes** (`modules/notes`): entries with tags; timeline events; aiContext = recent-entry summary. (These feed embeddings in Phase 2.)
+3. **Calendar** (`modules/calendar`): the `events` table + a **Google Calendar connector** (`packages/connectors/src/google-calendar.ts`) for two-way sync — the first real external connector; use the OAuth flow, store tokens via `ConnectorsService.saveCredential`.
+4. Add a web screen per domain (tabs/nav in `apps/web`).
+Then Phase 2 (AI brain: orchestrator that actually calls OpenRouter with the cost guard, chat, daily brief, auto-organize, `ai_questions` UI cards), Phase 3 (finance connector: SimpleFIN/Plaid), Phase 4 (proactive nudges). See `docs/roadmap.md` + the plan file.
 
 ## GOTCHAS — already solved, do NOT rediscover
 - **pnpm ignores dependency build scripts** (`ERR_PNPM_IGNORED_BUILDS`, Prisma engine missing). Fix: `pnpm-workspace.yaml` has an `allowBuilds:` map (pnpm 11 key) → `'@prisma/client': true`, `'@prisma/engines': true`, `prisma: true`. Already set. If a new dep needs a build script, add it there.
@@ -60,5 +70,6 @@ After Phase 0 verified → Phase 1 (Google Calendar two-way, Habits, Journal, No
 - **ESM discipline:** every package.json has `"type": "module"`; relative imports in `.ts` use `.js` extensions; packages export built `dist` (not src); turbo `^build` builds deps first. tsconfig.base is NodeNext.
 - **PowerShell noise:** native commands' stderr gets wrapped as red `NativeCommandError` / a `pnpm.ps1` error block EVEN ON SUCCESS. Judge success by the actual ✔/output, not the red text. Don't use `2>&1` on native exes here.
 - Working dir at launch is usually `C:\`; the project is at `C:\Users\riley\atlas` — `cd` there first.
+- **Docker Desktop crashes on boot at "Inference manager"** (its Model Runner/AI feature), then all `docker` calls hang. Fix: with Docker stopped, set `"EnableDockerAI": false` in `%APPDATA%\Docker\settings-store.json` and relaunch. Full detail in `docs/GOTCHAS.md`. Already applied.
 ```
 ```
