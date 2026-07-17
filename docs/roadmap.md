@@ -23,5 +23,15 @@ Monorepo, DB schema, auth, unified timeline, cost guard, one full vertical slice
 - Scheduled jobs (nudges, weekly review) — add BullMQ + Redis when in-process `@nestjs/schedule` isn't enough.
 - More connectors (weather, health), cross-domain insights.
 
+## Productization track (commercial-grade — runs alongside, gates launch)
+Atlas is meant to be **sold**. Before public launch these must land (see the "Definition of Done" in `CLAUDE.md`):
+- **Test + CI:** unit tests (streaks, cost guard, crypto, auth) + one e2e per module; GitHub Actions running build/typecheck/test.
+- **Security hardening:** rate limiting, security headers (helmet), CSRF for cookie mutations, password strength + optional 2FA, audit the authz scoping.
+- **Robustness:** pagination on all list endpoints, error boundaries, structured logging + request ids, error tracking (Sentry-class).
+- **Billing:** Stripe subscriptions + plan gating.
+- **Legal/data:** privacy policy + ToS, user data export + hard delete (journal/finance are sensitive).
+- **UX polish pass:** loading/error/empty states, mobile-first responsive, a11y.
+Recommended timing: a dedicated **hardening pass after Phase 1 features**, then keep each new module at-bar.
+
 ## Deploy milestone (any time after Phase 1)
 Stand up the VPS: Docker Compose `--profile full`, point Cloudflare DNS, Caddy HTTPS. Swap local Neon `DATABASE_URL` for the in-compose `db` service.

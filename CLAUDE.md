@@ -4,6 +4,21 @@
 
 > Owner: Riley (rileyhinsperger@gmail.com). Global CLAUDE.md forces **caveman mode** for chat replies (terse; code/commits normal). Multi-week project. Riley may start each session in a fresh thread — this file must carry all context so no rabbit hole is re-hit.
 
+## ⭐ COMMERCIAL-GRADE — permanent product bar (read every session)
+Atlas is a product Riley intends to **sell** — build to a paid-SaaS standard, not a hobby project. Apply this without being asked.
+
+**Definition of Done for every feature:**
+- **Multi-tenant + authz:** every query scoped by `userId` (never trust client ids); one user can never read/write another's data.
+- **Secure:** validate all input (zod at the boundary — already the pattern), rate-limit, security headers, CSRF protection for cookie-auth mutations, secrets encrypted (credentials already AES-GCM), no secrets in logs.
+- **Robust:** typed errors, no unhandled rejections, pagination on list endpoints (no unbounded queries), sensible DB indexes.
+- **Tested:** unit tests for logic (streaks, cost guard, crypto) + an e2e happy-path per module; CI runs build + typecheck + test.
+- **Observable:** structured request logging with request ids; error tracking (Sentry-class) in prod.
+- **Polished UX:** loading / error / empty states, responsive (mobile-first — it's a PWA), basic a11y, optimistic where it helps.
+- **Legal/data:** sensitive data (journal, finance) → user-facing data export + hard delete; privacy policy + ToS before launch.
+- **Billing (later):** Stripe subscription + plan gating.
+
+**Known tracked debt (not yet at bar — address in the Productization pass, see `docs/roadmap.md`):** no tests/CI yet; no rate-limiting/CSRF/security headers; list endpoints unpaginated; no structured logging/error tracking; no billing/legal. Don't let this list grow silently — either build to bar or add the gap here.
+
 ## What Atlas is
 Personal "Life OS": one unified data layer for tasks, calendar, habits, journal, finance, plus a cheap cross-domain AI (DeepSeek via OpenRouter) that briefs, auto-organizes messy input, nudges, chats over your life, and **asks you questions to fill its own gaps**. Self-hosted on a cheap VPS. Budget: AI credits < $5/mo. Accessible from phone + laptop (PWA).
 
