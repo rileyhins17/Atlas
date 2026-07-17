@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query';
 import { ToastProvider } from '@/components/ui/Toast';
 
 /**
@@ -27,10 +27,25 @@ export function Providers({ children }: { children: ReactNode }) {
             },
             staleTime: 30_000,
             refetchOnWindowFocus: false,
+            // Atlas is self-hosted: the API can be reachable on localhost/LAN
+            // while the OS reports offline (laptop with no internet). Default
+            // 'online' would pause every fetch in that state; always attempt.
+            networkMode: 'always',
+          },
+          mutations: {
+            networkMode: 'always',
           },
         },
       }),
   );
+
+  if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
+    // Debug handles for driving/inspecting the cache from the console in dev.
+    // focusManager matters for automation: retries pause while the tab is
+    // unfocused, so headless drivers must setFocused(true) to see error states.
+    (window as unknown as { __qc?: QueryClient }).__qc = queryClient;
+    (window as unknown as { __focusManager?: typeof focusManager }).__focusManager = focusManager;
+  }
 
   return (
     <QueryClientProvider client={queryClient}>

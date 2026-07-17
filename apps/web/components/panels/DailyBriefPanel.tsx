@@ -2,18 +2,14 @@
 
 import { errorMessage } from '@/lib/api';
 import { useGenerateDailyBrief, useInsights } from '@/lib/hooks/ai';
-import { Button, Card } from '@/components/ui';
+import { Button, Card, CardListSkeleton, ErrorState } from '@/components/ui';
 
 export function DailyBriefPanel() {
   const insightsQuery = useInsights();
   const generate = useGenerateDailyBrief();
 
   const insights = insightsQuery.data ?? [];
-  const error = insightsQuery.error
-    ? errorMessage(insightsQuery.error, 'Failed to load briefs')
-    : generate.error
-      ? errorMessage(generate.error, 'Failed to generate brief')
-      : null;
+  const error = generate.error ? errorMessage(generate.error, 'Failed to generate brief') : null;
 
   return (
     <Card stack>
@@ -24,7 +20,14 @@ export function DailyBriefPanel() {
         </Button>
       </div>
       {error && <div className="error">{error}</div>}
-      {insights.length === 0 ? (
+      {insightsQuery.isPending ? (
+        <CardListSkeleton cards={1} lines={3} />
+      ) : insightsQuery.isError ? (
+        <ErrorState
+          message={errorMessage(insightsQuery.error, 'Failed to load briefs')}
+          onRetry={() => void insightsQuery.refetch()}
+        />
+      ) : insights.length === 0 ? (
         <span className="muted" style={{ fontSize: 13 }}>No briefs yet.</span>
       ) : (
         <div className="stack">

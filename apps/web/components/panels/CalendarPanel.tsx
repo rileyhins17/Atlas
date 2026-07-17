@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { errorMessage } from '@/lib/api';
 import { useCreateEvent, useDeleteEvent, useEvents } from '@/lib/hooks/events';
-import { Button, Card, EmptyState, Input } from '@/components/ui';
+import { Button, Card, EmptyState, ErrorState, Input, ListSkeleton } from '@/components/ui';
 
 function fmtWhen(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -25,13 +25,11 @@ export function CalendarPanel() {
   const remove = useDeleteEvent();
 
   const events = eventsQuery.data ?? [];
-  const error = eventsQuery.error
-    ? errorMessage(eventsQuery.error, 'Failed to load events')
-    : create.error
-      ? errorMessage(create.error, 'Failed to add event')
-      : remove.error
-        ? errorMessage(remove.error, 'Failed to delete event')
-        : null;
+  const error = create.error
+    ? errorMessage(create.error, 'Failed to add event')
+    : remove.error
+      ? errorMessage(remove.error, 'Failed to delete event')
+      : null;
 
   function save(e: React.FormEvent) {
     e.preventDefault();
@@ -87,7 +85,14 @@ export function CalendarPanel() {
       </Card>
 
       <Card style={{ marginTop: 14 }}>
-        {events.length === 0 ? (
+        {eventsQuery.isPending ? (
+          <ListSkeleton rows={3} circle={false} />
+        ) : eventsQuery.isError ? (
+          <ErrorState
+            message={errorMessage(eventsQuery.error, 'Failed to load events')}
+            onRetry={() => void eventsQuery.refetch()}
+          />
+        ) : events.length === 0 ? (
           <EmptyState>No upcoming events.</EmptyState>
         ) : (
           events.map((ev) => (

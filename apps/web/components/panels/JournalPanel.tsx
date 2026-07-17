@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { errorMessage } from '@/lib/api';
 import { useCreateJournalEntry, useJournal } from '@/lib/hooks/journal';
-import { Button, Card, Textarea } from '@/components/ui';
+import { Button, Card, CardListSkeleton, ErrorState, Textarea } from '@/components/ui';
 
 const MOODS = ['😞', '🙁', '😐', '🙂', '😄'];
 
@@ -14,11 +14,7 @@ export function JournalPanel() {
   const create = useCreateJournalEntry();
 
   const entries = journalQuery.data ?? [];
-  const error = journalQuery.error
-    ? errorMessage(journalQuery.error, 'Failed to load journal')
-    : create.error
-      ? errorMessage(create.error, 'Failed to save entry')
-      : null;
+  const error = create.error ? errorMessage(create.error, 'Failed to save entry') : null;
 
   function save(e: React.FormEvent) {
     e.preventDefault();
@@ -68,6 +64,13 @@ export function JournalPanel() {
       </Card>
 
       <div className="stack" style={{ marginTop: 14 }}>
+        {journalQuery.isPending && <CardListSkeleton cards={2} lines={2} />}
+        {journalQuery.isError && (
+          <ErrorState
+            message={errorMessage(journalQuery.error, 'Failed to load journal')}
+            onRetry={() => void journalQuery.refetch()}
+          />
+        )}
         {entries.map((e) => (
           <Card key={e.id}>
             <div className="row" style={{ justifyContent: 'space-between' }}>

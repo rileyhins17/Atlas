@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { errorMessage } from '@/lib/api';
 import { useAiStatus, useConnectDeepSeek } from '@/lib/hooks/ai';
-import { Button, Card, Input } from '@/components/ui';
+import { Button, Card, Input, Skeleton } from '@/components/ui';
 import { ChatPanel } from './ChatPanel';
 import { BrainDumpPanel } from './BrainDumpPanel';
 import { DailyBriefPanel } from './DailyBriefPanel';
@@ -26,12 +26,18 @@ export function AiPanel() {
     <>
       <div className="section-title">Atlas AI</div>
 
-      {status && (
-        <div className="muted" style={{ fontSize: 12, marginBottom: 12 }}>
-          {status.providerConfigured
-            ? `Connected · ${status.model} · ${status.tokensUsedToday}/${status.dailyTokenCap} tokens used today`
-            : 'Not connected yet'}
+      {statusQuery.isPending ? (
+        <div style={{ marginBottom: 12 }}>
+          <Skeleton height={14} width={260} />
         </div>
+      ) : (
+        status && (
+          <div className="muted" style={{ fontSize: 12, marginBottom: 12 }}>
+            {status.providerConfigured
+              ? `Connected · ${status.model} · ${status.tokensUsedToday}/${status.dailyTokenCap} tokens used today`
+              : 'Not connected yet'}
+          </div>
+        )
       )}
 
       {status && !status.providerConfigured && (

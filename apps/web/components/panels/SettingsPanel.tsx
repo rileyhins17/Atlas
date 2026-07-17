@@ -8,7 +8,7 @@ import {
   useGoogleStatus,
   useGoogleSync,
 } from '@/lib/hooks/google';
-import { Button, Card } from '@/components/ui';
+import { Button, Card, ErrorState, Skeleton } from '@/components/ui';
 import { DataPrivacyPanel } from './DataPrivacyPanel';
 
 export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
@@ -29,15 +29,13 @@ export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
   const status = statusQuery.data ?? null;
   const busy = connectStart.isPending || sync.isPending || disconnect.isPending;
   const result = sync.data ?? null;
-  const error = statusQuery.error
-    ? errorMessage(statusQuery.error, 'Failed to load connector status')
-    : connectStart.error
-      ? errorMessage(connectStart.error, 'Failed to start Google connect')
-      : sync.error
-        ? errorMessage(sync.error, 'Sync failed')
-        : disconnect.error
-          ? errorMessage(disconnect.error, 'Failed to disconnect')
-          : null;
+  const error = connectStart.error
+    ? errorMessage(connectStart.error, 'Failed to start Google connect')
+    : sync.error
+      ? errorMessage(sync.error, 'Sync failed')
+      : disconnect.error
+        ? errorMessage(disconnect.error, 'Failed to disconnect')
+        : null;
 
   function connect() {
     connectStart.mutate(undefined, {
@@ -64,9 +62,17 @@ export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
           )}
         </div>
 
-        {status === null ? (
-          <span className="muted" style={{ fontSize: 13 }}>Loading…</span>
-        ) : !status.configured ? (
+        {statusQuery.isPending ? (
+          <div className="stack" style={{ gap: 8 }}>
+            <Skeleton height={14} width="80%" />
+            <Skeleton height={14} width="55%" />
+          </div>
+        ) : statusQuery.isError ? (
+          <ErrorState
+            message={errorMessage(statusQuery.error, 'Failed to load connector status')}
+            onRetry={() => void statusQuery.refetch()}
+          />
+        ) : status === null ? null : !status.configured ? (
           <span className="muted" style={{ fontSize: 13 }}>
             This server has no Google OAuth client configured.
           </span>

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import type { TaskDTO } from '@atlas/shared';
 import { errorMessage } from '@/lib/api';
 import { useCompleteTask, useCreateTask, useDeleteTask, useTasks } from '@/lib/hooks/tasks';
-import { Badge, Button, Card, EmptyState, Input } from '@/components/ui';
+import { Badge, Button, Card, EmptyState, ErrorState, Input, ListSkeleton } from '@/components/ui';
 
 export function TasksPanel() {
   const [title, setTitle] = useState('');
@@ -14,15 +14,13 @@ export function TasksPanel() {
   const remove = useDeleteTask();
 
   const tasks = tasksQuery.data ?? [];
-  const error = tasksQuery.error
-    ? errorMessage(tasksQuery.error, 'Failed to load tasks')
-    : create.error
-      ? errorMessage(create.error, 'Failed to add task')
-      : complete.error
-        ? errorMessage(complete.error, 'Failed to complete task')
-        : remove.error
-          ? errorMessage(remove.error, 'Failed to delete task')
-          : null;
+  const error = create.error
+    ? errorMessage(create.error, 'Failed to add task')
+    : complete.error
+      ? errorMessage(complete.error, 'Failed to complete task')
+      : remove.error
+        ? errorMessage(remove.error, 'Failed to delete task')
+        : null;
 
   function addTask(e: React.FormEvent) {
     e.preventDefault();
@@ -54,7 +52,14 @@ export function TasksPanel() {
       {error && <div className="error">{error}</div>}
 
       <Card style={{ marginTop: 14 }}>
-        {open.length === 0 && done.length === 0 ? (
+        {tasksQuery.isPending ? (
+          <ListSkeleton rows={3} />
+        ) : tasksQuery.isError ? (
+          <ErrorState
+            message={errorMessage(tasksQuery.error, 'Failed to load tasks')}
+            onRetry={() => void tasksQuery.refetch()}
+          />
+        ) : open.length === 0 && done.length === 0 ? (
           <EmptyState>No tasks yet. Add your first one above.</EmptyState>
         ) : (
           <>

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { errorMessage } from '@/lib/api';
 import { useCreateNote, useDeleteNote, useNotes } from '@/lib/hooks/notes';
-import { Button, Card, Input, Textarea } from '@/components/ui';
+import { Button, Card, CardListSkeleton, ErrorState, Input, Textarea } from '@/components/ui';
 
 export function NotesPanel() {
   const [title, setTitle] = useState('');
@@ -14,13 +14,11 @@ export function NotesPanel() {
   const remove = useDeleteNote();
 
   const notes = notesQuery.data ?? [];
-  const error = notesQuery.error
-    ? errorMessage(notesQuery.error, 'Failed to load notes')
-    : create.error
-      ? errorMessage(create.error, 'Failed to save note')
-      : remove.error
-        ? errorMessage(remove.error, 'Failed to delete note')
-        : null;
+  const error = create.error
+    ? errorMessage(create.error, 'Failed to save note')
+    : remove.error
+      ? errorMessage(remove.error, 'Failed to delete note')
+      : null;
 
   function save(e: React.FormEvent) {
     e.preventDefault();
@@ -67,6 +65,13 @@ export function NotesPanel() {
       </Card>
 
       <div className="stack" style={{ marginTop: 14 }}>
+        {notesQuery.isPending && <CardListSkeleton cards={2} lines={1} />}
+        {notesQuery.isError && (
+          <ErrorState
+            message={errorMessage(notesQuery.error, 'Failed to load notes')}
+            onRetry={() => void notesQuery.refetch()}
+          />
+        )}
         {notes.map((n) => (
           <Card key={n.id}>
             <div className="row" style={{ justifyContent: 'space-between' }}>

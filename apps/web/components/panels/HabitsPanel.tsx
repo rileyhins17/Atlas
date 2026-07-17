@@ -4,7 +4,7 @@ import { useState } from 'react';
 import type { HabitDTO } from '@atlas/shared';
 import { errorMessage } from '@/lib/api';
 import { useCreateHabit, useDeleteHabit, useHabits, useLogHabit } from '@/lib/hooks/habits';
-import { Badge, Button, Card, EmptyState, Input } from '@/components/ui';
+import { Badge, Button, Card, EmptyState, ErrorState, Input, ListSkeleton } from '@/components/ui';
 
 export function HabitsPanel() {
   const [name, setName] = useState('');
@@ -14,15 +14,13 @@ export function HabitsPanel() {
   const remove = useDeleteHabit();
 
   const habits = habitsQuery.data ?? [];
-  const error = habitsQuery.error
-    ? errorMessage(habitsQuery.error, 'Failed to load habits')
-    : create.error
-      ? errorMessage(create.error, 'Failed to add habit')
-      : log.error
-        ? errorMessage(log.error, 'Failed to check in')
-        : remove.error
-          ? errorMessage(remove.error, 'Failed to archive habit')
-          : null;
+  const error = create.error
+    ? errorMessage(create.error, 'Failed to add habit')
+    : log.error
+      ? errorMessage(log.error, 'Failed to check in')
+      : remove.error
+        ? errorMessage(remove.error, 'Failed to archive habit')
+        : null;
 
   function addHabit(e: React.FormEvent) {
     e.preventDefault();
@@ -46,7 +44,14 @@ export function HabitsPanel() {
       {error && <div className="error">{error}</div>}
 
       <Card style={{ marginTop: 14 }}>
-        {habits.length === 0 ? (
+        {habitsQuery.isPending ? (
+          <ListSkeleton rows={3} />
+        ) : habitsQuery.isError ? (
+          <ErrorState
+            message={errorMessage(habitsQuery.error, 'Failed to load habits')}
+            onRetry={() => void habitsQuery.refetch()}
+          />
+        ) : habits.length === 0 ? (
           <EmptyState>No habits yet. Add one to start a streak.</EmptyState>
         ) : (
           habits.map((h) => (
