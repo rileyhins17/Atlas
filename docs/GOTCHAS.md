@@ -16,6 +16,10 @@ Append every new setup/build snag here (root cause + fix) so no future thread wa
 - **NestJS must be compiled with `tsc`, NOT `tsx`/esbuild.** Nest DI needs `emitDecoratorMetadata` (`design:paramtypes`); esbuild/tsx don't emit it → DI breaks. Whole repo is ESM + tsc; api dev uses `concurrently` (tsc --watch + node --watch).
 - **ESM discipline:** every package.json `"type": "module"`; relative `.ts` imports use `.js` extensions; packages export built `dist` (not `src`); turbo `^build` orders dep builds.
 
+## CI (GitHub Actions)
+- **`pnpm/action-setup@v4` errors "Multiple versions of pnpm specified"** when the workflow passes `version:` AND package.json has a `packageManager` field. Fix: omit `version:` in the action — it reads `packageManager` (pinned `pnpm@11.13.1`) automatically.
+- **Vitest pulls esbuild**, which has a build script; `esbuild: true` is in `allowBuilds` in `pnpm-workspace.yaml` so `pnpm install --frozen-lockfile` stays non-interactive in CI.
+
 ## Docker Desktop (this machine)
 - **Docker Desktop crashes on boot: "initializing Inference manager … remove …\Docker\run\dockerInference: The file cannot be accessed".** Docker's Model Runner / "Docker AI" feature is broken here and takes the whole engine down, so every `docker` call then hangs on the named pipe. **Fix (permanent):** with Docker fully stopped, set `"EnableDockerAI": false` and `"InferenceCanUseGPUVariant": false` in `C:\Users\riley\AppData\Roaming\Docker\settings-store.json`, then relaunch. Deleting the stale socket does NOT fix it (the socket file can't be removed even with all procs killed; renaming `...\Docker\run` → `run.old` clears it but the feature just recrashes). Do not re-enable Docker AI.
 - To stop a Docker crash loop: `Stop-Service com.docker.service -Force`; `Stop-Process` on `Docker Desktop`,`com.docker.backend`,`com.docker.build`.
