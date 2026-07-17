@@ -8,3 +8,4 @@ export * from './dto/note.js';
 export * from './dto/event.js';
 export * from './dto/ai.js';
 export * from './dto/pagination.js';
+export * from './dto/account.js';

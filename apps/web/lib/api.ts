@@ -46,6 +46,30 @@ async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
   return (await res.json()) as T;
 }
 
+export const AccountApi = {
+  /** Fetches the export (cookie-authed) and triggers a browser download. */
+  async downloadExport(): Promise<void> {
+    const res = await fetch(`${BASE}/account/export`, { credentials: 'include' });
+    if (!res.ok) throw new ApiError(res.status, 'Export failed');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const disposition = res.headers.get('content-disposition') ?? '';
+    const match = disposition.match(/filename="(.+?)"/);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = match?.[1] ?? 'atlas-export.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
+  deleteAccount: (password: string) =>
+    request<{ ok: true }>('/account/delete', {
+      method: 'POST',
+      body: JSON.stringify({ password, confirm: 'DELETE' }),
+    }),
+};
+
 export const AuthApi = {
   me: () => request<UserDTO>('/auth/me'),
   register: (input: { email: string; password: string }) =>

@@ -38,7 +38,7 @@ Atlas is meant to be **sold**. Before public launch these must land (see the "De
 - **Security hardening:** ✅ rate limiting (throttler), ✅ security headers (helmet), ✅ CSRF (sameSite=lax + origin check on mutations). Remaining: password strength rules + optional 2FA, an authz-scoping audit.
 - **Robustness:** ✅ pagination on all list endpoints (hard cap 100), ✅ global error boundary, ✅ structured JSON logging + `x-request-id`. Remaining: error tracking (Sentry-class).
 - **Billing:** Stripe subscriptions + plan gating.
-- **Legal/data:** privacy policy + ToS, user data export + hard delete (journal/finance are sensitive).
+- **Legal/data:** ✅ user data export + hard delete DONE (`modules/account`, verified live + in-browser 2026-07-17: export excludes all secrets; delete requires password re-auth and cascades every table). Still open: privacy policy + ToS pages.
 - **UX polish pass:** loading/error/empty states, mobile-first responsive, a11y.
 Recommended timing: a dedicated **hardening pass after Phase 1 features**, then keep each new module at-bar.
 
