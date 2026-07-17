@@ -5,6 +5,9 @@ import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
 import { computeStreak, dayKey } from './habits.util.js';
 
+/** How far back streak math ever needs to look. */
+const STREAK_WINDOW_DAYS = 400;
+
 @Injectable()
 export class HabitsService {
   constructor(
@@ -38,6 +41,24 @@ export class HabitsService {
     };
   }
 
+  /**
+   * Streaks only ever look back over recent history, so bound every log read to
+   * the same window. Without this, a long-lived habit's log query grows without
+   * limit and gets slower every day it's used.
+   */
+  private static streakWindowStart(): Date {
+    const since = new Date();
+    since.setUTCDate(since.getUTCDate() - STREAK_WINDOW_DAYS);
+    return since;
+  }
+
+  /** Logs for one habit, userId-scoped and time-bounded. */
+  private logsForHabit(userId: string, habitId: string): Promise<HabitLog[]> {
+    return this.prisma.client.habitLog.findMany({
+      where: { userId, habitId, loggedAt: { gte: HabitsService.streakWindowStart() } },
+    });
+  }
+
   async list(userId: string): Promise<HabitDTO[]> {
     const habits = await this.prisma.client.habit.findMany({
       where: { userId, active: true },
@@ -46,10 +67,8 @@ export class HabitsService {
       take: 200,
     });
     if (habits.length === 0) return [];
-    const since = new Date();
-    since.setUTCDate(since.getUTCDate() - 400);
     const logs = await this.prisma.client.habitLog.findMany({
-      where: { userId, loggedAt: { gte: since } },
+      where: { userId, loggedAt: { gte: HabitsService.streakWindowStart() } },
     });
     const byHabit = new Map<string, HabitLog[]>();
     for (const log of logs) {
@@ -78,8 +97,7 @@ export class HabitsService {
   async update(userId: string, id: string, input: UpdateHabitInput): Promise<HabitDTO> {
     await this.owned(userId, id);
     const habit = await this.prisma.client.habit.update({ where: { id }, data: input });
-    const logs = await this.prisma.client.habitLog.findMany({ where: { habitId: id } });
-    return this.toDto(habit, logs);
+    return this.toDto(habit, await this.logsForHabit(userId, id));
   }
 
   async log(userId: string, id: string, input: LogHabitInput): Promise<HabitDTO> {
@@ -96,8 +114,7 @@ export class HabitsService {
       refId: habit.id,
       payload: { value: input.value },
     });
-    const logs = await this.prisma.client.habitLog.findMany({ where: { habitId: id } });
-    return this.toDto(habit, logs);
+    return this.toDto(habit, await this.logsForHabit(userId, id));
   }
 
   async remove(userId: string, id: string): Promise<{ ok: true }> {

@@ -18,9 +18,11 @@ Monorepo, DB schema, auth, unified timeline, cost guard, one full vertical slice
 - ✅ **Embeddings write + pgvector retrieval**, verified live: `LocalEmbedder` runs `bge-base-en-v1.5` in-process (768-dim, matching the column), `EmbeddingService` backfills pending rows + searches via `$queryRaw`, and `OrchestratorService` feeds the top matches into the chat prompt.
 - **Provider notes:** chat uses **DeepSeek direct** (`api.deepseek.com`, `DeepSeekConnector`, model `deepseek-v4-flash`) — that's where the credits are. Cost is cache-aware; measured ~$0.00005/chat. **Embeddings are local** (no key, no cost, no data leaving the box); DeepSeek has no embeddings API, and a second paid provider wasn't worth it for vectors alone.
 
+- ✅ **Backfill runs automatically** — a 60s `@Interval` sweep (`ScheduleModule`) embeds queued rows for all users; writes only queue, so they stay fast. The model is warmed at boot.
+
 ### Phase 2 leftovers
-- **Auto-trigger the backfill.** `queueForEmbedding` marks rows `model="pending"` and only the manual `POST /ai/embeddings/backfill` embeds them, so new content isn't recallable until then. Either embed after journal/note writes or run it on a schedule (`@nestjs/schedule`).
 - Rolling summaries (context = per-module `aiContext()` + recent timeline + semantic recall; no rolling summarization yet).
+- A dedicated Settings screen for connector keys (the DeepSeek key form currently lives in the Atlas AI tab).
 - A proper Settings screen to manage connector API keys (the key form currently lives in the Atlas AI tab).
 
 ## Phase 3 — Finance

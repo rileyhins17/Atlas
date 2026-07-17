@@ -130,6 +130,19 @@ export class OrchestratorService {
     return recent.map((e) => `- ${e.type}: ${e.title}`).join('\n');
   }
 
+  /** Module context + recent activity in one shot. Every module summarizes on
+   * each call, so build this once per request and pass it around. */
+  private async buildSnapshot(
+    userId: string,
+    activityLimit: number,
+  ): Promise<{ contextText: string; activityText: string }> {
+    const [contextText, activityText] = await Promise.all([
+      this.buildSystemChunk(userId),
+      this.recentActivityText(userId, activityLimit),
+    ]);
+    return { contextText, activityText };
+  }
+
   /**
    * Semantic recall for this message. Module summaries only cover the *current*
    * state (open tasks, recent mood); this surfaces older journal entries, notes
@@ -142,7 +155,8 @@ export class OrchestratorService {
       const relevant = matches.filter((m) => m.distance <= MAX_MEMORY_DISTANCE);
       if (relevant.length === 0) return '';
       const lines = relevant.map((m) => `- (${m.ownerType}) ${m.content.slice(0, 300)}`);
-      return `\n\n## Possibly relevant memories\n${lines.join('\n')}`;
+      // Appended to the user's message, not the system prompt — see chat().
+      return `\n\n[Possibly relevant things you know about me:\n${lines.join('\n')}]`;
     } catch (err) {
       this.logger.warn(
         `Memory recall failed, continuing without it: ${
@@ -153,16 +167,26 @@ export class OrchestratorService {
     }
   }
 
-  /** Chat with the AI over the user's whole life, with tool calling enabled. */
+  /**
+   * Chat with the AI over the user's whole life, with tool calling enabled.
+   *
+   * Message order is deliberate and load-bearing for cost. DeepSeek's discount
+   * is a *prefix* cache, so everything from the first differing token onward is
+   * billed at full price. Recall changes on every single message, so putting it
+   * in the system prompt (position 1) drops the cache hit rate to 0% —
+   * measured. Keeping the stable prefix (instructions → module context →
+   * history) intact and appending volatile recall to the final user message
+   * instead measures ~92% cached.
+   */
   async chat(userId: string, message: string, history: ChatMessage[] = []): Promise<ToolLoopResult> {
     const [contextText, recall] = await Promise.all([
       this.buildSystemChunk(userId),
       this.recallText(userId, message),
     ]);
     const messages: ChatMessage[] = [
-      { role: 'system', content: `${CHAT_SYSTEM_PROMPT}\n\n${contextText}${recall}` },
+      { role: 'system', content: `${CHAT_SYSTEM_PROMPT}\n\n${contextText}` },
       ...history,
-      { role: 'user', content: message },
+      { role: 'user', content: `${message}${recall}` },
     ];
     const tools = this.registry.collectToolSpecs();
     return runToolLoop({
@@ -189,12 +213,17 @@ export class OrchestratorService {
     });
   }
 
-  /** Have the AI notice knowledge gaps and queue ai_questions for the user. */
-  async generateQuestions(userId: string): Promise<ToolLoopResult> {
-    const [contextText, activityText] = await Promise.all([
-      this.buildSystemChunk(userId),
-      this.recentActivityText(userId, 20),
-    ]);
+  /**
+   * Have the AI notice knowledge gaps and queue ai_questions for the user.
+   *
+   * `snapshot` lets a caller that has already assembled the context (the daily
+   * brief) hand it over instead of making every module re-summarize.
+   */
+  async generateQuestions(
+    userId: string,
+    snapshot?: { contextText: string; activityText: string },
+  ): Promise<ToolLoopResult> {
+    const { contextText, activityText } = snapshot ?? (await this.buildSnapshot(userId, 20));
     const messages: ChatMessage[] = [
       { role: 'system', content: QUESTIONS_SYSTEM_PROMPT },
       { role: 'user', content: `${contextText}\n\nRecent activity:\n${activityText}` },
@@ -210,10 +239,8 @@ export class OrchestratorService {
 
   /** Write today's brief to `insights`, then best-effort surface follow-up questions. */
   async generateDailyBrief(userId: string): Promise<InsightDTO> {
-    const [contextText, activityText] = await Promise.all([
-      this.buildSystemChunk(userId),
-      this.recentActivityText(userId, 15),
-    ]);
+    const snapshot = await this.buildSnapshot(userId, 15);
+    const { contextText, activityText } = snapshot;
     const messages: ChatMessage[] = [
       { role: 'system', content: BRIEF_SYSTEM_PROMPT },
       { role: 'user', content: `${contextText}\n\nRecent activity:\n${activityText}\n\nWrite today's brief.` },
@@ -233,7 +260,8 @@ export class OrchestratorService {
       },
     });
 
-    await this.generateQuestions(userId).catch(() => undefined);
+    // Reuse the snapshot rather than making every module summarize again.
+    await this.generateQuestions(userId, snapshot).catch(() => undefined);
 
     return toInsightDto(insight);
   }

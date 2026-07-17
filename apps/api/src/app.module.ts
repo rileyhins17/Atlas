@@ -1,5 +1,6 @@
 import { MiddlewareConsumer, Module, type NestModule } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { CoreModule } from './core/core.module.js';
 import { AuthModule } from './auth/auth.module.js';
@@ -18,6 +19,9 @@ import { OriginCheckMiddleware } from './common/origin-check.middleware.js';
     // Global rate limit: 120 requests / minute / IP. Auth routes tighten this
     // further with @Throttle (see AuthController).
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 120 }]),
+    // In-process scheduling (embedding backfill today; nudges/weekly review
+    // later). Move to BullMQ + Redis only if this stops being enough.
+    ScheduleModule.forRoot(),
     CoreModule,
     AuthModule,
     TasksModule,
