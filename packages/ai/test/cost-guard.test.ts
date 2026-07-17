@@ -96,6 +96,16 @@ describe('CostGuard', () => {
     const arg = create.mock.calls[0]![0] as { data: Record<string, unknown> };
     // 1000 * 0.0028 = 2.8 -> ceil -> 3, vs 140 if cache hits were ignored.
     expect(arg.data.costUsdMicros).toBe(3);
+    // Also persisted: a cache regression is otherwise invisible, and deriving
+    // the hit rate back out of cost breaks as soon as prices change.
+    expect(arg.data.cachedPromptTokens).toBe(1000);
+  });
+
+  it('record() defaults cachedPromptTokens to 0 when the provider reports none', async () => {
+    const guard = new CostGuard(1000);
+    await guard.record({ model: 'deepseek-v4-flash', promptTokens: 10, completionTokens: 0, purpose: 'chat' });
+    const arg = create.mock.calls[0]![0] as { data: Record<string, unknown> };
+    expect(arg.data.cachedPromptTokens).toBe(0);
   });
 
   it('record() defaults userId to null when omitted', async () => {

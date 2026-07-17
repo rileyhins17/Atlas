@@ -385,6 +385,11 @@ model AiUsage {
   model            String
   promptTokens     Int      @default(0)
   completionTokens Int      @default(0)
+  // Subset of promptTokens the provider served from its prefix cache. Recorded
+  // because it's the only direct signal that prompt caching still works —
+  // a cache regression is silent (no error, just a ~3.5x bill), and without
+  // this the hit rate can only be inferred backwards from cost.
+  cachedPromptTokens Int    @default(0)
   // Cost in micro-USD (1e-6 USD) to keep integer precision.
   costUsdMicros    Int      @default(0)
   purpose          String // "daily_brief" | "chat" | "auto_organize" | ...

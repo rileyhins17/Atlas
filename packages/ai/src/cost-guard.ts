@@ -75,6 +75,7 @@ export class CostGuard {
         model: params.model,
         promptTokens: params.promptTokens,
         completionTokens: params.completionTokens,
+        cachedPromptTokens: params.cachedPromptTokens ?? 0,
         costUsdMicros,
         purpose: params.purpose,
         userId: params.userId ?? null,
