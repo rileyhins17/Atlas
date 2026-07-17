@@ -5,6 +5,8 @@
 ## Decision
 TypeScript monorepo (pnpm workspaces + Turborepo, **ESM everywhere**). API = **NestJS 11**, DB = **Postgres + pgvector via Prisma 6**, Web = **Next.js 15 PWA**, deploy = **Docker Compose + Caddy** on a VPS, AI = **OpenRouter → deepseek-chat**.
 
+> **Superseded in part (2026-07-17, Phase 2) by [ADR 0003](./0003-ai-providers.md):** the AI provider is now DeepSeek's direct API (`deepseek-v4-flash`), not OpenRouter, and embeddings run on a local in-process model. Everything else here still stands.
+
 ## Why
 - **NestJS** module/DI system *is* the plugin architecture we need (module = life-domain). Heavily documented → future AI sessions extend it easily.
 - **One Postgres** covers relational + JSON + vector (pgvector) — no extra datastore. Prisma gives typed migrations.

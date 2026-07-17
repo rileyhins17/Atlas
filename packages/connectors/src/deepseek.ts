@@ -10,10 +10,15 @@ const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
 const DEFAULT_MODEL = 'deepseek-chat';
 
 /**
- * Direct DeepSeek connector — calls api.deepseek.com instead of routing
- * through OpenRouter. Same OpenAI-compatible chat/completions shape as
- * OpenRouterConnector, so it's a drop-in for the orchestrator's `chat()` call.
- * DeepSeek has no embeddings API; use OpenRouterConnector for that if needed.
+ * Direct DeepSeek connector — calls api.deepseek.com. Atlas's AI provider for
+ * chat, using the standard OpenAI-compatible chat/completions shape.
+ *
+ * DeepSeek has no embeddings API (`POST /embeddings` 404s), which is why Atlas
+ * embeds locally instead — see LocalEmbedder in @atlas/ai.
+ *
+ * Configure a concrete model id (e.g. "deepseek-v4-flash"), not an alias like
+ * "deepseek-chat": the API resolves aliases server-side and echoes the resolved
+ * id back, and that's the id the cost guard prices against.
  *
  * NOTE: `chat()` actually spends money. All production callers must go
  * through the cost guard in @atlas/ai, never call this directly.

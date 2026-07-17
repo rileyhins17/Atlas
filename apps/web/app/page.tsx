@@ -662,7 +662,8 @@ function AiPanel() {
       {status && !status.providerConfigured && (
         <form className="card stack" onSubmit={connect} style={{ marginBottom: 16 }}>
           <div className="muted" style={{ fontSize: 13 }}>
-            Connect a DeepSeek API key to enable chat, daily briefs, and auto-organize.
+            Connect a DeepSeek API key to enable chat, daily briefs, and auto-organize. Your key is
+            encrypted before it&apos;s stored. Semantic memory runs locally and needs no key.
           </div>
           <input
             className="input"

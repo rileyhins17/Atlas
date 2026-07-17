@@ -15,12 +15,12 @@ Monorepo, DB schema, auth, unified timeline, cost guard, one full vertical slice
 - ✅ **Orchestrator** (`apps/api/src/modules/ai/orchestrator.service.ts`): assembles context via `ModuleRegistryService.collectContext` + `buildContext` (token budget), calls the LLM via the **CostGuard** (assert cap → chat → record) on every round-trip, tool calls routed to module services by `ToolRouterService` (zod-validated).
 - ✅ **Chat with your life** (`POST /ai/chat`), **daily brief** (`POST /ai/daily-brief` → `insights`), **auto-organize** brain-dump → tasks/events/journal/notes (`POST /ai/brain-dump`), **AI-generated `ai_questions`** (replaced the journal mood heuristic) + UI cards.
 - ✅ Web: "Atlas AI" tab — connect-key form, chat, brain dump, daily brief + history.
-- ⚠️ **Embeddings write + pgvector retrieval**: code done (`EmbeddingService`, `$queryRaw` similarity search) but **unverified live and provider-undecided** — DeepSeek direct has no embeddings API (verified 404), so this needs either a second provider key or a local embedding model. See leftovers.
-- **Provider note:** chat uses **DeepSeek direct** (`api.deepseek.com`, `DeepSeekConnector`, model `deepseek-v4-flash`), not OpenRouter — that's where the credits are. Cost is cache-aware; measured ~$0.00005/chat.
+- ✅ **Embeddings write + pgvector retrieval**, verified live: `LocalEmbedder` runs `bge-base-en-v1.5` in-process (768-dim, matching the column), `EmbeddingService` backfills pending rows + searches via `$queryRaw`, and `OrchestratorService` feeds the top matches into the chat prompt.
+- **Provider notes:** chat uses **DeepSeek direct** (`api.deepseek.com`, `DeepSeekConnector`, model `deepseek-v4-flash`) — that's where the credits are. Cost is cache-aware; measured ~$0.00005/chat. **Embeddings are local** (no key, no cost, no data leaving the box); DeepSeek has no embeddings API, and a second paid provider wasn't worth it for vectors alone.
 
 ### Phase 2 leftovers
-- **Decide the embeddings provider** (blocks semantic memory): local in-process model (no key, no per-call cost, fits the self-hosted/<$5-mo ethos; needs the vector dimension to match the `vector(768)` column) vs. an OpenRouter key vs. dropping semantic search until it earns its place. `EmbeddingService` currently assumes OpenRouter.
-- Rolling summaries (context currently = per-module `aiContext()` + recent timeline; no summarization/retrieval in the prompt yet).
+- **Auto-trigger the backfill.** `queueForEmbedding` marks rows `model="pending"` and only the manual `POST /ai/embeddings/backfill` embeds them, so new content isn't recallable until then. Either embed after journal/note writes or run it on a schedule (`@nestjs/schedule`).
+- Rolling summaries (context = per-module `aiContext()` + recent timeline + semantic recall; no rolling summarization yet).
 - A proper Settings screen to manage connector API keys (the key form currently lives in the Atlas AI tab).
 
 ## Phase 3 — Finance

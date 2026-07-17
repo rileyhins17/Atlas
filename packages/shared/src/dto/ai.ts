@@ -41,10 +41,12 @@ export const BrainDumpInput = z.object({
 });
 export type BrainDumpInput = z.infer<typeof BrainDumpInput>;
 
-export const ConnectOpenRouterInput = z.object({
+// Saving an AI provider's API key. Embeddings run locally and need no key, so
+// this is only the chat provider (DeepSeek).
+export const ConnectProviderInput = z.object({
   apiKey: z.string().min(10).max(300),
 });
-export type ConnectOpenRouterInput = z.infer<typeof ConnectOpenRouterInput>;
+export type ConnectProviderInput = z.infer<typeof ConnectProviderInput>;
 
 export const InsightDTO = z.object({
   id: z.string(),

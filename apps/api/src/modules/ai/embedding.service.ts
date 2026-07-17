@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { CostGuard } from '@atlas/ai';
+import { Injectable, Logger } from '@nestjs/common';
+import { EMBEDDING_MODEL, LocalEmbedder } from '@atlas/ai';
 import { PrismaService } from '../../core/prisma.service.js';
-import { ConnectorsService } from '../../core/connectors.service.js';
 
 const BACKFILL_BATCH_CAP = 50;
+const EMBED_CHUNK = 8;
+const MAX_SEARCH_LIMIT = 20;
 
 export interface SemanticMatch {
   ownerType: string;
@@ -14,23 +15,28 @@ export interface SemanticMatch {
 
 /**
  * Backfills the pgvector column for rows MemoryService queued with
- * model="pending", and runs semantic similarity search over them. Kept
- * separate from MemoryService (core, DB-only) because this actually spends
- * AI credits and needs the cost guard + connector.
+ * model="pending", and runs semantic similarity search over them.
+ *
+ * Embeddings run on a local in-process model (see LocalEmbedder): no API key,
+ * no per-call spend, nothing leaves the machine. That's why — unlike every
+ * chat path — this service doesn't touch the CostGuard: there is no cost to
+ * guard. It stays separate from MemoryService (core, DB-only) because it owns
+ * the model.
  */
 @Injectable()
 export class EmbeddingService {
+  private readonly logger = new Logger(EmbeddingService.name);
+
   constructor(
     private readonly prisma: PrismaService,
-    private readonly connectors: ConnectorsService,
-    private readonly costGuard: CostGuard,
+    private readonly embedder: LocalEmbedder,
   ) {}
 
-  private ctxFor(userId: string) {
-    return this.connectors.contextFor(userId, 'openrouter');
+  private toVectorLiteral(vector: number[]): string {
+    return `[${vector.join(',')}]`;
   }
 
-  /** Embed up to `limit` pending rows for this user. Best-effort per row. */
+  /** Embed up to `limit` pending rows for this user. Best-effort per chunk. */
   async backfillPending(userId: string, limit = 20): Promise<{ processed: number; failed: number }> {
     const pending = await this.prisma.client.embedding.findMany({
       where: { userId, model: 'pending' },
@@ -38,58 +44,50 @@ export class EmbeddingService {
     });
     if (pending.length === 0) return { processed: 0, failed: 0 };
 
-    const ctx = this.ctxFor(userId);
     let processed = 0;
     let failed = 0;
 
-    for (const row of pending) {
+    // Batch through the model: one call per chunk rather than per row.
+    for (let i = 0; i < pending.length; i += EMBED_CHUNK) {
+      const chunk = pending.slice(i, i + EMBED_CHUNK);
       try {
-        await this.costGuard.assertUnderCap();
-        const res = await this.connectors.openrouter.embed(ctx, [row.content]);
-        const vector = res.embeddings[0];
-        if (!vector) throw new Error('Provider returned no embedding');
-        const vecLiteral = `[${vector.join(',')}]`;
-        await this.prisma.client.$executeRaw`
-          UPDATE embeddings SET embedding = ${vecLiteral}::vector, model = ${res.model}
-          WHERE id = ${row.id}
-        `;
-        await this.costGuard.record({
-          model: res.model,
-          promptTokens: res.usage.promptTokens,
-          completionTokens: 0,
-          purpose: 'embedding_backfill',
-          userId,
-        });
-        processed++;
-      } catch {
-        failed++;
+        const vectors = await this.embedder.embed(chunk.map((row) => row.content));
+        await Promise.all(
+          chunk.map((row, idx) => {
+            const vector = vectors[idx];
+            if (!vector) throw new Error('Embedder returned no vector for a queued row');
+            return this.prisma.client.$executeRaw`
+              UPDATE embeddings
+              SET embedding = ${this.toVectorLiteral(vector)}::vector, model = ${EMBEDDING_MODEL}
+              WHERE id = ${row.id}
+            `;
+          }),
+        );
+        processed += chunk.length;
+      } catch (err) {
+        failed += chunk.length;
+        this.logger.warn(
+          `Embedding backfill failed for ${chunk.length} row(s): ${
+            err instanceof Error ? err.message : 'unknown error'
+          }`,
+        );
       }
     }
     return { processed, failed };
   }
 
-  /** Semantic search over this user's embedded content. */
+  /** Semantic search over this user's embedded content, nearest first. */
   async search(userId: string, queryText: string, limit = 5): Promise<SemanticMatch[]> {
-    await this.costGuard.assertUnderCap();
-    const ctx = this.ctxFor(userId);
-    const res = await this.connectors.openrouter.embed(ctx, [queryText]);
-    const vector = res.embeddings[0];
+    const [vector] = await this.embedder.embed([queryText]);
     if (!vector) return [];
-    await this.costGuard.record({
-      model: res.model,
-      promptTokens: res.usage.promptTokens,
-      completionTokens: 0,
-      purpose: 'embedding_query',
-      userId,
-    });
-    const vecLiteral = `[${vector.join(',')}]`;
-    const cappedLimit = Math.min(limit, 20);
+    const literal = this.toVectorLiteral(vector);
+    const cappedLimit = Math.min(Math.max(limit, 1), MAX_SEARCH_LIMIT);
     return this.prisma.client.$queryRaw<SemanticMatch[]>`
-      SELECT "ownerType" AS "ownerType", "ownerId" AS "ownerId", content,
-             (embedding <-> ${vecLiteral}::vector) AS distance
+      SELECT "ownerType", "ownerId", content,
+             (embedding <-> ${literal}::vector) AS distance
       FROM embeddings
       WHERE "userId" = ${userId} AND embedding IS NOT NULL
-      ORDER BY embedding <-> ${vecLiteral}::vector
+      ORDER BY embedding <-> ${literal}::vector
       LIMIT ${cappedLimit}
     `;
   }

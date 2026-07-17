@@ -13,7 +13,7 @@ export function fromWireToolName(wireName: string): string {
   return wireName.replace(/__/g, '.');
 }
 
-/** Converts Atlas's provider-agnostic tool specs to the OpenAI/OpenRouter function-calling shape. */
+/** Converts Atlas's provider-agnostic tool specs to the OpenAI-compatible function-calling shape. */
 export function toOpenAiTools(specs: AiToolSpec[]): Record<string, unknown>[] {
   return specs.map((spec) => ({
     type: 'function',

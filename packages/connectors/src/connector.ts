@@ -2,7 +2,7 @@ import type { ZodType } from 'zod';
 
 /**
  * A Connector is Atlas's plug for one external API (Google Calendar, a bank feed,
- * OpenRouter, weather, ...). Every integration implements this interface and is
+ * DeepSeek, weather, ...). Every integration implements this interface and is
  * registered in the ConnectorRegistry. Adding an integration = adding a
  * connector; nothing in the core changes.
  *
@@ -22,7 +22,7 @@ export interface SyncResult {
 }
 
 export interface Connector {
-  /** Stable id, e.g. "openrouter", "google-calendar". */
+  /** Stable id, e.g. "deepseek", "google-calendar". */
   readonly id: string;
   /** Human label for the Settings UI. */
   readonly label: string;

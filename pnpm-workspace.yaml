@@ -7,3 +7,17 @@ allowBuilds:
   prisma: true
   sharp: true
   esbuild: true
+  # Local embeddings (@huggingface/transformers) — onnxruntime-node ships a
+  # native binary and protobufjs generates code at install time.
+  onnxruntime-node: true
+  protobufjs: true
+
+# @huggingface/transformers imports onnxruntime-common but never declares it (it
+# only depends on onnxruntime-node/-web, which depend on -common). That phantom
+# dependency works under a hoisted node_modules but throws ERR_MODULE_NOT_FOUND
+# under pnpm's strict linking, since Node resolves the import from inside the
+# transformers package's own store directory. Declare it on the package's behalf.
+packageExtensions:
+  '@huggingface/transformers':
+    dependencies:
+      onnxruntime-common: '1.24.3'

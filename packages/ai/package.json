@@ -23,7 +23,8 @@
   "dependencies": {
     "@atlas/connectors": "workspace:*",
     "@atlas/db": "workspace:*",
-    "@atlas/shared": "workspace:*"
+    "@atlas/shared": "workspace:*",
+    "@huggingface/transformers": "^4.2.0"
   },
   "devDependencies": {
     "@types/node": "^22.7.0",

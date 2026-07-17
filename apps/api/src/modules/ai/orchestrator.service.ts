@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import type { ChatMessage } from '@atlas/connectors';
 import type { Insight } from '@atlas/db';
 import type { AiToolSpec, InsightDTO } from '@atlas/shared';
@@ -9,9 +9,18 @@ import { ModuleRegistryService } from '../../core/domain-module.js';
 import { ConnectorsService } from '../../core/connectors.service.js';
 import { loadEnv } from '../../config/env.js';
 import { ToolRouterService } from './tool-router.service.js';
+import { EmbeddingService } from './embedding.service.js';
 
 const CONTEXT_TOKEN_BUDGET = 3_000;
 const MAX_RESPONSE_TOKENS = 800;
+const MEMORY_RECALL_LIMIT = 3;
+/**
+ * Max L2 distance for a recalled memory to be worth prompt space. Vectors are
+ * normalized, so distance runs 0 (identical) to 2. Measured: a genuinely
+ * related memory lands ~0.6, an unrelated one ~0.98 — so this keeps the former
+ * and drops the latter rather than padding the prompt with noise.
+ */
+const MAX_MEMORY_DISTANCE = 0.9;
 
 const CHAT_SYSTEM_PROMPT =
   'You are Atlas, a personal life assistant with cross-domain context over the ' +
@@ -65,14 +74,16 @@ function toInsightDto(i: Insight): InsightDTO {
 }
 
 /**
- * The AI brain: assembles cross-domain context under a token budget, calls
- * OpenRouter through the cost guard, and routes any tool calls the model
+ * The AI brain: assembles cross-domain context under a token budget, calls the
+ * chat provider through the cost guard, and routes any tool calls the model
  * makes back to the real domain services. Every model call — including each
  * turn of a multi-tool-call conversation — is individually cap-checked and
  * recorded, so spend can never silently exceed AI_DAILY_TOKEN_CAP.
  */
 @Injectable()
 export class OrchestratorService {
+  private readonly logger = new Logger(OrchestratorService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly timeline: TimelineService,
@@ -80,6 +91,7 @@ export class OrchestratorService {
     private readonly connectors: ConnectorsService,
     private readonly costGuard: CostGuard,
     private readonly toolRouter: ToolRouterService,
+    private readonly embeddings: EmbeddingService,
   ) {}
 
   private async chatCall(
@@ -118,11 +130,37 @@ export class OrchestratorService {
     return recent.map((e) => `- ${e.type}: ${e.title}`).join('\n');
   }
 
+  /**
+   * Semantic recall for this message. Module summaries only cover the *current*
+   * state (open tasks, recent mood); this surfaces older journal entries, notes
+   * and Q&A that are topically relevant but would never fit in a summary.
+   * Best-effort: retrieval failing must never take chat down.
+   */
+  private async recallText(userId: string, query: string): Promise<string> {
+    try {
+      const matches = await this.embeddings.search(userId, query, MEMORY_RECALL_LIMIT);
+      const relevant = matches.filter((m) => m.distance <= MAX_MEMORY_DISTANCE);
+      if (relevant.length === 0) return '';
+      const lines = relevant.map((m) => `- (${m.ownerType}) ${m.content.slice(0, 300)}`);
+      return `\n\n## Possibly relevant memories\n${lines.join('\n')}`;
+    } catch (err) {
+      this.logger.warn(
+        `Memory recall failed, continuing without it: ${
+          err instanceof Error ? err.message : 'unknown error'
+        }`,
+      );
+      return '';
+    }
+  }
+
   /** Chat with the AI over the user's whole life, with tool calling enabled. */
   async chat(userId: string, message: string, history: ChatMessage[] = []): Promise<ToolLoopResult> {
-    const contextText = await this.buildSystemChunk(userId);
+    const [contextText, recall] = await Promise.all([
+      this.buildSystemChunk(userId),
+      this.recallText(userId, message),
+    ]);
     const messages: ChatMessage[] = [
-      { role: 'system', content: `${CHAT_SYSTEM_PROMPT}\n\n${contextText}` },
+      { role: 'system', content: `${CHAT_SYSTEM_PROMPT}\n\n${contextText}${recall}` },
       ...history,
       { role: 'user', content: message },
     ];

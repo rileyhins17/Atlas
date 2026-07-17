@@ -25,7 +25,8 @@ export const MODEL_RATES: Record<string, ModelRate> = {
   // written before the switch still price correctly.
   'deepseek-chat': { inputMicros: 0.14, cachedInputMicros: 0.0028, outputMicros: 0.28 },
   'deepseek-reasoner': { inputMicros: 0.55, outputMicros: 2.19 },
-  // OpenRouter-style ids (used if a call is ever routed via OpenRouter).
+  // OpenRouter-style ids. Atlas no longer calls OpenRouter (chat is DeepSeek
+  // direct, embeddings are local), but early ai_usage rows carry these ids.
   'deepseek/deepseek-chat': { inputMicros: 0.14, outputMicros: 0.28 },
   'deepseek/deepseek-reasoner': { inputMicros: 0.55, outputMicros: 2.19 },
 };

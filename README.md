@@ -1,11 +1,11 @@
 # Atlas — Personal Life OS
 
-One unified data layer for tasks, calendar, habits, journal, and finance, with a cheap cross-domain AI (DeepSeek via OpenRouter) that briefs, auto-organizes, nudges, and asks you questions to fill its own gaps. Self-hosted, phone + laptop, AI budget < $5/mo.
+One unified data layer for tasks, calendar, habits, journal, and finance, with a cheap cross-domain AI (DeepSeek) that briefs, auto-organizes, nudges, and asks you questions to fill its own gaps. Self-hosted, phone + laptop, AI budget < $5/mo (measured: ~$0.00005 per chat).
 
 > **Working on this repo (human or Claude)? Read [`CLAUDE.md`](./CLAUDE.md) first** — it is the living context anchor: current status, the exact next action, and every gotcha already solved. Keep it and [`docs/GOTCHAS.md`](./docs/GOTCHAS.md) updated at the end of each work session.
 
 ## Status
-**Phase 0 (foundation) — complete and verified end-to-end.** Monorepo builds green; DB migrated; auth + tasks + unified timeline + AI dry-run all verified over HTTP and in a browser (register → add task → persists). Next: Phase 1 domains (habits, journal/notes, calendar). See `CLAUDE.md` → "Current status" / "NEXT ACTION" and `docs/roadmap.md`.
+**Phases 0–2 complete and verified end-to-end.** Monorepo builds green; DB migrated; auth, tasks, habits, journal, notes and calendar all work over HTTP and in the browser. The AI brain is live: chat with tool-calling, brain-dump auto-organize, daily briefs, AI-generated questions, and local semantic memory (pgvector). Next: Google Calendar sync + the productization track. See `CLAUDE.md` → "Current status" / "NEXT ACTION" and `docs/roadmap.md`.
 
 > Local dev DB is **Neon** (cloud Postgres) because Docker Desktop is broken on the dev machine; the VPS uses Docker Postgres. See `docs/adr/0002-neon-for-local-dev.md`.
 
@@ -15,9 +15,9 @@ TypeScript monorepo (pnpm workspaces + Turborepo, ESM). API: NestJS 11 (built wi
 ## Layout
 - `packages/db` — Prisma schema (core data model) + client. Import DB only via `@atlas/db`.
 - `packages/shared` — zod DTOs, enums, AI contracts (browser-safe).
-- `packages/connectors` — `Connector` interface + OpenRouter/DeepSeek client.
-- `packages/ai` — pricing, cost guard, context builder.
-- `apps/api` — NestJS (core, auth, modules/tasks, modules/ai).
+- `packages/connectors` — `Connector` interface + DeepSeek client (chat).
+- `packages/ai` — pricing, cost guard, context builder, tool loop, local embedder.
+- `apps/api` — NestJS (core, auth, modules/{tasks,habits,journal,notes,calendar,ai}).
 - `apps/web` — Next.js PWA (auth + Today).
 - `infra` — Docker Compose, Caddy, Dockerfiles (TODO).
 - `docs` — architecture, data model, roadmap, guides, ADRs, GOTCHAS.

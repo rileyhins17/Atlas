@@ -119,7 +119,6 @@ export interface AiStatus {
   dailyTokenCap: number;
   tokensUsedToday: number;
   providerConfigured: boolean;
-  embeddingsConfigured: boolean;
   domains: string[];
 }
 
@@ -127,8 +126,6 @@ export const AiApi = {
   status: () => request<AiStatus>('/ai/status'),
   connectDeepSeek: (apiKey: string) =>
     request<{ ok: true }>('/ai/connect/deepseek', { method: 'POST', body: JSON.stringify({ apiKey }) }),
-  connectOpenRouter: (apiKey: string) =>
-    request<{ ok: true }>('/ai/connect/openrouter', { method: 'POST', body: JSON.stringify({ apiKey }) }),
   chat: (message: string, history: ChatMessageDTO[]) =>
     request<ChatResponseDTO>('/ai/chat', { method: 'POST', body: JSON.stringify({ message, history }) }),
   brainDump: (text: string) =>

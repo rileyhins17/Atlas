@@ -4,7 +4,7 @@ import {
   AnswerQuestionInput,
   BrainDumpInput,
   ChatInput,
-  ConnectOpenRouterInput,
+  ConnectProviderInput,
   PaginationQuery,
   type AiQuestionDTO,
   type ChatResponseDTO,
@@ -39,19 +39,9 @@ export class AiController {
   @Post('connect/deepseek')
   async connectDeepSeek(
     @CurrentUser() user: AuthedUser,
-    @Body(new ZodValidationPipe(ConnectOpenRouterInput)) body: ConnectOpenRouterInput,
+    @Body(new ZodValidationPipe(ConnectProviderInput)) body: ConnectProviderInput,
   ): Promise<{ ok: true }> {
     await this.connectors.saveCredential(user.id, 'deepseek', { apiKey: body.apiKey });
-    return { ok: true };
-  }
-
-  /** Let the user connect an OpenRouter key from Settings (used for embeddings). */
-  @Post('connect/openrouter')
-  async connectOpenRouter(
-    @CurrentUser() user: AuthedUser,
-    @Body(new ZodValidationPipe(ConnectOpenRouterInput)) body: ConnectOpenRouterInput,
-  ): Promise<{ ok: true }> {
-    await this.connectors.saveCredential(user.id, 'openrouter', { apiKey: body.apiKey });
     return { ok: true };
   }
 
@@ -134,17 +124,15 @@ export class AiController {
   @Get('status')
   async status(@CurrentUser() user: AuthedUser) {
     const env = loadEnv();
-    const [deepseekReady, openrouterReady] = await Promise.all([
-      this.connectors.deepseek.verify(this.connectors.contextFor(user.id, 'deepseek')),
-      this.connectors.openrouter.verify(this.connectors.contextFor(user.id, 'openrouter')),
-    ]);
+    const providerConfigured = await this.connectors.deepseek.verify(
+      this.connectors.contextFor(user.id, 'deepseek'),
+    );
     return {
       enabled: this.costGuard.enabled,
       model: env.AI_MODEL,
       dailyTokenCap: env.AI_DAILY_TOKEN_CAP,
       tokensUsedToday: await this.costGuard.tokensUsedToday(),
-      providerConfigured: deepseekReady,
-      embeddingsConfigured: openrouterReady,
+      providerConfigured,
       domains: this.registry.list().map((m) => m.id),
     };
   }

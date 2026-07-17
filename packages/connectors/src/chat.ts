@@ -1,6 +1,6 @@
-// Provider-agnostic chat/embedding shapes shared by every LLM connector
-// (OpenRouter, DeepSeek direct, ...). Kept OpenAI-compatible since that's the
-// lowest common denominator every provider Atlas targets speaks.
+// Provider-agnostic chat shapes shared by every LLM connector. Kept
+// OpenAI-compatible since that's the lowest common denominator every provider
+// Atlas might target speaks — today that's DeepSeek direct.
 
 /** A tool call the model wants executed, OpenAI-compatible shape. */
 export interface ChatToolCall {

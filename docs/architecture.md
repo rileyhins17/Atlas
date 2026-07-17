@@ -23,9 +23,10 @@ apps/api (NestJS)
                  │  collectContext + buildContext (token budget)
                  │  CostGuard.assertUnderCap → chat → CostGuard.record   (every round-trip)
                  ├─ runToolLoop (packages/ai) ──→ ToolRouterService → domain services
-                 └─ EmbeddingService → embeddings (pgvector, $queryRaw)
-packages/ai  context-builder + CostGuard + runToolLoop + wire-safe tool names
-packages/connectors  Connector + DeepSeek client (chat) + OpenRouter client (chat, embeddings)
+                 └─ EmbeddingService → LocalEmbedder (in-process, no key)
+                                     → embeddings (pgvector, $queryRaw)
+packages/ai  context-builder + CostGuard + runToolLoop + wire-safe tool names + LocalEmbedder
+packages/connectors  Connector + DeepSeek client (chat)
 packages/db  Prisma schema + client (import DB only via @atlas/db)
 packages/shared  zod DTOs + enums + contracts (browser-safe, no DB)
 ```
@@ -38,7 +39,9 @@ packages/shared  zod DTOs + enums + contracts (browser-safe, no DB)
 
 Tool names are dotted (`tasks.create`) everywhere in Atlas, but some providers reject non-alphanumeric function names, so `packages/ai/src/tools.ts` maps them to a wire-safe form (`tasks__create`) at the provider boundary only.
 
-**Provider split:** chat runs on **DeepSeek direct** (`api.deepseek.com`, model `deepseek-v4-flash`) via `DeepSeekConnector`, because that's where the credits are. Embeddings are **undecided** — DeepSeek has no embeddings endpoint, so `EmbeddingService` currently targets `OpenRouterConnector`, but a local in-process model would avoid a second provider entirely. Both connectors speak the same OpenAI-compatible shape and share one response parser (`packages/connectors/src/chat.ts`), so swapping or adding providers is a connector, not a refactor.
+**Provider split — chat is remote, memory is local.** Chat runs on **DeepSeek direct** (`api.deepseek.com`, model `deepseek-v4-flash`) via `DeepSeekConnector`, because that's where the credits are; connectors speak an OpenAI-compatible shape and share one response parser (`packages/connectors/src/chat.ts`), so swapping or adding a chat provider is a connector, not a refactor. **Embeddings run locally in-process** (`LocalEmbedder`, `bge-base-en-v1.5`, 768-dim to match the `vector(768)` column): DeepSeek offers no embeddings endpoint, and paying a second provider purely for vectors would undercut both the <$5/mo target and the self-hosted premise. Local embedding is free and offline, so — unlike every chat path — `EmbeddingService` has no cost guard: there is no spend to bound.
+
+**Semantic recall.** `MemoryService.queueForEmbedding` writes rows with `model="pending"`; `EmbeddingService.backfillPending` fills in the vectors. On chat, `OrchestratorService` embeds the user's message and appends the nearest memories (under a distance threshold) to the prompt. This is the piece module summaries can't cover: summaries describe *current state*, while recall surfaces an old journal entry or note that's topically relevant right now. Retrieval is best-effort — if it fails, chat proceeds without it.
 
 **Costing.** Always configure a concrete model id, never a provider alias: the API echoes back the *resolved* id, and that's what gets priced — an unknown id silently falls back to a placeholder rate. DeepSeek's prefix cache discounts repeated input ~98%, and Atlas re-sends the same context block every call (~95% cache-hit in practice), so `ChatUsage.cachedPromptTokens` is threaded from the connector into `estimateCostMicros`. Ignoring it overstates spend several-fold.
 

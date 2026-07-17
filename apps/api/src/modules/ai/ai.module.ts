@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { LocalEmbedder } from '@atlas/ai';
 import { AuthModule } from '../../auth/auth.module.js';
 import { TasksModule } from '../tasks/tasks.module.js';
 import { HabitsModule } from '../habits/habits.module.js';
@@ -19,6 +20,14 @@ import { EmbeddingService } from './embedding.service.js';
 @Module({
   imports: [AuthModule, TasksModule, HabitsModule, JournalModule, NotesModule, CalendarModule],
   controllers: [AiController],
-  providers: [AiQuestionsService, ToolRouterService, OrchestratorService, EmbeddingService],
+  providers: [
+    AiQuestionsService,
+    ToolRouterService,
+    OrchestratorService,
+    EmbeddingService,
+    // Single instance so the local embedding model is loaded into memory once
+    // for the process, not per request.
+    { provide: LocalEmbedder, useFactory: () => new LocalEmbedder() },
+  ],
 })
 export class AiModule {}
