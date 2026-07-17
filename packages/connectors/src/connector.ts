@@ -12,12 +12,25 @@ import type { ZodType } from 'zod';
 export interface ConnectorContext {
   /** Returns the decrypted secret payload for this connector, or null if unset. */
   getSecret(): Promise<Record<string, unknown> | null>;
+  /**
+   * Replace the stored secret — for OAuth connectors, whose access tokens expire
+   * and must be refreshed mid-flight. The connector still never sees the DB or
+   * the encryption key; it hands back a payload and the host encrypts it.
+   */
+  saveSecret(secret: Record<string, unknown>): Promise<void>;
 }
 
+/**
+ * Outcome of a two-way sync. Reconciling against Atlas's tables is deliberately
+ * NOT the connector's job — a connector has no DB access by design — so the
+ * owning module's service performs the sync and reports this.
+ */
 export interface SyncResult {
   connector: string;
   imported: number;
   updated: number;
+  pushed: number;
+  deleted: number;
   errors: string[];
 }
 
@@ -33,9 +46,6 @@ export interface Connector {
 
   /** Verify the stored credential works. Returns true if healthy. */
   verify(ctx: ConnectorContext): Promise<boolean>;
-
-  /** Optional: pull data from the external source into Atlas. */
-  sync?(ctx: ConnectorContext): Promise<SyncResult>;
 }
 
 /** Simple in-memory registry. Modules/connectors register themselves at boot. */

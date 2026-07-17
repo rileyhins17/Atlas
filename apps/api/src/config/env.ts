@@ -20,6 +20,12 @@ const EnvSchema = z.object({
   // ledger, so pricing lookups miss unless we ask for the real id up front.
   AI_MODEL: z.string().default('deepseek-v4-flash'),
   AI_DAILY_TOKEN_CAP: z.coerce.number().default(0),
+  // Google Calendar OAuth client (app-level, not a user secret). Optional: when
+  // unset the connector reports itself unconfigured instead of failing at boot,
+  // so Atlas runs fine without Google.
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_REDIRECT_URI: z.string().default('http://localhost:4000/connectors/google/callback'),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

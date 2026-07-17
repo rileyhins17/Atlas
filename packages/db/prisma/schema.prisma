@@ -149,7 +149,12 @@ model Event {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  @@unique([source, externalId])
+  // Scoped by user: an external id is only unique WITHIN an account. A calendar
+  // event shared between two Atlas users carries the same Google id for both,
+  // so a global unique would collide and let one user's sync overwrite the
+  // other's row. (Postgres treats NULLs as distinct, so unsynced local events
+  // with externalId=null never conflict.)
+  @@unique([userId, source, externalId])
   @@index([userId, startAt])
   @@map("events")
 }
@@ -252,7 +257,8 @@ model Account {
   updatedAt    DateTime      @updatedAt
   transactions Transaction[]
 
-  @@unique([source, externalId])
+  // Per-user, for the same reason as Event — see the note there.
+  @@unique([userId, source, externalId])
   @@index([userId])
   @@map("accounts")
 }
@@ -273,7 +279,8 @@ model Transaction {
   externalId  String?
   createdAt   DateTime @default(now())
 
-  @@unique([source, externalId])
+  // Per-user, for the same reason as Event — see the note there.
+  @@unique([userId, source, externalId])
   @@index([userId, postedAt])
   @@index([accountId, postedAt])
   @@map("transactions")
