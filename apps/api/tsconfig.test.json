@@ -1,0 +1,12 @@
+// Typecheck-only config: the build config deliberately excludes test/ (tests
+// must never land in dist), which used to leave test files completely
+// untypechecked. `pnpm typecheck` runs this too so they're covered.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "."
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "exclude": ["dist", "node_modules"]
+}

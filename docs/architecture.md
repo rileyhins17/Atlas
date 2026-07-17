@@ -19,15 +19,30 @@ apps/api (NestJS)
                      ├─ TimelineService.write()  (unified log)
                      └─ *.ai.ts DomainModule → ModuleRegistryService
                                                    │
-packages/ai  context-builder + CostGuard ─────────┘ (Phase 2: orchestrator → OpenRouter)
-packages/connectors  Connector + OpenRouter client
+   modules/ai  OrchestratorService ───────────────┘
+                 │  collectContext + buildContext (token budget)
+                 │  CostGuard.assertUnderCap → chat → CostGuard.record   (every round-trip)
+                 ├─ runToolLoop (packages/ai) ──→ ToolRouterService → domain services
+                 └─ EmbeddingService → embeddings (pgvector, $queryRaw)
+packages/ai  context-builder + CostGuard + runToolLoop + wire-safe tool names
+packages/connectors  Connector + DeepSeek client (chat) + OpenRouter client (chat, embeddings)
 packages/db  Prisma schema + client (import DB only via @atlas/db)
 packages/shared  zod DTOs + enums + contracts (browser-safe, no DB)
 ```
 
+## The AI brain (Phase 2)
+`OrchestratorService` is the only thing that talks to a model. It:
+1. Assembles context from every registered domain (`collectContext`) and packs it under a token budget (`buildContext`) — modules summarize, the builder caps.
+2. Calls the provider through `CostGuard` on **every** round-trip, including each turn of a tool-calling conversation, so spend can't slip past `AI_DAILY_TOKEN_CAP`.
+3. Delegates the tool-calling loop to `runToolLoop` (`packages/ai/src/orchestrator.ts`) — provider-agnostic and DB-free, so it's unit-testable with fake `chat`/`executeTool` functions. Tool calls land in `ToolRouterService`, which re-validates arguments with the same zod DTOs the HTTP boundary uses: **the model is an untrusted caller**.
+
+Tool names are dotted (`tasks.create`) everywhere in Atlas, but some providers reject non-alphanumeric function names, so `packages/ai/src/tools.ts` maps them to a wire-safe form (`tasks__create`) at the provider boundary only.
+
+**Provider split:** chat runs on **DeepSeek direct** (`api.deepseek.com`) via `DeepSeekConnector`, because that's where the credits are. `OpenRouterConnector` stays for **embeddings**, which DeepSeek direct doesn't offer. Both speak the same OpenAI-compatible shape and share one response parser (`packages/connectors/src/chat.ts`), so swapping or adding providers is a connector, not a refactor.
+
 ## Key decisions
 - **ESM everywhere, built with `tsc`.** NestJS DI needs `emitDecoratorMetadata`, which esbuild/tsx don't emit — so no tsx for the API. See `docs/adr/0001-foundational-stack.md`.
-- **Cost control by construction.** Modules summarize (`aiContext`), the builder token-budgets, rolling summaries + embedding retrieval avoid re-sending history. Target: AI < $5/mo.
+- **Cost control by construction.** Modules summarize (`aiContext`), the builder token-budgets, and every model call is cap-checked + ledgered. Rolling summaries + embedding retrieval (to avoid re-sending history) are designed but not yet wired into the prompt. Target: AI < $5/mo.
 - **Single origin in prod.** Caddy serves the web app and strips `/api/*` to the API, so the browser is same-origin (no CORS, simple cookies). Local dev uses two ports + CORS.
 
 ## Deploy

@@ -5,16 +5,23 @@ Ship something usable early, then grow forever. Each phase adds modules/connecto
 ## Phase 0 — Foundation ✅ DONE (verified)
 Monorepo, DB schema, auth, unified timeline, cost guard, one full vertical slice (Tasks) through every layer, docs backbone, end-to-end verified (see `CLAUDE.md`).
 
-## Phase 1 — Core domains (next)
-- **Habits** (`modules/habits`) — start here, simplest.
-- **Journal** + **Notes** — text entries (feed embeddings later).
-- **Calendar** — `events` table + **Google Calendar connector** (OAuth, two-way sync). First real external connector.
-- Web: nav + a screen per domain.
+## Phase 1 — Core domains ✅ DONE (verified)
+- ✅ **Habits** (`modules/habits`) — CRUD + daily check-in + streaks.
+- ✅ **Journal** + **Notes** — text entries, queued to `embeddings` for semantic memory.
+- ✅ **Calendar** — `events` table, CRUD, timeline `event.*`. **Google Calendar connector still open** (see below).
+- ✅ Web: tabbed nav + a screen per domain.
 
-## Phase 2 — AI brain
-- **Orchestrator** in `apps/api/src/modules/ai`: assemble context (`ModuleRegistryService.collectContext` + retrieval + rolling summary), call OpenRouter via the **CostGuard** (assert cap → chat → record), tool-calling routed to module services.
-- **Chat with your life**, **daily brief** (`insights`), **auto-organize** brain-dump → tasks/events/notes, **`ai_questions`** generation + UI cards, embeddings write + pgvector retrieval.
-- Settings screen to manage connector API keys.
+## Phase 2 — AI brain ✅ DONE (2026-07-17, verified live)
+- ✅ **Orchestrator** (`apps/api/src/modules/ai/orchestrator.service.ts`): assembles context via `ModuleRegistryService.collectContext` + `buildContext` (token budget), calls the LLM via the **CostGuard** (assert cap → chat → record) on every round-trip, tool calls routed to module services by `ToolRouterService` (zod-validated).
+- ✅ **Chat with your life** (`POST /ai/chat`), **daily brief** (`POST /ai/daily-brief` → `insights`), **auto-organize** brain-dump → tasks/events/journal/notes (`POST /ai/brain-dump`), **AI-generated `ai_questions`** (replaced the journal mood heuristic) + UI cards.
+- ✅ Web: "Atlas AI" tab — connect-key form, chat, brain dump, daily brief + history.
+- ⚠️ **Embeddings write + pgvector retrieval**: code done (`EmbeddingService`, `$queryRaw` similarity search) but **unverified live** — needs an OpenRouter credential, since chat runs on DeepSeek direct and DeepSeek has no embeddings API.
+- **Provider note:** chat uses **DeepSeek direct** (`api.deepseek.com`, `DeepSeekConnector`), not OpenRouter — that's where the credits are. `OpenRouterConnector` remains for embeddings.
+
+### Phase 2 leftovers
+- Connect an OpenRouter key → verify `POST /ai/embeddings/backfill` + `EmbeddingService.search()`.
+- Rolling summaries (context currently = per-module `aiContext()` + recent timeline; no summarization/retrieval in the prompt yet).
+- A proper Settings screen to manage connector API keys (the key form currently lives in the Atlas AI tab).
 
 ## Phase 3 — Finance
 - Finance connector (SimpleFIN Bridge or Plaid dev), transaction sync, spending insights.
@@ -25,7 +32,7 @@ Monorepo, DB schema, auth, unified timeline, cost guard, one full vertical slice
 
 ## Productization track (commercial-grade — runs alongside, gates launch)
 Atlas is meant to be **sold**. Before public launch these must land (see the "Definition of Done" in `CLAUDE.md`):
-- **Test + CI:** ✅ foundation DONE (2026-07-16): Vitest wired into the monorepo (`pnpm test` via turbo); unit tests for pricing, context-builder, password util, CryptoService, habit streaks; GitHub Actions CI (`.github/workflows/ci.yml`) runs build/typecheck/test on push + PR to main. Still open: cost-guard unit tests, one e2e happy-path per module.
+- **Test + CI:** ✅ foundation DONE (2026-07-16): Vitest wired into the monorepo (`pnpm test` via turbo); unit tests for pricing, context-builder, password util, CryptoService, habit streaks; GitHub Actions CI (`.github/workflows/ci.yml`) runs build/typecheck/test on push + PR to main. ✅ cost-guard + tool-loop + tool-router unit tests DONE (2026-07-17); ✅ tests are now covered by `pnpm typecheck` (each tested package has a `tsconfig.test.json`; the build config still excludes `test/` so tests never reach `dist`). Still open: one e2e happy-path per module (needs a test DB strategy).
 - **Security hardening:** ✅ rate limiting (throttler), ✅ security headers (helmet), ✅ CSRF (sameSite=lax + origin check on mutations). Remaining: password strength rules + optional 2FA, an authz-scoping audit.
 - **Robustness:** ✅ pagination on all list endpoints (hard cap 100), ✅ global error boundary, ✅ structured JSON logging + `x-request-id`. Remaining: error tracking (Sentry-class).
 - **Billing:** Stripe subscriptions + plan gating.
