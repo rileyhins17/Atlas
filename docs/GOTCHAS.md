@@ -20,6 +20,7 @@ Append every new setup/build snag here (root cause + fix) so no future thread wa
 - **git commit here-strings break on inner quotes.** A `@'...'@` message containing `"double quotes"` or `'` (e.g. `Atlas's`) gets word-split and git treats the words as pathspecs. Keep commit-message bodies quote-free (and apostrophe-free), or write the message to a file and use `git commit -F file`.
 
 ## Browser verification (Claude sessions, this machine)
+- **Running `pnpm build` while `next dev` is running corrupts the dev server** — both write `apps/web/.next`, and the dev server then 500s with `ENOENT ... .next\server\vendor-chunks\...` and the page hangs on "Loading…". Fix: restart the web dev server after any `pnpm build` (or stop it first). The API dev server is unaffected (tsc emits to `dist/`).
 - **The in-app Browser pane (`mcp__Claude_Browser__*`) cannot take screenshots of the Atlas web app** — `computer{action:"screenshot"}` times out after 30s every time (fresh tabs included), even though navigation, clicks, `form_input`, and `read_page` all work fine. Verify behaviour with `read_page` (accessibility tree), and when an actual screenshot is needed use the **Claude in Chrome** tools (`mcp__claude-in-chrome__*`) on `http://localhost:3000` instead. Note Chrome's CDP screenshot can also time out once right after a navigation/login — retry once and it works.
 
 ## TypeScript / build

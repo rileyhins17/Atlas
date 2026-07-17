@@ -1,46 +1,27 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import type { InsightDTO } from '@atlas/shared';
-import { AiApi, ApiError } from '@/lib/api';
+import { errorMessage } from '@/lib/api';
+import { useGenerateDailyBrief, useInsights } from '@/lib/hooks/ai';
+import { Button, Card } from '@/components/ui';
 
 export function DailyBriefPanel() {
-  const [insights, setInsights] = useState<InsightDTO[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const insightsQuery = useInsights();
+  const generate = useGenerateDailyBrief();
 
-  const load = useCallback(async () => {
-    try {
-      setInsights(await AiApi.insights());
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to load briefs');
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  async function generate() {
-    setBusy(true);
-    setError(null);
-    try {
-      await AiApi.dailyBrief();
-      await load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to generate brief');
-    } finally {
-      setBusy(false);
-    }
-  }
+  const insights = insightsQuery.data ?? [];
+  const error = insightsQuery.error
+    ? errorMessage(insightsQuery.error, 'Failed to load briefs')
+    : generate.error
+      ? errorMessage(generate.error, 'Failed to generate brief')
+      : null;
 
   return (
-    <div className="card stack">
+    <Card stack>
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <div className="section-title" style={{ margin: 0 }}>Daily brief</div>
-        <button className="btn" onClick={generate} disabled={busy}>
-          {busy ? 'Writing…' : "Generate today's brief"}
-        </button>
+        <Button onClick={() => generate.mutate()} disabled={generate.isPending}>
+          {generate.isPending ? 'Writing…' : "Generate today's brief"}
+        </Button>
       </div>
       {error && <div className="error">{error}</div>}
       {insights.length === 0 ? (
@@ -48,13 +29,13 @@ export function DailyBriefPanel() {
       ) : (
         <div className="stack">
           {insights.map((i) => (
-            <div key={i.id} className="card">
+            <Card key={i.id}>
               <strong>{i.title}</strong>
               <div style={{ marginTop: 6, whiteSpace: 'pre-wrap' }}>{i.body}</div>
-            </div>
+            </Card>
           ))}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
