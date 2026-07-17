@@ -1,6 +1,6 @@
 # UI hardening plan — to commercial grade
 
-**Status:** Phases 1 + 2 COMPLETE (2026-07-17). Phase 1: panels decomposed (`components/panels/`), primitives built (`components/ui/`), every panel on TanStack Query (`lib/hooks/`). Phase 2: skeletons per panel, real empty states, mutation toasts + one global error policy (400 inline / 401 bounce / rest toast), optimistic complete+check-in with rollback, client-side zod form validation. All verified in-browser, including the failure paths (API killed mid-session). Phase 3 (URL routes + mobile nav + app shell) is next.
+**Status:** Phases 1–3 COMPLETE (2026-07-17). Phase 1: panels decomposed, primitives built, every panel on TanStack Query. Phase 2: skeletons, real empty states, mutation toasts + one global error policy, optimistic updates, client-side zod validation. Phase 3: real routes (`/today` … `/settings`, root redirects, deep links + back/refresh work), AppShell (auth gate + header + nav + AtlasAsks), mobile fixed bottom tab bar with Lucide icons + safe-area padding. All verified in-browser incl. failure paths. Phase 4 (a11y + responsive pass) is next.
 Stack decisions locked — see "Decided stack" at the bottom.
 
 Atlas's backend is at the commercial bar (multi-tenant, tested, secure, AI brain live). The **UI is not** — it's a working prototype. This plan takes it to a paid-SaaS standard without a rewrite: it's incremental, each phase ships independently, and nothing here blocks feature work.
@@ -48,7 +48,7 @@ Highest leverage. Do this first or every later phase fights the monolith.
 9. **Toasts for mutations** — success and failure. Right now saving a note or adding an event gives no confirmation.
 10. **Form UX** — inline field validation (reuse the shared zod DTOs client-side), submitting/disabled states, Enter-to-submit / Esc-to-cancel, autofocus on open, no double-submit.
 
-## Phase 3 — Navigation & structure
+## Phase 3 — Navigation & structure ✅ DONE 2026-07-17
 
 11. **URL routes** (Next App Router) replacing `useState` tabs — `/today`, `/habits`, `/calendar`, `/journal`, `/notes`, `/ai`, `/settings`. Deep-linkable, back button works, refresh keeps place.
 12. **Mobile-first nav** — a bottom tab bar on mobile (it's a PWA), top nav on desktop, replacing the wrapping button row.
