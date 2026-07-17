@@ -1,80 +1,60 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { ApiError, GoogleApi, type GoogleStatus, type SyncResult } from '@/lib/api';
+import { useEffect, useState } from 'react';
+import { errorMessage } from '@/lib/api';
+import {
+  useGoogleConnectStart,
+  useGoogleDisconnect,
+  useGoogleStatus,
+  useGoogleSync,
+} from '@/lib/hooks/google';
+import { Button, Card } from '@/components/ui';
 import { DataPrivacyPanel } from './DataPrivacyPanel';
 
 export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
-  const [status, setStatus] = useState<GoogleStatus | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<SyncResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
   // Set by the OAuth callback redirect (?google=connected|denied).
   const [flash, setFlash] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    try {
-      setStatus(await GoogleApi.status());
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to load connector status');
-    }
-  }, []);
+  const statusQuery = useGoogleStatus();
+  const connectStart = useGoogleConnectStart();
+  const sync = useGoogleSync();
+  const disconnect = useGoogleDisconnect();
 
   useEffect(() => {
-    void load();
     const param = new URLSearchParams(window.location.search).get('google');
     if (param === 'connected') setFlash('Google Calendar connected. Run a sync to pull your events in.');
     if (param === 'denied') setFlash('Google Calendar connection was cancelled.');
     if (param) window.history.replaceState({}, '', window.location.pathname);
-  }, [load]);
+  }, []);
 
-  async function connect() {
-    setBusy(true);
-    setError(null);
-    try {
-      const { url } = await GoogleApi.start();
-      // Full navigation, not a popup: Google blocks its consent screen in many
-      // embedded/popup contexts, and the callback needs our session cookie.
-      window.location.href = url;
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to start Google connect');
-      setBusy(false);
-    }
-  }
+  const status = statusQuery.data ?? null;
+  const busy = connectStart.isPending || sync.isPending || disconnect.isPending;
+  const result = sync.data ?? null;
+  const error = statusQuery.error
+    ? errorMessage(statusQuery.error, 'Failed to load connector status')
+    : connectStart.error
+      ? errorMessage(connectStart.error, 'Failed to start Google connect')
+      : sync.error
+        ? errorMessage(sync.error, 'Sync failed')
+        : disconnect.error
+          ? errorMessage(disconnect.error, 'Failed to disconnect')
+          : null;
 
-  async function sync() {
-    setBusy(true);
-    setError(null);
-    setResult(null);
-    try {
-      setResult(await GoogleApi.sync());
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Sync failed');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function disconnect() {
-    setBusy(true);
-    setError(null);
-    try {
-      await GoogleApi.disconnect();
-      setResult(null);
-      await load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to disconnect');
-    } finally {
-      setBusy(false);
-    }
+  function connect() {
+    connectStart.mutate(undefined, {
+      onSuccess: ({ url }) => {
+        // Full navigation, not a popup: Google blocks its consent screen in many
+        // embedded/popup contexts, and the callback needs our session cookie.
+        window.location.href = url;
+      },
+    });
   }
 
   return (
     <>
       <div className="section-title">Settings — connections</div>
-      {flash && <div className="card" style={{ borderColor: 'var(--accent-2)' }}>{flash}</div>}
+      {flash && <Card style={{ borderColor: 'var(--brand-alt)' }}>{flash}</Card>}
 
-      <div className="card stack" style={{ marginTop: 12 }}>
+      <Card stack style={{ marginTop: 12 }}>
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <strong>Google Calendar</strong>
           {status && (
@@ -100,17 +80,21 @@ export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
             <div className="row">
               {status.connected ? (
                 <>
-                  <button className="btn" onClick={sync} disabled={busy}>
-                    {busy ? 'Syncing…' : 'Sync now'}
-                  </button>
-                  <button className="btn ghost" onClick={disconnect} disabled={busy}>
+                  <Button onClick={() => sync.mutate()} disabled={busy}>
+                    {sync.isPending ? 'Syncing…' : 'Sync now'}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => disconnect.mutate(undefined, { onSuccess: () => sync.reset() })}
+                    disabled={busy}
+                  >
                     Disconnect
-                  </button>
+                  </Button>
                 </>
               ) : (
-                <button className="btn" onClick={connect} disabled={busy}>
-                  {busy ? '…' : 'Connect Google Calendar'}
-                </button>
+                <Button onClick={connect} disabled={busy}>
+                  {connectStart.isPending ? '…' : 'Connect Google Calendar'}
+                </Button>
               )}
             </div>
           </>
@@ -124,7 +108,7 @@ export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
           </div>
         )}
         {error && <div className="error">{error}</div>}
-      </div>
+      </Card>
 
       <DataPrivacyPanel onSignOut={onSignOut} />
     </>

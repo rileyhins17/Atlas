@@ -1,46 +1,35 @@
 'use client';
 
 import { useState } from 'react';
-import { AccountApi, ApiError } from '@/lib/api';
+import { errorMessage } from '@/lib/api';
+import { useDeleteAccount, useExportData } from '@/lib/hooks/account';
+import { Button, Card, Input } from '@/components/ui';
 
 export function DataPrivacyPanel({ onSignOut }: { onSignOut: () => void }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [password, setPassword] = useState('');
+  const exportData = useExportData();
+  const deleteAccount = useDeleteAccount();
 
-  async function exportData() {
-    setBusy(true);
-    setError(null);
-    try {
-      await AccountApi.downloadExport();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Export failed');
-    } finally {
-      setBusy(false);
-    }
-  }
+  const busy = exportData.isPending || deleteAccount.isPending;
+  const error = exportData.error
+    ? errorMessage(exportData.error, 'Export failed')
+    : deleteAccount.error
+      ? errorMessage(deleteAccount.error, 'Delete failed')
+      : null;
 
-  async function deleteAccount(e: React.FormEvent) {
+  function submitDelete(e: React.FormEvent) {
     e.preventDefault();
     if (!password) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await AccountApi.deleteAccount(password);
-      // The session is dead server-side; drop straight back to the auth gate.
-      onSignOut();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Delete failed');
-      setBusy(false);
-    }
+    // The session is dead server-side on success; drop straight back to the auth gate.
+    deleteAccount.mutate(password, { onSuccess: onSignOut });
   }
 
   return (
     <>
       <div className="section-title" style={{ marginTop: 20 }}>Data &amp; privacy</div>
 
-      <div className="card stack" style={{ marginTop: 12 }}>
+      <Card stack style={{ marginTop: 12 }}>
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <div>
             <strong>Export my data</strong>
@@ -49,13 +38,13 @@ export function DataPrivacyPanel({ onSignOut }: { onSignOut: () => void }) {
               never included.
             </div>
           </div>
-          <button className="btn secondary" onClick={exportData} disabled={busy}>
-            {busy ? '…' : 'Export'}
-          </button>
+          <Button variant="secondary" onClick={() => exportData.mutate()} disabled={busy}>
+            {exportData.isPending ? '…' : 'Export'}
+          </Button>
         </div>
-      </div>
+      </Card>
 
-      <div className="card stack" style={{ marginTop: 12, borderColor: 'var(--danger, #c0392b)' }}>
+      <Card stack style={{ marginTop: 12, borderColor: 'var(--danger-role)' }}>
         <strong>Delete my account</strong>
         <div className="muted" style={{ fontSize: 13 }}>
           Permanently deletes your account and all your data — tasks, journal, notes, calendar,
@@ -64,14 +53,13 @@ export function DataPrivacyPanel({ onSignOut }: { onSignOut: () => void }) {
 
         {!confirming ? (
           <div className="row">
-            <button className="btn ghost" onClick={() => setConfirming(true)} disabled={busy}>
+            <Button variant="ghost" onClick={() => setConfirming(true)} disabled={busy}>
               Delete my account…
-            </button>
+            </Button>
           </div>
         ) : (
-          <form className="stack" onSubmit={deleteAccount}>
-            <input
-              className="input"
+          <form className="stack" onSubmit={submitDelete}>
+            <Input
               type="password"
               placeholder="Enter your password to confirm"
               value={password}
@@ -79,27 +67,26 @@ export function DataPrivacyPanel({ onSignOut }: { onSignOut: () => void }) {
               autoComplete="current-password"
             />
             <div className="row">
-              <button className="btn" type="submit" disabled={busy || !password}
-                style={{ background: 'var(--danger, #c0392b)' }}>
-                {busy ? 'Deleting…' : 'Permanently delete'}
-              </button>
-              <button
-                type="button"
-                className="btn ghost"
+              <Button variant="danger" type="submit" disabled={busy || !password}>
+                {deleteAccount.isPending ? 'Deleting…' : 'Permanently delete'}
+              </Button>
+              <Button
+                variant="ghost"
                 onClick={() => {
                   setConfirming(false);
                   setPassword('');
-                  setError(null);
+                  deleteAccount.reset();
+                  exportData.reset();
                 }}
                 disabled={busy}
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </form>
         )}
         {error && <div className="error">{error}</div>}
-      </div>
+      </Card>
     </>
   );
 }
