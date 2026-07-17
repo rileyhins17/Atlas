@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import type { EventDTO } from '@atlas/shared';
-import { ApiError, EventsApi } from '@/lib/api';
+import { useState } from 'react';
+import { errorMessage } from '@/lib/api';
+import { useCreateEvent, useDeleteEvent, useEvents } from '@/lib/hooks/events';
+import { Button, Card, EmptyState, Input } from '@/components/ui';
 
 function fmtWhen(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -15,95 +16,79 @@ function fmtWhen(iso: string): string {
 }
 
 export function CalendarPanel() {
-  const [events, setEvents] = useState<EventDTO[]>([]);
   const [title, setTitle] = useState('');
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [location, setLocation] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const eventsQuery = useEvents();
+  const create = useCreateEvent();
+  const remove = useDeleteEvent();
 
-  const load = useCallback(async () => {
-    try {
-      setEvents(await EventsApi.list());
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to load events');
-    }
-  }, []);
+  const events = eventsQuery.data ?? [];
+  const error = eventsQuery.error
+    ? errorMessage(eventsQuery.error, 'Failed to load events')
+    : create.error
+      ? errorMessage(create.error, 'Failed to add event')
+      : remove.error
+        ? errorMessage(remove.error, 'Failed to delete event')
+        : null;
 
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  async function save(e: React.FormEvent) {
+  function save(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim() || !start || !end) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await EventsApi.create({
+    create.mutate(
+      {
         title: title.trim(),
         startAt: new Date(start).toISOString(),
         endAt: new Date(end).toISOString(),
         location: location.trim() || undefined,
-      });
-      setTitle('');
-      setStart('');
-      setEnd('');
-      setLocation('');
-      await load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to add event');
-    } finally {
-      setBusy(false);
-    }
+      },
+      {
+        onSuccess: () => {
+          setTitle('');
+          setStart('');
+          setEnd('');
+          setLocation('');
+        },
+      },
+    );
   }
 
   return (
     <>
       <div className="section-title">Calendar</div>
-      <form className="card stack" onSubmit={save}>
-        <input
-          className="input"
-          placeholder="Event title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-        <div className="row">
-          <label className="stack" style={{ flex: 1, gap: 4 }}>
-            <span className="muted" style={{ fontSize: 12 }}>Start</span>
-            <input
-              className="input"
-              type="datetime-local"
-              value={start}
-              onChange={(e) => setStart(e.target.value)}
-            />
-          </label>
-          <label className="stack" style={{ flex: 1, gap: 4 }}>
-            <span className="muted" style={{ fontSize: 12 }}>End</span>
-            <input
-              className="input"
-              type="datetime-local"
-              value={end}
-              onChange={(e) => setEnd(e.target.value)}
-            />
-          </label>
-        </div>
-        <input
-          className="input"
-          placeholder="Location (optional)"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-        />
-        <button className="btn" type="submit" disabled={busy}>
-          Add event
-        </button>
-        {error && <div className="error">{error}</div>}
-      </form>
+      <Card stack>
+        <form className="stack" onSubmit={save}>
+          <Input
+            placeholder="Event title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <div className="row">
+            <label className="stack" style={{ flex: 1, gap: 4 }}>
+              <span className="muted" style={{ fontSize: 12 }}>Start</span>
+              <Input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} />
+            </label>
+            <label className="stack" style={{ flex: 1, gap: 4 }}>
+              <span className="muted" style={{ fontSize: 12 }}>End</span>
+              <Input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} />
+            </label>
+          </div>
+          <Input
+            placeholder="Location (optional)"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+          />
+          <Button type="submit" disabled={create.isPending}>
+            Add event
+          </Button>
+          {error && <div className="error">{error}</div>}
+        </form>
+      </Card>
 
-      <div className="card" style={{ marginTop: 14 }}>
+      <Card style={{ marginTop: 14 }}>
         {events.length === 0 ? (
-          <span className="muted">No upcoming events.</span>
+          <EmptyState>No upcoming events.</EmptyState>
         ) : (
           events.map((ev) => (
             <div className="task" key={ev.id}>
@@ -114,17 +99,13 @@ export function CalendarPanel() {
                   {ev.location ? ` · ${ev.location}` : ''}
                 </div>
               </div>
-              <button
-                className="btn ghost"
-                onClick={() => EventsApi.remove(ev.id).then(load)}
-                aria-label="delete"
-              >
+              <Button variant="ghost" onClick={() => remove.mutate(ev.id)} aria-label="delete">
                 ✕
-              </button>
+              </Button>
             </div>
           ))
         )}
-      </div>
+      </Card>
     </>
   );
 }

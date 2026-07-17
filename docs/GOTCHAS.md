@@ -19,6 +19,9 @@ Append every new setup/build snag here (root cause + fix) so no future thread wa
 ## Shell (PowerShell)
 - **git commit here-strings break on inner quotes.** A `@'...'@` message containing `"double quotes"` or `'` (e.g. `Atlas's`) gets word-split and git treats the words as pathspecs. Keep commit-message bodies quote-free (and apostrophe-free), or write the message to a file and use `git commit -F file`.
 
+## Browser verification (Claude sessions, this machine)
+- **The in-app Browser pane (`mcp__Claude_Browser__*`) cannot take screenshots of the Atlas web app** — `computer{action:"screenshot"}` times out after 30s every time (fresh tabs included), even though navigation, clicks, `form_input`, and `read_page` all work fine. Verify behaviour with `read_page` (accessibility tree), and when an actual screenshot is needed use the **Claude in Chrome** tools (`mcp__claude-in-chrome__*`) on `http://localhost:3000` instead. Note Chrome's CDP screenshot can also time out once right after a navigation/login — retry once and it works.
+
 ## TypeScript / build
 - **Node globals (`fetch`, `AbortSignal`, `process`, `Buffer`) → `TS2304 Cannot find name`.** pnpm is strict (no hoist), so EVERY package that uses them needs its own `@types/node` devDep. Added to db, ai, connectors, api.
 - **Prisma `Json` columns reject `Record<string,unknown>` / `unknown`.** Cast at the prisma call to `Prisma.InputJsonValue` (`import type { Prisma } from '@atlas/db'`). Never store a `Date` in JSON — `.toISOString()` first.
