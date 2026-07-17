@@ -12,6 +12,7 @@ export function useCreateNote() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: NotesApi.create,
+    meta: { success: 'Note saved', errorFallback: 'Failed to save note' },
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.notes }),
   });
 }
@@ -20,6 +21,7 @@ export function useDeleteNote() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: NotesApi.remove,
+    meta: { success: 'Note deleted', errorFallback: 'Failed to delete note' },
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.notes }),
   });
 }

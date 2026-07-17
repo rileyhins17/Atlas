@@ -22,6 +22,7 @@ export function useConnectDeepSeek() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: AiApi.connectDeepSeek,
+    meta: { success: 'DeepSeek connected', errorFallback: 'Failed to save key' },
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.aiStatus }),
   });
 }

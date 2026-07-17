@@ -26,6 +26,7 @@ export function useGoogleDisconnect() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: GoogleApi.disconnect,
+    meta: { success: 'Google Calendar disconnected', errorFallback: 'Failed to disconnect' },
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.googleStatus }),
   });
 }

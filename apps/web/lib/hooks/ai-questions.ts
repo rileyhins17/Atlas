@@ -13,6 +13,7 @@ export function useAnswerQuestion() {
   return useMutation({
     mutationFn: ({ id, answer }: { id: string; answer: string }) =>
       AiQuestionsApi.answer(id, answer),
+    meta: { success: 'Answer saved — Atlas will remember it', errorFallback: 'Failed to save answer' },
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.aiQuestions }),
   });
 }

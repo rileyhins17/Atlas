@@ -12,6 +12,7 @@ export function useCreateJournalEntry() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: JournalApi.create,
+    meta: { success: 'Entry saved', errorFallback: 'Failed to save entry' },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: qk.journal });
       // A new entry can seed an ai_question (thin/low-mood heuristic server-side).

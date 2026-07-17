@@ -12,6 +12,7 @@ export function useCreateTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: TasksApi.create,
+    meta: { success: 'Task added', errorFallback: 'Failed to add task' },
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.tasks }),
   });
 }
@@ -28,6 +29,7 @@ export function useDeleteTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: TasksApi.remove,
+    meta: { success: 'Task deleted', errorFallback: 'Failed to delete task' },
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.tasks }),
   });
 }
