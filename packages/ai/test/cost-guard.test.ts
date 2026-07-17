@@ -67,7 +67,7 @@ describe('CostGuard', () => {
   it('record() writes a usage row with an estimated cost and the given purpose/userId', async () => {
     const guard = new CostGuard(1000);
     await guard.record({
-      model: 'deepseek-chat',
+      model: 'deepseek-v4-flash',
       promptTokens: 1000,
       completionTokens: 500,
       purpose: 'chat',
@@ -75,18 +75,32 @@ describe('CostGuard', () => {
     });
     expect(create).toHaveBeenCalledTimes(1);
     const arg = create.mock.calls[0]![0] as { data: Record<string, unknown> };
-    expect(arg.data.model).toBe('deepseek-chat');
+    expect(arg.data.model).toBe('deepseek-v4-flash');
     expect(arg.data.promptTokens).toBe(1000);
     expect(arg.data.completionTokens).toBe(500);
     expect(arg.data.purpose).toBe('chat');
     expect(arg.data.userId).toBe('user-1');
-    // deepseek-chat rate: 0.14 in / 0.28 out micros-per-token -> 1000*0.14 + 500*0.28 = 280
+    // deepseek-v4-flash: 0.14 in / 0.28 out micros-per-token -> 1000*0.14 + 500*0.28 = 280
     expect(arg.data.costUsdMicros).toBe(280);
+  });
+
+  it('record() prices cache-hit prompt tokens cheaply when the provider reports them', async () => {
+    const guard = new CostGuard(1000);
+    await guard.record({
+      model: 'deepseek-v4-flash',
+      promptTokens: 1000,
+      completionTokens: 0,
+      cachedPromptTokens: 1000,
+      purpose: 'chat',
+    });
+    const arg = create.mock.calls[0]![0] as { data: Record<string, unknown> };
+    // 1000 * 0.0028 = 2.8 -> ceil -> 3, vs 140 if cache hits were ignored.
+    expect(arg.data.costUsdMicros).toBe(3);
   });
 
   it('record() defaults userId to null when omitted', async () => {
     const guard = new CostGuard(1000);
-    await guard.record({ model: 'deepseek-chat', promptTokens: 10, completionTokens: 0, purpose: 'daily_brief' });
+    await guard.record({ model: 'deepseek-v4-flash', promptTokens: 10, completionTokens: 0, purpose: 'daily_brief' });
     const arg = create.mock.calls[0]![0] as { data: Record<string, unknown> };
     expect(arg.data.userId).toBeNull();
   });

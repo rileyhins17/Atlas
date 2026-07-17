@@ -100,6 +100,7 @@ export class OrchestratorService {
       model: res.model,
       promptTokens: res.usage.promptTokens,
       completionTokens: res.usage.completionTokens,
+      cachedPromptTokens: res.usage.cachedPromptTokens,
       purpose,
       userId,
     });

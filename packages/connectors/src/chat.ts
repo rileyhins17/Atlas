@@ -21,6 +21,12 @@ export interface ChatMessage {
 export interface ChatUsage {
   promptTokens: number;
   completionTokens: number;
+  /**
+   * Subset of promptTokens the provider served from its prefix cache
+   * (DeepSeek's `prompt_cache_hit_tokens`). Billed far cheaper — pass it to the
+   * cost guard so spend isn't overstated. 0 when the provider doesn't report it.
+   */
+  cachedPromptTokens: number;
 }
 
 export interface ChatResult {
@@ -58,16 +64,26 @@ export interface EmbedOptions {
 export function parseChatCompletion(data: unknown, fallbackModel: string): ChatResult {
   const parsed = data as {
     choices?: { message?: { content?: string | null; tool_calls?: ChatToolCall[] } }[];
-    usage?: { prompt_tokens?: number; completion_tokens?: number };
+    usage?: {
+      prompt_tokens?: number;
+      completion_tokens?: number;
+      // DeepSeek reports cache hits at the top level; OpenAI-style APIs nest
+      // them under prompt_tokens_details.cached_tokens. Accept either.
+      prompt_cache_hit_tokens?: number;
+      prompt_tokens_details?: { cached_tokens?: number };
+    };
     model?: string;
   };
   const message = parsed.choices?.[0]?.message;
+  const usage = parsed.usage;
   return {
     content: message?.content ?? '',
     toolCalls: message?.tool_calls,
     usage: {
-      promptTokens: parsed.usage?.prompt_tokens ?? 0,
-      completionTokens: parsed.usage?.completion_tokens ?? 0,
+      promptTokens: usage?.prompt_tokens ?? 0,
+      completionTokens: usage?.completion_tokens ?? 0,
+      cachedPromptTokens:
+        usage?.prompt_cache_hit_tokens ?? usage?.prompt_tokens_details?.cached_tokens ?? 0,
     },
     model: parsed.model ?? fallbackModel,
     raw: data,

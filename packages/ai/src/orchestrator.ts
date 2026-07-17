@@ -12,7 +12,7 @@ export interface ToolExecution {
 
 export interface ToolLoopResult {
   content: string;
-  usage: { promptTokens: number; completionTokens: number };
+  usage: { promptTokens: number; completionTokens: number; cachedPromptTokens: number };
   toolExecutions: ToolExecution[];
 }
 
@@ -45,15 +45,21 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
   const toolExecutions: ToolExecution[] = [];
   let promptTokens = 0;
   let completionTokens = 0;
+  let cachedPromptTokens = 0;
 
   for (let i = 0; i < maxIterations; i++) {
     const res = await chat(messages, openAiTools);
     promptTokens += res.usage.promptTokens;
     completionTokens += res.usage.completionTokens;
+    cachedPromptTokens += res.usage.cachedPromptTokens ?? 0;
 
     const calls = res.toolCalls ?? [];
     if (calls.length === 0) {
-      return { content: res.content, usage: { promptTokens, completionTokens }, toolExecutions };
+      return {
+        content: res.content,
+        usage: { promptTokens, completionTokens, cachedPromptTokens },
+        toolExecutions,
+      };
     }
 
     messages.push({ role: 'assistant', content: res.content ?? '', tool_calls: calls });
@@ -85,7 +91,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
 
   return {
     content: '(Reached the tool-call iteration limit without a final answer.)',
-    usage: { promptTokens, completionTokens },
+    usage: { promptTokens, completionTokens, cachedPromptTokens },
     toolExecutions,
   };
 }

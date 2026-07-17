@@ -15,11 +15,11 @@ Monorepo, DB schema, auth, unified timeline, cost guard, one full vertical slice
 - ✅ **Orchestrator** (`apps/api/src/modules/ai/orchestrator.service.ts`): assembles context via `ModuleRegistryService.collectContext` + `buildContext` (token budget), calls the LLM via the **CostGuard** (assert cap → chat → record) on every round-trip, tool calls routed to module services by `ToolRouterService` (zod-validated).
 - ✅ **Chat with your life** (`POST /ai/chat`), **daily brief** (`POST /ai/daily-brief` → `insights`), **auto-organize** brain-dump → tasks/events/journal/notes (`POST /ai/brain-dump`), **AI-generated `ai_questions`** (replaced the journal mood heuristic) + UI cards.
 - ✅ Web: "Atlas AI" tab — connect-key form, chat, brain dump, daily brief + history.
-- ⚠️ **Embeddings write + pgvector retrieval**: code done (`EmbeddingService`, `$queryRaw` similarity search) but **unverified live** — needs an OpenRouter credential, since chat runs on DeepSeek direct and DeepSeek has no embeddings API.
-- **Provider note:** chat uses **DeepSeek direct** (`api.deepseek.com`, `DeepSeekConnector`), not OpenRouter — that's where the credits are. `OpenRouterConnector` remains for embeddings.
+- ⚠️ **Embeddings write + pgvector retrieval**: code done (`EmbeddingService`, `$queryRaw` similarity search) but **unverified live and provider-undecided** — DeepSeek direct has no embeddings API (verified 404), so this needs either a second provider key or a local embedding model. See leftovers.
+- **Provider note:** chat uses **DeepSeek direct** (`api.deepseek.com`, `DeepSeekConnector`, model `deepseek-v4-flash`), not OpenRouter — that's where the credits are. Cost is cache-aware; measured ~$0.00005/chat.
 
 ### Phase 2 leftovers
-- Connect an OpenRouter key → verify `POST /ai/embeddings/backfill` + `EmbeddingService.search()`.
+- **Decide the embeddings provider** (blocks semantic memory): local in-process model (no key, no per-call cost, fits the self-hosted/<$5-mo ethos; needs the vector dimension to match the `vector(768)` column) vs. an OpenRouter key vs. dropping semantic search until it earns its place. `EmbeddingService` currently assumes OpenRouter.
 - Rolling summaries (context currently = per-module `aiContext()` + recent timeline; no summarization/retrieval in the prompt yet).
 - A proper Settings screen to manage connector API keys (the key form currently lives in the Atlas AI tab).
 

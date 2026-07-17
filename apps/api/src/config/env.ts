@@ -14,8 +14,11 @@ const EnvSchema = z.object({
     .string()
     .regex(/^[0-9a-fA-F]{64}$/, 'APP_ENCRYPTION_KEY must be 64 hex chars (32 bytes)'),
   WEB_ORIGIN: z.string().default('http://localhost:3000'),
-  // Direct DeepSeek API model id (api.deepseek.com), e.g. "deepseek-chat".
-  AI_MODEL: z.string().default('deepseek-chat'),
+  // Direct DeepSeek API model id (api.deepseek.com). Use a concrete id, not the
+  // "deepseek-chat" alias — the alias resolves server-side (currently to
+  // deepseek-v4-flash) and the resolved name is what lands in the ai_usage
+  // ledger, so pricing lookups miss unless we ask for the real id up front.
+  AI_MODEL: z.string().default('deepseek-v4-flash'),
   AI_DAILY_TOKEN_CAP: z.coerce.number().default(0),
 });
 

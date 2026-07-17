@@ -38,7 +38,9 @@ packages/shared  zod DTOs + enums + contracts (browser-safe, no DB)
 
 Tool names are dotted (`tasks.create`) everywhere in Atlas, but some providers reject non-alphanumeric function names, so `packages/ai/src/tools.ts` maps them to a wire-safe form (`tasks__create`) at the provider boundary only.
 
-**Provider split:** chat runs on **DeepSeek direct** (`api.deepseek.com`) via `DeepSeekConnector`, because that's where the credits are. `OpenRouterConnector` stays for **embeddings**, which DeepSeek direct doesn't offer. Both speak the same OpenAI-compatible shape and share one response parser (`packages/connectors/src/chat.ts`), so swapping or adding providers is a connector, not a refactor.
+**Provider split:** chat runs on **DeepSeek direct** (`api.deepseek.com`, model `deepseek-v4-flash`) via `DeepSeekConnector`, because that's where the credits are. Embeddings are **undecided** — DeepSeek has no embeddings endpoint, so `EmbeddingService` currently targets `OpenRouterConnector`, but a local in-process model would avoid a second provider entirely. Both connectors speak the same OpenAI-compatible shape and share one response parser (`packages/connectors/src/chat.ts`), so swapping or adding providers is a connector, not a refactor.
+
+**Costing.** Always configure a concrete model id, never a provider alias: the API echoes back the *resolved* id, and that's what gets priced — an unknown id silently falls back to a placeholder rate. DeepSeek's prefix cache discounts repeated input ~98%, and Atlas re-sends the same context block every call (~95% cache-hit in practice), so `ChatUsage.cachedPromptTokens` is threaded from the connector into `estimateCostMicros`. Ignoring it overstates spend several-fold.
 
 ## Key decisions
 - **ESM everywhere, built with `tsc`.** NestJS DI needs `emitDecoratorMetadata`, which esbuild/tsx don't emit — so no tsx for the API. See `docs/adr/0001-foundational-stack.md`.

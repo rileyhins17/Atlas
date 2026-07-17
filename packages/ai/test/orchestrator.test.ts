@@ -12,7 +12,7 @@ const TOOL: AiToolSpec = {
 function chatResult(overrides: Partial<ChatResult>): ChatResult {
   return {
     content: '',
-    usage: { promptTokens: 10, completionTokens: 5 },
+    usage: { promptTokens: 10, completionTokens: 5, cachedPromptTokens: 2 },
     model: 'test-model',
     raw: {},
     ...overrides,
@@ -33,7 +33,7 @@ describe('runToolLoop', () => {
 
     expect(result.content).toBe('Hello!');
     expect(result.toolExecutions).toEqual([]);
-    expect(result.usage).toEqual({ promptTokens: 10, completionTokens: 5 });
+    expect(result.usage).toEqual({ promptTokens: 10, completionTokens: 5, cachedPromptTokens: 2 });
     expect(chat).toHaveBeenCalledTimes(1);
     expect(executeTool).not.toHaveBeenCalled();
   });
@@ -67,8 +67,8 @@ describe('runToolLoop', () => {
     expect(result.toolExecutions).toEqual([
       { name: 'tasks.create', arguments: '{"title":"Buy milk"}', result: JSON.stringify({ id: 'task_1', title: 'Buy milk' }), ok: true },
     ]);
-    // usage accumulates across both round-trips
-    expect(result.usage).toEqual({ promptTokens: 20, completionTokens: 10 });
+    // usage accumulates across both round-trips, cache hits included
+    expect(result.usage).toEqual({ promptTokens: 20, completionTokens: 10, cachedPromptTokens: 4 });
     expect(chat).toHaveBeenCalledTimes(2);
   });
 

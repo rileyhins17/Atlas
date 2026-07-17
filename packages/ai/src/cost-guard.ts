@@ -58,6 +58,8 @@ export class CostGuard {
     model: string;
     promptTokens: number;
     completionTokens: number;
+    /** Prompt tokens served from the provider's cache (billed cheaper). */
+    cachedPromptTokens?: number;
     purpose: string;
     userId?: string | null;
   }): Promise<void> {
@@ -65,6 +67,7 @@ export class CostGuard {
       params.model,
       params.promptTokens,
       params.completionTokens,
+      params.cachedPromptTokens ?? 0,
     );
     await prisma.aiUsage.create({
       data: {
