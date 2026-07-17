@@ -1,52 +1,38 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { TaskDTO } from '@atlas/shared';
-import { ApiError, TasksApi } from '@/lib/api';
+import { errorMessage } from '@/lib/api';
+import { useCompleteTask, useCreateTask, useDeleteTask, useTasks } from '@/lib/hooks/tasks';
+import { Badge, Button, Card, EmptyState, Input } from '@/components/ui';
 
 export function TasksPanel() {
-  const [tasks, setTasks] = useState<TaskDTO[]>([]);
   const [title, setTitle] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const tasksQuery = useTasks();
+  const create = useCreateTask();
+  const complete = useCompleteTask();
+  const remove = useDeleteTask();
 
-  const load = useCallback(async () => {
-    try {
-      setTasks(await TasksApi.list());
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to load tasks');
-    }
-  }, []);
+  const tasks = tasksQuery.data ?? [];
+  const error = tasksQuery.error
+    ? errorMessage(tasksQuery.error, 'Failed to load tasks')
+    : create.error
+      ? errorMessage(create.error, 'Failed to add task')
+      : complete.error
+        ? errorMessage(complete.error, 'Failed to complete task')
+        : remove.error
+          ? errorMessage(remove.error, 'Failed to delete task')
+          : null;
 
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  async function addTask(e: React.FormEvent) {
+  function addTask(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await TasksApi.create({ title: title.trim() });
-      setTitle('');
-      await load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to add task');
-    } finally {
-      setBusy(false);
-    }
+    create.mutate({ title: title.trim() }, { onSuccess: () => setTitle('') });
   }
 
-  async function toggle(t: TaskDTO) {
+  function toggle(t: TaskDTO) {
     if (t.status === 'DONE') return;
-    await TasksApi.complete(t.id);
-    await load();
-  }
-
-  async function remove(t: TaskDTO) {
-    await TasksApi.remove(t.id);
-    await load();
+    complete.mutate(t.id);
   }
 
   const open = tasks.filter((t) => t.status !== 'DONE');
@@ -56,25 +42,24 @@ export function TasksPanel() {
     <>
       <div className="section-title">Today</div>
       <form className="row" onSubmit={addTask}>
-        <input
-          className="input"
+        <Input
           placeholder="Add a task…"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
-        <button className="btn" type="submit" disabled={busy}>
+        <Button type="submit" disabled={create.isPending}>
           Add
-        </button>
+        </Button>
       </form>
       {error && <div className="error">{error}</div>}
 
-      <div className="card" style={{ marginTop: 14 }}>
+      <Card style={{ marginTop: 14 }}>
         {open.length === 0 && done.length === 0 ? (
-          <span className="muted">No tasks yet. Add your first one above.</span>
+          <EmptyState>No tasks yet. Add your first one above.</EmptyState>
         ) : (
           <>
             {open.map((t) => (
-              <TaskRow key={t.id} task={t} onToggle={toggle} onRemove={remove} />
+              <TaskRow key={t.id} task={t} onToggle={toggle} onRemove={(x) => remove.mutate(x.id)} />
             ))}
             {done.length > 0 && (
               <>
@@ -82,13 +67,18 @@ export function TasksPanel() {
                   Done
                 </div>
                 {done.map((t) => (
-                  <TaskRow key={t.id} task={t} onToggle={toggle} onRemove={remove} />
+                  <TaskRow
+                    key={t.id}
+                    task={t}
+                    onToggle={toggle}
+                    onRemove={(x) => remove.mutate(x.id)}
+                  />
                 ))}
               </>
             )}
           </>
         )}
-      </div>
+      </Card>
     </>
   );
 }
@@ -106,10 +96,10 @@ function TaskRow({
     <div className={`task ${task.status === 'DONE' ? 'done' : ''}`}>
       <button className="check" aria-label="complete" onClick={() => onToggle(task)} />
       <span className="title">{task.title}</span>
-      {task.priority !== 'MEDIUM' && <span className={`pill ${task.priority}`}>{task.priority}</span>}
-      <button className="btn ghost" onClick={() => onRemove(task)} aria-label="delete">
+      {task.priority !== 'MEDIUM' && <Badge tone={task.priority}>{task.priority}</Badge>}
+      <Button variant="ghost" onClick={() => onRemove(task)} aria-label="delete">
         ✕
-      </button>
+      </Button>
     </div>
   );
 }

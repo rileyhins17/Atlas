@@ -26,6 +26,11 @@ export class ApiError extends Error {
   }
 }
 
+/** Human-readable message for a failed call; API messages pass through. */
+export function errorMessage(err: unknown, fallback: string): string {
+  return err instanceof ApiError ? err.message : fallback;
+}
+
 async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     credentials: 'include',

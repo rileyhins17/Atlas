@@ -1,78 +1,64 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { HabitDTO } from '@atlas/shared';
-import { ApiError, HabitsApi } from '@/lib/api';
+import { errorMessage } from '@/lib/api';
+import { useCreateHabit, useDeleteHabit, useHabits, useLogHabit } from '@/lib/hooks/habits';
+import { Badge, Button, Card, EmptyState, Input } from '@/components/ui';
 
 export function HabitsPanel() {
-  const [habits, setHabits] = useState<HabitDTO[]>([]);
   const [name, setName] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const habitsQuery = useHabits();
+  const create = useCreateHabit();
+  const log = useLogHabit();
+  const remove = useDeleteHabit();
 
-  const load = useCallback(async () => {
-    try {
-      setHabits(await HabitsApi.list());
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to load habits');
-    }
-  }, []);
+  const habits = habitsQuery.data ?? [];
+  const error = habitsQuery.error
+    ? errorMessage(habitsQuery.error, 'Failed to load habits')
+    : create.error
+      ? errorMessage(create.error, 'Failed to add habit')
+      : log.error
+        ? errorMessage(log.error, 'Failed to check in')
+        : remove.error
+          ? errorMessage(remove.error, 'Failed to archive habit')
+          : null;
 
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  async function addHabit(e: React.FormEvent) {
+  function addHabit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await HabitsApi.create({ name: name.trim() });
-      setName('');
-      await load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to add habit');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function checkIn(h: HabitDTO) {
-    await HabitsApi.log(h.id);
-    await load();
-  }
-
-  async function remove(h: HabitDTO) {
-    await HabitsApi.remove(h.id);
-    await load();
+    create.mutate({ name: name.trim() }, { onSuccess: () => setName('') });
   }
 
   return (
     <>
       <div className="section-title">Habits</div>
       <form className="row" onSubmit={addHabit}>
-        <input
-          className="input"
+        <Input
           placeholder="New habit (e.g. Gym, Read, Water)…"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        <button className="btn" type="submit" disabled={busy}>
+        <Button type="submit" disabled={create.isPending}>
           Add
-        </button>
+        </Button>
       </form>
       {error && <div className="error">{error}</div>}
 
-      <div className="card" style={{ marginTop: 14 }}>
+      <Card style={{ marginTop: 14 }}>
         {habits.length === 0 ? (
-          <span className="muted">No habits yet. Add one to start a streak.</span>
+          <EmptyState>No habits yet. Add one to start a streak.</EmptyState>
         ) : (
           habits.map((h) => (
-            <HabitRow key={h.id} habit={h} onCheckIn={checkIn} onRemove={remove} />
+            <HabitRow
+              key={h.id}
+              habit={h}
+              onCheckIn={(x) => log.mutate(x.id)}
+              onRemove={(x) => remove.mutate(x.id)}
+            />
           ))
         )}
-      </div>
+      </Card>
     </>
   );
 }
@@ -90,10 +76,10 @@ function HabitRow({
     <div className={`task ${habit.doneToday ? 'done' : ''}`}>
       <button className="check" aria-label="check in" onClick={() => onCheckIn(habit)} />
       <span className="title">{habit.name}</span>
-      {habit.streak > 0 && <span className="pill">🔥 {habit.streak}d</span>}
-      <button className="btn ghost" onClick={() => onRemove(habit)} aria-label="archive">
+      {habit.streak > 0 && <Badge>🔥 {habit.streak}d</Badge>}
+      <Button variant="ghost" onClick={() => onRemove(habit)} aria-label="archive">
         ✕
-      </button>
+      </Button>
     </div>
   );
 }
