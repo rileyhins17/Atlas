@@ -1,11 +1,14 @@
 import type {
   AiQuestionDTO,
+  ChatMessageDTO,
+  ChatResponseDTO,
   CreateHabitInput,
   CreateJournalInput,
   CreateNoteInput,
   CreateTaskInput,
   EventDTO,
   HabitDTO,
+  InsightDTO,
   JournalDTO,
   NoteDTO,
   TaskDTO,
@@ -107,4 +110,31 @@ export const AiQuestionsApi = {
     }),
   dismiss: (id: string) =>
     request<{ ok: true }>(`/ai/questions/${id}/dismiss`, { method: 'POST', body: '{}' }),
+  generate: () => request<{ ok: true }>('/ai/questions/generate', { method: 'POST', body: '{}' }),
+};
+
+export interface AiStatus {
+  enabled: boolean;
+  model: string;
+  dailyTokenCap: number;
+  tokensUsedToday: number;
+  providerConfigured: boolean;
+  embeddingsConfigured: boolean;
+  domains: string[];
+}
+
+export const AiApi = {
+  status: () => request<AiStatus>('/ai/status'),
+  connectDeepSeek: (apiKey: string) =>
+    request<{ ok: true }>('/ai/connect/deepseek', { method: 'POST', body: JSON.stringify({ apiKey }) }),
+  connectOpenRouter: (apiKey: string) =>
+    request<{ ok: true }>('/ai/connect/openrouter', { method: 'POST', body: JSON.stringify({ apiKey }) }),
+  chat: (message: string, history: ChatMessageDTO[]) =>
+    request<ChatResponseDTO>('/ai/chat', { method: 'POST', body: JSON.stringify({ message, history }) }),
+  brainDump: (text: string) =>
+    request<ChatResponseDTO>('/ai/brain-dump', { method: 'POST', body: JSON.stringify({ text }) }),
+  dailyBrief: () => request<InsightDTO>('/ai/daily-brief', { method: 'POST', body: '{}' }),
+  insights: () => request<InsightDTO[]>('/ai/insights'),
+  backfillEmbeddings: () =>
+    request<{ processed: number; failed: number }>('/ai/embeddings/backfill', { method: 'POST', body: '{}' }),
 };

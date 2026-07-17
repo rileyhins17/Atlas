@@ -10,8 +10,12 @@ export interface ModelRate {
 }
 
 export const MODEL_RATES: Record<string, ModelRate> = {
+  // OpenRouter-style ids
   'deepseek/deepseek-chat': { inputMicros: 0.14, outputMicros: 0.28 },
   'deepseek/deepseek-reasoner': { inputMicros: 0.55, outputMicros: 2.19 },
+  // DeepSeek direct API ids (api.deepseek.com)
+  'deepseek-chat': { inputMicros: 0.14, outputMicros: 0.28 },
+  'deepseek-reasoner': { inputMicros: 0.55, outputMicros: 2.19 },
 };
 
 /** Fallback rate for unknown models so cost is never silently 0. */

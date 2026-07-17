@@ -1,6 +1,15 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { buildContext, CostGuard, estimateTokens } from '@atlas/ai';
-import { AnswerQuestionInput, type AiQuestionDTO } from '@atlas/shared';
+import {
+  AnswerQuestionInput,
+  BrainDumpInput,
+  ChatInput,
+  ConnectOpenRouterInput,
+  PaginationQuery,
+  type AiQuestionDTO,
+  type ChatResponseDTO,
+  type InsightDTO,
+} from '@atlas/shared';
 import { ZodValidationPipe } from '../../common/zod.pipe.js';
 import { SessionGuard } from '../../auth/session.guard.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
@@ -8,6 +17,8 @@ import type { AuthedUser } from '../../auth/auth.service.js';
 import { ModuleRegistryService } from '../../core/domain-module.js';
 import { ConnectorsService } from '../../core/connectors.service.js';
 import { AiQuestionsService } from './ai-questions.service.js';
+import { OrchestratorService } from './orchestrator.service.js';
+import { EmbeddingService } from './embedding.service.js';
 import { loadEnv } from '../../config/env.js';
 
 const CONTEXT_TOKEN_BUDGET = 2000;
@@ -20,7 +31,81 @@ export class AiController {
     private readonly connectors: ConnectorsService,
     private readonly costGuard: CostGuard,
     private readonly questions: AiQuestionsService,
+    private readonly orchestrator: OrchestratorService,
+    private readonly embeddings: EmbeddingService,
   ) {}
+
+  /** Let the user connect their own DeepSeek key from Settings (used for chat). */
+  @Post('connect/deepseek')
+  async connectDeepSeek(
+    @CurrentUser() user: AuthedUser,
+    @Body(new ZodValidationPipe(ConnectOpenRouterInput)) body: ConnectOpenRouterInput,
+  ): Promise<{ ok: true }> {
+    await this.connectors.saveCredential(user.id, 'deepseek', { apiKey: body.apiKey });
+    return { ok: true };
+  }
+
+  /** Let the user connect an OpenRouter key from Settings (used for embeddings). */
+  @Post('connect/openrouter')
+  async connectOpenRouter(
+    @CurrentUser() user: AuthedUser,
+    @Body(new ZodValidationPipe(ConnectOpenRouterInput)) body: ConnectOpenRouterInput,
+  ): Promise<{ ok: true }> {
+    await this.connectors.saveCredential(user.id, 'openrouter', { apiKey: body.apiKey });
+    return { ok: true };
+  }
+
+  // --- Chat with your life ---
+
+  @Post('chat')
+  async chat(
+    @CurrentUser() user: AuthedUser,
+    @Body(new ZodValidationPipe(ChatInput)) body: ChatInput,
+  ): Promise<ChatResponseDTO> {
+    const history = body.history.map((m) => ({ role: m.role, content: m.content }));
+    const result = await this.orchestrator.chat(user.id, body.message, history);
+    return { content: result.content, toolExecutions: result.toolExecutions };
+  }
+
+  /** Paste in a messy brain dump; the AI files it into tasks/events/journal/notes via tool calls. */
+  @Post('brain-dump')
+  async brainDump(
+    @CurrentUser() user: AuthedUser,
+    @Body(new ZodValidationPipe(BrainDumpInput)) body: BrainDumpInput,
+  ): Promise<ChatResponseDTO> {
+    const result = await this.orchestrator.organizeBrainDump(user.id, body.text);
+    return { content: result.content, toolExecutions: result.toolExecutions };
+  }
+
+  // --- Daily brief + insights ---
+
+  @Post('daily-brief')
+  generateDailyBrief(@CurrentUser() user: AuthedUser): Promise<InsightDTO> {
+    return this.orchestrator.generateDailyBrief(user.id);
+  }
+
+  @Get('insights')
+  listInsights(
+    @CurrentUser() user: AuthedUser,
+    @Query(new ZodValidationPipe(PaginationQuery)) query: PaginationQuery,
+  ): Promise<InsightDTO[]> {
+    return this.orchestrator.listInsights(user.id, query);
+  }
+
+  // --- Semantic memory ---
+
+  @Post('questions/generate')
+  async generateQuestions(@CurrentUser() user: AuthedUser): Promise<{ ok: true }> {
+    await this.orchestrator.generateQuestions(user.id);
+    return { ok: true };
+  }
+
+  @Post('embeddings/backfill')
+  backfillEmbeddings(
+    @CurrentUser() user: AuthedUser,
+  ): Promise<{ processed: number; failed: number }> {
+    return this.embeddings.backfillPending(user.id);
+  }
 
   // --- Self-curation loop: Atlas's questions to the user ---
 
@@ -49,15 +134,17 @@ export class AiController {
   @Get('status')
   async status(@CurrentUser() user: AuthedUser) {
     const env = loadEnv();
-    const providerReady = await this.connectors.openrouter.verify(
-      this.connectors.contextFor(user.id, 'openrouter'),
-    );
+    const [deepseekReady, openrouterReady] = await Promise.all([
+      this.connectors.deepseek.verify(this.connectors.contextFor(user.id, 'deepseek')),
+      this.connectors.openrouter.verify(this.connectors.contextFor(user.id, 'openrouter')),
+    ]);
     return {
       enabled: this.costGuard.enabled,
       model: env.AI_MODEL,
       dailyTokenCap: env.AI_DAILY_TOKEN_CAP,
       tokensUsedToday: await this.costGuard.tokensUsedToday(),
-      providerConfigured: providerReady,
+      providerConfigured: deepseekReady,
+      embeddingsConfigured: openrouterReady,
       domains: this.registry.list().map((m) => m.id),
     };
   }

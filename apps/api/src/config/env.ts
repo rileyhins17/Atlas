@@ -14,7 +14,8 @@ const EnvSchema = z.object({
     .string()
     .regex(/^[0-9a-fA-F]{64}$/, 'APP_ENCRYPTION_KEY must be 64 hex chars (32 bytes)'),
   WEB_ORIGIN: z.string().default('http://localhost:3000'),
-  AI_MODEL: z.string().default('deepseek/deepseek-chat'),
+  // Direct DeepSeek API model id (api.deepseek.com), e.g. "deepseek-chat".
+  AI_MODEL: z.string().default('deepseek-chat'),
   AI_DAILY_TOKEN_CAP: z.coerce.number().default(0),
 });
 

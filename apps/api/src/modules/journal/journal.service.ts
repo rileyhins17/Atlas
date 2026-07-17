@@ -53,19 +53,13 @@ export class JournalService {
       occurredAt: entry.entryDate,
     });
 
-    // 2. Make it AI-retrievable (Phase 2 backfills the vector).
+    // 2. Make it AI-retrievable (embedding backfill runs async via /ai/embeddings/backfill).
     await this.memory.queueForEmbedding(userId, 'journal', entry.id, entry.body);
 
-    // 3. Self-curation loop: a thin, low-mood entry earns a follow-up question.
-    //    (Heuristic now; the AI orchestrator generates these in Phase 2.)
-    if (entry.mood != null && entry.mood <= 2 && entry.body.trim().length < 140) {
-      await this.memory.askUser({
-        userId,
-        question: `You logged a low mood (${entry.mood}/5) but kept it short — what was the biggest thing weighing on you?`,
-        rationale: 'Understanding low-mood days helps Atlas spot what drains you.',
-        relatesTo: 'journal',
-      });
-    }
+    // 3. Self-curation loop: the AI orchestrator reviews context (including this
+    //    entry) and decides whether a follow-up question is worth asking — see
+    //    OrchestratorService.generateQuestions, called from the daily brief and
+    //    from POST /ai/questions/generate.
 
     return toDto(entry);
   }

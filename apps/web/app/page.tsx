@@ -1,10 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   AiQuestionDTO,
+  ChatMessageDTO,
   EventDTO,
   HabitDTO,
+  InsightDTO,
   JournalDTO,
   NoteDTO,
   TaskDTO,
@@ -12,6 +14,7 @@ import type {
 } from '@atlas/shared';
 import {
   ApiError,
+  AiApi,
   AiQuestionsApi,
   AuthApi,
   EventsApi,
@@ -117,13 +120,14 @@ function AuthGate({ onAuthed }: { onAuthed: (u: UserDTO) => void }) {
   );
 }
 
-type Tab = 'today' | 'habits' | 'calendar' | 'journal' | 'notes';
+type Tab = 'today' | 'habits' | 'calendar' | 'journal' | 'notes' | 'ai';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'today', label: 'Today' },
   { id: 'habits', label: 'Habits' },
   { id: 'calendar', label: 'Calendar' },
   { id: 'journal', label: 'Journal' },
   { id: 'notes', label: 'Notes' },
+  { id: 'ai', label: 'Atlas AI' },
 ];
 
 function Dashboard({ user, onSignOut }: { user: UserDTO; onSignOut: () => void }) {
@@ -162,6 +166,7 @@ function Dashboard({ user, onSignOut }: { user: UserDTO; onSignOut: () => void }
       {tab === 'calendar' && <CalendarPanel />}
       {tab === 'journal' && <JournalPanel />}
       {tab === 'notes' && <NotesPanel />}
+      {tab === 'ai' && <AiPanel />}
     </>
   );
 }
@@ -605,6 +610,261 @@ function NotesPanel() {
         ))}
       </div>
     </>
+  );
+}
+
+function AiPanel() {
+  const [status, setStatus] = useState<Awaited<ReturnType<typeof AiApi.status>> | null>(null);
+  const [keyDraft, setKeyDraft] = useState('');
+  const [connecting, setConnecting] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
+
+  const loadStatus = useCallback(async () => {
+    try {
+      setStatus(await AiApi.status());
+    } catch {
+      /* not signed in yet / ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadStatus();
+  }, [loadStatus]);
+
+  async function connect(e: React.FormEvent) {
+    e.preventDefault();
+    if (!keyDraft.trim()) return;
+    setConnecting(true);
+    setConnectError(null);
+    try {
+      await AiApi.connectDeepSeek(keyDraft.trim());
+      setKeyDraft('');
+      await loadStatus();
+    } catch (err) {
+      setConnectError(err instanceof ApiError ? err.message : 'Failed to save key');
+    } finally {
+      setConnecting(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="section-title">Atlas AI</div>
+
+      {status && (
+        <div className="muted" style={{ fontSize: 12, marginBottom: 12 }}>
+          {status.providerConfigured
+            ? `Connected · ${status.model} · ${status.tokensUsedToday}/${status.dailyTokenCap} tokens used today`
+            : 'Not connected yet'}
+        </div>
+      )}
+
+      {status && !status.providerConfigured && (
+        <form className="card stack" onSubmit={connect} style={{ marginBottom: 16 }}>
+          <div className="muted" style={{ fontSize: 13 }}>
+            Connect a DeepSeek API key to enable chat, daily briefs, and auto-organize.
+          </div>
+          <input
+            className="input"
+            type="password"
+            placeholder="DeepSeek API key (sk-...)"
+            value={keyDraft}
+            onChange={(e) => setKeyDraft(e.target.value)}
+          />
+          <button className="btn" type="submit" disabled={connecting}>
+            {connecting ? 'Connecting…' : 'Connect'}
+          </button>
+          {connectError && <div className="error">{connectError}</div>}
+        </form>
+      )}
+
+      {status?.providerConfigured && (
+        <>
+          <ChatPanel />
+          <BrainDumpPanel />
+          <DailyBriefPanel />
+        </>
+      )}
+    </>
+  );
+}
+
+function ChatPanel() {
+  const [messages, setMessages] = useState<ChatMessageDTO[]>([]);
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastTools, setLastTools] = useState<string[]>([]);
+  const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [messages]);
+
+  async function send(e: React.FormEvent) {
+    e.preventDefault();
+    const text = draft.trim();
+    if (!text || busy) return;
+    setBusy(true);
+    setError(null);
+    setDraft('');
+    const history = messages;
+    setMessages((m) => [...m, { role: 'user', content: text }]);
+    try {
+      const res = await AiApi.chat(text, history);
+      setMessages((m) => [...m, { role: 'assistant', content: res.content }]);
+      setLastTools(res.toolExecutions.filter((t) => t.ok).map((t) => t.name));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Chat failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card stack" style={{ marginBottom: 16 }}>
+      <div className="section-title" style={{ margin: 0 }}>Chat with your life</div>
+      <div className="stack" style={{ maxHeight: 320, overflowY: 'auto', gap: 8 }}>
+        {messages.length === 0 && (
+          <span className="muted" style={{ fontSize: 13 }}>
+            Ask Atlas anything, or tell it to add a task, log a habit, or write a journal entry.
+          </span>
+        )}
+        {messages.map((m, i) => (
+          <div
+            key={i}
+            style={{
+              alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
+              background: m.role === 'user' ? 'var(--accent-2)' : 'var(--surface-2, #f2f2f2)',
+              borderRadius: 8,
+              padding: '6px 10px',
+              maxWidth: '85%',
+              whiteSpace: 'pre-wrap',
+            }}
+          >
+            {m.content}
+          </div>
+        ))}
+        <div ref={endRef} />
+      </div>
+      {lastTools.length > 0 && (
+        <div className="muted" style={{ fontSize: 12 }}>Atlas ran: {lastTools.join(', ')}</div>
+      )}
+      <form className="row" onSubmit={send}>
+        <input
+          className="input"
+          placeholder="Message Atlas…"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+        />
+        <button className="btn" type="submit" disabled={busy}>
+          {busy ? '…' : 'Send'}
+        </button>
+      </form>
+      {error && <div className="error">{error}</div>}
+    </div>
+  );
+}
+
+function BrainDumpPanel() {
+  const [text, setText] = useState('');
+  const [result, setResult] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function organize(e: React.FormEvent) {
+    e.preventDefault();
+    if (!text.trim() || busy) return;
+    setBusy(true);
+    setError(null);
+    setResult(null);
+    try {
+      const res = await AiApi.brainDump(text.trim());
+      const created = res.toolExecutions.filter((t) => t.ok).map((t) => t.name);
+      setResult(
+        created.length > 0
+          ? `Filed: ${created.join(', ')}${res.content ? ` — ${res.content}` : ''}`
+          : res.content || 'Nothing actionable found.',
+      );
+      setText('');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to organize');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="card stack" onSubmit={organize} style={{ marginBottom: 16 }}>
+      <div className="section-title" style={{ margin: 0 }}>Brain dump</div>
+      <textarea
+        className="input"
+        rows={3}
+        placeholder="Paste anything messy — Atlas will sort it into tasks, events, journal, or notes…"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+      />
+      <button className="btn" type="submit" disabled={busy}>
+        {busy ? 'Organizing…' : 'Organize'}
+      </button>
+      {result && <div className="muted" style={{ fontSize: 13 }}>{result}</div>}
+      {error && <div className="error">{error}</div>}
+    </form>
+  );
+}
+
+function DailyBriefPanel() {
+  const [insights, setInsights] = useState<InsightDTO[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      setInsights(await AiApi.insights());
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to load briefs');
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function generate() {
+    setBusy(true);
+    setError(null);
+    try {
+      await AiApi.dailyBrief();
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to generate brief');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card stack">
+      <div className="row" style={{ justifyContent: 'space-between' }}>
+        <div className="section-title" style={{ margin: 0 }}>Daily brief</div>
+        <button className="btn" onClick={generate} disabled={busy}>
+          {busy ? 'Writing…' : "Generate today's brief"}
+        </button>
+      </div>
+      {error && <div className="error">{error}</div>}
+      {insights.length === 0 ? (
+        <span className="muted" style={{ fontSize: 13 }}>No briefs yet.</span>
+      ) : (
+        <div className="stack">
+          {insights.map((i) => (
+            <div key={i.id} className="card">
+              <strong>{i.title}</strong>
+              <div style={{ marginTop: 6, whiteSpace: 'pre-wrap' }}>{i.body}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

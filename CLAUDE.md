@@ -21,10 +21,10 @@ Atlas is a product Riley intends to **sell** — build to a paid-SaaS standard, 
 
 **Already at bar:** unit tests + GitHub Actions CI; rate limiting (`@nestjs/throttler`: 120/min global, 10/min login, 5/min register); security headers (helmet, JSON-only CSP); CSRF (sameSite=lax cookie + `OriginCheckMiddleware` on mutations); global error boundary (`AllExceptionsFilter` — no stack/internal leaks) + structured JSON request logging with `x-request-id` (`RequestIdMiddleware`); pagination on every list endpoint (shared `PaginationQuery`, hard cap 100); 1mb body limit; `trust proxy` for real client IPs behind Caddy.
 
-**Known tracked debt (not yet at bar — see `docs/roadmap.md` Productization track):** no error tracking (Sentry-class) wired; no billing (Stripe) or legal (privacy/ToS, data export + hard delete); tests are unit-only — no e2e per module (needs a test DB strategy) and no cost-guard tests (needs a Prisma mock); tests aren't covered by `pnpm typecheck`; 2FA + password strength rules absent. Don't let this list grow silently — either build to bar or add the gap here.
+**Known tracked debt (not yet at bar — see `docs/roadmap.md` Productization track):** no error tracking (Sentry-class) wired; no billing (Stripe) or legal (privacy/ToS, data export + hard delete); tests are unit-only — no e2e per module (needs a test DB strategy); tests aren't covered by `pnpm typecheck`; 2FA + password strength rules absent. Embedding backfill/semantic search needs a separate **OpenRouter** credential (DeepSeek direct has no embeddings API) — not connected yet, so `/ai/embeddings/backfill` runs but fails per-row until one is added. Don't let this list grow silently — either build to bar or add the gap here.
 
 ## What Atlas is
-Personal "Life OS": one unified data layer for tasks, calendar, habits, journal, finance, plus a cheap cross-domain AI (DeepSeek via OpenRouter) that briefs, auto-organizes messy input, nudges, chats over your life, and **asks you questions to fill its own gaps**. Self-hosted on a cheap VPS. Budget: AI credits < $5/mo. Accessible from phone + laptop (PWA).
+Personal "Life OS": one unified data layer for tasks, calendar, habits, journal, finance, plus a cheap cross-domain AI (DeepSeek, called direct) that briefs, auto-organizes messy input, nudges, chats over your life, and **asks you questions to fill its own gaps**. Self-hosted on a cheap VPS. Budget: AI credits < $5/mo. Accessible from phone + laptop (PWA).
 
 Unique hook: silos become one graph; the AI curates its own knowledge by interviewing the user (`ai_questions` table surfaced as UI cards).
 
@@ -37,17 +37,18 @@ Unique hook: silos become one graph; the AI curates its own knowledge by intervi
 ## Stack + toolchain (verified on this machine)
 - node v24, npm 11, **pnpm 11.13.1** (installed globally via npm), docker 29 + compose v5, git 2.53. Windows 11, PowerShell.
 - TS monorepo: **pnpm workspaces + Turborepo**. **ESM everywhere.**
-- API: **NestJS 11 (ESM), built with `tsc`** (see GOTCHA: not tsx). Prisma 6 + Postgres + pgvector. Web: **Next.js 15** PWA (React 19). Deploy: Docker Compose + Caddy; Cloudflare for DNS. AI: OpenRouter → `deepseek/deepseek-chat`.
+- API: **NestJS 11 (ESM), built with `tsc`** (see GOTCHA: not tsx). Prisma 6 + Postgres + pgvector. Web: **Next.js 15** PWA (React 19). Deploy: Docker Compose + Caddy; Cloudflare for DNS. AI: **DeepSeek direct API** (`api.deepseek.com`, model `deepseek-chat`) via `DeepSeekConnector` — chose direct over OpenRouter because Riley bought DeepSeek platform credits, not OpenRouter credits (see GOTCHAS). `OpenRouterConnector` still exists/registered for embeddings (DeepSeek has no embeddings API) but has no credential yet.
 
 ## Repo map
 ```
 packages/db        Prisma schema (FULL core model) + client singleton. Import DB ONLY via @atlas/db.
 packages/shared    zod DTOs + enums + AI contracts (browser-safe, no DB import).
-packages/connectors Connector interface + OpenRouterConnector (has chat()).
-packages/ai        pricing, CostGuard, context-builder (token budgeting).
-apps/api           NestJS. core/ (prisma,crypto,timeline,domain-module,connectors,health),
-                   auth/ (scrypt+sessions+guard), modules/tasks (vertical slice), modules/ai (status+dry-run).
-apps/web           Next 15. app/page.tsx = auth gate + Today (tasks). lib/api.ts = fetch wrapper.
+packages/connectors Connector interface + chat.ts (shared OpenAI-compatible types) + OpenRouterConnector (chat+embed) + DeepSeekConnector (chat).
+packages/ai        pricing, CostGuard, context-builder (token budgeting), tools.ts (wire-safe tool names), orchestrator.ts (runToolLoop — provider-agnostic tool-calling loop).
+apps/api           NestJS. core/ (prisma,crypto,timeline,domain-module,connectors,health,memory),
+                   auth/ (scrypt+sessions+guard), modules/tasks|habits|journal|notes|calendar (vertical slices),
+                   modules/ai (OrchestratorService, ToolRouterService, EmbeddingService, AiQuestionsService, ai.controller).
+apps/web           Next 15. app/page.tsx = auth gate + tabs (Today/Habits/Calendar/Journal/Notes/Atlas AI). lib/api.ts = fetch wrapper.
 infra/             (TODO) docker-compose, Caddyfile, Dockerfiles.
 docs/              (TODO) architecture, data-model, roadmap, guides, ADRs, GOTCHAS.
 ```
@@ -84,17 +85,24 @@ Migrations: `cd packages/db` then set `$env:DATABASE_URL` from `.env` and run `p
 
 - ✅ **Calendar** (`modules/calendar`) DONE + verified: events CRUD over the `events` table, timeline `event.*`, pagination-bounded list (`MAX_PAGE`), zod validation (endAt≥startAt → 400), `summarize()` = next events. Web `CalendarPanel` (datetime-local inputs). `ai/status` domains = `["tasks","habits","journal","notes","calendar"]` (all 5). **Google OAuth sync intentionally NOT built yet** (biggest/riskiest piece — deferred to a fresh session so it isn't left half-done).
 
-## DONE since: tests + CI (overnight run) and the security/robustness hardening baseline — see "Already at bar" above. CI is green on `main`.
+## Phase 2 — the AI brain (done: 2026-07-17, verified live against Neon + real DeepSeek key)
+- ✅ **DeepSeek direct connector** (`packages/connectors/src/deepseek.ts`) — Riley bought DeepSeek platform credits (not OpenRouter), so chat goes straight to `api.deepseek.com` (model `deepseek-chat`). `OpenRouterConnector` kept for embeddings only. Shared OpenAI-compatible chat types factored into `packages/connectors/src/chat.ts` so both connectors reuse one response parser.
+- ✅ **`runToolLoop`** (`packages/ai/src/orchestrator.ts`) — provider-agnostic, DB-free multi-turn tool-calling loop (send → if tool_calls, execute + feed results back → repeat up to `maxIterations`). Unit-tested in isolation with fake `chat`/`executeTool`.
+- ✅ **Wire-safe tool names** (`packages/ai/src/tools.ts`, `toWireToolName`/`fromWireToolName`): Atlas's tool specs are dotted (`tasks.create`) but DeepSeek's function-calling API rejects any name outside `^[a-zA-Z0-9_-]+$` — dots become `__` on the wire and are converted back before hitting `ToolRouterService`. Discovered via a live 400 during verification; if you add a provider, check this first before assuming dotted names work.
+- ✅ **`OrchestratorService`** (`apps/api/src/modules/ai/orchestrator.service.ts`) — every model call (including each tool-loop round-trip) is individually `costGuard.assertUnderCap()` → `deepseek.chat()` → `costGuard.record()`. Methods: `chat()`, `organizeBrainDump()`, `generateQuestions()` (AI-generated `ai_questions`, replacing the old journal heuristic — see `journal.service.ts`), `generateDailyBrief()` (writes `insights`, then best-effort calls `generateQuestions`), `listInsights()`.
+- ✅ **`ToolRouterService`** (`apps/api/src/modules/ai/tool-router.service.ts`) — validates tool-call args with the same zod DTOs the HTTP boundary uses, routes to `tasks.create/complete`, `habits.log`, `journal.add`, `notes.remember`, `calendar.add`, `ai.ask_question` (→ `MemoryService.askUser`). Unit-tested with fake services (no NestJS DI needed).
+- ✅ **`EmbeddingService`** (`apps/api/src/modules/ai/embedding.service.ts`) — backfills `embeddings` rows (`model="pending"`) via OpenRouter's `/embeddings` endpoint (`dimensions: 768` to match the fixed `vector(768)` column), `search()` does pgvector cosine-ish `<->` similarity via `$queryRaw`. **Not connected yet** — see Known tracked debt; `/ai/embeddings/backfill` degrades gracefully (returns `{processed:0,failed:N}`) without an OpenRouter credential, verified live.
+- ✅ Endpoints on `AiController`: `POST /ai/connect/deepseek`, `POST /ai/connect/openrouter`, `POST /ai/chat`, `POST /ai/brain-dump`, `POST /ai/daily-brief`, `GET /ai/insights`, `POST /ai/questions/generate`, `POST /ai/embeddings/backfill` (plus existing status/dry-run/questions CRUD).
+- ✅ Web: new "Atlas AI" tab (`apps/web/app/page.tsx`) — connect-key form (shown until configured), `ChatPanel` (multi-turn, shows which tools ran), `BrainDumpPanel`, `DailyBriefPanel` (generate + history list).
+- ✅ **Tests:** `packages/ai/test/cost-guard.test.ts` (mocks `@atlas/db`'s prisma singleton via `vi.mock`, closing the "no cost-guard tests" debt item), `orchestrator.test.ts` (tool loop: no-tool passthrough, single/multi tool call, failed tool execution fed back to the model, malformed JSON args, iteration cap), `tools.test.ts` (wire-name mapping). `apps/api/test/tool-router.test.ts` (routing + zod validation per tool, unknown-tool rejection). 54 tests total, all green; `pnpm build`/`typecheck`/`test` all pass.
+- ✅ **Verified live** against the Neon DB with Riley's real DeepSeek key: registered a test user, connected the key, ran `/ai/chat` (created a real task via tool call), multi-turn history recall, `/ai/brain-dump` (filed one input into a task + journal entry + pinned note across 3 domains in one call), `/ai/daily-brief` (wrote an `insights` row, then auto-generated 2 relevant `ai_questions` — no heuristic involved), confirmed `ai_usage` accumulated correctly (6997/200000 tokens) and stayed under `AI_DAILY_TOKEN_CAP`.
 
 ## NEXT ACTION — pick one (start here)
-Both need a credential from Riley; ask for it first.
-- **A) Phase 2 — the AI brain (recommended; this is the product's whole point).** Needs an **OpenRouter API key** (cheap: deepseek-chat). Build in `apps/api/src/modules/ai`: an orchestrator that assembles context via `ModuleRegistryService.collectContext()` + `buildContext()` (token budget), calls `OpenRouterConnector.chat()` **through `CostGuard`** (assert cap → chat → record usage), and routes tool calls to module services (specs already exist via `getToolSpecs()`: tasks.create, habits.log, journal.add, notes.remember, calendar.add). Then: chat-with-your-life endpoint + web panel, daily brief (write to `insights`), brain-dump auto-organize, AI-generated `ai_questions` (replace the journal heuristic), and the embedding backfill (`embeddings` rows have `model="pending"` + null vector) + pgvector retrieval via `$queryRaw`. Store the key with `ConnectorsService.saveCredential(userId, 'openrouter', { apiKey })` — never in code.
+- **A) Connect an OpenRouter credential for embeddings** (quick — closes the Phase 2 gap). Get an OpenRouter key, `POST /ai/connect/openrouter`, then `POST /ai/embeddings/backfill` to confirm the pending journal/note rows actually embed (untested live — OpenRouter's embeddings endpoint + `dimensions:768` param behavior with the real key is unverified; API shape is standard OpenAI-compatible so it should work, but confirm before relying on `EmbeddingService.search()`).
 - **B) Google Calendar two-way sync** — needs a **Google Cloud OAuth client id/secret**. Build `packages/connectors/src/google-calendar.ts` per `docs/connector-guide.md`: OAuth start + callback routes, `saveCredential` the tokens, `sync()` two-way against `events` using the `source`+`externalId` unique key. Add a Settings screen to connect Google.
+- **C) Productization debt** (see "Known tracked debt" above): error tracking, Stripe billing, legal pages + data export/hard delete, e2e tests, 2FA/password rules.
 
-Remaining productization debt is listed in "Known tracked debt" above.
-3. **Calendar** (`modules/calendar`): the `events` table + a **Google Calendar connector** (`packages/connectors/src/google-calendar.ts`) for two-way sync — the first real external connector; use the OAuth flow, store tokens via `ConnectorsService.saveCredential`.
-4. Add a web screen per domain (tabs/nav in `apps/web`).
-Then Phase 2 (AI brain: orchestrator that actually calls OpenRouter with the cost guard, chat, daily brief, auto-organize, `ai_questions` UI cards), Phase 3 (finance connector: SimpleFIN/Plaid), Phase 4 (proactive nudges). See `docs/roadmap.md` + the plan file.
+Then Phase 3 (finance connector: SimpleFIN/Plaid), Phase 4 (proactive nudges). See `docs/roadmap.md` + the plan file.
 
 ## GOTCHAS — already solved, do NOT rediscover
 - **pnpm ignores dependency build scripts** (`ERR_PNPM_IGNORED_BUILDS`, Prisma engine missing). Fix: `pnpm-workspace.yaml` has an `allowBuilds:` map (pnpm 11 key) → `'@prisma/client': true`, `'@prisma/engines': true`, `prisma: true`. Already set. If a new dep needs a build script, add it there.
@@ -105,5 +113,7 @@ Then Phase 2 (AI brain: orchestrator that actually calls OpenRouter with the cos
 - **PowerShell noise:** native commands' stderr gets wrapped as red `NativeCommandError` / a `pnpm.ps1` error block EVEN ON SUCCESS. Judge success by the actual ✔/output, not the red text. Don't use `2>&1` on native exes here.
 - Working dir at launch is usually `C:\`; the project is at `C:\Users\riley\atlas` — `cd` there first.
 - **Docker Desktop crashes on boot at "Inference manager"** (its Model Runner/AI feature), then all `docker` calls hang. Fix: with Docker stopped, set `"EnableDockerAI": false` in `%APPDATA%\Docker\settings-store.json` and relaunch. Full detail in `docs/GOTCHAS.md`. Already applied.
+- **DeepSeek's function-calling API rejects dotted tool names** (`Invalid 'tools[0].function.name': string does not match pattern '^[a-zA-Z0-9_-]+$'`). Atlas's tool specs use dots (`tasks.create`) for readability everywhere else, so `packages/ai/src/tools.ts` maps to `tasks__create` only at the provider boundary and back on the way in (`toWireToolName`/`fromWireToolName`). If you add a new provider, don't assume dotted names are safe — check its function-name pattern first.
+- **OpenRouter vs. DeepSeek direct are different credentials/connectors.** `.env`'s `OPENROUTER_API_KEY` was a stale placeholder (always blank) — Riley actually bought DeepSeek platform credits, so chat uses `DeepSeekConnector` against `api.deepseek.com` with a `deepseek` credential (`POST /ai/connect/deepseek`), model id `deepseek-chat` (no `deepseek/` prefix — that's the OpenRouter-style id). `OpenRouterConnector` is still registered and used for embeddings (`POST /ai/connect/openrouter`), since DeepSeek direct has no embeddings API. Don't conflate the two credential ids.
 ```
 ```

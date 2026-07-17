@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
   ConnectorRegistry,
+  DeepSeekConnector,
   OpenRouterConnector,
   type Connector,
   type ConnectorContext,
@@ -21,12 +22,14 @@ import { CryptoService } from './crypto.service.js';
 export class ConnectorsService {
   private readonly registry = new ConnectorRegistry();
   readonly openrouter = new OpenRouterConnector();
+  readonly deepseek = new DeepSeekConnector();
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
   ) {
     this.registry.register(this.openrouter);
+    this.registry.register(this.deepseek);
   }
 
   list(): Connector[] {
