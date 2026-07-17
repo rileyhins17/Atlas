@@ -60,7 +60,7 @@ export class GoogleController {
 
     // The user declined consent, or Google refused.
     if (error) {
-      res.redirect(`${webOrigin}/?google=denied`);
+      res.redirect(`${webOrigin}/settings?google=denied`);
       return;
     }
     if (!state || !code) throw new BadRequestException('Missing OAuth state or code');
@@ -71,7 +71,7 @@ export class GoogleController {
     }
 
     await this.google.completeOAuth(user.id, code);
-    res.redirect(`${webOrigin}/?google=connected`);
+    res.redirect(`${webOrigin}/settings?google=connected`);
   }
 
   /** Run a two-way sync now. */

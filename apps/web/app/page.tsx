@@ -1,27 +1,7 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { useMe } from '@/lib/hooks/auth';
-import { AuthGate } from '@/components/AuthGate';
-import { Dashboard } from '@/components/Dashboard';
-
+// The app lives on section routes (/today, /habits, …); the root just lands
+// on the default section. Auth is handled inside the dashboard shell.
 export default function Home() {
-  const me = useMe();
-
-  if (me.isPending) {
-    return (
-      <div className="container center">
-        <span className="muted">Loading…</span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="container">
-      <div className="brand">
-        <h1>Atlas</h1>
-        <span className="tag">your life, in one place</span>
-      </div>
-      {me.data ? <Dashboard user={me.data} /> : <AuthGate />}
-    </div>
-  );
+  redirect('/today');
 }
