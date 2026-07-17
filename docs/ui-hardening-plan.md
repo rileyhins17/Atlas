@@ -1,7 +1,7 @@
 # UI hardening plan — to commercial grade
 
-**Status:** proposed (2026-07-17). Not started. This is the map; build phases in order.
-**Owner decision needed before Phase 1** — see "Decisions to lock first" at the bottom.
+**Status:** Phase 1 COMPLETE (2026-07-17) — panels decomposed (`components/panels/`, largest 116 lines), primitives built (`components/ui/`), every panel on TanStack Query (`lib/hooks/`), verified in-browser panel-by-panel. Phase 2 is next.
+Stack decisions locked — see "Decided stack" at the bottom.
 
 Atlas's backend is at the commercial bar (multi-tenant, tested, secure, AI brain live). The **UI is not** — it's a working prototype. This plan takes it to a paid-SaaS standard without a rewrite: it's incremental, each phase ships independently, and nothing here blocks feature work.
 
@@ -28,7 +28,7 @@ When we start building, load the `ui-ux-pro-max` skill — it carries the design
 
 ---
 
-## Phase 1 — Foundations (unblocks everything else)
+## Phase 1 — Foundations (unblocks everything else) ✅ DONE 2026-07-17
 
 Highest leverage. Do this first or every later phase fights the monolith.
 
