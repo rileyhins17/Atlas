@@ -234,6 +234,39 @@ button {
   border-color: var(--accent);
 }
 
+/* Styled but still-native checkboxes (a11y intact). */
+input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  border: 1.5px solid var(--border-subtle);
+  border-radius: 5px;
+  background: var(--surface-inset);
+  cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+input[type='checkbox']:hover {
+  border-color: var(--text-muted);
+}
+input[type='checkbox']:checked {
+  background: var(--brand);
+  border-color: var(--brand);
+}
+input[type='checkbox']:checked::after {
+  content: '';
+  width: 5px;
+  height: 9px;
+  border: solid var(--text-on-accent);
+  border-width: 0 2px 2px 0;
+  transform: translateY(-1px) rotate(45deg);
+}
+
 .btn {
   background: var(--accent);
   color: var(--text-on-accent);
@@ -392,6 +425,29 @@ button {
 }
 .pin-icon {
   color: var(--brand-alt);
+}
+
+/* Chat bubbles. The user bubble is a filled indigo that carries white text at
+   AA (7:1) in both themes; the assistant sits on the inset surface. */
+.chat-bubble {
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  white-space: pre-wrap;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+.chat-bubble.user {
+  align-self: flex-end;
+  background: #6d28d9;
+  color: #ffffff;
+  border-bottom-right-radius: var(--radius-sm);
+}
+.chat-bubble.assistant {
+  align-self: flex-start;
+  background: var(--surface-inset);
+  color: var(--text-primary);
+  border-bottom-left-radius: var(--radius-sm);
 }
 
 .error {

@@ -53,17 +53,7 @@ export function ChatPanel() {
           </span>
         )}
         {messages.map((m, i) => (
-          <div
-            key={i}
-            style={{
-              alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-              background: m.role === 'user' ? 'var(--brand-alt)' : 'var(--surface-inset)',
-              borderRadius: 8,
-              padding: '6px 10px',
-              maxWidth: '85%',
-              whiteSpace: 'pre-wrap',
-            }}
-          >
+          <div key={i} className={`chat-bubble ${m.role === 'user' ? 'user' : 'assistant'}`}>
             {m.content}
           </div>
         ))}
