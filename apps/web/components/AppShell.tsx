@@ -6,6 +6,7 @@ import { Button } from '@/components/ui';
 import { AuthGate } from '@/components/AuthGate';
 import { AtlasAsks } from '@/components/AtlasAsks';
 import { NavBar } from '@/components/NavBar';
+import { InstallPrompt } from '@/components/InstallPrompt';
 
 /**
  * The signed-in frame around every route: header (brand, user, sign-out),
@@ -47,6 +48,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
 
       <NavBar />
+      <InstallPrompt />
       <AtlasAsks />
       <main>{children}</main>
     </div>

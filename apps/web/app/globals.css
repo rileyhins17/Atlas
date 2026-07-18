@@ -295,6 +295,20 @@ button {
   white-space: nowrap;
 }
 
+.install-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-raised);
+  border: 1px solid var(--brand);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+
 /* Desktop: a button row under the header. */
 .app-nav {
   display: flex;
