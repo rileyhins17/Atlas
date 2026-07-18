@@ -73,7 +73,7 @@ Highest leverage. Do this first or every later phase fights the monolith.
 
 ## Cross-cutting — quality bar (do alongside, not after)
 
-- **Component tests** for primitives + a **Playwright** happy-path per route, with **a11y assertions** (`@axe-core/playwright`). This is the "e2e per module" item already tracked as debt — the UI work is the natural place to land it.
+- **Component tests** for primitives + a **Playwright** happy-path per route, with **a11y assertions** (`@axe-core/playwright`). This is the "e2e per module" item already tracked as debt — the UI work is the natural place to land it. ✅ DONE 2026-07-17: Vitest+RTL component/hook suite (`apps/web/test/*`) + Playwright/axe e2e (`apps/web/e2e/*`) on a pgvector CI job. Coverage is core-route breadth only so far — extend to the remaining panels as they change.
 - **Storybook** (optional) for the primitives, so the design system is browsable and reviewable in isolation.
 
 ---
