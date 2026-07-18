@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { errorMessage } from '@/lib/api';
 import { useCreateNote, useDeleteNote, useNotes } from '@/lib/hooks/notes';
-import { Button, Card, CardListSkeleton, EmptyState, ErrorState, Input, Textarea } from '@/components/ui';
+import { Pin, X } from 'lucide-react';
+import { Button, Card, CardListSkeleton, EmptyState, ErrorState, IconButton, Input, Textarea } from '@/components/ui';
 
 export function NotesPanel() {
   const [title, setTitle] = useState('');
@@ -37,7 +38,7 @@ export function NotesPanel() {
 
   return (
     <>
-      <h2 className="section-title">Notes — what Atlas should know about you</h2>
+      <h2 className="section-title">Notes</h2>
       <Card stack>
         <form className="stack" onSubmit={save}>
           <Input
@@ -83,17 +84,16 @@ export function NotesPanel() {
         {notes.map((n) => (
           <Card key={n.id}>
             <div className="row" style={{ justifyContent: 'space-between' }}>
-              <strong>
-                {n.pinned && '📌 '}
+              <strong className="row" style={{ gap: 6 }}>
+                {n.pinned && <Pin size={14} aria-label="Pinned" className="pin-icon" />}
                 {n.title ?? 'Note'}
               </strong>
-              <Button
-                variant="ghost"
+              <IconButton
+                label={`Delete note "${n.title ?? 'Note'}"`}
                 onClick={() => remove.mutate(n.id)}
-                aria-label={`Delete note "${n.title ?? 'Note'}"`}
               >
-                ✕
-              </Button>
+                <X size={16} aria-hidden />
+              </IconButton>
             </div>
             <div style={{ marginTop: 4, whiteSpace: 'pre-wrap' }}>{n.body}</div>
           </Card>

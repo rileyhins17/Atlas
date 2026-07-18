@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { AiQuestionDTO } from '@atlas/shared';
+import { Sparkles } from 'lucide-react';
 import { useAiQuestions, useAnswerQuestion, useDismissQuestion } from '@/lib/hooks/ai-questions';
 import { Button, Card, Input } from '@/components/ui';
 
@@ -27,8 +28,9 @@ export function AtlasAsks() {
 
   return (
     <div style={{ marginTop: 16 }}>
-      <h2 className="section-title" style={{ marginLeft: 4 }}>
-        ✦ Atlas wants to know
+      <h2 className="section-title asks-title" style={{ marginLeft: 4 }}>
+        <Sparkles size={15} aria-hidden />
+        Atlas wants to know
       </h2>
       <div className="stack">
         {questions.map((q) => (

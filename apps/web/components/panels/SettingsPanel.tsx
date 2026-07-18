@@ -49,7 +49,7 @@ export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
 
   return (
     <>
-      <h2 className="section-title">Settings — connections</h2>
+      <h2 className="section-title">Settings</h2>
       {flash && <Card style={{ borderColor: 'var(--brand-alt)' }}>{flash}</Card>}
 
       <Card stack style={{ marginTop: 12 }}>

@@ -4,7 +4,8 @@ import { useState } from 'react';
 import type { HabitDTO } from '@atlas/shared';
 import { errorMessage } from '@/lib/api';
 import { useCreateHabit, useDeleteHabit, useHabits, useLogHabit } from '@/lib/hooks/habits';
-import { Badge, Button, Card, EmptyState, ErrorState, Input, ListSkeleton } from '@/components/ui';
+import { Check, Flame, X } from 'lucide-react';
+import { Badge, Button, Card, EmptyState, ErrorState, IconButton, Input, ListSkeleton } from '@/components/ui';
 
 export function HabitsPanel() {
   const [name, setName] = useState('');
@@ -88,12 +89,19 @@ function HabitRow({
         aria-label={`Check in "${habit.name}"`}
         aria-pressed={habit.doneToday}
         onClick={() => onCheckIn(habit)}
-      />
+      >
+        <Check size={14} strokeWidth={3} aria-hidden />
+      </button>
       <span className="title">{habit.name}</span>
-      {habit.streak > 0 && <Badge aria-label={`${habit.streak} day streak`}>🔥 {habit.streak}d</Badge>}
-      <Button variant="ghost" onClick={() => onRemove(habit)} aria-label={`Archive "${habit.name}"`}>
-        ✕
-      </Button>
+      {habit.streak > 0 && (
+        <Badge className="streak" aria-label={`${habit.streak} day streak`}>
+          <Flame size={13} aria-hidden />
+          {habit.streak}
+        </Badge>
+      )}
+      <IconButton label={`Archive "${habit.name}"`} onClick={() => onRemove(habit)}>
+        <X size={16} aria-hidden />
+      </IconButton>
     </div>
   );
 }

@@ -126,19 +126,25 @@ a {
 }
 
 .brand {
-  display: flex;
-  align-items: baseline;
+  display: inline-flex;
+  align-items: center;
   gap: 10px;
-  margin-bottom: 4px;
+  text-decoration: none;
+  color: inherit;
 }
-.brand h1 {
-  font-size: 22px;
-  margin: 0;
-  letter-spacing: 0.3px;
+.wordmark {
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
 }
-.brand .tag {
-  color: var(--muted);
-  font-size: 13px;
+/* Centered brand above the sign-in card. */
+.gate-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin: 40px 0 28px;
 }
 
 .card {
@@ -148,15 +154,24 @@ a {
   padding: 16px;
 }
 
-/* Section headings are h2s for screen-reader structure; the class keeps the
-   small-caps label look (font-weight resets the UA's heading bold). */
+/* Section headings (h2/h3 by role). Clean, sentence-case — not the old
+   small-caps label. font-weight is set explicitly so headings and non-heading
+   uses (inline card titles) render identically. */
 .section-title {
-  font-size: 13px;
-  font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--muted);
-  margin: 24px 4px 10px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  margin: 24px 4px 12px;
+}
+.asks-title,
+.mood-scale {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.asks-title svg {
+  color: var(--brand-alt);
 }
 
 input,
@@ -231,33 +246,86 @@ button {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  border: 2px solid var(--muted);
+  border: 2px solid var(--text-muted);
   background: transparent;
   cursor: pointer;
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* The tick is hidden until the row is done, when it draws in. */
+  color: transparent;
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+.task .check:hover {
+  border-color: var(--text-primary);
 }
 .task.done .check {
-  background: var(--ok);
-  border-color: var(--ok);
+  background: var(--success-role);
+  border-color: var(--success-role);
+  color: var(--surface);
 }
 .task .title {
   flex: 1;
 }
 .task.done .title {
-  color: var(--muted);
+  color: var(--text-muted);
   text-decoration: line-through;
 }
 .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 11px;
-  padding: 2px 8px;
+  font-weight: 600;
+  padding: 3px 9px;
   border-radius: 999px;
-  border: 1px solid var(--border);
-  color: var(--muted);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
 }
 .pill.HIGH,
 .pill.URGENT {
   color: #ffb4b4;
   border-color: #4a2b2b;
+}
+.pill.streak {
+  color: #ffb26b;
+  border-color: #4a3521;
+}
+
+/* Quiet, square icon-only controls (row actions, header). */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+.icon-btn:hover {
+  background: var(--surface-inset);
+  color: var(--text-primary);
+}
+.icon-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.icon-btn.mood-selected,
+.mood-selected {
+  color: var(--brand);
+}
+.pin-icon {
+  color: var(--brand-alt);
 }
 
 .error {
@@ -286,13 +354,26 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  flex-wrap: wrap;
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.app-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 .app-header-user {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
   max-width: 220px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+@media (max-width: 480px) {
+  .app-header-user {
+    display: none;
+  }
 }
 
 .install-prompt {
@@ -309,25 +390,33 @@ button {
   font-size: var(--text-sm);
 }
 
-/* Desktop: a button row under the header. */
+/* Desktop: a quiet segmented row under the header — icon + label, only the
+   active tab is filled. */
 .app-nav {
   display: flex;
-  gap: var(--space-2);
-  margin-top: var(--space-4);
+  gap: 2px;
+  margin: var(--space-4) 0 var(--space-2);
   flex-wrap: wrap;
 }
 .nav-link {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: var(--surface-inset);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-primary);
+  gap: 7px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
   text-decoration: none;
-  font-weight: 600;
-  font-size: var(--text-base);
+  font-weight: 550;
+  font-size: var(--text-sm);
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+.nav-link:hover {
+  background: var(--surface-inset);
+  color: var(--text-primary);
 }
 .nav-link.active {
   background: var(--brand);
@@ -335,7 +424,8 @@ button {
   color: var(--text-on-accent);
 }
 .nav-link .nav-icon {
-  display: none;
+  width: 16px;
+  height: 16px;
 }
 
 /* Mobile: fixed bottom tab bar (it's a PWA) with safe-area padding. */
@@ -374,6 +464,8 @@ button {
   .nav-link .nav-icon {
     display: block;
     flex: 0 0 auto;
+    width: 19px;
+    height: 19px;
   }
   .nav-link .nav-label {
     font-size: 10px;

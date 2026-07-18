@@ -1,8 +1,11 @@
 'use client';
 
+import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { LogOut } from 'lucide-react';
 import { useMe, useLogout } from '@/lib/hooks/auth';
-import { Button } from '@/components/ui';
+import { IconButton } from '@/components/ui';
+import { Logo } from '@/components/Logo';
 import { AuthGate } from '@/components/AuthGate';
 import { AtlasAsks } from '@/components/AtlasAsks';
 import { NavBar } from '@/components/NavBar';
@@ -29,7 +32,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (!me.data) {
     return (
       <div className="container">
-        <Brand />
+        <div className="gate-brand">
+          <Logo size={44} />
+          <span className="wordmark" style={{ fontSize: 26 }}>
+            Atlas
+          </span>
+        </div>
         <AuthGate />
       </div>
     );
@@ -38,12 +46,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="container">
       <header className="app-header">
-        <Brand />
-        <div className="row" style={{ gap: 8 }}>
-          <span className="muted app-header-user">Hi, {me.data.displayName ?? me.data.email}</span>
-          <Button variant="ghost" onClick={() => logout.mutate()}>
-            Sign out
-          </Button>
+        <Link href="/today" className="brand" aria-label="Atlas home">
+          <Logo size={28} />
+          <span className="wordmark">Atlas</span>
+        </Link>
+        <div className="app-header-actions">
+          <span className="app-header-user">Hi, {me.data.displayName ?? me.data.email}</span>
+          <IconButton label="Sign out" onClick={() => logout.mutate()}>
+            <LogOut size={18} aria-hidden />
+          </IconButton>
         </div>
       </header>
 
@@ -51,15 +62,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       <InstallPrompt />
       <AtlasAsks />
       <main>{children}</main>
-    </div>
-  );
-}
-
-function Brand() {
-  return (
-    <div className="brand">
-      <h1>Atlas</h1>
-      <span className="tag">your life, in one place</span>
     </div>
   );
 }

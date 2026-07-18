@@ -4,7 +4,8 @@ import { useState } from 'react';
 import type { TaskDTO } from '@atlas/shared';
 import { errorMessage } from '@/lib/api';
 import { useCompleteTask, useCreateTask, useDeleteTask, useTasks } from '@/lib/hooks/tasks';
-import { Badge, Button, Card, EmptyState, ErrorState, Input, ListSkeleton } from '@/components/ui';
+import { Check, X } from 'lucide-react';
+import { Badge, Button, Card, EmptyState, ErrorState, IconButton, Input, ListSkeleton } from '@/components/ui';
 
 export function TasksPanel() {
   const [title, setTitle] = useState('');
@@ -109,12 +110,14 @@ function TaskRow({
         aria-label={`Complete "${task.title}"`}
         aria-pressed={done}
         onClick={() => onToggle(task)}
-      />
+      >
+        <Check size={14} strokeWidth={3} aria-hidden />
+      </button>
       <span className="title">{task.title}</span>
       {task.priority !== 'MEDIUM' && <Badge tone={task.priority}>{task.priority}</Badge>}
-      <Button variant="ghost" onClick={() => onRemove(task)} aria-label={`Delete "${task.title}"`}>
-        ✕
-      </Button>
+      <IconButton label={`Delete "${task.title}"`} onClick={() => onRemove(task)}>
+        <X size={16} aria-hidden />
+      </IconButton>
     </div>
   );
 }

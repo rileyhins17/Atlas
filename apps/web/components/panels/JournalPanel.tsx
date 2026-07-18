@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import { errorMessage } from '@/lib/api';
 import { useCreateJournalEntry, useJournal } from '@/lib/hooks/journal';
-import { Button, Card, CardListSkeleton, EmptyState, ErrorState, Textarea } from '@/components/ui';
+import { Angry, Frown, Meh, Smile, Laugh, type LucideIcon } from 'lucide-react';
+import { Button, Card, CardListSkeleton, EmptyState, ErrorState, IconButton, Textarea } from '@/components/ui';
 
-const MOODS = ['😞', '🙁', '😐', '🙂', '😄'];
+// A 5-point mood scale, worst → best. Index + 1 is the stored mood value.
+const MOODS: LucideIcon[] = [Angry, Frown, Meh, Smile, Laugh];
 
 export function JournalPanel() {
   const [body, setBody] = useState('');
@@ -43,18 +45,17 @@ export function JournalPanel() {
             onChange={(e) => setBody(e.target.value)}
           />
           <div className="row" style={{ justifyContent: 'space-between' }}>
-            <div className="row" style={{ gap: 6 }}>
-              {MOODS.map((m, i) => (
-                <Button
-                  key={m}
-                  variant="ghost"
-                  style={{ fontSize: 20, opacity: mood === i + 1 ? 1 : 0.4 }}
-                  onClick={() => setMood(i + 1)}
-                  aria-label={`Mood ${i + 1} of 5`}
+            <div className="row mood-scale" style={{ gap: 2 }}>
+              {MOODS.map((Icon, i) => (
+                <IconButton
+                  key={i}
+                  label={`Mood ${i + 1} of 5`}
                   aria-pressed={mood === i + 1}
+                  className={mood === i + 1 ? 'mood-selected' : ''}
+                  onClick={() => setMood(i + 1)}
                 >
-                  {m}
-                </Button>
+                  <Icon size={22} aria-hidden />
+                </IconButton>
               ))}
             </div>
             <Button type="submit" disabled={create.isPending}>
@@ -85,7 +86,7 @@ export function JournalPanel() {
               <span className="muted" style={{ fontSize: 12 }}>
                 {e.entryDate.slice(0, 10)}
               </span>
-              {e.mood && <span>{MOODS[e.mood - 1]}</span>}
+              {e.mood ? <MoodIcon value={e.mood} /> : null}
             </div>
             <div style={{ marginTop: 6, whiteSpace: 'pre-wrap' }}>{e.body}</div>
           </Card>
@@ -93,4 +94,11 @@ export function JournalPanel() {
       </div>
     </>
   );
+}
+
+/** The recorded mood (1–5) for a past entry, shown in the brand tint. */
+function MoodIcon({ value }: { value: number }) {
+  const Icon = MOODS[value - 1];
+  if (!Icon) return null;
+  return <Icon size={18} className="mood-selected" aria-label={`Mood ${value} of 5`} />;
 }

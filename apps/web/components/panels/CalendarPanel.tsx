@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { errorMessage } from '@/lib/api';
 import { useCreateEvent, useDeleteEvent, useEvents } from '@/lib/hooks/events';
-import { Button, Card, EmptyState, ErrorState, Input, ListSkeleton } from '@/components/ui';
+import { X } from 'lucide-react';
+import { Button, Card, EmptyState, ErrorState, IconButton, Input, ListSkeleton } from '@/components/ui';
 
 function fmtWhen(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -126,13 +127,9 @@ export function CalendarPanel() {
                   {ev.location ? ` · ${ev.location}` : ''}
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                onClick={() => remove.mutate(ev.id)}
-                aria-label={`Delete "${ev.title}"`}
-              >
-                ✕
-              </Button>
+              <IconButton label={`Delete "${ev.title}"`} onClick={() => remove.mutate(ev.id)}>
+                <X size={16} aria-hidden />
+              </IconButton>
             </div>
           ))
         )}
