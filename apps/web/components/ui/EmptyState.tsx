@@ -1,8 +1,11 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import type { LucideIcon } from 'lucide-react';
 
 export interface EmptyStateProps {
+  /** A Lucide icon shown in a soft badge above the title. */
+  icon?: LucideIcon;
   title: string;
   /** What to do next — every empty state should point somewhere. */
   hint?: string;
@@ -10,12 +13,17 @@ export interface EmptyStateProps {
   action?: ReactNode;
 }
 
-/** "Nothing here yet" with a purposeful next step. */
-export function EmptyState({ title, hint, action }: EmptyStateProps) {
+/** "Nothing here yet" — a quiet icon, a title, and a next step. */
+export function EmptyState({ icon: Icon, title, hint, action }: EmptyStateProps) {
   return (
     <div className="empty-state">
+      {Icon && (
+        <span className="empty-state-icon" aria-hidden>
+          <Icon size={22} />
+        </span>
+      )}
       <strong>{title}</strong>
-      {hint && <span className="muted" style={{ fontSize: 13 }}>{hint}</span>}
+      {hint && <span className="empty-state-hint">{hint}</span>}
       {action}
     </div>
   );

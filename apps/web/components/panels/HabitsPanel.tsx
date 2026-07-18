@@ -4,7 +4,7 @@ import { useState } from 'react';
 import type { HabitDTO } from '@atlas/shared';
 import { errorMessage } from '@/lib/api';
 import { useCreateHabit, useDeleteHabit, useHabits, useLogHabit } from '@/lib/hooks/habits';
-import { Check, Flame, X } from 'lucide-react';
+import { Check, Flame, Repeat, X } from 'lucide-react';
 import { Badge, Button, Card, EmptyState, ErrorState, IconButton, Input, ListSkeleton } from '@/components/ui';
 
 export function HabitsPanel() {
@@ -55,6 +55,7 @@ export function HabitsPanel() {
           />
         ) : habits.length === 0 ? (
           <EmptyState
+            icon={Repeat}
             title="No habits yet"
             hint="Add one to start a streak — daily check-ins keep it alive."
           />

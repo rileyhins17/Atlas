@@ -4,7 +4,7 @@ import { useState } from 'react';
 import type { TaskDTO } from '@atlas/shared';
 import { errorMessage } from '@/lib/api';
 import { useCompleteTask, useCreateTask, useDeleteTask, useTasks } from '@/lib/hooks/tasks';
-import { Check, X } from 'lucide-react';
+import { Check, ListTodo, X } from 'lucide-react';
 import { Badge, Button, Card, EmptyState, ErrorState, IconButton, Input, ListSkeleton } from '@/components/ui';
 
 export function TasksPanel() {
@@ -63,8 +63,9 @@ export function TasksPanel() {
           />
         ) : open.length === 0 && done.length === 0 ? (
           <EmptyState
+            icon={ListTodo}
             title="No tasks yet"
-            hint="Add your first task above — or paste a messy brain dump into Atlas AI and let it file things for you."
+            hint="Add your first task above, or brain-dump into Atlas AI and let it file things for you."
           />
         ) : (
           <>

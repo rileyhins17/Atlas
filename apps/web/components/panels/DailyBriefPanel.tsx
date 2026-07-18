@@ -2,6 +2,7 @@
 
 import { errorMessage } from '@/lib/api';
 import { useGenerateDailyBrief, useInsights } from '@/lib/hooks/ai';
+import { Sparkles } from 'lucide-react';
 import { Button, Card, CardListSkeleton, EmptyState, ErrorState } from '@/components/ui';
 
 export function DailyBriefPanel() {
@@ -29,6 +30,7 @@ export function DailyBriefPanel() {
         />
       ) : insights.length === 0 ? (
         <EmptyState
+          icon={Sparkles}
           title="No briefs yet"
           hint="Generate today's brief for a summary of your tasks, events, and how you've been doing."
         />

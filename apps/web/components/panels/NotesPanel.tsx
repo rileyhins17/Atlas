@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { errorMessage } from '@/lib/api';
 import { useCreateNote, useDeleteNote, useNotes } from '@/lib/hooks/notes';
-import { Pin, X } from 'lucide-react';
+import { Pin, StickyNote, X } from 'lucide-react';
 import { Button, Card, CardListSkeleton, EmptyState, ErrorState, IconButton, Input, Textarea } from '@/components/ui';
 
 export function NotesPanel() {
@@ -77,8 +77,9 @@ export function NotesPanel() {
         )}
         {notesQuery.isSuccess && notes.length === 0 && (
           <EmptyState
+            icon={StickyNote}
             title="No notes yet"
-            hint="Save durable facts about you and your people — pinned notes are always in Atlas's context."
+            hint="Save durable facts about you and your people — pinned notes stay in Atlas's context."
           />
         )}
         {notes.map((n) => (

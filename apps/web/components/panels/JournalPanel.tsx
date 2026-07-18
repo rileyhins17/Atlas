@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { errorMessage } from '@/lib/api';
 import { useCreateJournalEntry, useJournal } from '@/lib/hooks/journal';
-import { Angry, Frown, Meh, Smile, Laugh, type LucideIcon } from 'lucide-react';
+import { Angry, Frown, Meh, PenLine, Smile, Laugh, type LucideIcon } from 'lucide-react';
 import { Button, Card, CardListSkeleton, EmptyState, ErrorState, IconButton, Textarea } from '@/components/ui';
 
 // A 5-point mood scale, worst → best. Index + 1 is the stored mood value.
@@ -76,8 +76,9 @@ export function JournalPanel() {
         )}
         {journalQuery.isSuccess && entries.length === 0 && (
           <EmptyState
+            icon={PenLine}
             title="No entries yet"
-            hint="Write a line about your day — Atlas remembers it and learns what matters to you."
+            hint="Write a line about your day — Atlas remembers what matters to you."
           />
         )}
         {entries.map((e) => (

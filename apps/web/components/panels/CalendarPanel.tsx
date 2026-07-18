@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { errorMessage } from '@/lib/api';
 import { useCreateEvent, useDeleteEvent, useEvents } from '@/lib/hooks/events';
-import { X } from 'lucide-react';
+import { CalendarDays, X } from 'lucide-react';
 import { Button, Card, EmptyState, ErrorState, IconButton, Input, ListSkeleton } from '@/components/ui';
 
 function fmtWhen(iso: string): string {
@@ -114,8 +114,9 @@ export function CalendarPanel() {
           />
         ) : events.length === 0 ? (
           <EmptyState
+            icon={CalendarDays}
             title="No upcoming events"
-            hint="Add an event above, or connect Google Calendar in Settings to sync the ones you already have."
+            hint="Add an event above, or connect Google Calendar in Settings to sync yours."
           />
         ) : (
           events.map((ev) => (
