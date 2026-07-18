@@ -34,7 +34,7 @@ export function DataPrivacyPanel({ onSignOut }: { onSignOut: () => void }) {
 
   return (
     <>
-      <div className="section-title" style={{ marginTop: 20 }}>Data &amp; privacy</div>
+      <h2 className="section-title" style={{ marginTop: 20 }}>Data &amp; privacy</h2>
 
       <Card stack style={{ marginTop: 12 }}>
         <div className="row" style={{ justifyContent: 'space-between' }}>

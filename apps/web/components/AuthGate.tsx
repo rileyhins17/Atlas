@@ -36,12 +36,14 @@ export function AuthGate() {
   return (
     <div className="center">
       <form className="card stack" style={{ width: 340 }} onSubmit={submit}>
-        <div className="section-title" style={{ margin: 0 }}>
+        <h2 className="section-title" style={{ margin: 0 }}>
           {mode === 'login' ? 'Sign in' : 'Create account'}
-        </div>
+        </h2>
         <Input
           type="email"
           placeholder="Email"
+          aria-label="Email"
+          autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           autoFocus
@@ -50,6 +52,8 @@ export function AuthGate() {
         <Input
           type="password"
           placeholder="Password (min 8 chars)"
+          aria-label="Password"
+          autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required

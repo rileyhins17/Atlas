@@ -24,7 +24,7 @@ export function AiPanel() {
 
   return (
     <>
-      <div className="section-title">Atlas AI</div>
+      <h2 className="section-title">Atlas AI</h2>
 
       {statusQuery.isPending ? (
         <div style={{ marginBottom: 12 }}>
@@ -50,6 +50,7 @@ export function AiPanel() {
             <Input
               type="password"
               placeholder="DeepSeek API key (sk-...)"
+              aria-label="DeepSeek API key"
               value={keyDraft}
               onChange={(e) => setKeyDraft(e.target.value)}
             />

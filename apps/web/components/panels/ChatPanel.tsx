@@ -39,8 +39,14 @@ export function ChatPanel() {
 
   return (
     <Card stack style={{ marginBottom: 16 }}>
-      <div className="section-title" style={{ margin: 0 }}>Chat with your life</div>
-      <div className="stack" style={{ maxHeight: 320, overflowY: 'auto', gap: 8 }}>
+      <h2 className="section-title" style={{ margin: 0 }}>Chat with your life</h2>
+      <div
+        className="stack"
+        style={{ maxHeight: 320, overflowY: 'auto', gap: 8 }}
+        role="log"
+        aria-live="polite"
+        aria-label="Conversation"
+      >
         {messages.length === 0 && (
           <span className="muted" style={{ fontSize: 13 }}>
             Ask Atlas anything, or tell it to add a task, log a habit, or write a journal entry.
@@ -69,6 +75,7 @@ export function ChatPanel() {
       <form className="row" onSubmit={send}>
         <Input
           placeholder="Message Atlas…"
+          aria-label="Message Atlas"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
         />

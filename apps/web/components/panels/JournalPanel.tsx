@@ -32,12 +32,13 @@ export function JournalPanel() {
 
   return (
     <>
-      <div className="section-title">Journal</div>
+      <h2 className="section-title">Journal</h2>
       <Card stack>
         <form className="stack" onSubmit={save}>
           <Textarea
             rows={3}
             placeholder="What's on your mind today?"
+            aria-label="Journal entry"
             value={body}
             onChange={(e) => setBody(e.target.value)}
           />
@@ -49,7 +50,8 @@ export function JournalPanel() {
                   variant="ghost"
                   style={{ fontSize: 20, opacity: mood === i + 1 ? 1 : 0.4 }}
                   onClick={() => setMood(i + 1)}
-                  aria-label={`mood ${i + 1}`}
+                  aria-label={`Mood ${i + 1} of 5`}
+                  aria-pressed={mood === i + 1}
                 >
                   {m}
                 </Button>

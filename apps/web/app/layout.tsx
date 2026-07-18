@@ -14,6 +14,9 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  // Lets content extend into notch/home-bar areas so the safe-area env()
+  // paddings in globals.css can manage them (PWA standalone mode).
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

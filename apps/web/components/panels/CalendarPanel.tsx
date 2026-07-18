@@ -62,7 +62,7 @@ export function CalendarPanel() {
 
   return (
     <>
-      <div className="section-title">Calendar</div>
+      <h2 className="section-title">Calendar</h2>
       <Card stack>
         <form className="stack" onSubmit={save}>
           <Input
@@ -126,7 +126,11 @@ export function CalendarPanel() {
                   {ev.location ? ` · ${ev.location}` : ''}
                 </div>
               </div>
-              <Button variant="ghost" onClick={() => remove.mutate(ev.id)} aria-label="delete">
+              <Button
+                variant="ghost"
+                onClick={() => remove.mutate(ev.id)}
+                aria-label={`Delete "${ev.title}"`}
+              >
                 ✕
               </Button>
             </div>

@@ -32,10 +32,11 @@ export function BrainDumpPanel() {
   return (
     <Card stack style={{ marginBottom: 16 }}>
       <form className="stack" onSubmit={organize}>
-        <div className="section-title" style={{ margin: 0 }}>Brain dump</div>
+        <h2 className="section-title" style={{ margin: 0 }}>Brain dump</h2>
         <Textarea
           rows={3}
           placeholder="Paste anything messy — Atlas will sort it into tasks, events, journal, or notes…"
+          aria-label="Brain dump text"
           value={text}
           onChange={(e) => setText(e.target.value)}
         />

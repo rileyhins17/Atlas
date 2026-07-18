@@ -14,7 +14,7 @@ export function DailyBriefPanel() {
   return (
     <Card stack>
       <div className="row" style={{ justifyContent: 'space-between' }}>
-        <div className="section-title" style={{ margin: 0 }}>Daily brief</div>
+        <h2 className="section-title" style={{ margin: 0 }}>Daily brief</h2>
         <Button onClick={() => generate.mutate()} disabled={generate.isPending}>
           {generate.isPending ? 'Writing…' : "Generate today's brief"}
         </Button>

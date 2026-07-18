@@ -37,17 +37,19 @@ export function NotesPanel() {
 
   return (
     <>
-      <div className="section-title">Notes — what Atlas should know about you</div>
+      <h2 className="section-title">Notes — what Atlas should know about you</h2>
       <Card stack>
         <form className="stack" onSubmit={save}>
           <Input
             placeholder="Title (optional) — e.g. 'My goals', 'Sarah'"
+            aria-label="Note title (optional)"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
           <Textarea
             rows={2}
             placeholder="A durable fact about you, your people, or your context…"
+            aria-label="Note body"
             value={body}
             onChange={(e) => setBody(e.target.value)}
           />
@@ -85,7 +87,11 @@ export function NotesPanel() {
                 {n.pinned && '📌 '}
                 {n.title ?? 'Note'}
               </strong>
-              <Button variant="ghost" onClick={() => remove.mutate(n.id)} aria-label="delete note">
+              <Button
+                variant="ghost"
+                onClick={() => remove.mutate(n.id)}
+                aria-label={`Delete note "${n.title ?? 'Note'}"`}
+              >
                 ✕
               </Button>
             </div>

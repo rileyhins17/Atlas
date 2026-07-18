@@ -30,10 +30,11 @@ export function HabitsPanel() {
 
   return (
     <>
-      <div className="section-title">Habits</div>
+      <h2 className="section-title">Habits</h2>
       <form className="row" onSubmit={addHabit}>
         <Input
           placeholder="New habit (e.g. Gym, Read, Water)…"
+          aria-label="New habit name"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
@@ -43,7 +44,7 @@ export function HabitsPanel() {
       </form>
       {error && <div className="error">{error}</div>}
 
-      <Card style={{ marginTop: 14 }}>
+      <Card style={{ marginTop: 14 }} aria-busy={habitsQuery.isPending}>
         {habitsQuery.isPending ? (
           <ListSkeleton rows={3} />
         ) : habitsQuery.isError ? (
@@ -82,10 +83,15 @@ function HabitRow({
 }) {
   return (
     <div className={`task ${habit.doneToday ? 'done' : ''}`}>
-      <button className="check" aria-label="check in" onClick={() => onCheckIn(habit)} />
+      <button
+        className="check"
+        aria-label={`Check in "${habit.name}"`}
+        aria-pressed={habit.doneToday}
+        onClick={() => onCheckIn(habit)}
+      />
       <span className="title">{habit.name}</span>
-      {habit.streak > 0 && <Badge>🔥 {habit.streak}d</Badge>}
-      <Button variant="ghost" onClick={() => onRemove(habit)} aria-label="archive">
+      {habit.streak > 0 && <Badge aria-label={`${habit.streak} day streak`}>🔥 {habit.streak}d</Badge>}
+      <Button variant="ghost" onClick={() => onRemove(habit)} aria-label={`Archive "${habit.name}"`}>
         ✕
       </Button>
     </div>

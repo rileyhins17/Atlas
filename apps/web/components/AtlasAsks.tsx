@@ -27,9 +27,9 @@ export function AtlasAsks() {
 
   return (
     <div style={{ marginTop: 16 }}>
-      <div className="section-title" style={{ marginLeft: 4 }}>
+      <h2 className="section-title" style={{ marginLeft: 4 }}>
         ✦ Atlas wants to know
-      </div>
+      </h2>
       <div className="stack">
         {questions.map((q) => (
           <Card key={q.id} stack style={{ borderColor: 'var(--brand-alt)' }}>
@@ -38,6 +38,7 @@ export function AtlasAsks() {
             <div className="row">
               <Input
                 placeholder="Your answer…"
+                aria-label={`Answer: ${q.question}`}
                 value={draft[q.id] ?? ''}
                 onChange={(e) => setDraft((d) => ({ ...d, [q.id]: e.target.value }))}
               />

@@ -38,10 +38,11 @@ export function TasksPanel() {
 
   return (
     <>
-      <div className="section-title">Today</div>
+      <h2 className="section-title">Today</h2>
       <form className="row" onSubmit={addTask}>
         <Input
           placeholder="Add a task…"
+          aria-label="New task title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
@@ -51,7 +52,7 @@ export function TasksPanel() {
       </form>
       {error && <div className="error">{error}</div>}
 
-      <Card style={{ marginTop: 14 }}>
+      <Card style={{ marginTop: 14 }} aria-busy={tasksQuery.isPending}>
         {tasksQuery.isPending ? (
           <ListSkeleton rows={3} />
         ) : tasksQuery.isError ? (
@@ -71,9 +72,9 @@ export function TasksPanel() {
             ))}
             {done.length > 0 && (
               <>
-                <div className="section-title" style={{ marginLeft: 0 }}>
+                <h3 className="section-title" style={{ marginLeft: 0 }}>
                   Done
-                </div>
+                </h3>
                 {done.map((t) => (
                   <TaskRow
                     key={t.id}
@@ -100,12 +101,18 @@ function TaskRow({
   onToggle: (t: TaskDTO) => void;
   onRemove: (t: TaskDTO) => void;
 }) {
+  const done = task.status === 'DONE';
   return (
-    <div className={`task ${task.status === 'DONE' ? 'done' : ''}`}>
-      <button className="check" aria-label="complete" onClick={() => onToggle(task)} />
+    <div className={`task ${done ? 'done' : ''}`}>
+      <button
+        className="check"
+        aria-label={`Complete "${task.title}"`}
+        aria-pressed={done}
+        onClick={() => onToggle(task)}
+      />
       <span className="title">{task.title}</span>
       {task.priority !== 'MEDIUM' && <Badge tone={task.priority}>{task.priority}</Badge>}
-      <Button variant="ghost" onClick={() => onRemove(task)} aria-label="delete">
+      <Button variant="ghost" onClick={() => onRemove(task)} aria-label={`Delete "${task.title}"`}>
         ✕
       </Button>
     </div>
