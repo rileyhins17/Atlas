@@ -37,3 +37,66 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      # pgvector image so the init migration's CREATE EXTENSION vector succeeds.
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: atlas
+          POSTGRES_PASSWORD: atlas
+          POSTGRES_DB: atlas_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # Throwaway test config — not secrets. The API validates these at boot
+      # (SESSION_SECRET >= 16 chars, APP_ENCRYPTION_KEY = 64 hex chars).
+      DATABASE_URL: postgresql://atlas:atlas@localhost:5432/atlas_test
+      SESSION_SECRET: ci-e2e-session-secret-0123456789
+      APP_ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000000'
+      AI_DAILY_TOKEN_CAP: '100000'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @atlas/db generate
+
+      - name: Apply migrations
+        run: pnpm --filter @atlas/db migrate:deploy
+
+      - name: Build
+        run: pnpm build
+
+      - name: Install Playwright browser
+        run: pnpm --filter @atlas/web exec playwright install --with-deps chromium
+
+      - name: Run e2e
+        run: pnpm --filter @atlas/web test:e2e
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7
