@@ -1,6 +1,8 @@
 # UI hardening plan — to commercial grade
 
-**Status:** Phases 1–4 COMPLETE (2026-07-17). 1: decomposition + primitives + TanStack Query. 2: skeletons, empty states, toasts + global error policy, optimistic updates, client zod. 3: real routes, AppShell, mobile bottom tab bar. 4: measured-contrast fixes (`--text-on-accent` — white failed AA on brand/danger fills), h2 outline, systematic ARIA (named row actions, aria-pressed, input labels, chat role=log, aria-busy), 24px+ touch targets, viewport-fit=cover + full safe-area padding. Remaining: Phase 5 (PWA/perf), Phase 6 (brand/visual identity), cross-cutting UI tests (component + Playwright + axe).
+**Status:** Phases 1–5 COMPLETE (2026-07-17/18). Phase 5: offline service worker (`public/sw.js`, network-first navigations + precached `offline.html`, SWR static, API never cached) registered in prod only, dismissible install prompt (`beforeinstallprompt`), maskable icon. Component + e2e tests cover it. Only Phase 6 (brand/visual identity, light-mode polish) remains.
+
+_(earlier:)_ Phases 1–4 COMPLETE (2026-07-17). 1: decomposition + primitives + TanStack Query. 2: skeletons, empty states, toasts + global error policy, optimistic updates, client zod. 3: real routes, AppShell, mobile bottom tab bar. 4: measured-contrast fixes (`--text-on-accent` — white failed AA on brand/danger fills), h2 outline, systematic ARIA (named row actions, aria-pressed, input labels, chat role=log, aria-busy), 24px+ touch targets, viewport-fit=cover + full safe-area padding. Remaining: Phase 5 (PWA/perf), Phase 6 (brand/visual identity), cross-cutting UI tests (component + Playwright + axe).
 Stack decisions locked — see "Decided stack" at the bottom.
 
 Atlas's backend is at the commercial bar (multi-tenant, tested, secure, AI brain live). The **UI is not** — it's a working prototype. This plan takes it to a paid-SaaS standard without a rewrite: it's incremental, each phase ships independently, and nothing here blocks feature work.
@@ -59,7 +61,7 @@ Highest leverage. Do this first or every later phase fights the monolith.
 14. **A11y pass** — focus-visible rings everywhere; focus trap + restore in modals; keyboard-operable everything; systematic ARIA; verified color contrast (the dark palette needs checking); `prefers-reduced-motion`.
 15. **Responsive pass** — real breakpoints, ≥44px touch targets, tables/wide content scroll inside their own container, iOS safe-area handling.
 
-## Phase 5 — PWA & performance
+## Phase 5 — PWA & performance ✅ DONE 2026-07-18 (Lighthouse-in-CI budget deferred)
 
 16. **Service worker** — offline app shell + cached GETs (`next-pwa` or a hand-rolled SW). It's marketed as installable; today it isn't offline-capable.
 17. **Install UX** — a tasteful "Add to home screen" prompt (deferred `beforeinstallprompt`).
