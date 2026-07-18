@@ -32,5 +32,11 @@ Thumbs.db
 # Turbo
 .turbo/
 
+# Playwright e2e artifacts
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
 # Docker volumes (if bind-mounted locally)
 infra/data/

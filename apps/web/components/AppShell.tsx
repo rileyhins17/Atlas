@@ -39,7 +39,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="app-header">
         <Brand />
         <div className="row" style={{ gap: 8 }}>
-          <span className="muted app-header-user">{me.data.displayName ?? me.data.email}</span>
+          <span className="muted app-header-user">Hi, {me.data.displayName ?? me.data.email}</span>
           <Button variant="ghost" onClick={() => logout.mutate()}>
             Sign out
           </Button>
