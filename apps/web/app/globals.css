@@ -67,6 +67,19 @@
   /* Text sitting ON a brand/danger fill. White fails AA on both (#5b8cff
      3.2:1, #ef4444 3.8:1); ink-900 passes (6.0:1 / 5.0:1). */
   --text-on-accent: var(--c-ink-900);
+  /* Danger-button text is themed separately: ink on the dark theme's #ef4444
+     (5.0:1), white on the light theme's deeper #dc2626 (4.8:1). */
+  --danger-on-fill: var(--c-ink-900);
+  /* Link text (may sit on plain surface, so it needs text-grade contrast —
+     the brand blue is only 3.2:1 on white, so light uses a deeper blue). */
+  --link: var(--brand);
+  /* Pill accents (priority / streak). Tokenised so light can remap them. */
+  --pill-danger-fg: #ffb4b4;
+  --pill-danger-border: #4a2b2b;
+  --pill-warm-fg: #ffb26b;
+  --pill-warm-border: #4a3521;
+
+  color-scheme: dark;
 
   /* — legacy aliases (do not add new usages; migrate to roles above) — */
   --bg: var(--surface);
@@ -80,6 +93,33 @@
   --danger: var(--danger-role);
   --ok: var(--success-role);
   --radius: var(--radius-md);
+}
+
+/*
+ * Light theme — a remap of the semantic roles, not a rewrite. Soft off-white
+ * surfaces (not harsh pure white), near-black text, a deeper blue/red where
+ * text-grade contrast needs it. All pairs verified ≥ AA. The base :root stays
+ * dark, so no data-theme (or an unknown value) renders dark.
+ */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --surface: #f6f7f9;
+  --surface-raised: #ffffff;
+  --surface-inset: #eceff3;
+  --border-subtle: #e2e6ec;
+  --text-primary: #14171c;
+  --text-muted: #59626f;
+  --danger-role: #dc2626;
+  --success-role: #16a34a;
+  --focus-ring: #2563eb;
+  --danger-on-fill: #ffffff;
+  --link: #2563eb;
+  --pill-danger-fg: #b42318;
+  --pill-danger-border: #f4c7c2;
+  --pill-warm-fg: #b45309;
+  --pill-warm-border: #f3d9b3;
+  --shadow-1: 0 1px 2px rgba(16, 20, 30, 0.08);
+  --shadow-2: 0 12px 32px rgba(16, 20, 30, 0.14);
 }
 
 /* Visible keyboard focus everywhere — a11y baseline (Phase 4 expands this). */
@@ -111,7 +151,7 @@ body {
 }
 
 a {
-  color: var(--accent);
+  color: var(--link);
 }
 
 .container {
@@ -225,6 +265,7 @@ button {
 }
 .btn.danger {
   background: var(--danger-role);
+  color: var(--danger-on-fill);
 }
 .btn:disabled {
   opacity: 0.5;
@@ -272,7 +313,8 @@ button {
 .task.done .check {
   background: var(--success-role);
   border-color: var(--success-role);
-  color: var(--surface);
+  /* Fixed dark tick — reads on the green fill in either theme (5:1). */
+  color: #08240f;
   /* A quick pop the moment a row is completed. */
   animation: check-pop var(--dur-base) var(--ease);
 }
@@ -307,12 +349,12 @@ button {
 }
 .pill.HIGH,
 .pill.URGENT {
-  color: #ffb4b4;
-  border-color: #4a2b2b;
+  color: var(--pill-danger-fg);
+  border-color: var(--pill-danger-border);
 }
 .pill.streak {
-  color: #ffb26b;
-  border-color: #4a3521;
+  color: var(--pill-warm-fg);
+  border-color: var(--pill-warm-border);
 }
 
 /* Quiet, square icon-only controls (row actions, header). */

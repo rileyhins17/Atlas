@@ -20,10 +20,18 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
+// Runs before first paint so the saved (or system) theme is applied with no
+// flash. Kept tiny and dependency-free; the base CSS is dark, so any failure
+// falls back to dark.
+const themeScript = `(function(){try{var t=localStorage.getItem('atlas-theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    // The theme script sets data-theme on <html> before hydration; suppress the
+    // expected attribute mismatch it causes (standard theme-flash pattern).
+    <html lang="en" suppressHydrationWarning>
       <body>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <Providers>{children}</Providers>
         <ServiceWorkerRegistrar />
       </body>

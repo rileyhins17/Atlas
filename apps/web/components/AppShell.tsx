@@ -10,6 +10,7 @@ import { AuthGate } from '@/components/AuthGate';
 import { AtlasAsks } from '@/components/AtlasAsks';
 import { NavBar } from '@/components/NavBar';
 import { InstallPrompt } from '@/components/InstallPrompt';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 /**
  * The signed-in frame around every route: header (brand, user, sign-out),
@@ -32,6 +33,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (!me.data) {
     return (
       <div className="container">
+        <div className="row" style={{ justifyContent: 'flex-end' }}>
+          <ThemeToggle />
+        </div>
         <div className="gate-brand">
           <Logo size={44} />
           <span className="wordmark" style={{ fontSize: 26 }}>
@@ -52,6 +56,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </Link>
         <div className="app-header-actions">
           <span className="app-header-user">Hi, {me.data.displayName ?? me.data.email}</span>
+          <ThemeToggle />
           <IconButton label="Sign out" onClick={() => logout.mutate()}>
             <LogOut size={18} aria-hidden />
           </IconButton>
