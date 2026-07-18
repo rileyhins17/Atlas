@@ -1,0 +1,12 @@
+// Typecheck-only config for tests. The Next build (tsconfig.json) excludes
+// test/ so test files never enter the app graph; `pnpm typecheck` runs this
+// too so they're still type-checked. Mirrors apps/api + packages/ai.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["vitest/globals", "@testing-library/jest-dom"]
+  },
+  "include": ["test/**/*.ts", "test/**/*.tsx", "vitest.config.ts"],
+  "exclude": ["node_modules"]
+}
