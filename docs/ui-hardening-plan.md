@@ -1,8 +1,8 @@
 # UI hardening plan — to commercial grade
 
-**Status:** Phases 1–5 COMPLETE (2026-07-17/18). Phase 5: offline service worker (`public/sw.js`, network-first navigations + precached `offline.html`, SWR static, API never cached) registered in prod only, dismissible install prompt (`beforeinstallprompt`), maskable icon. Component + e2e tests cover it. Only Phase 6 (brand/visual identity, light-mode polish) remains.
+**Status:** ✅ **ALL PHASES COMPLETE (2026-07-17/18).** The UI is at commercial grade: decomposed + typed data layer (TanStack Query), full primitive set, skeletons/empty/error states, toasts + global error policy, optimistic updates, real routes + mobile nav, measured-AA a11y, PWA (offline SW + install), and a full brand pass (compass mark + wordmark, Lucide throughout, refined empty states, purposeful motion, and a real light theme with a persisted toggle). Covered by Vitest+RTL component/hook tests + Playwright/axe e2e on a pgvector CI job. Remaining stretch items only: Lighthouse-in-CI budget and optional Storybook.
 
-_(earlier:)_ Phases 1–4 COMPLETE (2026-07-17). 1: decomposition + primitives + TanStack Query. 2: skeletons, empty states, toasts + global error policy, optimistic updates, client zod. 3: real routes, AppShell, mobile bottom tab bar. 4: measured-contrast fixes (`--text-on-accent` — white failed AA on brand/danger fills), h2 outline, systematic ARIA (named row actions, aria-pressed, input labels, chat role=log, aria-busy), 24px+ touch targets, viewport-fit=cover + full safe-area padding. Remaining: Phase 5 (PWA/perf), Phase 6 (brand/visual identity), cross-cutting UI tests (component + Playwright + axe).
+_(history: Phases 1–4 done 2026-07-17; Phase 5 + cross-cutting tests 2026-07-18; Phase 6 2026-07-18.)_ 1: decomposition + primitives + TanStack Query. 2: skeletons, empty states, toasts + global error policy, optimistic updates, client zod. 3: real routes, AppShell, mobile bottom tab bar. 4: measured-contrast fixes (`--text-on-accent` — white failed AA on brand/danger fills), h2 outline, systematic ARIA (named row actions, aria-pressed, input labels, chat role=log, aria-busy), 24px+ touch targets, viewport-fit=cover + full safe-area padding. Remaining: Phase 5 (PWA/perf), Phase 6 (brand/visual identity), cross-cutting UI tests (component + Playwright + axe).
 Stack decisions locked — see "Decided stack" at the bottom.
 
 Atlas's backend is at the commercial bar (multi-tenant, tested, secure, AI brain live). The **UI is not** — it's a working prototype. This plan takes it to a paid-SaaS standard without a rewrite: it's incremental, each phase ships independently, and nothing here blocks feature work.
@@ -67,7 +67,7 @@ Highest leverage. Do this first or every later phase fights the monolith.
 17. **Install UX** — a tasteful "Add to home screen" prompt (deferred `beforeinstallprompt`).
 18. **Performance budget** — code-split panels, lazy-load the heavy ones (Atlas AI), font-loading strategy, and a Lighthouse target (≥90 PWA/Perf/A11y/Best-practices) wired into CI.
 
-## Phase 6 — Brand & visual identity
+## Phase 6 — Brand & visual identity ✅ DONE 2026-07-18
 
 19. **Icon set** — adopt Lucide (or similar); retire emoji from UI chrome.
 20. **Visual identity** — logo/wordmark, a cohesive illustration style for empty states, purposeful micro-interactions (check animations, streak celebrations), motion that respects reduced-motion.
