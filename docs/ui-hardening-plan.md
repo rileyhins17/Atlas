@@ -1,6 +1,6 @@
 # UI hardening plan — to commercial grade
 
-**Status:** Phases 1–3 COMPLETE (2026-07-17). Phase 1: panels decomposed, primitives built, every panel on TanStack Query. Phase 2: skeletons, real empty states, mutation toasts + one global error policy, optimistic updates, client-side zod validation. Phase 3: real routes (`/today` … `/settings`, root redirects, deep links + back/refresh work), AppShell (auth gate + header + nav + AtlasAsks), mobile fixed bottom tab bar with Lucide icons + safe-area padding. All verified in-browser incl. failure paths. Phase 4 (a11y + responsive pass) is next.
+**Status:** Phases 1–4 COMPLETE (2026-07-17). 1: decomposition + primitives + TanStack Query. 2: skeletons, empty states, toasts + global error policy, optimistic updates, client zod. 3: real routes, AppShell, mobile bottom tab bar. 4: measured-contrast fixes (`--text-on-accent` — white failed AA on brand/danger fills), h2 outline, systematic ARIA (named row actions, aria-pressed, input labels, chat role=log, aria-busy), 24px+ touch targets, viewport-fit=cover + full safe-area padding. Remaining: Phase 5 (PWA/perf), Phase 6 (brand/visual identity), cross-cutting UI tests (component + Playwright + axe).
 Stack decisions locked — see "Decided stack" at the bottom.
 
 Atlas's backend is at the commercial bar (multi-tenant, tested, secure, AI brain live). The **UI is not** — it's a working prototype. This plan takes it to a paid-SaaS standard without a rewrite: it's incremental, each phase ships independently, and nothing here blocks feature work.
@@ -54,7 +54,7 @@ Highest leverage. Do this first or every later phase fights the monolith.
 12. **Mobile-first nav** — a bottom tab bar on mobile (it's a PWA), top nav on desktop, replacing the wrapping button row.
 13. **App shell** — persistent responsive header (brand, user menu, sign-out), consistent page padding + safe-area insets.
 
-## Phase 4 — Accessibility & responsive
+## Phase 4 — Accessibility & responsive ✅ DONE 2026-07-17
 
 14. **A11y pass** — focus-visible rings everywhere; focus trap + restore in modals; keyboard-operable everything; systematic ARIA; verified color contrast (the dark palette needs checking); `prefers-reduced-motion`.
 15. **Responsive pass** — real breakpoints, ≥44px touch targets, tables/wide content scroll inside their own container, iOS safe-area handling.
