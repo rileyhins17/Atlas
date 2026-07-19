@@ -11,6 +11,7 @@ import {
 import { Button, Card, ErrorState, Skeleton } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
 import { DataPrivacyPanel } from './DataPrivacyPanel';
+import { AiSettingsCard } from './AiSettingsCard';
 
 export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
   // Set by the OAuth callback redirect (?google=connected|denied).
@@ -52,6 +53,8 @@ export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
     <>
       <PageHeader title="Settings" subtitle="Connections, your data, and your account." />
       {flash && <Card style={{ borderColor: 'var(--brand-alt)' }}>{flash}</Card>}
+
+      <AiSettingsCard />
 
       <Card stack style={{ marginTop: 12 }}>
         <div className="row" style={{ justifyContent: 'space-between' }}>

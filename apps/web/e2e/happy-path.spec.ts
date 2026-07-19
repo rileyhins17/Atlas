@@ -11,14 +11,14 @@ test('register, sign out, and sign back in', async ({ page }) => {
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(TEST_PASSWORD);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page.getByText(`Hi, ${email}`)).toBeVisible();
+  await expect(page.locator('.sidebar-user-name')).toHaveText(email);
 });
 
 test('add a task and complete it', async ({ page }) => {
   await register(page);
 
   await page.getByLabel('New task title').fill('Ship the e2e suite');
-  await page.getByRole('button', { name: 'Add' }).click();
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(page.getByText('Ship the e2e suite')).toBeVisible();
 
   // Completing moves it under the Done heading.
@@ -33,7 +33,7 @@ test('add a habit and check in for a streak', async ({ page }) => {
   await expect(page).toHaveURL(/\/habits$/);
 
   await page.getByLabel('New habit name').fill('Read');
-  await page.getByRole('button', { name: 'Add' }).click();
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(page.getByText('Read')).toBeVisible();
 
   await page.getByRole('button', { name: 'Check in "Read"' }).click();

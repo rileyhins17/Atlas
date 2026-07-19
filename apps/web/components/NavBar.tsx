@@ -6,28 +6,33 @@ import {
   BookOpen,
   Calendar,
   Flame,
+  History,
+  Home,
   ListTodo,
   Settings,
-  Sparkles,
   StickyNote,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { href: '/today', label: 'Today', icon: ListTodo },
-  { href: '/habits', label: 'Habits', icon: Flame },
+  { href: '/today', label: 'Home', icon: Home },
+  { href: '/tasks', label: 'Tasks', icon: ListTodo },
   { href: '/calendar', label: 'Calendar', icon: Calendar },
+  { href: '/habits', label: 'Habits', icon: Flame },
   { href: '/journal', label: 'Journal', icon: BookOpen },
   { href: '/notes', label: 'Notes', icon: StickyNote },
-  { href: '/ai', label: 'Atlas AI', icon: Sparkles },
+  { href: '/timeline', label: 'Timeline', icon: History },
   { href: '/settings', label: 'Settings', icon: Settings },
 ] as const;
 
+/** The five that fit a mobile bottom bar; the rest live in ⌘K + the top bar. */
+const MOBILE_ITEMS = new Set(['/today', '/tasks', '/calendar', '/habits', '/journal']);
+
 /**
- * One nav, two renderings via CSS: a button row under the header on desktop,
- * a fixed bottom tab bar (with safe-area padding) on mobile. See .app-nav in
- * globals.css.
+ * One nav, two renderings via CSS: a vertical sidebar list on desktop, a
+ * fixed bottom tab bar (with safe-area padding) on mobile. When the sidebar
+ * is collapsed the labels hide and icons get a title tooltip.
  */
-export function NavBar() {
+export function NavBar({ collapsed = false }: { collapsed?: boolean }) {
   const pathname = usePathname();
 
   return (
@@ -38,8 +43,9 @@ export function NavBar() {
           <Link
             key={href}
             href={href}
-            className={`nav-link ${active ? 'active' : ''}`}
+            className={`nav-link ${active ? 'active' : ''} ${MOBILE_ITEMS.has(href) ? '' : 'nav-desktop-only'}`}
             aria-current={active ? 'page' : undefined}
+            title={collapsed ? label : undefined}
           >
             <Icon className="nav-icon" size={20} aria-hidden />
             <span className="nav-label">{label}</span>

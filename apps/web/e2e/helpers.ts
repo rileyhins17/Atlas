@@ -14,6 +14,6 @@ export async function register(page: Page, email = uniqueEmail()): Promise<strin
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(TEST_PASSWORD);
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.getByText(`Hi, ${email}`)).toBeVisible();
+  await expect(page.locator('.sidebar-user-name')).toHaveText(email);
   return email;
 }
