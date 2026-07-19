@@ -13,4 +13,6 @@ export const qk = {
   aiStatus: ['ai', 'status'] as const,
   insights: ['ai', 'insights'] as const,
   googleStatus: ['google', 'status'] as const,
+  habitHistory: (days: number) => ['habits', 'history', days] as const,
+  timeline: (source?: string) => ['timeline', source ?? 'all'] as const,
 };

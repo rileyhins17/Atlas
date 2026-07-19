@@ -1,9 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import {
   CreateHabitInput,
+  HabitHistoryQuery,
   LogHabitInput,
   UpdateHabitInput,
   type HabitDTO,
+  type HabitHistoryDTO,
 } from '@atlas/shared';
 import { ZodValidationPipe } from '../../common/zod.pipe.js';
 import { SessionGuard } from '../../auth/session.guard.js';
@@ -19,6 +21,14 @@ export class HabitsController {
   @Get()
   list(@CurrentUser() user: AuthedUser): Promise<HabitDTO[]> {
     return this.habits.list(user.id);
+  }
+
+  @Get('history')
+  history(
+    @CurrentUser() user: AuthedUser,
+    @Query(new ZodValidationPipe(HabitHistoryQuery)) query: HabitHistoryQuery,
+  ): Promise<HabitHistoryDTO[]> {
+    return this.habits.history(user.id, query.days);
   }
 
   @Post()

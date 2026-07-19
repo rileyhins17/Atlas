@@ -25,6 +25,19 @@ export const LogHabitInput = z.object({
 });
 export type LogHabitInput = z.infer<typeof LogHabitInput>;
 
+/** Query for check-in history (heatmaps / week grids). Bounded to a year. */
+export const HabitHistoryQuery = z.object({
+  days: z.coerce.number().int().min(7).max(366).default(84),
+});
+export type HabitHistoryQuery = z.infer<typeof HabitHistoryQuery>;
+
+/** Per-habit day-keyed check-in counts. Days with zero logs are omitted. */
+export const HabitHistoryDTO = z.object({
+  habitId: z.string(),
+  days: z.array(z.object({ day: z.string(), count: z.number().int() })),
+});
+export type HabitHistoryDTO = z.infer<typeof HabitHistoryDTO>;
+
 export const HabitDTO = z.object({
   id: z.string(),
   name: z.string(),

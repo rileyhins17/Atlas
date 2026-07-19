@@ -9,6 +9,11 @@ export function useHabits() {
   return useQuery({ queryKey: qk.habits, queryFn: HabitsApi.list });
 }
 
+/** Day-keyed check-in history for heatmaps / week grids. */
+export function useHabitHistory(days: number) {
+  return useQuery({ queryKey: qk.habitHistory(days), queryFn: () => HabitsApi.history(days) });
+}
+
 export function useCreateHabit() {
   const qc = useQueryClient();
   return useMutation({

@@ -11,6 +11,7 @@ import { NotesModule } from './modules/notes/notes.module.js';
 import { CalendarModule } from './modules/calendar/calendar.module.js';
 import { AiModule } from './modules/ai/ai.module.js';
 import { AccountModule } from './modules/account/account.module.js';
+import { TimelineModule } from './modules/timeline/timeline.module.js';
 import { AllExceptionsFilter } from './common/all-exceptions.filter.js';
 import { RequestIdMiddleware } from './common/request-id.middleware.js';
 import { OriginCheckMiddleware } from './common/origin-check.middleware.js';
@@ -32,6 +33,7 @@ import { OriginCheckMiddleware } from './common/origin-check.middleware.js';
     CalendarModule,
     AiModule,
     AccountModule,
+    TimelineModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

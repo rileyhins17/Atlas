@@ -1,5 +1,7 @@
 import type {
   AiQuestionDTO,
+  HabitHistoryDTO,
+  TimelinePageDTO,
   ChatMessageDTO,
   ChatResponseDTO,
   CreateHabitInput,
@@ -94,6 +96,7 @@ export const TasksApi = {
 
 export const HabitsApi = {
   list: () => request<HabitDTO[]>('/habits'),
+  history: (days: number) => request<HabitHistoryDTO[]>(`/habits/history?days=${days}`),
   create: (input: Partial<CreateHabitInput> & { name: string }) =>
     request<HabitDTO>('/habits', { method: 'POST', body: JSON.stringify(input) }),
   log: (id: string) => request<HabitDTO>(`/habits/${id}/log`, { method: 'POST', body: '{}' }),
@@ -128,6 +131,17 @@ export const EventsApi = {
   create: (input: NewEvent) =>
     request<EventDTO>('/events', { method: 'POST', body: JSON.stringify(input) }),
   remove: (id: string) => request<{ ok: true }>(`/events/${id}`, { method: 'DELETE' }),
+};
+
+export const TimelineApi = {
+  list: (opts: { limit?: number; offset?: number; source?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (opts.limit) params.set('limit', String(opts.limit));
+    if (opts.offset) params.set('offset', String(opts.offset));
+    if (opts.source) params.set('source', opts.source);
+    const qs = params.toString();
+    return request<TimelinePageDTO>(`/timeline${qs ? `?${qs}` : ''}`);
+  },
 };
 
 export const AiQuestionsApi = {

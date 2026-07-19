@@ -1,5 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { CreateHabitInput, HabitDTO, LogHabitInput, UpdateHabitInput } from '@atlas/shared';
+import type {
+  CreateHabitInput,
+  HabitDTO,
+  HabitHistoryDTO,
+  LogHabitInput,
+  UpdateHabitInput,
+} from '@atlas/shared';
 import type { Habit, HabitLog } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
@@ -130,6 +136,41 @@ export class HabitsService {
       refId: habit.id,
     });
     return { ok: true };
+  }
+
+  /**
+   * Day-keyed check-in counts for every active habit — feeds the week grids
+   * and year heatmaps. One bounded query across all habits; zero-log days are
+   * omitted (the client fills gaps).
+   */
+  async history(userId: string, days: number): Promise<HabitHistoryDTO[]> {
+    const habits = await this.prisma.client.habit.findMany({
+      where: { userId, active: true },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+      take: 200,
+    });
+    if (habits.length === 0) return [];
+    const since = new Date();
+    since.setUTCDate(since.getUTCDate() - days);
+    const logs = await this.prisma.client.habitLog.findMany({
+      where: { userId, loggedAt: { gte: since } },
+      select: { habitId: true, loggedAt: true, value: true },
+    });
+    const perHabit = new Map<string, Map<string, number>>(habits.map((h) => [h.id, new Map()]));
+    for (const log of logs) {
+      const dayMap = perHabit.get(log.habitId);
+      if (!dayMap) continue; // log for an archived habit
+      const k = dayKey(log.loggedAt);
+      dayMap.set(k, (dayMap.get(k) ?? 0) + log.value);
+    }
+    return habits.map((h) => ({
+      habitId: h.id,
+      days: [...(perHabit.get(h.id) ?? new Map<string, number>())].map(([day, count]) => ({
+        day,
+        count,
+      })),
+    }));
   }
 
   /** Compact summary for the AI context builder. */
