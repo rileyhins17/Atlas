@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { errorMessage } from '@/lib/api';
 import { useAiStatus, useConnectDeepSeek } from '@/lib/hooks/ai';
 import { Button, Card, Input, Skeleton } from '@/components/ui';
+import { PageHeader } from '@/components/PageHeader';
 import { ChatPanel } from './ChatPanel';
 import { BrainDumpPanel } from './BrainDumpPanel';
 import { DailyBriefPanel } from './DailyBriefPanel';
@@ -24,7 +25,7 @@ export function AiPanel() {
 
   return (
     <>
-      <h2 className="section-title">Atlas AI</h2>
+      <PageHeader title="Atlas AI" subtitle="Chat over your life, brain-dump, and get briefed." />
 
       {statusQuery.isPending ? (
         <div style={{ marginBottom: 12 }}>

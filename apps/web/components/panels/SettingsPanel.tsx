@@ -9,6 +9,7 @@ import {
   useGoogleSync,
 } from '@/lib/hooks/google';
 import { Button, Card, ErrorState, Skeleton } from '@/components/ui';
+import { PageHeader } from '@/components/PageHeader';
 import { DataPrivacyPanel } from './DataPrivacyPanel';
 
 export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
@@ -49,7 +50,7 @@ export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
 
   return (
     <>
-      <h2 className="section-title">Settings</h2>
+      <PageHeader title="Settings" subtitle="Connections, your data, and your account." />
       {flash && <Card style={{ borderColor: 'var(--brand-alt)' }}>{flash}</Card>}
 
       <Card stack style={{ marginTop: 12 }}>

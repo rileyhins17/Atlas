@@ -5,6 +5,7 @@ import { errorMessage } from '@/lib/api';
 import { useCreateJournalEntry, useJournal } from '@/lib/hooks/journal';
 import { Angry, Frown, Meh, PenLine, Smile, Laugh, type LucideIcon } from 'lucide-react';
 import { Button, Card, CardListSkeleton, EmptyState, ErrorState, IconButton, Textarea } from '@/components/ui';
+import { PageHeader } from '@/components/PageHeader';
 
 // A 5-point mood scale, worst → best. Index + 1 is the stored mood value.
 const MOODS: LucideIcon[] = [Angry, Frown, Meh, Smile, Laugh];
@@ -34,7 +35,7 @@ export function JournalPanel() {
 
   return (
     <>
-      <h2 className="section-title">Journal</h2>
+      <PageHeader title="Journal" subtitle="A line a day — Atlas remembers what matters." />
       <Card stack>
         <form className="stack" onSubmit={save}>
           <Textarea

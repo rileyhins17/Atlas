@@ -6,6 +6,7 @@ import { errorMessage } from '@/lib/api';
 import { useCreateHabit, useDeleteHabit, useHabits, useLogHabit } from '@/lib/hooks/habits';
 import { Check, Flame, Repeat, X } from 'lucide-react';
 import { Badge, Button, Card, EmptyState, ErrorState, IconButton, Input, ListSkeleton } from '@/components/ui';
+import { PageHeader } from '@/components/PageHeader';
 
 export function HabitsPanel() {
   const [name, setName] = useState('');
@@ -31,7 +32,7 @@ export function HabitsPanel() {
 
   return (
     <>
-      <h2 className="section-title">Habits</h2>
+      <PageHeader title="Habits" subtitle="Small daily wins, kept alive by your streak." />
       <form className="row" onSubmit={addHabit}>
         <Input
           placeholder="New habit (e.g. Gym, Read, Water)…"

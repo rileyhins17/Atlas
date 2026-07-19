@@ -5,6 +5,7 @@ import { errorMessage } from '@/lib/api';
 import { useCreateEvent, useDeleteEvent, useEvents } from '@/lib/hooks/events';
 import { CalendarDays, X } from 'lucide-react';
 import { Button, Card, EmptyState, ErrorState, IconButton, Input, ListSkeleton } from '@/components/ui';
+import { PageHeader } from '@/components/PageHeader';
 
 function fmtWhen(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -63,7 +64,7 @@ export function CalendarPanel() {
 
   return (
     <>
-      <h2 className="section-title">Calendar</h2>
+      <PageHeader title="Calendar" subtitle="What's coming up." />
       <Card stack>
         <form className="stack" onSubmit={save}>
           <Input

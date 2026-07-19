@@ -5,6 +5,7 @@ import { errorMessage } from '@/lib/api';
 import { useCreateNote, useDeleteNote, useNotes } from '@/lib/hooks/notes';
 import { Pin, StickyNote, X } from 'lucide-react';
 import { Button, Card, CardListSkeleton, EmptyState, ErrorState, IconButton, Input, Textarea } from '@/components/ui';
+import { PageHeader } from '@/components/PageHeader';
 
 export function NotesPanel() {
   const [title, setTitle] = useState('');
@@ -38,7 +39,7 @@ export function NotesPanel() {
 
   return (
     <>
-      <h2 className="section-title">Notes</h2>
+      <PageHeader title="Notes" subtitle="What Atlas should know about you." />
       <Card stack>
         <form className="stack" onSubmit={save}>
           <Input

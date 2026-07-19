@@ -3,12 +3,33 @@
 import { useState } from 'react';
 import type { TaskDTO } from '@atlas/shared';
 import { errorMessage } from '@/lib/api';
+import { useMe } from '@/lib/hooks/auth';
 import { useCompleteTask, useCreateTask, useDeleteTask, useTasks } from '@/lib/hooks/tasks';
 import { Check, ListTodo, X } from 'lucide-react';
 import { Badge, Button, Card, EmptyState, ErrorState, IconButton, Input, ListSkeleton } from '@/components/ui';
 
+function greetingWord(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function firstName(user: { displayName: string | null; email: string }): string {
+  const base = user.displayName ?? user.email.split('@')[0] ?? 'there';
+  const word = base.split(/[\s.]+/)[0] ?? base;
+  return word.charAt(0).toUpperCase() + word.slice(1);
+}
+
+const TODAY_LABEL = new Date().toLocaleDateString(undefined, {
+  weekday: 'long',
+  month: 'long',
+  day: 'numeric',
+});
+
 export function TasksPanel() {
   const [title, setTitle] = useState('');
+  const me = useMe();
   const tasksQuery = useTasks();
   const create = useCreateTask();
   const complete = useCompleteTask();
@@ -39,7 +60,20 @@ export function TasksPanel() {
 
   return (
     <>
-      <h2 className="section-title">Today</h2>
+      <header className="greeting">
+        <h2 className="page-title">
+          {greetingWord()}
+          {me.data ? (
+            <>
+              , <mark className="hl">{firstName(me.data)}</mark>
+            </>
+          ) : null}
+        </h2>
+        <p className="greeting-sub">
+          {TODAY_LABEL}
+          {open.length > 0 ? ` · ${open.length} to do` : ''}
+        </p>
+      </header>
       <form className="row" onSubmit={addTask}>
         <Input
           placeholder="Add a task…"

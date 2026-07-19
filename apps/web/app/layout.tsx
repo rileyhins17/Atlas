@@ -1,7 +1,16 @@
 import type { Metadata, Viewport } from 'next';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import { ServiceWorkerRegistrar } from '@/components/ServiceWorkerRegistrar';
+
+// Self-hosted at build (no runtime request to Google; CSP/offline-safe). A warm,
+// friendly geometric sans — carries the "warm & cozy" feel.
+const sans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-sans',
+});
 
 export const metadata: Metadata = {
   title: 'Atlas',
@@ -29,7 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     // The theme script sets data-theme on <html> before hydration; suppress the
     // expected attribute mismatch it causes (standard theme-flash pattern).
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={sans.variable} suppressHydrationWarning>
       <body>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <Providers>{children}</Providers>

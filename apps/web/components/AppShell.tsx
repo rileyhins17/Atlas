@@ -13,10 +13,10 @@ import { InstallPrompt } from '@/components/InstallPrompt';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
 /**
- * The signed-in frame around every route: header (brand, user, sign-out),
- * nav, and the AtlasAsks question cards. Unauthenticated visitors see the
- * auth gate instead, whatever the URL — after signing in they land on the
- * route they asked for.
+ * The signed-in frame: a persistent sidebar (brand, nav, account) on desktop,
+ * a top bar + fixed bottom tab bar on mobile, and the routed content in a
+ * centred main column. Unauthenticated visitors get the sign-in screen at any
+ * URL and land where they asked after signing in.
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const me = useMe();
@@ -24,38 +24,70 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   if (me.isPending) {
     return (
-      <div className="container center">
-        <span className="muted">Loading…</span>
+      <div className="gate-shell">
+        <div className="gate-body">
+          <span className="muted">Loading…</span>
+        </div>
       </div>
     );
   }
 
   if (!me.data) {
     return (
-      <div className="container">
-        <div className="row" style={{ justifyContent: 'flex-end' }}>
+      <div className="gate-shell">
+        <div className="gate-toolbar">
           <ThemeToggle />
         </div>
-        <div className="gate-brand">
-          <Logo size={44} />
-          <span className="wordmark" style={{ fontSize: 26 }}>
-            Atlas
-          </span>
+        <div className="gate-body">
+          <div className="gate-brand">
+            <Logo size={46} />
+            <span className="wordmark" style={{ fontSize: 27 }}>
+              Atlas
+            </span>
+          </div>
+          <AuthGate />
         </div>
-        <AuthGate />
       </div>
     );
   }
 
+  const name = me.data.displayName ?? me.data.email;
+  const initial = name.trim().charAt(0).toUpperCase() || 'A';
+
   return (
-    <div className="container">
-      <header className="app-header">
-        <Link href="/today" className="brand" aria-label="Atlas home">
-          <Logo size={28} />
+    <div className="app-layout">
+      <aside className="sidebar">
+        <Link href="/today" className="brand sidebar-brand" aria-label="Atlas home">
+          <Logo size={26} />
           <span className="wordmark">Atlas</span>
         </Link>
-        <div className="app-header-actions">
-          <span className="app-header-user">Hi, {me.data.displayName ?? me.data.email}</span>
+
+        <div className="sidebar-nav">
+          <NavBar />
+        </div>
+
+        <div className="sidebar-footer">
+          <div className="sidebar-user">
+            <span className="avatar" aria-hidden>
+              {initial}
+            </span>
+            <span className="sidebar-user-name">Hi, {name}</span>
+          </div>
+          <div className="row" style={{ gap: 2 }}>
+            <ThemeToggle />
+            <IconButton label="Sign out" onClick={() => logout.mutate()}>
+              <LogOut size={18} aria-hidden />
+            </IconButton>
+          </div>
+        </div>
+      </aside>
+
+      <header className="mobile-topbar">
+        <Link href="/today" className="brand" aria-label="Atlas home">
+          <Logo size={24} />
+          <span className="wordmark">Atlas</span>
+        </Link>
+        <div className="row" style={{ gap: 2 }}>
           <ThemeToggle />
           <IconButton label="Sign out" onClick={() => logout.mutate()}>
             <LogOut size={18} aria-hidden />
@@ -63,10 +95,17 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <NavBar />
-      <InstallPrompt />
-      <AtlasAsks />
-      <main>{children}</main>
+      <main className="main">
+        <div className="main-inner">
+          <InstallPrompt />
+          <AtlasAsks />
+          {children}
+        </div>
+      </main>
+
+      <div className="bottom-nav">
+        <NavBar />
+      </div>
     </div>
   );
 }

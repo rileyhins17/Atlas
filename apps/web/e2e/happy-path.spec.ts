@@ -43,6 +43,12 @@ test('add a habit and check in for a streak', async ({ page }) => {
 test('dashboard has no serious accessibility violations', async ({ page }) => {
   await register(page);
 
+  // Freeze entrance/hover animations so contrast is measured at rest, not on
+  // text mid-fade (axe reads the composited opacity otherwise).
+  await page.addStyleTag({
+    content: '*, *::before, *::after { animation: none !important; transition: none !important; }',
+  });
+
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa'])
     .analyze();
