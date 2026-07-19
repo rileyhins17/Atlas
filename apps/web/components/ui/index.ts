@@ -10,3 +10,7 @@ export { EmptyState, type EmptyStateProps } from './EmptyState';
 export { ErrorState, type ErrorStateProps } from './ErrorState';
 export { Dialog, type DialogProps } from './Dialog';
 export { ToastProvider, useToast, type ToastTone } from './Toast';
+export { Kbd } from './Kbd';
+export { ProgressRing, type ProgressRingProps } from './ProgressRing';
+export { Sparkline, type SparklineProps } from './Sparkline';
+export { Heatmap, type HeatmapProps } from './Heatmap';
