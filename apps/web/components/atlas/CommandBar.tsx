@@ -74,7 +74,7 @@ export function CommandBar() {
   const { commandOpen, setCommandOpen, openChat } = useAtlasUi();
   const router = useRouter();
   const brainDump = useBrainDump();
-  const toast = useToast();
+  const { toast } = useToast();
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
