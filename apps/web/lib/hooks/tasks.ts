@@ -43,6 +43,28 @@ export function useCompleteTask() {
   });
 }
 
+/** Inline edits (title, priority, due). Optimistically patches the row. */
+export function useUpdateTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: Record<string, unknown> }) =>
+      TasksApi.update(id, patch),
+    meta: { errorFallback: 'Failed to update task' },
+    onMutate: async ({ id, patch }) => {
+      await qc.cancelQueries({ queryKey: qk.tasks });
+      const previous = qc.getQueryData<TaskDTO[]>(qk.tasks);
+      qc.setQueryData<TaskDTO[]>(qk.tasks, (tasks) =>
+        tasks?.map((t) => (t.id === id ? ({ ...t, ...patch } as TaskDTO) : t)),
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) qc.setQueryData(qk.tasks, ctx.previous);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.tasks }),
+  });
+}
+
 export function useDeleteTask() {
   const qc = useQueryClient();
   return useMutation({

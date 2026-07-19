@@ -17,6 +17,9 @@ test('register, sign out, and sign back in', async ({ page }) => {
 test('add a task and complete it', async ({ page }) => {
   await register(page);
 
+  await page.getByRole('link', { name: 'Tasks' }).click();
+  await expect(page).toHaveURL(/\/tasks$/);
+
   await page.getByLabel('New task title').fill('Ship the e2e suite');
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(page.getByText('Ship the e2e suite')).toBeVisible();

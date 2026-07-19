@@ -1,5 +1,5 @@
-import { TasksPanel } from '@/components/panels/TasksPanel';
+import { HomeDashboard } from '@/components/home/HomeDashboard';
 
 export default function TodayPage() {
-  return <TasksPanel />;
+  return <HomeDashboard />;
 }

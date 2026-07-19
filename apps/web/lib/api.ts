@@ -90,6 +90,8 @@ export const TasksApi = {
   list: () => request<TaskDTO[]>('/tasks'),
   create: (input: Partial<CreateTaskInput> & { title: string }) =>
     request<TaskDTO>('/tasks', { method: 'POST', body: JSON.stringify(input) }),
+  update: (id: string, patch: Record<string, unknown>) =>
+    request<TaskDTO>(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   complete: (id: string) => request<TaskDTO>(`/tasks/${id}/complete`, { method: 'POST' }),
   remove: (id: string) => request<{ ok: true }>(`/tasks/${id}`, { method: 'DELETE' }),
 };
