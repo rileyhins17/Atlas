@@ -1,48 +1,75 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { TaskDTO } from '@atlas/shared';
+import { ChevronDown, ChevronRight, ListTodo } from 'lucide-react';
 import { errorMessage } from '@/lib/api';
-import { useMe } from '@/lib/hooks/auth';
-import { useCompleteTask, useCreateTask, useDeleteTask, useTasks } from '@/lib/hooks/tasks';
-import { Check, ListTodo, X } from 'lucide-react';
-import { Badge, Button, Card, EmptyState, ErrorState, IconButton, Input, ListSkeleton } from '@/components/ui';
+import { useCreateTask, useTasks } from '@/lib/hooks/tasks';
+import { Button, Card, EmptyState, ErrorState, Input, ListSkeleton } from '@/components/ui';
+import { PageHeader } from '@/components/PageHeader';
+import { TaskRow } from '@/components/TaskRow';
+import { dayDiff } from '@/lib/dates';
 
-function greetingWord(): string {
-  const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 18) return 'Good afternoon';
-  return 'Good evening';
+const PRIORITY_WEIGHT: Record<TaskDTO['priority'], number> = {
+  URGENT: 0,
+  HIGH: 1,
+  MEDIUM: 2,
+  LOW: 3,
+};
+
+interface Group {
+  key: string;
+  label: string;
+  overdue?: boolean;
+  tasks: TaskDTO[];
 }
 
-function firstName(user: { displayName: string | null; email: string }): string {
-  const base = user.displayName ?? user.email.split('@')[0] ?? 'there';
-  const word = base.split(/[\s.]+/)[0] ?? base;
-  return word.charAt(0).toUpperCase() + word.slice(1);
+/** Bucket open tasks by due horizon, each bucket due-then-priority sorted. */
+export function groupTasks(tasks: TaskDTO[], now: Date): { groups: Group[]; done: TaskDTO[] } {
+  const open = tasks.filter((t) => t.status !== 'DONE');
+  const done = tasks.filter((t) => t.status === 'DONE');
+  const buckets: Record<string, TaskDTO[]> = { overdue: [], today: [], week: [], later: [], someday: [] };
+  for (const t of open) {
+    if (!t.dueAt) {
+      buckets.someday.push(t);
+      continue;
+    }
+    const days = dayDiff(now, new Date(t.dueAt));
+    if (days < 0) buckets.overdue.push(t);
+    else if (days === 0) buckets.today.push(t);
+    else if (days < 7) buckets.week.push(t);
+    else buckets.later.push(t);
+  }
+  const order = (a: TaskDTO, b: TaskDTO) => {
+    const ad = a.dueAt ? new Date(a.dueAt).getTime() : Infinity;
+    const bd = b.dueAt ? new Date(b.dueAt).getTime() : Infinity;
+    if (ad !== bd) return ad - bd;
+    return PRIORITY_WEIGHT[a.priority] - PRIORITY_WEIGHT[b.priority];
+  };
+  for (const key of Object.keys(buckets)) buckets[key].sort(order);
+  const groups: Group[] = [
+    { key: 'overdue', label: 'Overdue', overdue: true, tasks: buckets.overdue },
+    { key: 'today', label: 'Today', tasks: buckets.today },
+    { key: 'week', label: 'This week', tasks: buckets.week },
+    { key: 'later', label: 'Later', tasks: buckets.later },
+    { key: 'someday', label: 'No date', tasks: buckets.someday },
+  ].filter((g) => g.tasks.length > 0);
+  return { groups, done };
 }
-
-const TODAY_LABEL = new Date().toLocaleDateString(undefined, {
-  weekday: 'long',
-  month: 'long',
-  day: 'numeric',
-});
 
 export function TasksPanel() {
   const [title, setTitle] = useState('');
-  const me = useMe();
+  const [showDone, setShowDone] = useState(false);
   const tasksQuery = useTasks();
   const create = useCreateTask();
-  const complete = useCompleteTask();
-  const remove = useDeleteTask();
 
-  const tasks = tasksQuery.data ?? [];
-  const error = create.error
-    ? errorMessage(create.error, 'Failed to add task')
-    : complete.error
-      ? errorMessage(complete.error, 'Failed to complete task')
-      : remove.error
-        ? errorMessage(remove.error, 'Failed to delete task')
-        : null;
+  const { groups, done } = useMemo(
+    () => groupTasks(tasksQuery.data ?? [], new Date()),
+    [tasksQuery.data],
+  );
+  const openCount = groups.reduce((n, g) => n + g.tasks.length, 0);
+
+  const createError = create.error ? errorMessage(create.error, 'Failed to add task') : null;
 
   function addTask(e: React.FormEvent) {
     e.preventDefault();
@@ -50,33 +77,19 @@ export function TasksPanel() {
     create.mutate({ title: title.trim() }, { onSuccess: () => setTitle('') });
   }
 
-  function toggle(t: TaskDTO) {
-    if (t.status === 'DONE') return;
-    complete.mutate(t.id);
-  }
-
-  const open = tasks.filter((t) => t.status !== 'DONE');
-  const done = tasks.filter((t) => t.status === 'DONE');
-
   return (
     <>
-      <header className="greeting">
-        <h2 className="page-title">
-          {greetingWord()}
-          {me.data ? (
-            <>
-              , <mark className="hl">{firstName(me.data)}</mark>
-            </>
-          ) : null}
-        </h2>
-        <p className="greeting-sub">
-          {TODAY_LABEL}
-          {open.length > 0 ? ` · ${open.length} to do` : ''}
-        </p>
-      </header>
+      <PageHeader
+        title="Tasks"
+        subtitle={
+          openCount > 0
+            ? `${openCount} open · click a title to edit, the flag to change priority.`
+            : 'Everything you have to do, in one grouped list.'
+        }
+      />
       <form className="row" onSubmit={addTask}>
         <Input
-          placeholder="Add a task…"
+          placeholder="Add a task… (or press ⌘K from anywhere)"
           aria-label="New task title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -85,74 +98,60 @@ export function TasksPanel() {
           Add
         </Button>
       </form>
-      {error && <div className="error">{error}</div>}
+      {createError && <div className="error">{createError}</div>}
 
       <Card style={{ marginTop: 14 }} aria-busy={tasksQuery.isPending}>
         {tasksQuery.isPending ? (
-          <ListSkeleton rows={3} />
+          <ListSkeleton rows={5} />
         ) : tasksQuery.isError ? (
           <ErrorState
             message={errorMessage(tasksQuery.error, 'Failed to load tasks')}
             onRetry={() => void tasksQuery.refetch()}
           />
-        ) : open.length === 0 && done.length === 0 ? (
+        ) : openCount === 0 && done.length === 0 ? (
           <EmptyState
             icon={ListTodo}
             title="No tasks yet"
-            hint="Add your first task above, or brain-dump into Atlas AI and let it file things for you."
+            hint="Add your first task above — or press ⌘K and just describe it; Atlas files it."
           />
         ) : (
           <>
-            {open.map((t) => (
-              <TaskRow key={t.id} task={t} onToggle={toggle} onRemove={(x) => remove.mutate(x.id)} />
+            {groups.map((g) => (
+              <section key={g.key} aria-label={g.label}>
+                <h3
+                  className={`focus-group-title ${g.overdue ? 'overdue' : ''}`}
+                  style={{ marginTop: 10 }}
+                >
+                  {g.label} · {g.tasks.length}
+                </h3>
+                {g.tasks.map((t) => (
+                  <TaskRow key={t.id} task={t} />
+                ))}
+              </section>
             ))}
             {done.length > 0 && (
               <>
-                <h3 className="section-title" style={{ marginLeft: 0 }}>
-                  Done
-                </h3>
-                {done.map((t) => (
-                  <TaskRow
-                    key={t.id}
-                    task={t}
-                    onToggle={toggle}
-                    onRemove={(x) => remove.mutate(x.id)}
-                  />
-                ))}
+                <button
+                  type="button"
+                  className="done-toggle"
+                  onClick={() => setShowDone((v) => !v)}
+                  aria-expanded={showDone}
+                >
+                  {showDone ? (
+                    <ChevronDown size={14} aria-hidden />
+                  ) : (
+                    <ChevronRight size={14} aria-hidden />
+                  )}
+                  <h3 className="section-title" style={{ margin: 0 }}>
+                    Done · {done.length}
+                  </h3>
+                </button>
+                {showDone && done.map((t) => <TaskRow key={t.id} task={t} />)}
               </>
             )}
           </>
         )}
       </Card>
     </>
-  );
-}
-
-function TaskRow({
-  task,
-  onToggle,
-  onRemove,
-}: {
-  task: TaskDTO;
-  onToggle: (t: TaskDTO) => void;
-  onRemove: (t: TaskDTO) => void;
-}) {
-  const done = task.status === 'DONE';
-  return (
-    <div className={`task ${done ? 'done' : ''}`}>
-      <button
-        className="check"
-        aria-label={`Complete "${task.title}"`}
-        aria-pressed={done}
-        onClick={() => onToggle(task)}
-      >
-        <Check size={14} strokeWidth={3} aria-hidden />
-      </button>
-      <span className="title">{task.title}</span>
-      {task.priority !== 'MEDIUM' && <Badge tone={task.priority}>{task.priority}</Badge>}
-      <IconButton label={`Delete "${task.title}"`} onClick={() => onRemove(task)}>
-        <X size={16} aria-hidden />
-      </IconButton>
-    </div>
   );
 }

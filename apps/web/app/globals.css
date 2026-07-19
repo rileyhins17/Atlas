@@ -1310,6 +1310,66 @@ input[type='checkbox']:checked::after {
   }
 }
 
+.agenda-time {
+  flex: 0 0 64px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  padding-top: 3px;
+}
+
+/* — notes knowledge grid — */
+.notes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.note-card.pinned {
+  border-color: var(--pill-warm-border);
+  background: color-mix(in srgb, var(--brand) 4%, var(--surface-raised));
+}
+
+/* — habit cards — */
+.habit-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.week-grid {
+  display: flex;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.week-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--surface-inset);
+  border: 1px solid var(--border-subtle);
+}
+.week-dot.done {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+}
+.habit-heatmap {
+  overflow-x: auto;
+  padding-top: 2px;
+}
+
+.done-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 4px 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
 /* — filter chips (timeline, views) — */
 .filter-chips {
   display: flex;

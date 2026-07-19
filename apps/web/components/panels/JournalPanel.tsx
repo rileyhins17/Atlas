@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { errorMessage } from '@/lib/api';
 import { useCreateJournalEntry, useJournal } from '@/lib/hooks/journal';
 import { Angry, Frown, Meh, PenLine, Smile, Laugh, type LucideIcon } from 'lucide-react';
-import { Button, Card, CardListSkeleton, EmptyState, ErrorState, IconButton, Textarea } from '@/components/ui';
+import { Button, Card, CardListSkeleton, EmptyState, ErrorState, IconButton, Sparkline, Textarea } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
+import { formatAgo } from '@/lib/dates';
 
 // A 5-point mood scale, worst → best. Index + 1 is the stored mood value.
 const MOODS: LucideIcon[] = [Angry, Frown, Meh, Smile, Laugh];
@@ -67,6 +68,34 @@ export function JournalPanel() {
         </form>
       </Card>
 
+      {entries.filter((e) => e.mood !== null).length >= 2 && (
+        <Card style={{ marginTop: 14 }}>
+          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <div className="stack" style={{ gap: 2 }}>
+              <h2 className="section-title" style={{ margin: 0 }}>
+                Mood over time
+              </h2>
+              <span className="muted" style={{ fontSize: 12 }}>
+                your last {Math.min(30, entries.filter((e) => e.mood !== null).length)} rated
+                entries
+              </span>
+            </div>
+            <Sparkline
+              points={entries
+                .filter((e) => e.mood !== null)
+                .slice(0, 30)
+                .reverse()
+                .map((e) => e.mood as number)}
+              min={1}
+              max={5}
+              width={220}
+              height={48}
+              label="Mood trend across recent entries"
+            />
+          </div>
+        </Card>
+      )}
+
       <div className="stack" style={{ marginTop: 14 }}>
         {journalQuery.isPending && <CardListSkeleton cards={2} lines={2} />}
         {journalQuery.isError && (
@@ -86,7 +115,12 @@ export function JournalPanel() {
           <Card key={e.id}>
             <div className="row" style={{ justifyContent: 'space-between' }}>
               <span className="muted" style={{ fontSize: 12 }}>
-                {e.entryDate.slice(0, 10)}
+                {new Date(e.entryDate).toLocaleDateString(undefined, {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                })}{' '}
+                · {formatAgo(new Date(e.createdAt))}
               </span>
               {e.mood ? <MoodIcon value={e.mood} /> : null}
             </div>

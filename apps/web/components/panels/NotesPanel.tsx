@@ -7,6 +7,33 @@ import { Pin, StickyNote, X } from 'lucide-react';
 import { Button, Card, CardListSkeleton, EmptyState, ErrorState, IconButton, Input, Textarea } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
 
+function NoteCard({
+  note,
+  onRemove,
+}: {
+  note: { id: string; title: string | null; body: string; pinned: boolean };
+  onRemove: () => void;
+}) {
+  return (
+    <Card className={note.pinned ? 'note-card pinned' : 'note-card'}>
+      <div className="row" style={{ justifyContent: 'space-between' }}>
+        <strong className="row" style={{ gap: 6, minWidth: 0 }}>
+          {note.pinned && <Pin size={14} aria-label="Pinned" className="pin-icon" />}
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {note.title ?? 'Note'}
+          </span>
+        </strong>
+        <IconButton label={`Delete note "${note.title ?? 'Note'}"`} onClick={onRemove}>
+          <X size={16} aria-hidden />
+        </IconButton>
+      </div>
+      <div style={{ marginTop: 4, whiteSpace: 'pre-wrap', fontSize: 14, lineHeight: 1.55 }}>
+        {note.body}
+      </div>
+    </Card>
+  );
+}
+
 export function NotesPanel() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -83,23 +110,36 @@ export function NotesPanel() {
             hint="Save durable facts about you and your people — pinned notes stay in Atlas's context."
           />
         )}
-        {notes.map((n) => (
-          <Card key={n.id}>
-            <div className="row" style={{ justifyContent: 'space-between' }}>
-              <strong className="row" style={{ gap: 6 }}>
-                {n.pinned && <Pin size={14} aria-label="Pinned" className="pin-icon" />}
-                {n.title ?? 'Note'}
-              </strong>
-              <IconButton
-                label={`Delete note "${n.title ?? 'Note'}"`}
-                onClick={() => remove.mutate(n.id)}
-              >
-                <X size={16} aria-hidden />
-              </IconButton>
+        {notes.some((n) => n.pinned) && (
+          <>
+            <h2 className="section-title" style={{ margin: '4px 2px 0' }}>
+              Pinned — always in Atlas&apos;s mind
+            </h2>
+            <div className="notes-grid">
+              {notes
+                .filter((n) => n.pinned)
+                .map((n) => (
+                  <NoteCard key={n.id} note={n} onRemove={() => remove.mutate(n.id)} />
+                ))}
             </div>
-            <div style={{ marginTop: 4, whiteSpace: 'pre-wrap' }}>{n.body}</div>
-          </Card>
-        ))}
+          </>
+        )}
+        {notes.some((n) => !n.pinned) && (
+          <>
+            {notes.some((n) => n.pinned) && (
+              <h2 className="section-title" style={{ margin: '10px 2px 0' }}>
+                Everything else
+              </h2>
+            )}
+            <div className="notes-grid">
+              {notes
+                .filter((n) => !n.pinned)
+                .map((n) => (
+                  <NoteCard key={n.id} note={n} onRemove={() => remove.mutate(n.id)} />
+                ))}
+            </div>
+          </>
+        )}
       </div>
     </>
   );

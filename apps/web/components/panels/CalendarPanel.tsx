@@ -1,20 +1,29 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import type { EventDTO } from '@atlas/shared';
 import { errorMessage } from '@/lib/api';
 import { useCreateEvent, useDeleteEvent, useEvents } from '@/lib/hooks/events';
-import { CalendarDays, X } from 'lucide-react';
+import { CalendarDays, MapPin, X } from 'lucide-react';
 import { Button, Card, EmptyState, ErrorState, IconButton, Input, ListSkeleton } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
+import { formatClock, formatDayHeading, localDayKey } from '@/lib/dates';
 
-function fmtWhen(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+/** Events grouped by local calendar day, upcoming first (past days last). */
+export function groupEventsByDay(events: EventDTO[]): Array<[string, EventDTO[]]> {
+  const byDay = new Map<string, EventDTO[]>();
+  const sorted = [...events].sort(
+    (a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime(),
+  );
+  const today = localDayKey(new Date());
+  for (const e of sorted) {
+    const key = localDayKey(new Date(e.startAt));
+    if (key < today) continue; // agenda looks forward
+    const arr = byDay.get(key) ?? [];
+    arr.push(e);
+    byDay.set(key, arr);
+  }
+  return [...byDay.entries()];
 }
 
 export function CalendarPanel() {
@@ -28,6 +37,7 @@ export function CalendarPanel() {
   const remove = useDeleteEvent();
 
   const events = eventsQuery.data ?? [];
+  const grouped = useMemo(() => groupEventsByDay(events), [events]);
   const error =
     clientError ??
     (create.error
@@ -113,27 +123,44 @@ export function CalendarPanel() {
             message={errorMessage(eventsQuery.error, 'Failed to load events')}
             onRetry={() => void eventsQuery.refetch()}
           />
-        ) : events.length === 0 ? (
+        ) : grouped.length === 0 ? (
           <EmptyState
             icon={CalendarDays}
             title="No upcoming events"
             hint="Add an event above, or connect Google Calendar in Settings to sync yours."
           />
         ) : (
-          events.map((ev) => (
-            <div className="task" key={ev.id}>
-              <div className="title">
-                <div>{ev.title}</div>
-                <div className="muted" style={{ fontSize: 12 }}>
-                  {fmtWhen(ev.startAt)}
-                  {ev.location ? ` · ${ev.location}` : ''}
-                </div>
-              </div>
-              <IconButton label={`Delete "${ev.title}"`} onClick={() => remove.mutate(ev.id)}>
-                <X size={16} aria-hidden />
-              </IconButton>
-            </div>
-          ))
+          <div className="stack" style={{ gap: 18 }}>
+            {grouped.map(([day, dayEvents]) => (
+              <section key={day} aria-label={formatDayHeading(new Date(`${day}T12:00:00`))}>
+                <h3 className="focus-group-title" style={{ marginBottom: 4 }}>
+                  {formatDayHeading(new Date(`${day}T12:00:00`))}
+                </h3>
+                {dayEvents.map((ev) => (
+                  <div className="task" key={ev.id}>
+                    <span className="agenda-time">
+                      {ev.allDay ? 'all day' : formatClock(new Date(ev.startAt))}
+                    </span>
+                    <div className="title">
+                      <div>{ev.title}</div>
+                      <div className="muted row" style={{ fontSize: 12, gap: 4 }}>
+                        {!ev.allDay && `until ${formatClock(new Date(ev.endAt))}`}
+                        {ev.location ? (
+                          <>
+                            <MapPin size={11} aria-hidden /> {ev.location}
+                          </>
+                        ) : null}
+                        {ev.source !== 'atlas' && ' · Google'}
+                      </div>
+                    </div>
+                    <IconButton label={`Delete "${ev.title}"`} onClick={() => remove.mutate(ev.id)}>
+                      <X size={16} aria-hidden />
+                    </IconButton>
+                  </div>
+                ))}
+              </section>
+            ))}
+          </div>
         )}
       </Card>
     </>
