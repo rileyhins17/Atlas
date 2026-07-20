@@ -179,3 +179,20 @@ not just types.
 
 **The through-line:** make someone open Atlas and feel *"this thing actually runs my
 life, and it's beautiful."* That's the bar. Not a sidebar with buttons and a text box.
+
+---
+
+## v3 addendum — The Stream (shipped 2026-07-19)
+
+Owner directive: **"the timeline should be the main page you interact with."** The v2
+zone dashboard and the read-only Timeline page were two chronological surfaces split
+in half. v3 merges them: Home IS the stream.
+
+- One feed, down = older (social-feed muscle memory): sticky capture → now cluster
+  (brief/rings/asks) → bounded Up Next (overdue → today → "+N tomorrow") → the
+  now-line → the entire past, day-grouped, filterable, infinite.
+- The feed is a surface you ACT on: capture files into it instantly, open tasks keep
+  a live complete-checkbox on their feed rows, rows deep-link to their domain.
+- `/timeline` redirects home; `DaySpine`/`FocusTasks`/`PulseCard` retired. Domain
+  pages stay as the focused views.
+- Pure stream logic lives in `lib/stream.ts` (unit-tested); zero backend changes.

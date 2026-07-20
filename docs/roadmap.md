@@ -25,8 +25,12 @@ Monorepo, DB schema, auth, unified timeline, cost guard, one full vertical slice
 - A dedicated Settings screen for connector keys (the DeepSeek key form currently lives in the Atlas AI tab).
 - A proper Settings screen to manage connector API keys (the key form currently lives in the Atlas AI tab).
 
-## Phase 3 — Finance
-- Finance connector (SimpleFIN Bridge or Plaid dev), transaction sync, spending insights.
+## Phase 3 — Finance ✅ (built 2026-07-19; sandbox-verify pending Plaid keys)
+- ✅ Provider-agnostic `finance` domain (accounts + transactions + timeline + AI balances/cash-flow summary). Copies the `modules/tasks` shape; core untouched.
+- ✅ **Plaid** connector (`packages/connectors/src/plaid.ts`, raw fetch, no SDK): Link token, public-token exchange, `/accounts/get`, `/transactions/sync` (cursor), `/item/remove`, sandbox public-token. Chosen over Flinks (enterprise-only) / Salt Edge (backup) — only self-serve aggregator with Canadian coverage. See `docs/adr/0005-plaid-finance-connector.md`.
+- ✅ Pull-only reconciliation (`PlaidSyncService`), one bank = one credential (`label=itemId`), cursor in `meta`. Web: Settings Plaid card (react-plaid-link) + `/finance` page.
+- ⏳ Live sandbox verify (`sandbox/public_token/create` → exchange → sync) once Riley adds `PLAID_CLIENT_ID`/`PLAID_SECRET`. Real Canadian bank = flip `PLAID_ENV=production` + Plaid approval.
+- ⏳ Later: webhook auto-sync (needs public URL + JWT verify), spending insights from the AI, Flinks connector for deeper CA coverage.
 
 ## Phase 4 — Proactive + expand
 - Scheduled jobs (nudges, weekly review) — add BullMQ + Redis when in-process `@nestjs/schedule` isn't enough.
@@ -44,3 +48,18 @@ Recommended timing: a dedicated **hardening pass after Phase 1 features**, then 
 
 ## Deploy milestone (any time after Phase 1)
 Stand up the VPS: Docker Compose `--profile full`, point Cloudflare DNS, Caddy HTTPS. Swap local Neon `DATABASE_URL` for the in-compose `db` service.
+
+## Requested backlog (captured 2026-07-19 — do NOT start without picking up here)
+
+### Fitness / workout tracking (new life-domain)
+- New `modules/fitness` — copy the `modules/tasks`/`modules/finance` vertical-slice shape. Entities: exercises library (name, muscle group, equipment), workout sessions, sets (reps/weight), plus bodyweight + cardio. Writes `workout.*` timeline events; `summarize()` feeds the AI a training summary (volume, PRs, frequency). No AI write tools initially (same stance as finance).
+- **UI: copy Strong / Hevy** — best-in-class workout logging, make it seamless/perfect. Required patterns: start-workout → add exercise from a searchable library → **log sets inline with previous-set ghost values prefilled**, big thumb tap targets, weight/reps steppers, **rest timer**, plate calculator, per-exercise **history + PR tracking**, reusable routine/template workouts. Minimal typing, mobile-first (it's a PWA). Hevy = most polished free reference; Strong = gold-standard logging flow.
+- Progressive-overload charts per exercise (reuse `Sparkline`/`Heatmap` primitives).
+
+### Synthesized life statistics (cross-domain analytics)
+- A stats view showing long-term improvement across ALL domains at once: tasks completed, habit streaks, mood trend, spending trend, workout volume/PRs, journal sentiment — weekly/monthly/quarterly rollups + trend sparklines, and a composite "life score" or per-domain progress.
+- Build on what exists: the unified `timeline_events` log + per-domain history endpoints (`/habits/history`, `/timeline`). Add aggregate rollup endpoints per domain; render with existing `Sparkline`/`Heatmap`/`ProgressRing`.
+- AI angle: cross-domain correlation insights ("training up + mood up + spending down over 90 days") via the existing daily-brief/`insights` machinery — this is where the unified-timeline design finally pays off visibly.
+
+### Timeline as the primary surface (idea — captured 2026-07-19)
+- ✅ SHIPPED 2026-07-19 (UX v3 "The Stream" — see atlas-ui-vision.md v3 addendum). Original idea: Explore: make Timeline the home/primary tab — capture inline on it, act on items in place, scrub time, filter by domain — so "your life as one stream" is the core interaction, not a dashboard. Big UX rethink; revisit deliberately. The unified `timeline_events` backbone already exists.
