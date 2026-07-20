@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EventDTO, TaskDTO, TimelineEventDTO } from '@atlas/shared';
-import { buildUpNext, feedRowHref, groupFeedByDay, openTaskRef } from '@/lib/stream';
+import { buildUpNext, feedRowHref, groupFeedByDay, openTaskRef, upNextGlance } from '@/lib/stream';
 
 // Local-time constructors keep day boundaries stable in any test timezone.
 const now = new Date(2026, 6, 15, 12, 0); // Wed Jul 15 2026, noon local
@@ -99,6 +99,31 @@ describe('buildUpNext', () => {
     );
     expect(upNext.today.length).toBe(8);
     expect(upNext.tomorrowCount).toBe(2);
+  });
+});
+
+describe('upNextGlance', () => {
+  it('surfaces overdue count, the single next thing, and tomorrow count', () => {
+    const glance = upNextGlance(
+      buildUpNext(
+        [event({ id: 'soon', title: 'Lunch', startAt: at(12, 30), endAt: at(13) })],
+        [
+          task({ id: 'o1', title: 'Old thing', dueAt: at(10, 0, -3) }),
+          task({ id: 'tm', title: 'Tomorrow task', dueAt: at(9, 0, 1) }),
+        ],
+        now,
+      ),
+    );
+    expect(glance.overdueCount).toBe(1);
+    expect(glance.next?.title).toBe('Lunch');
+    expect(glance.tomorrowCount).toBe(1);
+  });
+
+  it('reports no next thing when the day is clear', () => {
+    const glance = upNextGlance(buildUpNext([], [], now));
+    expect(glance.overdueCount).toBe(0);
+    expect(glance.next).toBeNull();
+    expect(glance.tomorrowCount).toBe(0);
   });
 });
 

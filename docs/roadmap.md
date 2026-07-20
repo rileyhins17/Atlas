@@ -63,3 +63,4 @@ Stand up the VPS: Docker Compose `--profile full`, point Cloudflare DNS, Caddy H
 
 ### Timeline as the primary surface (idea — captured 2026-07-19)
 - ✅ SHIPPED 2026-07-19 (UX v3 "The Stream" — see atlas-ui-vision.md v3 addendum). Original idea: Explore: make Timeline the home/primary tab — capture inline on it, act on items in place, scrub time, filter by domain — so "your life as one stream" is the core interaction, not a dashboard. Big UX rethink; revisit deliberately. The unified `timeline_events` backbone already exists.
+- ✅ REFINED 2026-07-20 (UX v3.1 "feed-first" — see CLAUDE.md). Riley: "the timeline literally is not the app" — the feed was buried ~575px down behind a stacked dashboard. Fixed: the whole now-neighborhood (greeting/brief/habits/plan) collapsed into one ~134px `NowStrip`, so the feed now starts at 313px (first row 400px) — above-the-fold and primary. Onboarding first-run loop + a11y also fixed.

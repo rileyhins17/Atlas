@@ -122,7 +122,7 @@ export function OnboardingWizard() {
           ) : (
             <span />
           )}
-          <div className="onb-dots" aria-label={`Step ${step + 1} of ${STEPS.length}`}>
+          <div className="onb-dots" role="group" aria-label={`Step ${step + 1} of ${STEPS.length}`}>
             {STEPS.map((s, i) => (
               <span key={s} className={`onb-dot ${i === step ? 'on' : i < step ? 'done' : ''}`} />
             ))}

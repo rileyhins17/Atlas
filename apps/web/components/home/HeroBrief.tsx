@@ -13,7 +13,7 @@ import { formatAgo, localDayKey } from '@/lib/dates';
  * refresh. Unconfigured setups get a warm pointer to Settings instead of a
  * dead zone.
  */
-export function HeroBrief() {
+export function HeroBrief({ compact = false }: { compact?: boolean }) {
   const status = useAiStatus();
   const insights = useInsights();
   const generate = useGenerateDailyBrief();
@@ -24,7 +24,7 @@ export function HeroBrief() {
 
   if (status.data && !status.data.providerConfigured) {
     return (
-      <div className="hero-brief">
+      <div className={`hero-brief ${compact ? 'compact' : ''}`}>
         <p className="hero-brief-text muted" style={{ margin: 0 }}>
           Atlas can brief you each day, file whatever you type, and chat over your whole life —{' '}
           <Link href="/settings">connect the AI in Settings</Link> to switch it on.
@@ -34,17 +34,21 @@ export function HeroBrief() {
   }
 
   return (
-    <div className="hero-brief" aria-busy={generate.isPending || insights.isPending}>
+    <div className={`hero-brief ${compact ? 'compact' : ''}`} aria-busy={generate.isPending || insights.isPending}>
       {insights.isPending ? (
         <div className="row" style={{ gap: 10, alignItems: 'center' }}>
-          <Constellation loading size={30} />
+          <Constellation loading size={compact ? 22 : 30} />
           <span className="muted" style={{ fontSize: 13 }}>Reading your day…</span>
         </div>
       ) : latest ? (
         <>
           {/* Clamped by default — a wall of prose is the opposite of glanceable.
-              One tap opens the full text for when you actually want to read. */}
-          <p className={`hero-brief-text ${expanded ? '' : 'clamped'}`}>{latest.body}</p>
+              One tap opens the full text for when you actually want to read.
+              In the NowStrip we clamp to a single line so the feed stays primary. */}
+          <p className={`hero-brief-text ${expanded ? '' : compact ? 'clamped-1' : 'clamped'}`}>
+            <Sparkles size={13} aria-hidden className="hero-brief-spark" />
+            {latest.body}
+          </p>
           <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
             <button
               type="button"

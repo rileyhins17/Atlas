@@ -99,6 +99,27 @@ export function buildUpNext(events: EventDTO[], tasks: TaskDTO[], now: Date): Up
   };
 }
 
+export interface UpNextGlance {
+  overdueCount: number;
+  /** The very next thing today (event or due task), or null. */
+  next: { title: string; at: Date; allDay?: boolean } | null;
+  tomorrowCount: number;
+}
+
+/**
+ * Collapse the bounded plan into a single glanceable line for the NowStrip:
+ * how many overdue, the one next thing, and tomorrow as a count. The feed is the
+ * star — the plan is a peripheral glance, not a stacked list.
+ */
+export function upNextGlance(up: UpNext): UpNextGlance {
+  const first = up.today[0];
+  return {
+    overdueCount: up.overdue.length,
+    next: first ? { title: first.title, at: first.at, allDay: first.allDay } : null,
+    tomorrowCount: up.tomorrowCount,
+  };
+}
+
 /** Feed rows grouped by local day, insertion (newest-first) order preserved. */
 export function groupFeedByDay(rows: TimelineEventDTO[]): Array<[string, TimelineEventDTO[]]> {
   const byDay = new Map<string, TimelineEventDTO[]>();
