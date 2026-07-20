@@ -1,5 +1,6 @@
-import { TimelinePanel } from '@/components/panels/TimelinePanel';
+import { redirect } from 'next/navigation';
 
+// The Timeline is no longer a separate page — it IS the home stream.
 export default function TimelinePage() {
-  return <TimelinePanel />;
+  redirect('/today');
 }

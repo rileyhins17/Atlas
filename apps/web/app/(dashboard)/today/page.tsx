@@ -1,5 +1,5 @@
-import { HomeDashboard } from '@/components/home/HomeDashboard';
+import { StreamPage } from '@/components/stream/StreamPage';
 
 export default function TodayPage() {
-  return <HomeDashboard />;
+  return <StreamPage />;
 }

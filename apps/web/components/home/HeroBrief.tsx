@@ -1,9 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { RefreshCw, Sparkles } from 'lucide-react';
+import { ChevronDown, RefreshCw, Sparkles } from 'lucide-react';
 import { useAiStatus, useGenerateDailyBrief, useInsights } from '@/lib/hooks/ai';
-import { Button, Skeleton } from '@/components/ui';
+import { Button } from '@/components/ui';
+import { Constellation } from '@/components/atlas/Constellation';
 import { formatAgo, localDayKey } from '@/lib/dates';
 
 /**
@@ -15,6 +17,7 @@ export function HeroBrief() {
   const status = useAiStatus();
   const insights = useInsights();
   const generate = useGenerateDailyBrief();
+  const [expanded, setExpanded] = useState(false);
 
   const latest = insights.data?.[0] ?? null;
   const fresh = latest !== null && localDayKey(new Date(latest.createdAt)) === localDayKey(new Date());
@@ -33,14 +36,29 @@ export function HeroBrief() {
   return (
     <div className="hero-brief" aria-busy={generate.isPending || insights.isPending}>
       {insights.isPending ? (
-        <div className="stack" style={{ gap: 8 }}>
-          <Skeleton height={15} width="92%" />
-          <Skeleton height={15} width="74%" />
+        <div className="row" style={{ gap: 10, alignItems: 'center' }}>
+          <Constellation loading size={30} />
+          <span className="muted" style={{ fontSize: 13 }}>Reading your day…</span>
         </div>
       ) : latest ? (
         <>
-          <p className="hero-brief-text">{latest.body}</p>
+          {/* Clamped by default — a wall of prose is the opposite of glanceable.
+              One tap opens the full text for when you actually want to read. */}
+          <p className={`hero-brief-text ${expanded ? '' : 'clamped'}`}>{latest.body}</p>
           <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="hero-brief-toggle"
+              aria-expanded={expanded}
+              onClick={() => setExpanded((v) => !v)}
+            >
+              <ChevronDown
+                size={13}
+                aria-hidden
+                style={{ transform: expanded ? 'rotate(180deg)' : undefined, transition: 'transform .15s ease' }}
+              />
+              {expanded ? 'Less' : 'Read more'}
+            </button>
             <span className="muted" style={{ fontSize: 12 }}>
               {fresh ? formatAgo(new Date(latest.createdAt)) : 'from earlier — refresh for today'}
             </span>

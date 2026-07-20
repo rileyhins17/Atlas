@@ -10,12 +10,12 @@ import { PageHeader } from '@/components/PageHeader';
 import { formatClock, formatDayHeading, localDayKey } from '@/lib/dates';
 
 /** Events grouped by local calendar day, upcoming first (past days last). */
-export function groupEventsByDay(events: EventDTO[]): Array<[string, EventDTO[]]> {
+export function groupEventsByDay(events: EventDTO[], now = new Date()): Array<[string, EventDTO[]]> {
   const byDay = new Map<string, EventDTO[]>();
   const sorted = [...events].sort(
     (a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime(),
   );
-  const today = localDayKey(new Date());
+  const today = localDayKey(now);
   for (const e of sorted) {
     const key = localDayKey(new Date(e.startAt));
     if (key < today) continue; // agenda looks forward

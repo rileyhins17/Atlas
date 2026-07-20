@@ -79,14 +79,19 @@ describe('groupEventsByDay', () => {
   }
 
   it('groups forward-looking events by local day, sorted within the day', () => {
-    const today = new Date();
+    // Fixed noon-local "now" so +3h can never cross midnight (this was flaky
+    // when the suite ran after 9pm with a real clock).
+    const today = NOW;
     const laterToday = new Date(today.getTime() + 3 * 3600e3);
     const yesterday = new Date(today.getTime() - 24 * 3600e3);
-    const grouped = groupEventsByDay([
-      event({ title: 'past', startAt: yesterday.toISOString() }),
-      event({ title: 'second', startAt: laterToday.toISOString() }),
-      event({ title: 'first', startAt: today.toISOString() }),
-    ]);
+    const grouped = groupEventsByDay(
+      [
+        event({ title: 'past', startAt: yesterday.toISOString() }),
+        event({ title: 'second', startAt: laterToday.toISOString() }),
+        event({ title: 'first', startAt: today.toISOString() }),
+      ],
+      NOW,
+    );
     // Yesterday is dropped; today's two events are time-ordered.
     const todayKey = localDayKey(today);
     const todayGroup = grouped.find(([day]) => day === todayKey);
