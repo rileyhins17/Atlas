@@ -794,6 +794,12 @@ input[type='checkbox']:checked::after {
 }
 
 @media (max-width: 900px) {
+  /* Stack the shell: without this the row layout keeps the (now-visible) top bar
+     as a flex sibling of main, so it eats ~300px of width and squeezes the page
+     into a sliver. Column = full-width top bar above a full-width canvas. */
+  .app-layout {
+    flex-direction: column;
+  }
   .sidebar {
     display: none;
   }
