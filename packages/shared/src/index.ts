@@ -10,3 +10,7 @@ export * from './dto/ai.js';
 export * from './dto/pagination.js';
 export * from './dto/timeline.js';
 export * from './dto/account.js';
+export * from './dto/finance.js';
+export * from './dto/settings.js';
+export * from './dto/push.js';
+export * from './dto/routine.js';

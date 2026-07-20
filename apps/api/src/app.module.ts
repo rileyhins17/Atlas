@@ -9,8 +9,12 @@ import { HabitsModule } from './modules/habits/habits.module.js';
 import { JournalModule } from './modules/journal/journal.module.js';
 import { NotesModule } from './modules/notes/notes.module.js';
 import { CalendarModule } from './modules/calendar/calendar.module.js';
+import { FinanceModule } from './modules/finance/finance.module.js';
 import { AiModule } from './modules/ai/ai.module.js';
 import { AccountModule } from './modules/account/account.module.js';
+import { SettingsModule } from './modules/settings/settings.module.js';
+import { RoutineModule } from './modules/routine/routine.module.js';
+import { PushModule } from './modules/push/push.module.js';
 import { TimelineModule } from './modules/timeline/timeline.module.js';
 import { AllExceptionsFilter } from './common/all-exceptions.filter.js';
 import { RequestIdMiddleware } from './common/request-id.middleware.js';
@@ -31,8 +35,12 @@ import { OriginCheckMiddleware } from './common/origin-check.middleware.js';
     JournalModule,
     NotesModule,
     CalendarModule,
+    FinanceModule,
     AiModule,
     AccountModule,
+    SettingsModule,
+    RoutineModule,
+    PushModule,
     TimelineModule,
   ],
   providers: [

@@ -13,6 +13,11 @@ export const qk = {
   aiStatus: ['ai', 'status'] as const,
   insights: ['ai', 'insights'] as const,
   googleStatus: ['google', 'status'] as const,
+  plaidStatus: ['plaid', 'status'] as const,
+  settings: ['settings'] as const,
+  routine: ['routine'] as const,
+  accounts: ['finance', 'accounts'] as const,
+  transactions: (accountId?: string) => ['finance', 'transactions', accountId ?? 'all'] as const,
   habitHistory: (days: number) => ['habits', 'history', days] as const,
   timeline: (source?: string) => ['timeline', source ?? 'all'] as const,
 };

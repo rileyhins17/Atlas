@@ -3,6 +3,7 @@ import {
   ConnectorRegistry,
   DeepSeekConnector,
   GoogleCalendarConnector,
+  PlaidConnector,
   type Connector,
   type ConnectorContext,
 } from '@atlas/connectors';
@@ -25,6 +26,8 @@ export class ConnectorsService {
   readonly deepseek = new DeepSeekConnector();
   /** Null when GOOGLE_CLIENT_ID/SECRET aren't configured — Atlas runs fine without Google. */
   readonly googleCalendar: GoogleCalendarConnector | null;
+  /** Null when PLAID_CLIENT_ID/SECRET aren't configured — Atlas runs fine without Plaid. */
+  readonly plaid: PlaidConnector | null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -42,6 +45,19 @@ export class ConnectorsService {
           })
         : null;
     if (this.googleCalendar) this.registry.register(this.googleCalendar);
+
+    this.plaid =
+      env.PLAID_CLIENT_ID && env.PLAID_SECRET
+        ? new PlaidConnector({
+            clientId: env.PLAID_CLIENT_ID,
+            secret: env.PLAID_SECRET,
+            env: env.PLAID_ENV,
+            redirectUri: env.PLAID_REDIRECT_URI,
+            countryCodes: env.PLAID_COUNTRY_CODES.split(',').map((c) => c.trim()).filter(Boolean),
+            products: env.PLAID_PRODUCTS.split(',').map((p) => p.trim()).filter(Boolean),
+          })
+        : null;
+    if (this.plaid) this.registry.register(this.plaid);
   }
 
   list(): Connector[] {

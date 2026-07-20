@@ -1,4 +1,5 @@
 import type {
+  AccountDTO,
   AiQuestionDTO,
   HabitHistoryDTO,
   TimelinePageDTO,
@@ -13,7 +14,11 @@ import type {
   InsightDTO,
   JournalDTO,
   NoteDTO,
+  RoutineBlockDTO,
+  RoutineBlockInput,
+  SettingsDTO,
   TaskDTO,
+  TransactionDTO,
   UserDTO,
 } from '@atlas/shared';
 
@@ -191,6 +196,79 @@ export const GoogleApi = {
     request<{ ok: true }>('/connectors/google/disconnect', { method: 'POST', body: '{}' }),
 };
 
+export interface PlaidItem {
+  itemId: string;
+  institution: string | null;
+  connectedAt: string | null;
+  lastSyncedAt: string | null;
+}
+
+export interface PlaidStatus {
+  /** Server has PLAID_CLIENT_ID/SECRET set. */
+  configured: boolean;
+  /** This user has at least one linked bank. */
+  connected: boolean;
+  items: PlaidItem[];
+}
+
+export const PlaidApi = {
+  status: () => request<PlaidStatus>('/connectors/plaid/status'),
+  linkToken: (itemId?: string) =>
+    request<{ linkToken: string }>('/connectors/plaid/link-token', {
+      method: 'POST',
+      body: JSON.stringify(itemId ? { itemId } : {}),
+    }),
+  exchange: (publicToken: string) =>
+    request<SyncResult>('/connectors/plaid/exchange', {
+      method: 'POST',
+      body: JSON.stringify({ publicToken }),
+    }),
+  sync: () => request<SyncResult>('/connectors/plaid/sync', { method: 'POST', body: '{}' }),
+  disconnect: (itemId?: string) =>
+    request<{ ok: true }>('/connectors/plaid/disconnect', {
+      method: 'POST',
+      body: JSON.stringify(itemId ? { itemId } : {}),
+    }),
+};
+
+export const FinanceApi = {
+  accounts: () => request<AccountDTO[]>('/finance/accounts'),
+  transactions: (opts: { accountId?: string; limit?: number; offset?: number } = {}) => {
+    const params = new URLSearchParams();
+    if (opts.accountId) params.set('accountId', opts.accountId);
+    if (opts.limit) params.set('limit', String(opts.limit));
+    if (opts.offset) params.set('offset', String(opts.offset));
+    const qs = params.toString();
+    return request<TransactionDTO[]>(`/finance/transactions${qs ? `?${qs}` : ''}`);
+  },
+  updateTransaction: (id: string, patch: Record<string, unknown>) =>
+    request<TransactionDTO>(`/finance/transactions/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    }),
+};
+
+export const SettingsApi = {
+  get: () => request<SettingsDTO>('/settings'),
+  update: (
+    patch: Partial<{ displayName: string; timezone: string; briefHour: number; proactiveEnabled: boolean }>,
+  ) => request<SettingsDTO>('/settings', { method: 'PATCH', body: JSON.stringify(patch) }),
+};
+
+export const RoutineApi = {
+  list: () => request<RoutineBlockDTO[]>('/routine'),
+  replace: (blocks: RoutineBlockInput[]) =>
+    request<RoutineBlockDTO[]>('/routine', { method: 'PUT', body: JSON.stringify({ blocks }) }),
+};
+
+export const PushApi = {
+  publicKey: () => request<{ configured: boolean; publicKey: string | null }>('/push/public-key'),
+  subscribe: (sub: { endpoint: string; keys: { p256dh: string; auth: string } }) =>
+    request<{ ok: true }>('/push/subscribe', { method: 'POST', body: JSON.stringify(sub) }),
+  unsubscribe: (endpoint: string) =>
+    request<{ ok: true }>('/push/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint }) }),
+};
+
 export const AiApi = {
   status: () => request<AiStatus>('/ai/status'),
   connectDeepSeek: (apiKey: string) =>
@@ -200,6 +278,7 @@ export const AiApi = {
   brainDump: (text: string) =>
     request<ChatResponseDTO>('/ai/brain-dump', { method: 'POST', body: JSON.stringify({ text }) }),
   dailyBrief: () => request<InsightDTO>('/ai/daily-brief', { method: 'POST', body: '{}' }),
+  weeklyReview: () => request<InsightDTO>('/ai/weekly-review', { method: 'POST', body: '{}' }),
   insights: () => request<InsightDTO[]>('/ai/insights'),
   backfillEmbeddings: () =>
     request<{ processed: number; failed: number }>('/ai/embeddings/backfill', { method: 'POST', body: '{}' }),

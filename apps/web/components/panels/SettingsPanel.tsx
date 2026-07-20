@@ -12,6 +12,8 @@ import { Button, Card, ErrorState, Skeleton } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
 import { DataPrivacyPanel } from './DataPrivacyPanel';
 import { AiSettingsCard } from './AiSettingsCard';
+import { ProactiveSettingsCard } from './ProactiveSettingsCard';
+import { PlaidCard } from './PlaidCard';
 
 export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
   // Set by the OAuth callback redirect (?google=connected|denied).
@@ -55,6 +57,8 @@ export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
       {flash && <Card style={{ borderColor: 'var(--brand-alt)' }}>{flash}</Card>}
 
       <AiSettingsCard />
+
+      <ProactiveSettingsCard />
 
       <Card stack style={{ marginTop: 12 }}>
         <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -119,6 +123,8 @@ export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
         )}
         {error && <div className="error">{error}</div>}
       </Card>
+
+      <PlaidCard />
 
       <DataPrivacyPanel onSignOut={onSignOut} />
     </>

@@ -6,11 +6,11 @@ import {
   BookOpen,
   Calendar,
   Flame,
-  History,
   Home,
   ListTodo,
   Settings,
   StickyNote,
+  Wallet,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -20,7 +20,7 @@ const NAV_ITEMS = [
   { href: '/habits', label: 'Habits', icon: Flame },
   { href: '/journal', label: 'Journal', icon: BookOpen },
   { href: '/notes', label: 'Notes', icon: StickyNote },
-  { href: '/timeline', label: 'Timeline', icon: History },
+  { href: '/finance', label: 'Finance', icon: Wallet },
   { href: '/settings', label: 'Settings', icon: Settings },
 ] as const;
 

@@ -26,6 +26,22 @@ const EnvSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_REDIRECT_URI: z.string().default('http://localhost:4000/connectors/google/callback'),
+  // Plaid (bank data aggregator). App-level credentials, not user secrets.
+  // Optional: unset ⇒ the connector is unregistered and Settings shows
+  // "unavailable", so Atlas runs fine without Plaid.
+  PLAID_CLIENT_ID: z.string().optional(),
+  PLAID_SECRET: z.string().optional(),
+  PLAID_ENV: z.enum(['sandbox', 'production']).default('sandbox'),
+  // Comma-separated ISO country codes Link should offer (Canadian banks need CA).
+  PLAID_COUNTRY_CODES: z.string().default('US,CA'),
+  PLAID_PRODUCTS: z.string().default('transactions'),
+  // Registered only when using OAuth-based institutions; safe to leave unset in sandbox.
+  PLAID_REDIRECT_URI: z.string().optional(),
+  // Web Push (VAPID). Self-issued keypair, no external account. Optional: unset ⇒
+  // push is unconfigured and the notification UI reports itself unavailable.
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().default('mailto:atlas@example.com'),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
