@@ -1920,10 +1920,13 @@ input[type='checkbox']:checked::after {
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .feed-time {
-  flex: none; font-size: 11.5px; color: color-mix(in srgb, var(--muted, #9a8f88) 65%, transparent);
+  /* Solid muted (not a low-opacity mix): the composited 65% version fell to
+     2.63:1 on the light surface — below WCAG AA. Solid --text-muted clears AA
+     in both themes. */
+  flex: none; font-size: 11.5px; color: var(--text-muted, #9a8f88);
   padding-top: 4px; font-variant-numeric: tabular-nums; transition: color .12s ease;
 }
-.feed-row:hover .feed-time { color: var(--muted, #9a8f88); }
+.feed-row:hover .feed-time { color: var(--text-primary); }
 
 /* Mobile: keep the capture under the top bar, tap targets big. */
 @media (max-width: 700px) {

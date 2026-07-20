@@ -68,8 +68,11 @@ test.describe('with a shared account', () => {
 
   test('the stream has no serious accessibility violations', async ({ page }) => {
     await go(page, '/today');
-    // The stream is data-driven — wait for the now-strip before scanning.
+    // The stream is data-driven — wait for the now-strip AND a feed row so the
+    // scan deterministically covers the feed (the task/habit added above land
+    // there), not just the strip.
     await expect(page.locator('.nowstrip')).toBeVisible();
+    await expect(page.locator('.feed-row').first()).toBeVisible();
 
     // Freeze entrance/hover animations so contrast is measured at rest, not on
     // text mid-fade (axe reads the composited opacity otherwise).

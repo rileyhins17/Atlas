@@ -48,7 +48,13 @@ export function ChatRail() {
     if (!chatOpen) return;
     const ask = consumePendingAsk();
     if (ask) send(ask);
+    // Focus after paint: the rail mounts with an entrance animation, and a
+    // synchronous focus on the just-mounted input can be dropped (seen as a
+    // headless-CI flake where the input renders but never takes focus). A
+    // post-paint frame lands it reliably.
     inputRef.current?.focus();
+    const raf = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run on open only
   }, [chatOpen]);
 
