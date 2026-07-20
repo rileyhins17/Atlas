@@ -6,11 +6,13 @@ import { HabitsModule } from '../habits/habits.module.js';
 import { JournalModule } from '../journal/journal.module.js';
 import { NotesModule } from '../notes/notes.module.js';
 import { CalendarModule } from '../calendar/calendar.module.js';
+import { PushModule } from '../push/push.module.js';
 import { AiController } from './ai.controller.js';
 import { AiQuestionsService } from './ai-questions.service.js';
 import { ToolRouterService } from './tool-router.service.js';
 import { OrchestratorService } from './orchestrator.service.js';
 import { EmbeddingService } from './embedding.service.js';
+import { ProactiveService } from './proactive.service.js';
 
 /**
  * Phase 2: the AI brain. Imports every domain module for its exported service
@@ -18,13 +20,14 @@ import { EmbeddingService } from './embedding.service.js';
  * already declared the tool names each module handles).
  */
 @Module({
-  imports: [AuthModule, TasksModule, HabitsModule, JournalModule, NotesModule, CalendarModule],
+  imports: [AuthModule, TasksModule, HabitsModule, JournalModule, NotesModule, CalendarModule, PushModule],
   controllers: [AiController],
   providers: [
     AiQuestionsService,
     ToolRouterService,
     OrchestratorService,
     EmbeddingService,
+    ProactiveService,
     // Single instance so the local embedding model is loaded into memory once
     // for the process, not per request.
     { provide: LocalEmbedder, useFactory: () => new LocalEmbedder() },

@@ -32,11 +32,17 @@ model User {
   passwordHash String
   displayName  String?
   timezone     String   @default("UTC")
+  // Proactive engine prefs: master switch + local hour (0-23) to fire the daily
+  // brief / weekly review, interpreted in `timezone`.
+  proactiveEnabled Boolean @default(true)
+  briefHour        Int     @default(7)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  sessions       Session[]
-  credentials    Credential[]
+  sessions          Session[]
+  credentials       Credential[]
+  pushSubscriptions PushSubscription[]
+  routineBlocks     RoutineBlock[]
   tasks          Task[]
   events         Event[]
   habits         Habit[]
@@ -53,6 +59,45 @@ model User {
   aiUsage        AiUsage[]
 
   @@map("users")
+}
+
+/**
+ * One recurring block of the user's typical week ("sleep 23:00–07:00 daily",
+ * "work 9–17 weekdays"). Captured by onboarding; read by the stream (what you're
+ * supposed to be doing right now) and by the AI (it knows your schedule).
+ */
+model RoutineBlock {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String
+  kind      String   @default("custom") // sleep | work | school | meal | exercise | winddown | custom
+  // Which weekdays this block applies to: 7-bit mask, bit 0 = Monday … bit 6 = Sunday.
+  days      Int      @default(127)
+  // Minutes from local midnight. start > end means the block wraps past midnight (sleep).
+  startMin  Int
+  endMin    Int
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("routine_blocks")
+}
+
+/**
+ * A browser Web Push subscription (one per device/browser). Endpoint is unique;
+ * a subscription that returns 404/410 on send is stale and gets pruned.
+ */
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 model Session {
@@ -253,6 +298,9 @@ model Account {
   balanceMinor BigInt        @default(0)
   source       String        @default("manual")
   externalId   String?
+  // Bank connection metadata (Plaid): last-4 of the account number + institution name.
+  mask         String?
+  institution  String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   transactions Transaction[]
@@ -274,7 +322,11 @@ model Transaction {
   currency    String   @default("USD")
   description String
   category    String?
+  // A cleaner merchant label when the source provides one (Plaid merchant_name).
+  merchantName String?
   postedAt    DateTime
+  // Plaid marks a transaction pending until it settles; the amount/date can still change.
+  pending     Boolean  @default(false)
   source      String   @default("manual")
   externalId  String?
   createdAt   DateTime @default(now())

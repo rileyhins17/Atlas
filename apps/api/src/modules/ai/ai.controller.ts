@@ -74,6 +74,11 @@ export class AiController {
     return this.orchestrator.generateDailyBrief(user.id);
   }
 
+  @Post('weekly-review')
+  generateWeeklyReview(@CurrentUser() user: AuthedUser): Promise<InsightDTO> {
+    return this.orchestrator.generateWeeklyReview(user.id);
+  }
+
   @Get('insights')
   listInsights(
     @CurrentUser() user: AuthedUser,

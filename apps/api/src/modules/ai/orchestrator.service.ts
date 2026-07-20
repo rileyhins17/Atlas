@@ -42,6 +42,13 @@ const BRIEF_SYSTEM_PROMPT =
   'context and recent activity. Be concise (120-200 words): what stands out, ' +
   "what's due or upcoming, and one gentle nudge. Plain prose, no headers, no tools.";
 
+const WEEKLY_REVIEW_SYSTEM_PROMPT =
+  "You are Atlas, writing the user's weekly review from their cross-domain " +
+  "context and the past week's activity. In 150-250 words of plain prose (no " +
+  'headers, no tools): what they got done and where they slipped across tasks, ' +
+  'habits, calendar, journal mood and spending; one honest pattern you notice ' +
+  'over the week; and one concrete focus for the week ahead. Encouraging, not fluffy.';
+
 const QUESTIONS_SYSTEM_PROMPT =
   'You are Atlas, reviewing the context below for genuine knowledge gaps about ' +
   'the user. If (and only if) you notice something worth asking about — a ' +
@@ -261,6 +268,41 @@ export class OrchestratorService {
     });
 
     // Reuse the snapshot rather than making every module summarize again.
+    await this.generateQuestions(userId, snapshot).catch(() => undefined);
+
+    return toInsightDto(insight);
+  }
+
+  /**
+   * A cross-domain weekly review over the last 7 days. Same shape as the daily
+   * brief but a wider activity window and a reflective, pattern-finding prompt —
+   * this is where the unified timeline earns its keep.
+   */
+  async generateWeeklyReview(userId: string): Promise<InsightDTO> {
+    const snapshot = await this.buildSnapshot(userId, 40);
+    const { contextText, activityText } = snapshot;
+    const messages: ChatMessage[] = [
+      { role: 'system', content: WEEKLY_REVIEW_SYSTEM_PROMPT },
+      {
+        role: 'user',
+        content: `${contextText}\n\nActivity over the last 7 days:\n${activityText}\n\nWrite this week's review.`,
+      },
+    ];
+    const res = await this.chatCall(userId, 'weekly_review', messages);
+
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 86_400_000);
+    const insight = await this.prisma.client.insight.create({
+      data: {
+        userId,
+        kind: 'weekly_review',
+        title: `Weekly review — ${now.toISOString().slice(0, 10)}`,
+        body: res.content,
+        periodFrom: weekAgo,
+        periodTo: now,
+      },
+    });
+
     await this.generateQuestions(userId, snapshot).catch(() => undefined);
 
     return toInsightDto(insight);
