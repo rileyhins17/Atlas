@@ -11,6 +11,7 @@ import { NavBar } from '@/components/NavBar';
 import { InstallPrompt } from '@/components/InstallPrompt';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { AtlasUiProvider, useAtlasUi } from '@/components/atlas/AtlasUiProvider';
+import { AtlasLoadingScreen } from '@/components/atlas/AtlasLoadingScreen';
 import { CommandBar } from '@/components/atlas/CommandBar';
 import { ChatRail } from '@/components/atlas/ChatRail';
 
@@ -27,7 +28,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     return (
       <div className="gate-shell">
         <div className="gate-body">
-          <span className="muted">Loading…</span>
+          <AtlasLoadingScreen messages={['Waking Atlas…']} />
         </div>
       </div>
     );

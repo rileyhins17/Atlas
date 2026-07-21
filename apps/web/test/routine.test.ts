@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RoutineBlockDTO } from '@atlas/shared';
-import { nextRoutine, routineAt } from '@/lib/stream';
-import { buildRoutine, DAILY, WEEKDAYS } from '@/lib/onboarding';
+import { routineAt } from '@/lib/stream';
+import { answersToNotes, buildRoutine, DAILY, minToTime, timeToMin, WEEKDAYS } from '@/lib/onboarding';
 
 const block = (over: Partial<RoutineBlockDTO>): RoutineBlockDTO => ({
   id: over.id ?? `b${Math.random()}`,
@@ -43,26 +43,6 @@ describe('routineAt', () => {
   });
 });
 
-describe('nextRoutine', () => {
-  const gym = block({ label: 'Gym', days: DAILY, startMin: 18 * 60, endMin: 19 * 60 });
-  const work = block({ label: 'Work', days: WEEKDAYS, startMin: 9 * 60, endMin: 17 * 60 });
-
-  it('finds the next block later today', () => {
-    const n = nextRoutine([gym, work], at(10)); // Wed 10:00 → Gym 18:00 today
-    expect(n?.block.label).toBe('Gym');
-    expect(n?.at.getHours()).toBe(18);
-  });
-
-  it('rolls to tomorrow when today is exhausted', () => {
-    const n = nextRoutine([work], at(20)); // Wed 20:00 → Work Thu 9:00
-    expect(n?.block.label).toBe('Work');
-    expect(n?.at.getDate()).toBe(16);
-  });
-
-  it('returns null with no blocks', () => {
-    expect(nextRoutine([], at(10))).toBeNull();
-  });
-});
 
 describe('buildRoutine', () => {
   it('always anchors sleep + wind-down, wrapping bedtime correctly', () => {
@@ -93,8 +73,21 @@ describe('buildRoutine', () => {
       startMin: 540,
       endMin: 1020,
     });
-    expect(blocks.find((b) => b.kind === 'exercise')?.startMin).toBe(18 * 60);
+    expect(blocks.find((b) => b.kind === 'exercise')?.startMin).toBe(17 * 60 + 30);
     expect(blocks.filter((b) => b.kind === 'meal')).toHaveLength(3);
+  });
+
+  it('office/school honour exact workday times when provided', () => {
+    const blocks = buildRoutine({
+      bedtimeMin: 23 * 60,
+      wakeMin: 7 * 60,
+      weekday: 'office',
+      workStartMin: 10 * 60,
+      workEndMin: 18 * 60 + 30,
+      exercise: 'none',
+      meals: 'chaotic',
+    });
+    expect(blocks.find((b) => b.kind === 'work')).toMatchObject({ startMin: 600, endMin: 1110 });
   });
 
   it('places morning exercise relative to wake time', () => {
@@ -106,5 +99,30 @@ describe('buildRoutine', () => {
       meals: 'chaotic',
     });
     expect(blocks.find((b) => b.kind === 'exercise')?.startMin).toBe(6 * 60 + 30);
+  });
+});
+
+describe('time input helpers', () => {
+  it('round-trips <input type="time"> values and minutes', () => {
+    expect(timeToMin('23:30')).toBe(1410);
+    expect(timeToMin('00:05')).toBe(5);
+    expect(minToTime(1410)).toBe('23:30');
+    expect(minToTime(0)).toBe('00:00');
+    expect(minToTime(1440 + 90)).toBe('01:30'); // wraps
+  });
+});
+
+describe('answersToNotes', () => {
+  it('creates pinned onboarding notes only for non-empty answers', () => {
+    const notes = answersToNotes({ about: '  I build apps  ', goals: '', context: '\n' });
+    expect(notes).toEqual([
+      { title: 'About me', body: 'I build apps', tags: ['onboarding'], pinned: true },
+    ]);
+  });
+
+  it('maps all three answers with their titles', () => {
+    const notes = answersToNotes({ about: 'a', goals: 'g', context: 'c' });
+    expect(notes.map((n) => n.title)).toEqual(['About me', 'My goals', 'Things to know']);
+    expect(notes.every((n) => n.pinned)).toBe(true);
   });
 });

@@ -70,7 +70,7 @@ export function TodayView() {
         <HomeCapture context={context} onClearContext={() => setContext(null)} focusToken={focusToken} />
       </div>
 
-      {isToday && <NowStrip showGlance={false} />}
+      {isToday && <NowStrip />}
 
       <DayPager
         day={dayStart}

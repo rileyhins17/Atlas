@@ -2231,3 +2231,23 @@ input[type='checkbox']:checked::after {
   .nav-group-toggle { display: none; }
   .nav-group-hidden { display: contents; }
 }
+
+/* — onboarding v2: warm form + loading screen — */
+.onb-form { display: flex; flex-direction: column; align-items: center; gap: 14px; width: 100%; }
+.onb-field-row { display: flex; gap: 12px; width: 100%; max-width: 420px; }
+.onb-field-col { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 420px; }
+.onb-field { display: flex; flex-direction: column; gap: 5px; flex: 1; text-align: left; }
+.onb-field > span { font-size: 12.5px; font-weight: 600; color: var(--text-muted); }
+.onb-textarea { max-width: 460px; width: 100%; text-align: left; }
+
+.atlas-loading {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 16px; min-height: 40vh; text-align: center;
+}
+.atlas-loading-msg {
+  margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -0.01em;
+  animation: atlas-msg-in 0.4s var(--ease) both;
+}
+.atlas-loading-sub { margin: 0; font-size: 13.5px; color: var(--text-muted); max-width: 380px; line-height: 1.5; }
+@keyframes atlas-msg-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .atlas-loading-msg { animation: none; } }
