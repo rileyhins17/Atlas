@@ -20,7 +20,10 @@ async function bootstrap(): Promise<void> {
   app.useBodyParser('json', { limit: '1mb' });
   app.useBodyParser('urlencoded', { limit: '1mb', extended: true });
 
-  app.enableCors({ origin: env.WEB_ORIGIN, credentials: true });
+  // WEB_ORIGIN may be a comma-separated list (e.g. LAN testing from a phone
+  // alongside localhost) — accept any of them.
+  const allowedOrigins = env.WEB_ORIGIN.split(',').map((o) => o.trim());
+  app.enableCors({ origin: allowedOrigins, credentials: true });
 
   // Behind the Caddy reverse proxy in production, so rate limiting and logs see
   // the real client IP rather than the proxy's.

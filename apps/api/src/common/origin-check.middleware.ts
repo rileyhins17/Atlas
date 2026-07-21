@@ -20,7 +20,9 @@ export class OriginCheckMiddleware implements NestMiddleware {
 
   constructor() {
     const env = loadEnv();
-    this.allowed = new Set([env.WEB_ORIGIN]);
+    // WEB_ORIGIN may be a comma-separated list (e.g. LAN testing from a phone
+    // alongside localhost) — trust any of them.
+    this.allowed = new Set(env.WEB_ORIGIN.split(',').map((o) => o.trim()));
   }
 
   use(req: Request, _res: Response, next: NextFunction): void {
