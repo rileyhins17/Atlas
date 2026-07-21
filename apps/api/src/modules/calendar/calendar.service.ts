@@ -34,11 +34,14 @@ export class CalendarService {
   }
 
   /** Upcoming + recently-past events, bounded (commercial-grade: never unbounded). */
-  async list(userId: string, opts: { from?: Date; limit?: number } = {}): Promise<EventDTO[]> {
+  async list(
+    userId: string,
+    opts: { from?: Date; to?: Date; limit?: number } = {},
+  ): Promise<EventDTO[]> {
     const from = opts.from ?? new Date(Date.now() - 1000 * 60 * 60 * 24); // yesterday onward
     const take = Math.min(opts.limit ?? 50, MAX_PAGE);
     const events = await this.prisma.client.event.findMany({
-      where: { userId, startAt: { gte: from } },
+      where: { userId, startAt: { gte: from, ...(opts.to ? { lt: opts.to } : {}) } },
       orderBy: { startAt: 'asc' },
       take,
     });

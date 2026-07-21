@@ -1,6 +1,6 @@
 'use client';
 
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { TimelineApi } from '@/lib/api';
 import { qk } from './keys';
 
@@ -17,5 +17,15 @@ export function useTimeline(source?: string) {
     initialPageParam: 0,
     getNextPageParam: (last, pages) =>
       last.hasMore ? pages.length * PAGE_SIZE : undefined,
+  });
+}
+
+/** One local day's actuals for the Day Canvas — [dayStart, dayStart+24h). */
+export function useDayActuals(dayStart: Date) {
+  const from = dayStart.toISOString();
+  const to = new Date(dayStart.getTime() + 86_400_000).toISOString();
+  return useQuery({
+    queryKey: qk.dayActuals(from),
+    queryFn: () => TimelineApi.list({ from, to, limit: 100 }),
   });
 }

@@ -66,13 +66,12 @@ test.describe('with a shared account', () => {
     await expect(page.getByLabel('1 day streak')).toBeVisible();
   });
 
-  test('the stream has no serious accessibility violations', async ({ page }) => {
+  test('the Day Canvas has no serious accessibility violations', async ({ page }) => {
     await go(page, '/today');
-    // The stream is data-driven — wait for the now-strip AND a feed row so the
-    // scan deterministically covers the feed (the task/habit added above land
-    // there), not just the strip.
+    // v4: Home is the Day Canvas — wait for the now-strip AND at least one
+    // canvas section so the scan deterministically covers the day itself.
     await expect(page.locator('.nowstrip')).toBeVisible();
-    await expect(page.locator('.feed-row').first()).toBeVisible();
+    await expect(page.locator('.canvas-sec').first()).toBeVisible();
 
     // Freeze entrance/hover animations so contrast is measured at rest, not on
     // text mid-fade (axe reads the composited opacity otherwise).

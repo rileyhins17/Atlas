@@ -134,18 +134,27 @@ export type NewEvent = {
 };
 
 export const EventsApi = {
-  list: () => request<EventDTO[]>('/events'),
+  list: (opts: { from?: string; to?: string; limit?: number } = {}) => {
+    const params = new URLSearchParams();
+    if (opts.from) params.set('from', opts.from);
+    if (opts.to) params.set('to', opts.to);
+    if (opts.limit) params.set('limit', String(opts.limit));
+    const qs = params.toString();
+    return request<EventDTO[]>(`/events${qs ? `?${qs}` : ''}`);
+  },
   create: (input: NewEvent) =>
     request<EventDTO>('/events', { method: 'POST', body: JSON.stringify(input) }),
   remove: (id: string) => request<{ ok: true }>(`/events/${id}`, { method: 'DELETE' }),
 };
 
 export const TimelineApi = {
-  list: (opts: { limit?: number; offset?: number; source?: string } = {}) => {
+  list: (opts: { limit?: number; offset?: number; source?: string; from?: string; to?: string } = {}) => {
     const params = new URLSearchParams();
     if (opts.limit) params.set('limit', String(opts.limit));
     if (opts.offset) params.set('offset', String(opts.offset));
     if (opts.source) params.set('source', opts.source);
+    if (opts.from) params.set('from', opts.from);
+    if (opts.to) params.set('to', opts.to);
     const qs = params.toString();
     return request<TimelinePageDTO>(`/timeline${qs ? `?${qs}` : ''}`);
   },

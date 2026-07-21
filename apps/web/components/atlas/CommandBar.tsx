@@ -16,6 +16,7 @@ import {
   Settings,
   Sparkles,
   StickyNote,
+  TrendingUp,
 } from 'lucide-react';
 import { useBrainDump } from '@/lib/hooks/ai';
 import { useToast } from '@/components/ui';
@@ -24,13 +25,14 @@ import { Kbd } from '@/components/ui/Kbd';
 import { useAtlasUi } from './AtlasUiProvider';
 
 const DESTINATIONS = [
-  { href: '/today', label: 'Home', icon: Home, keywords: 'home today dashboard' },
+  { href: '/today', label: 'Today', icon: Home, keywords: 'home today canvas day now' },
   { href: '/tasks', label: 'Tasks', icon: ListTodo, keywords: 'tasks todo' },
   { href: '/calendar', label: 'Calendar', icon: Calendar, keywords: 'calendar events schedule' },
   { href: '/habits', label: 'Habits', icon: Flame, keywords: 'habits streaks' },
   { href: '/journal', label: 'Journal', icon: BookOpen, keywords: 'journal mood diary' },
   { href: '/notes', label: 'Notes', icon: StickyNote, keywords: 'notes memory facts' },
-  { href: '/timeline', label: 'Timeline', icon: History, keywords: 'timeline story history log' },
+  { href: '/history', label: 'History', icon: History, keywords: 'timeline story history log feed' },
+  { href: '/progress', label: 'Progress', icon: TrendingUp, keywords: 'progress stats statistics trends' },
   { href: '/settings', label: 'Settings', icon: Settings, keywords: 'settings account google' },
 ] as const;
 

@@ -1,5 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { CreateEventInput, UpdateEventInput, type EventDTO } from '@atlas/shared';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { CreateEventInput, EventListQuery, UpdateEventInput, type EventDTO } from '@atlas/shared';
 import { ZodValidationPipe } from '../../common/zod.pipe.js';
 import { SessionGuard } from '../../auth/session.guard.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
@@ -12,8 +12,11 @@ export class CalendarController {
   constructor(private readonly calendar: CalendarService) {}
 
   @Get()
-  list(@CurrentUser() user: AuthedUser): Promise<EventDTO[]> {
-    return this.calendar.list(user.id);
+  list(
+    @CurrentUser() user: AuthedUser,
+    @Query(new ZodValidationPipe(EventListQuery)) query: EventListQuery,
+  ): Promise<EventDTO[]> {
+    return this.calendar.list(user.id, query);
   }
 
   @Post()

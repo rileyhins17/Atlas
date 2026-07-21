@@ -22,6 +22,23 @@ export const UpdateEventInput = z.object({
 });
 export type UpdateEventInput = z.infer<typeof UpdateEventInput>;
 
+/** Optional window for listing events (Day Canvas fetches one local day). */
+export const EventListQuery = z
+  .object({
+    from: z.coerce.date().optional(),
+    to: z.coerce.date().optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional(),
+  })
+  .refine(
+    (q) =>
+      q.from === undefined ||
+      q.to === undefined ||
+      (q.to.getTime() > q.from.getTime() &&
+        q.to.getTime() - q.from.getTime() <= 62 * 86_400_000),
+    { message: 'window must be positive and at most 62 days', path: ['to'] },
+  );
+export type EventListQuery = z.infer<typeof EventListQuery>;
+
 export const EventDTO = z.object({
   id: z.string(),
   title: z.string(),

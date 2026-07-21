@@ -28,7 +28,11 @@ export class TimelineReadService {
 
   async list(userId: string, query: TimelineQuery): Promise<TimelinePageDTO> {
     const rows = await this.prisma.client.timelineEvent.findMany({
-      where: { userId, ...(query.source ? { source: query.source } : {}) },
+      where: {
+        userId,
+        ...(query.source ? { source: query.source } : {}),
+        ...(query.from && query.to ? { occurredAt: { gte: query.from, lt: query.to } } : {}),
+      },
       orderBy: { occurredAt: 'desc' },
       skip: query.offset,
       take: query.limit + 1,

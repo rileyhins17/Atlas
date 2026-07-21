@@ -1,5 +1,5 @@
-import { StreamPage } from '@/components/stream/StreamPage';
+import { TodayView } from '@/components/canvas/TodayView';
 
 export default function TodayPage() {
-  return <StreamPage />;
+  return <TodayView />;
 }

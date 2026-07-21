@@ -24,7 +24,7 @@ import { HabitChips } from './HabitChips';
  * below is what you see first. The timeline IS the app; this is the peripheral
  * glance above it, not a page you scroll past.
  */
-export function NowStrip() {
+export function NowStrip({ showGlance = true }: { showGlance?: boolean }) {
   const me = useMe();
   const events = useEvents();
   const tasks = useTasks();
@@ -57,7 +57,10 @@ export function NowStrip() {
 
       <div className="nowstrip-foot">
         <HabitChips />
-        <GlanceLine glance={glance} routineNext={routineNext?.block.label} routineAt={routineNext?.at} />
+        {/* The canvas below shows the plan itself — the glance is for /history-era layouts. */}
+        {showGlance && (
+          <GlanceLine glance={glance} routineNext={routineNext?.block.label} routineAt={routineNext?.at} />
+        )}
       </div>
 
       <AtlasAsks />

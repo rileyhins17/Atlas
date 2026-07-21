@@ -3,12 +3,12 @@ import { expect, test } from '@playwright/test';
 import { register } from './helpers';
 
 /**
- * The Life-OS shell: command bar, chat rail, sidebar, and The Stream (home =
- * capture + now cluster + up-next + the cross-domain feed). One registered
- * user is shared across the whole file (register is throttled to 5/min
- * server-side, so per-test registration would rate-limit the suite); each test
- * works with its own uniquely-named data. NOTE: a brand-new user sees the
- * first-run onboarding on /today, so stream assertions seed data first.
+ * The Life-OS shell: command bar, chat rail, sidebar, the Day Canvas (v4 home)
+ * and History (the reverse-chron feed). One registered user is shared across
+ * the whole file (register is throttled to 5/min server-side, so per-test
+ * registration would rate-limit the suite); each test works with its own
+ * uniquely-named data. NOTE: a brand-new user sees the first-run onboarding on
+ * /today, so canvas assertions seed data first.
  */
 
 const STATE = 'test-results/.life-os-state.json';
@@ -77,27 +77,33 @@ test('sidebar collapses to an icon rail and remembers it', async ({ page }) => {
   await expect(page.locator('.sidebar')).not.toHaveClass(/collapsed/);
 });
 
-test('the stream: seeded data renders home as capture + rings + feed, ring checks in', async ({ page }) => {
-  // Seed a habit first — a data-less account gets the onboarding, not the stream.
+test('the Day Canvas: capture, pager, now-line, habit chip check-in', async ({ page }) => {
+  // Seed a habit first — a data-less account gets the onboarding, not the canvas.
   await go(page, '/habits');
   await page.getByLabel('New habit name').fill('Stretch');
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Check in "Stretch"' })).toBeVisible();
 
-  await page.getByRole('link', { name: 'Home', exact: true }).click();
+  await page.getByRole('link', { name: 'Today', exact: true }).click();
 
-  // The stream's anchors: capture box, the now-line, the story feed.
+  // Canvas anchors: capture, the day pager on Today, the live now-line.
   await expect(page.getByLabel('Capture anything')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Today · / })).toBeVisible();
   await expect(page.getByRole('separator', { name: /^Now · / })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Your story' })).toBeVisible();
 
-  // Habit ring checks in right from the stream.
-  const ring = page.getByRole('button', { name: /Check in Stretch/ });
-  await ring.click();
+  // Habit chip checks in right from the canvas header strip.
+  await page.getByRole('button', { name: /Check in Stretch/ }).click();
   await expect(page.getByRole('button', { name: /Stretch: done today/ })).toBeVisible();
+
+  // Pager: yesterday has no now-line and no pager-title "Today ·"; snap back.
+  await page.getByRole('button', { name: 'Previous day' }).click();
+  await expect(page.getByRole('button', { name: /^Yesterday · / })).toBeVisible();
+  await expect(page.getByRole('separator', { name: /^Now · / })).toBeHidden();
+  await page.getByRole('button', { name: /^Yesterday · / }).click();
+  await expect(page.getByRole('button', { name: /^Today · / })).toBeVisible();
 });
 
-test('the feed shows cross-domain moments and filters by domain', async ({ page }) => {
+test('History shows cross-domain moments and filters by domain', async ({ page }) => {
   await go(page, '/tasks');
 
   await page.getByLabel('New task title').fill('Write the story view');
@@ -109,8 +115,9 @@ test('the feed shows cross-domain moments and filters by domain', async ({ page 
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(page.getByText('Meditate')).toBeVisible();
 
-  // Both land in the home feed — the timeline IS the home page now.
-  await page.getByRole('link', { name: 'Home', exact: true }).click();
+  // Both land in History — the reverse-chron log surface.
+  await page.getByRole('link', { name: 'History', exact: true }).click();
+  await expect(page).toHaveURL(/\/history$/);
   const feed = page.getByRole('region', { name: 'Your story' });
   await expect(feed.getByText('Created task: Write the story view')).toBeVisible();
   await expect(feed.getByText('New habit: Meditate')).toBeVisible();
@@ -120,12 +127,12 @@ test('the feed shows cross-domain moments and filters by domain', async ({ page 
   await expect(feed.getByText('Created task: Write the story view')).toBeVisible();
   await expect(feed.getByText('New habit: Meditate')).toBeHidden();
 
-  // /timeline now redirects home.
+  // /timeline still redirects to the canvas home.
   await page.goto('/timeline');
   await expect(page).toHaveURL(/\/today$/);
 });
 
-test('the stream and the open command bar pass the axe scan', async ({ page }) => {
+test('the canvas and the open command bar pass the axe scan', async ({ page }) => {
   await go(page, '/today');
   await expect(page.getByLabel('Capture anything')).toBeVisible();
 
