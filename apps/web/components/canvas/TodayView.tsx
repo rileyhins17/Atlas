@@ -7,16 +7,18 @@ import { useTasks } from '@/lib/hooks/tasks';
 import { useRoutine } from '@/lib/hooks/routine';
 import { HomeCapture, type CaptureContext } from '@/components/home/HomeCapture';
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
-import { NowStrip } from '@/components/stream/NowStrip';
+import { BriefBlock, Greeting } from '@/components/stream/TodayHeader';
 import { formatClock, localDayKey, startOfDay } from '@/lib/dates';
 import type { CanvasSection } from '@/lib/canvas';
 import { DayPager } from './DayPager';
-import { DayCanvas } from './DayCanvas';
+import { DayOverviewView } from './DayOverviewView';
 
 /**
- * Home (v4): the Day Canvas. Sticky capture → compact now-strip (today only) →
- * day pager → the canvas itself. Tapping an Open gap focuses capture with that
- * time window attached. First-run still routes to the onboarding wizard.
+ * Home (v4): the day overview. Sticky capture → greeting → day pager → the
+ * overview itself (now/next, what's left, habits, then the AI's brief, earlier,
+ * and the full hour-by-hour canvas on demand). Tapping an Open gap in the full
+ * canvas focuses capture with that time window attached. First-run still routes
+ * to the onboarding wizard.
  */
 export function TodayView() {
   const tasks = useTasks();
@@ -66,7 +68,7 @@ export function TodayView() {
         <HomeCapture context={context} onClearContext={() => setContext(null)} focusToken={focusToken} />
       </div>
 
-      {isToday && <NowStrip />}
+      {isToday && <Greeting />}
 
       <DayPager
         day={dayStart}
@@ -81,9 +83,14 @@ export function TodayView() {
         }}
       />
 
-      {/* Keyed by day so paging remounts with the slide animation. */}
+      {/* Keyed by day so paging remounts with the slide animation. The greeting
+          and the AI's brief are context, so they sit BELOW what you can act on. */}
       <div key={localDayKey(dayStart)} className={`day-page ${pageDir ? `slide-${pageDir}` : ''}`}>
-        <DayCanvas dayStart={dayStart} onPlanGap={planGap} />
+        <DayOverviewView
+          dayStart={dayStart}
+          onPlanGap={planGap}
+          contextSlot={isToday ? <BriefBlock /> : undefined}
+        />
       </div>
     </div>
   );

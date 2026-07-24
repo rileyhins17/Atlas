@@ -66,12 +66,12 @@ test.describe('with a shared account', () => {
     await expect(page.getByLabel('1 day streak')).toBeVisible();
   });
 
-  test('the Day Canvas has no serious accessibility violations', async ({ page }) => {
+  test('the Today overview has no serious accessibility violations', async ({ page }) => {
     await go(page, '/today');
-    // v4: Home is the Day Canvas — wait for the now-strip AND at least one
-    // canvas section so the scan deterministically covers the day itself.
-    await expect(page.locator('.nowstrip')).toBeVisible();
-    await expect(page.locator('.canvas-sec').first()).toBeVisible();
+    // v4: Home is the day overview — wait for the now/next block AND the
+    // "rest of today" list so the scan covers real content, not a skeleton.
+    await expect(page.locator('.nownext')).toBeVisible();
+    await expect(page.locator('.ov-block').first()).toBeVisible();
 
     // Freeze entrance/hover animations so contrast is measured at rest, not on
     // text mid-fade (axe reads the composited opacity otherwise).

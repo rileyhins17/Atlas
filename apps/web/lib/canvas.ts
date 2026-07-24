@@ -241,3 +241,57 @@ export function supposedTo(canvas: DayCanvas): { label: string; until: Date } | 
   if (!current || current.kind !== 'routine') return null;
   return { label: current.label, until: current.end };
 }
+
+/* ── The Today overview ───────────────────────────────────────────────────
+ * The full canvas is the PLANNING surface; it renders every hour, which on a
+ * normal day is ~65% empty scaffolding. The overview is the DAILY-USE surface:
+ * it answers the only four questions you actually open the app with —
+ * what now, what's left, habits done, what happened — and nothing else.
+ */
+
+export interface DayOverview {
+  /** The routine block you're inside right now (null in a gap / on other days). */
+  now: { label: string; kind: string; until: Date } | null;
+  /** The next scheduled thing (event or due task), if any remain today. */
+  next: CanvasItem | null;
+  /** Everything still ahead today, chronological — `next` is its first entry. */
+  ahead: CanvasItem[];
+  /** What already happened today, most recent first (collapsed in the UI). */
+  earlier: CanvasItem[];
+  /** All-day events, surfaced as a banner. */
+  allDay: CanvasItem[];
+}
+
+/**
+ * Flatten a day canvas into the overview. Routine becomes context (the "now"
+ * line) rather than twelve mostly-empty sections, and real items are split by
+ * whether they're still ahead of you.
+ */
+export function buildDayOverview(canvas: DayCanvas, now: Date): DayOverview {
+  const current = canvas.sections.find((s) => s.isNow);
+  const items = canvas.sections.flatMap((s) => s.items);
+
+  const ahead: CanvasItem[] = [];
+  const earlier: CanvasItem[] = [];
+  for (const item of items) {
+    // An event you're currently inside still counts as ahead — it's live.
+    const over = item.type === 'event' && item.end ? item.end <= now : item.at <= now;
+    // Actuals are always history; they're records of things that happened.
+    if (item.type === 'actual' || over) earlier.push(item);
+    else ahead.push(item);
+  }
+
+  ahead.sort((a, b) => a.at.getTime() - b.at.getTime());
+  earlier.sort((a, b) => b.at.getTime() - a.at.getTime());
+
+  return {
+    now:
+      current && current.kind === 'routine'
+        ? { label: current.label, kind: current.routineKind ?? 'custom', until: current.end }
+        : null,
+    next: ahead[0] ?? null,
+    ahead,
+    earlier,
+    allDay: canvas.allDay,
+  };
+}

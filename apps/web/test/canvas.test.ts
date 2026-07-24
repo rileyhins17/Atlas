@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EventDTO, RoutineBlockDTO, TaskDTO, TimelineEventDTO } from '@atlas/shared';
-import { buildDayCanvas, supposedTo, CANVAS_NOISE_TYPES, type DayCanvas } from '@/lib/canvas';
+import { buildDayCanvas, buildDayOverview, supposedTo, CANVAS_NOISE_TYPES, type DayCanvas } from '@/lib/canvas';
 
 /**
  * The Day Canvas engine is the heart of Atlas v4 — these tests pin its whole
@@ -165,6 +165,55 @@ describe('item placement', () => {
     );
     expect(c.sections.every((s) => s.items.length === 0)).toBe(true);
     expect(CANVAS_NOISE_TYPES.has('task.created')).toBe(true);
+  });
+});
+
+describe('buildDayOverview', () => {
+  const canvasAt = (nowTime: Date) =>
+    buildDayCanvas(
+      at(12),
+      ROUTINE,
+      [
+        event({ id: 'past', title: 'Standup', startAt: at(9).toISOString(), endAt: at(9, 30).toISOString() }),
+        event({ id: 'live', title: 'Workshop', startAt: at(14).toISOString(), endAt: at(16).toISOString() }),
+        event({ id: 'later', title: 'Dinner out', startAt: at(19).toISOString(), endAt: at(20).toISOString() }),
+      ],
+      [task({ id: 'due', title: 'Ship it', dueAt: at(21).toISOString() })],
+      [row({ id: 'gym', title: 'Checked in: Gym', occurredAt: at(8).toISOString() })],
+      nowTime,
+    );
+
+  it('splits the day into what is still ahead and what already happened', () => {
+    const o = buildDayOverview(canvasAt(at(14, 30)), at(14, 30)); // mid-Workshop
+    expect(o.ahead.map((i) => (i.type === 'event' ? i.title : 'task'))).toEqual([
+      'Workshop', // live events stay ahead until they end
+      'Dinner out',
+      'task',
+    ]);
+    // Earlier is newest-first and holds the finished event + the actual.
+    expect(o.earlier.map((i) => (i.type === 'event' ? i.title : i.type))).toEqual([
+      'Standup',
+      'actual',
+    ]);
+  });
+
+  it('surfaces the current routine block and the next thing up', () => {
+    const o = buildDayOverview(canvasAt(at(14, 30)), at(14, 30));
+    expect(o.now).toMatchObject({ label: 'Work' });
+    expect(o.now!.until.getHours()).toBe(17);
+    expect(o.next && o.next.type === 'event' ? o.next.title : null).toBe('Workshop');
+  });
+
+  it('reports nothing ahead once the day is done', () => {
+    const o = buildDayOverview(canvasAt(at(23, 30)), at(23, 30));
+    expect(o.ahead).toEqual([]);
+    expect(o.next).toBeNull();
+    expect(o.earlier.length).toBe(5); // 3 events + 1 task + 1 actual
+  });
+
+  it('has no now-block when the clock sits in an Open gap', () => {
+    const o = buildDayOverview(canvasAt(at(8)), at(8)); // 7:45–9:00 is Open
+    expect(o.now).toBeNull();
   });
 });
 

@@ -1949,10 +1949,6 @@ input[type='checkbox']:checked::after {
   font-size: 12px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase;
   color: var(--brand);
 }
-.nowstrip-foot {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  flex-wrap: wrap;
-}
 
 /* Compact brief: a single line with an inline spark, expandable in place. */
 .hero-brief.compact { gap: 6px; }
@@ -1989,8 +1985,7 @@ input[type='checkbox']:checked::after {
 /* Glance line — the plan as one peripheral sentence. */
 
 @media (max-width: 700px) {
-  .nowstrip-foot { flex-direction: column; align-items: flex-start; gap: 8px; }
-}
+  }
 
 /* ══ Onboarding wizard — one question per screen, premium + ADHD-proof ═════ */
 .onb {
@@ -2226,3 +2221,88 @@ input[type='checkbox']:checked::after {
 .prog-delta.down { color: var(--danger-role); background: color-mix(in srgb, var(--danger-role) 12%, transparent); }
 .prog-delta.flat { color: var(--text-muted); background: var(--surface-inset); }
 .prog-section { margin-top: 6px; }
+
+/* ══ Today overview — the daily-use surface ═══════════════════════════════ */
+.overview { display: flex; flex-direction: column; gap: 18px; }
+
+/* — Now / Next: the single most important block on the page — */
+.nownext {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px;
+  padding: 18px 20px; border-radius: 18px;
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--brand) 13%, var(--surface-raised)),
+    var(--surface-raised) 62%);
+  border: 1px solid color-mix(in srgb, var(--brand) 28%, transparent);
+}
+.nownext-main { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 190px; }
+.nownext-eyebrow {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--brand);
+}
+.nownext-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--brand);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 20%, transparent);
+  animation: atlas-node-pulse 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) { .nownext-dot { animation: none; } }
+.nownext-title { margin: 0; font-size: 27px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
+.nownext-title.nownext-open { color: var(--text-muted); }
+.nownext-sub { font-size: 13px; color: var(--text-muted); }
+.nownext-next {
+  display: flex; flex-direction: column; gap: 2px; align-items: flex-end;
+  padding-left: 16px; border-left: 1px solid var(--border-subtle); min-width: 150px;
+}
+.nownext-next-label {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.nownext-next-title { font-size: 15px; font-weight: 650; text-align: right; }
+.nownext-next-meta {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums;
+}
+
+/* — overview blocks — */
+.ov-block { display: flex; flex-direction: column; gap: 8px; }
+.ov-head {
+  display: flex; align-items: center; gap: 8px; margin: 0;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.ov-count {
+  font-size: 11px; font-weight: 700; letter-spacing: 0;
+  background: var(--surface-inset); color: var(--text-muted);
+  border-radius: 999px; padding: 1px 8px;
+}
+.ov-list { display: flex; flex-direction: column; gap: 6px; }
+.ov-list .canvas-card { margin-top: 0; }
+.ov-empty {
+  display: flex; align-items: center; gap: 8px; margin: 0;
+  font-size: 13.5px; color: var(--text-muted);
+  padding: 12px 14px; border-radius: 12px;
+  border: 1.5px dashed color-mix(in srgb, var(--border-subtle) 85%, transparent);
+}
+.ov-disclose {
+  display: flex; align-items: center; gap: 7px; width: fit-content;
+  border: none; background: none; cursor: pointer; font: inherit; padding: 4px 8px 4px 0;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-muted); border-radius: 8px;
+}
+.ov-disclose:hover { color: var(--text-primary); }
+.ov-disclose svg { transition: transform var(--dur-fast) var(--ease); transform: rotate(-90deg); }
+.ov-disclose svg.open { transform: none; }
+.ov-block .day-canvas { margin-top: 6px; }
+
+@media (max-width: 620px) {
+  .nownext { padding: 15px 16px; gap: 12px; }
+  .nownext-title { font-size: 23px; }
+  .nownext-next { padding-left: 0; border-left: none; align-items: flex-start; }
+  .nownext-next-title { text-align: left; }
+}
+
+/* One-line greeting above the day pager. */
+.today-greeting {
+  margin: 0; font-size: 14px; font-weight: 600; color: var(--text-muted); letter-spacing: -0.01em;
+}

@@ -42,8 +42,10 @@ test('a fresh account onboards through the form into a routine-backed canvas', a
   await page.getByRole('button', { name: 'Add habit' }).click();
   await page.getByRole('button', { name: 'Build my week' }).click();
 
-  // Lands on the canvas: pager on Today, the work block from the exact times.
+  // Lands on the Today overview: the day pager is up, and expanding the full
+  // day shows the work block built from the exact times just entered.
   await expect(page.getByRole('button', { name: /^Today · / })).toBeVisible({ timeout: 20_000 });
+  await page.getByRole('button', { name: /Full day, hour by hour/i }).click();
   await expect(page.getByText('9:30 AM – 5:30 PM')).toBeVisible();
 
   // The free-text answers are pinned notes.
