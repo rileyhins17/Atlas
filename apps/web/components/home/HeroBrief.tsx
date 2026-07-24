@@ -53,7 +53,7 @@ export function HeroBrief({
         <>
           {/* Clamped by default — a wall of prose is the opposite of glanceable.
               One tap opens the full text for when you actually want to read.
-              In the NowStrip we clamp to a single line so the feed stays primary. */}
+              Compact mode clamps to one line so Today's blocks stay primary. */}
           <p className={`hero-brief-text ${expanded ? '' : compact ? 'clamped-1' : 'clamped'}`}>
             <Sparkles size={13} aria-hidden className="hero-brief-spark" />
             {latest.body}

@@ -71,3 +71,9 @@ Append every new setup/build snag here (root cause + fix) so no future thread wa
 
 ## Accessible colour tokens
 - **`--success-role` is fill-grade, not text-grade.** It's tuned for rings/borders/backgrounds where 3:1 is enough. Small bold text needs 4.5:1 — the Progress delta chip failed axe at 2.98:1 using it. Use **`--success-text`** (`#4ade80` dark / `#0f6b32` light) for any green *text*. Note the tinted chip background darkens the effective contrast, so verify against the composite, not the page surface: a first fix at `#15803d` still measured 4.39:1.
+
+## Dev server: "Cannot read properties of undefined (reading 'call')"
+- **Cause: `next dev` running against a `.next` that `next build` produced.** They write incompatible chunk formats into the same directory, so the dev server serves half-production chunks and the page dies inside webpack's `options.factory` with `Cannot read properties of undefined (reading 'call')`. It looks like a code bug and is not one — the stack points at whatever page component happened to load first.
+- **It bites specifically in this order:** stop dev → `pnpm build` (for e2e, which uses `next start`) → restart `pnpm dev`. That's the normal verification loop, so it recurs easily.
+- **Fix / prevention: always `rm -rf apps/web/.next` when switching from a production build back to `next dev`.** Renaming or deleting components (which this project does often) makes it likelier, because stale chunks then reference modules that no longer exist — the console shows `Failed to read source code from …/OldName.tsx` for a file you already renamed.
+- Confirm the fix by loading a page and checking the console is clean, not just that the server returns 200 — the crash is client-side, so curl reports a happy 200 while the browser shows a red error overlay.
