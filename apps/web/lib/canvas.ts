@@ -1,5 +1,5 @@
 import type { EventDTO, RoutineBlockDTO, TaskDTO, TimelineEventDTO } from '@atlas/shared';
-import { localDayKey } from './dates';
+import { dayBit, localDayKey, startOfDay } from './dates';
 
 /**
  * The Day Canvas engine — pure, exhaustively unit-tested (see docs/atlas-design-v4.md §3).
@@ -66,15 +66,6 @@ export const CANVAS_NOISE_TYPES = new Set([
 const MIN_OPEN_MS = 5 * 60_000;
 
 const DAY_MS = 86_400_000;
-
-/** Monday-based day bit (bit 0 = Monday … bit 6 = Sunday) — matches RoutineBlock.days. */
-function dayBit(d: Date): number {
-  return (d.getDay() + 6) % 7;
-}
-
-function localMidnight(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
 
 /** Minutes-of-day → an absolute Date on the given local day. */
 function atMinute(dayStart: Date, min: number): Date {
@@ -186,7 +177,7 @@ export function buildDayCanvas(
   rows: TimelineEventDTO[],
   now: Date,
 ): DayCanvas {
-  const dayStart = localMidnight(day);
+  const dayStart = startOfDay(day);
   const dayKey = localDayKey(dayStart);
   const nowKey = localDayKey(now);
   const flavor: DayFlavor = dayKey === nowKey ? 'today' : dayKey < nowKey ? 'past' : 'future';

@@ -1,19 +1,30 @@
 /**
- * Small timezone helpers for the proactive scheduler — no external tz library,
- * just `Intl`. These are heuristics for "roughly what local time is it for this
- * user", good enough to fire a daily brief near their chosen hour. On the two
- * DST-transition days a boundary can be off by an hour; that's acceptable for a
- * nudge scheduler and not worth a tz-data dependency.
+ * Small timezone helpers — no external tz library, just `Intl`. Shared by the
+ * proactive scheduler (when to fire a brief) and the stats rollups (which local
+ * day a row belongs to). These are heuristics for "roughly what local time is it
+ * for this user"; on the two DST-transition days a boundary can be off by an
+ * hour, which is acceptable for both callers and not worth a tz-data dependency.
  */
 
 /** Fall back to UTC for an unknown/invalid timezone rather than throwing. */
-function safeTz(tz: string): string {
+export function safeTz(tz: string): string {
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: tz });
     return tz;
   } catch {
     return 'UTC';
   }
+}
+
+/** The local calendar day of an instant in `tz`, as "YYYY-MM-DD". */
+export function dayKeyInTz(instant: Date, tz: string): string {
+  // en-CA formats as YYYY-MM-DD, which is also how the SQL rollups key days.
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: safeTz(tz),
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(instant);
 }
 
 /** Milliseconds to add to a UTC instant to get the wall-clock time in `tz`. */

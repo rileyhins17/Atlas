@@ -8,14 +8,10 @@ import { useRoutine } from '@/lib/hooks/routine';
 import { HomeCapture, type CaptureContext } from '@/components/home/HomeCapture';
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
 import { NowStrip } from '@/components/stream/NowStrip';
-import { formatClock, localDayKey } from '@/lib/dates';
+import { formatClock, localDayKey, startOfDay } from '@/lib/dates';
 import type { CanvasSection } from '@/lib/canvas';
 import { DayPager } from './DayPager';
 import { DayCanvas } from './DayCanvas';
-
-function localMidnight(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
 
 /**
  * Home (v4): the Day Canvas. Sticky capture → compact now-strip (today only) →
@@ -54,7 +50,7 @@ export function TodayView() {
     );
   }
 
-  const dayStart = new Date(localMidnight(new Date()).getTime() + dayOffset * 86_400_000);
+  const dayStart = new Date(startOfDay(new Date()).getTime() + dayOffset * 86_400_000);
   const isToday = dayOffset === 0;
 
   function planGap(section: CanvasSection) {

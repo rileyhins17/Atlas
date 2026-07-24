@@ -8,6 +8,7 @@ import { TimelineService } from '../../core/timeline.service.js';
 import { ModuleRegistryService } from '../../core/domain-module.js';
 import { ConnectorsService } from '../../core/connectors.service.js';
 import { loadEnv } from '../../config/env.js';
+import { StatsService } from '../stats/stats.service.js';
 import { ToolRouterService } from './tool-router.service.js';
 import { EmbeddingService } from './embedding.service.js';
 
@@ -99,6 +100,7 @@ export class OrchestratorService {
     private readonly costGuard: CostGuard,
     private readonly toolRouter: ToolRouterService,
     private readonly embeddings: EmbeddingService,
+    private readonly stats: StatsService,
   ) {}
 
   private async chatCall(
@@ -281,11 +283,15 @@ export class OrchestratorService {
   async generateWeeklyReview(userId: string): Promise<InsightDTO> {
     const snapshot = await this.buildSnapshot(userId, 40);
     const { contextText, activityText } = snapshot;
+    // Cross-domain rollups let the review spot real patterns ("training up,
+    // mood up, spend down"). Best-effort, and appended LAST — anything volatile
+    // early in the prompt kills the prefix cache (see the cost gotcha).
+    const statsText = await this.stats.summarizeForAi(userId).catch(() => '');
     const messages: ChatMessage[] = [
       { role: 'system', content: WEEKLY_REVIEW_SYSTEM_PROMPT },
       {
         role: 'user',
-        content: `${contextText}\n\nActivity over the last 7 days:\n${activityText}\n\nWrite this week's review.`,
+        content: `${contextText}\n\nActivity over the last 7 days:\n${activityText}${statsText ? `\n\n${statsText}` : ''}\n\nWrite this week's review.`,
       },
     ];
     const res = await this.chatCall(userId, 'weekly_review', messages);

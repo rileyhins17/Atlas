@@ -20,6 +20,7 @@ export const qk = {
   transactions: (accountId?: string) => ['finance', 'transactions', accountId ?? 'all'] as const,
   habitHistory: (days: number) => ['habits', 'history', days] as const,
   timeline: (source?: string) => ['timeline', source ?? 'all'] as const,
+  stats: (days: number) => ['stats', days] as const,
   dayEvents: (fromIso: string) => ['events', 'day', fromIso] as const,
   dayActuals: (fromIso: string) => ['timeline', 'day', fromIso] as const,
 };

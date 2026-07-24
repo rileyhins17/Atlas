@@ -1,5 +1,5 @@
 import type { RoutineBlockDTO, TaskDTO, TimelineEventDTO } from '@atlas/shared';
-import { localDayKey } from './dates';
+import { dayBit, localDayKey } from './dates';
 
 /**
  * Pure logic for the History feed and the now-line. (The Up-Next plan logic
@@ -30,11 +30,6 @@ export function openTaskRef(row: TimelineEventDTO, tasks: TaskDTO[]): TaskDTO | 
     return null;
   const task = tasks.find((t) => t.id === row.refId);
   return task && task.status !== 'DONE' ? task : null;
-}
-
-/** Monday-based day bit for a date (bit 0 = Monday … bit 6 = Sunday). */
-function dayBit(d: Date): number {
-  return (d.getDay() + 6) % 7;
 }
 
 function minuteOf(d: Date): number {

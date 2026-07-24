@@ -14,3 +14,4 @@ export * from './dto/finance.js';
 export * from './dto/settings.js';
 export * from './dto/push.js';
 export * from './dto/routine.js';
+export * from './dto/stats.js';

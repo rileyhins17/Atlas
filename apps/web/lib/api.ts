@@ -17,6 +17,7 @@ import type {
   RoutineBlockDTO,
   RoutineBlockInput,
   SettingsDTO,
+  StatsDTO,
   TaskDTO,
   TransactionDTO,
   UserDTO,
@@ -262,6 +263,10 @@ export const SettingsApi = {
   update: (
     patch: Partial<{ displayName: string; timezone: string; briefHour: number; proactiveEnabled: boolean }>,
   ) => request<SettingsDTO>('/settings', { method: 'PATCH', body: JSON.stringify(patch) }),
+};
+
+export const StatsApi = {
+  get: (days: number) => request<StatsDTO>(`/stats?days=${days}`),
 };
 
 export const RoutineApi = {

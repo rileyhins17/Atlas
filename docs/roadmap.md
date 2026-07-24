@@ -56,7 +56,10 @@ Stand up the VPS: Docker Compose `--profile full`, point Cloudflare DNS, Caddy H
 - **UI: copy Strong / Hevy** — best-in-class workout logging, make it seamless/perfect. Required patterns: start-workout → add exercise from a searchable library → **log sets inline with previous-set ghost values prefilled**, big thumb tap targets, weight/reps steppers, **rest timer**, plate calculator, per-exercise **history + PR tracking**, reusable routine/template workouts. Minimal typing, mobile-first (it's a PWA). Hevy = most polished free reference; Strong = gold-standard logging flow.
 - Progressive-overload charts per exercise (reuse `Sparkline`/`Heatmap` primitives).
 
-### Synthesized life statistics (cross-domain analytics)
+### Synthesized life statistics (cross-domain analytics) — ✅ SHIPPED 2026-07-22 (`/progress`, `modules/stats`)
+Delivered: tz-correct daily rollups across tasks/habits/mood/spend/activity with current-vs-previous deltas, heatmap + weekly trend sparklines, and the stats summary feeding the AI weekly review. Still open from the original sketch: a composite "life score", monthly/quarterly grouping, and workout metrics (needs the fitness domain first).
+
+Original sketch:
 - A stats view showing long-term improvement across ALL domains at once: tasks completed, habit streaks, mood trend, spending trend, workout volume/PRs, journal sentiment — weekly/monthly/quarterly rollups + trend sparklines, and a composite "life score" or per-domain progress.
 - Build on what exists: the unified `timeline_events` log + per-domain history endpoints (`/habits/history`, `/timeline`). Add aggregate rollup endpoints per domain; render with existing `Sparkline`/`Heatmap`/`ProgressRing`.
 - AI angle: cross-domain correlation insights ("training up + mood up + spending down over 90 days") via the existing daily-brief/`insights` machinery — this is where the unified-timeline design finally pays off visibly.

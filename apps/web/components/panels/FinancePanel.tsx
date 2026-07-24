@@ -8,18 +8,7 @@ import { useAccounts, useTransactions } from '@/lib/hooks/finance';
 import { Card, EmptyState, ErrorState, ListSkeleton } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
 import { formatDayHeading, localDayKey } from '@/lib/dates';
-
-/** Format signed minor units as a currency string, e.g. -1234 → "-$12.34". */
-function formatMoney(minor: number, currency: string): string {
-  const abs = Math.abs(minor) / 100;
-  let body: string;
-  try {
-    body = new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(abs);
-  } catch {
-    body = `${abs.toFixed(2)} ${currency}`;
-  }
-  return `${minor < 0 ? '-' : '+'}${body}`;
-}
+import { formatMoney } from '@/lib/money';
 
 /** Transactions grouped by local calendar day, most recent first. */
 export function groupTransactionsByDay(txns: TransactionDTO[]): Array<[string, TransactionDTO[]]> {

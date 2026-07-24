@@ -71,6 +71,9 @@
   --accent-strong: #b5502f;
   --danger-role: #f87171;
   --success-role: #16a34a;
+  /* Text-grade success: --success-role is tuned for fills/rings (3:1 is fine
+     there); small bold labels need 4.5:1, so they use this instead. */
+  --success-text: #4ade80;
   --focus-ring: #e8836a;
   --text-on-accent: #ffffff;
   --danger-on-fill: #ffffff;
@@ -119,6 +122,7 @@
   --accent-strong: #b5502f;
   --danger-role: #c0392b;
   --success-role: #2f9e57;
+  --success-text: #0f6b32;
   --focus-ring: #b5502f;
   --link: #b5502f;
   --pill-danger-fg: #b5502f;
@@ -1842,34 +1846,6 @@ input[type='checkbox']:checked::after {
 .stream-rings { margin-top: 2px; }
 
 /* ── Up Next: the bounded plan ── */
-.upnext { display: flex; flex-direction: column; gap: 8px; }
-.upnext-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-.upnext-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 7px 10px; border-radius: 10px;
-  transition: background .12s ease;
-}
-.upnext-row:hover { background: color-mix(in srgb, var(--brand) 6%, transparent); }
-.upnext-row.overdue .upnext-time { color: var(--accent-strong); font-weight: 600; }
-.upnext-check {
-  flex: none; width: 22px; height: 22px; border-radius: 7px; cursor: pointer;
-  border: 1.5px solid var(--border, #e7ddd6); background: transparent; color: transparent;
-  display: flex; align-items: center; justify-content: center;
-  transition: border-color .12s ease, background .12s ease, color .12s ease;
-}
-.upnext-check:hover { border-color: var(--brand); color: var(--brand); }
-.upnext-check:active { background: var(--brand); color: #fff; }
-.upnext-glyph { flex: none; width: 22px; display: flex; justify-content: center; color: var(--brand); }
-.upnext-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.upnext-time { flex: none; font-size: 12px; color: var(--muted, #9a8f88); font-variant-numeric: tabular-nums; }
-.upnext-clear { margin: 0; font-size: 14px; padding: 4px 10px; }
-.upnext-plan-link { display: inline-flex; align-items: center; gap: 4px; }
-.upnext-tomorrow {
-  align-self: flex-start; font-size: 12px; color: var(--muted, #9a8f88);
-  padding: 3px 10px; border: 1px dashed var(--border, #e7ddd6); border-radius: 999px;
-  text-decoration: none; transition: color .12s ease, border-color .12s ease;
-}
-.upnext-tomorrow:hover { color: var(--brand); border-color: var(--brand); }
 
 /* ── The now-line ── */
 .now-line { display: flex; align-items: center; gap: 10px; margin: 4px 0; }
@@ -1938,7 +1914,6 @@ input[type='checkbox']:checked::after {
 @media (max-width: 700px) {
   .stream-capture { top: 4px; }
   .feed-time { padding-top: 5px; }
-  .upnext-check { width: 26px; height: 26px; }
 }
 
 /* ── ADHD-friendly brief: clamped by default, one tap to read ────────────── */
@@ -2012,24 +1987,6 @@ input[type='checkbox']:checked::after {
 .habit-chip-add:hover { color: var(--brand); }
 
 /* Glance line — the plan as one peripheral sentence. */
-.glance-line {
-  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
-  font-size: 12.5px; color: var(--text-secondary, var(--text-muted)); min-width: 0;
-}
-.glance-bit { display: inline-flex; align-items: center; gap: 6px; }
-.glance-lead { color: var(--text-muted); font-weight: 600; }
-.glance-sep { color: var(--border-subtle); }
-.glance-overdue {
-  display: inline-flex; align-items: center; gap: 4px;
-  color: var(--accent-strong); font-weight: 600; text-decoration: none;
-}
-.glance-overdue:hover { text-decoration: underline; }
-.glance-tomorrow {
-  display: inline-flex; align-items: center; gap: 3px;
-  font-size: 12px; color: var(--text-muted); text-decoration: none;
-  padding: 2px 8px; border: 1px dashed var(--border-subtle); border-radius: 999px;
-}
-.glance-tomorrow:hover { color: var(--brand); border-color: var(--brand); }
 
 @media (max-width: 700px) {
   .nowstrip-foot { flex-direction: column; align-items: flex-start; gap: 8px; }
@@ -2251,3 +2208,21 @@ input[type='checkbox']:checked::after {
 .atlas-loading-sub { margin: 0; font-size: 13.5px; color: var(--text-muted); max-width: 380px; line-height: 1.5; }
 @keyframes atlas-msg-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .atlas-loading-msg { animation: none; } }
+
+/* — Progress: headline tiles + deltas — */
+.prog-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.prog-tile {
+  display: flex; flex-direction: column; gap: 6px;
+  background: var(--surface-raised); border: 1px solid var(--border-subtle);
+  border-radius: 16px; padding: 14px 16px;
+}
+.prog-tile-label { font-size: 12px; font-weight: 650; color: var(--text-muted); letter-spacing: 0.02em; }
+.prog-tile-value { font-size: 26px; font-weight: 750; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.prog-delta {
+  display: inline-flex; align-items: center; gap: 3px; width: fit-content;
+  font-size: 11.5px; font-weight: 700; border-radius: 999px; padding: 2px 8px;
+}
+.prog-delta.up { color: var(--success-text); background: color-mix(in srgb, var(--success-role) 12%, transparent); }
+.prog-delta.down { color: var(--danger-role); background: color-mix(in srgb, var(--danger-role) 12%, transparent); }
+.prog-delta.flat { color: var(--text-muted); background: var(--surface-inset); }
+.prog-section { margin-top: 6px; }

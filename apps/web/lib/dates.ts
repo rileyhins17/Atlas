@@ -23,6 +23,15 @@ export function dayDiff(a: Date, b: Date): number {
 }
 
 /**
+ * Monday-based weekday bit for a date: bit 0 = Monday … bit 6 = Sunday. This is
+ * the encoding `RoutineBlock.days` uses, so routine matching and canvas
+ * building share one definition.
+ */
+export function dayBit(d: Date): number {
+  return (d.getDay() + 6) % 7;
+}
+
+/**
  * Warm, compact phrasing for a due date relative to now:
  * overdue → "3d overdue" / "due yesterday"; today → "in 2h" / "in 20m" / "now";
  * then "tomorrow", "Fri", "Jul 28". Weekday names only inside the next week.

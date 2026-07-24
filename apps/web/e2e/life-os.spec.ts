@@ -132,6 +132,30 @@ test('History shows cross-domain moments and filters by domain', async ({ page }
   await expect(page).toHaveURL(/\/today$/);
 });
 
+test('Progress charts the long arc and passes the axe scan', async ({ page }) => {
+  // The shared account completed a task in an earlier test, so the tiles have
+  // something real to render.
+  await go(page, '/progress');
+  await expect(page.getByRole('heading', { name: 'Progress' })).toBeVisible();
+
+  // Range chips drive the window.
+  await page.getByRole('button', { name: '90 days' }).click();
+  await expect(page.getByRole('button', { name: '90 days' })).toHaveAttribute('aria-pressed', 'true');
+
+  // Headline tiles render (the empty state would replace them entirely).
+  await expect(page.getByText('Tasks done')).toBeVisible();
+  await expect(page.getByText('Habit check-ins')).toBeVisible();
+
+  await page.addStyleTag({
+    content: '*, *::before, *::after { animation: none !important; transition: none !important; }',
+  });
+  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+  const serious = results.violations.filter(
+    (v) => v.impact === 'serious' || v.impact === 'critical',
+  );
+  expect(serious, JSON.stringify(serious.map((v) => v.id), null, 2)).toEqual([]);
+});
+
 test('the canvas and the open command bar pass the axe scan', async ({ page }) => {
   await go(page, '/today');
   await expect(page.getByLabel('Capture anything')).toBeVisible();
