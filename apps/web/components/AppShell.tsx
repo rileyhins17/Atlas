@@ -12,6 +12,8 @@ import { InstallPrompt } from '@/components/InstallPrompt';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { AtlasUiProvider, useAtlasUi } from '@/components/atlas/AtlasUiProvider';
 import { AtlasLoadingScreen } from '@/components/atlas/AtlasLoadingScreen';
+import { AsksBell } from '@/components/atlas/AsksPanel';
+import { CaptureDock } from '@/components/atlas/CaptureDock';
 import { CommandBar } from '@/components/atlas/CommandBar';
 import { ChatRail } from '@/components/atlas/ChatRail';
 
@@ -101,6 +103,7 @@ function Frame({ name, children }: { name: string; children: ReactNode }) {
             <span className="sidebar-user-name">{name}</span>
           </div>
           <div className="row sidebar-actions" style={{ gap: 2 }}>
+            <AsksBell />
             <IconButton
               label="Chat with Atlas"
               title="⌘J"
@@ -126,6 +129,7 @@ function Frame({ name, children }: { name: string; children: ReactNode }) {
           <IconButton label="Search and capture" onClick={() => setCommandOpen(true)}>
             <Search size={18} aria-hidden />
           </IconButton>
+          <AsksBell />
           <IconButton
             label="Chat with Atlas"
             aria-pressed={chatOpen}
@@ -154,6 +158,7 @@ function Frame({ name, children }: { name: string; children: ReactNode }) {
         <NavBar />
       </div>
 
+      <CaptureDock />
       <CommandBar />
       <ChatRail />
     </div>

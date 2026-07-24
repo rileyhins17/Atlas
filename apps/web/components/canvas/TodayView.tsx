@@ -5,9 +5,9 @@ import { useEvents } from '@/lib/hooks/events';
 import { useHabits } from '@/lib/hooks/habits';
 import { useTasks } from '@/lib/hooks/tasks';
 import { useRoutine } from '@/lib/hooks/routine';
-import { HomeCapture, type CaptureContext } from '@/components/home/HomeCapture';
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
-import { BriefBlock, Greeting } from '@/components/stream/TodayHeader';
+import { BriefBlock } from '@/components/stream/TodayHeader';
+import { useAtlasUi } from '@/components/atlas/AtlasUiProvider';
 import { formatClock, localDayKey, startOfDay } from '@/lib/dates';
 import type { CanvasSection } from '@/lib/canvas';
 import { DayPager } from './DayPager';
@@ -26,13 +26,12 @@ export function TodayView() {
   const habits = useHabits();
   const routine = useRoutine();
 
+  const { planWindow } = useAtlasUi();
   const [dayOffset, setDayOffset] = useState(0);
   // Null until the user actually pages — the first mount must NOT animate
   // (a throttled/background tab can freeze a fill-both animation on its
   // 0% frame, leaving the whole canvas shifted 28px and overflowing).
   const [pageDir, setPageDir] = useState<'fwd' | 'back' | null>(null);
-  const [context, setContext] = useState<CaptureContext | null>(null);
-  const [focusToken, setFocusToken] = useState(0);
 
   // First-run gate (routine included — the wizard always writes routine, so
   // finishing it flips this off even with no habits/tasks picked).
@@ -58,18 +57,14 @@ export function TodayView() {
   function planGap(section: CanvasSection) {
     const label = `${formatClock(section.start)}–${formatClock(section.end)}`;
     const dayWord = isToday ? 'today' : `on ${dayStart.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}`;
-    setContext({ label, hint: `between ${formatClock(section.start)} and ${formatClock(section.end)} ${dayWord}` });
-    setFocusToken((t) => t + 1);
+    planWindow({
+      label,
+      hint: `between ${formatClock(section.start)} and ${formatClock(section.end)} ${dayWord}`,
+    });
   }
 
   return (
     <div className="stream">
-      <div className="stream-capture">
-        <HomeCapture context={context} onClearContext={() => setContext(null)} focusToken={focusToken} />
-      </div>
-
-      {isToday && <Greeting />}
-
       <DayPager
         day={dayStart}
         isToday={isToday}

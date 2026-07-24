@@ -8,8 +8,8 @@ import { useDayEvents } from '@/lib/hooks/events';
 import { useDayActuals } from '@/lib/hooks/timeline';
 import { buildDayCanvas, buildDayOverview, type CanvasSection } from '@/lib/canvas';
 import { ListSkeleton } from '@/components/ui';
-import { HabitChips } from '@/components/stream/HabitChips';
 import { NowNext } from './NowNext';
+import { TodayChecklist } from './TodayChecklist';
 import { CanvasCard } from './CanvasCard';
 import { TimeSection } from './TimeSection';
 
@@ -78,31 +78,39 @@ export function DayOverviewView({
 
       {isToday && <NowNext overview={overview} now={now} />}
 
-      <section className="ov-block" aria-label={isToday ? 'Rest of today' : 'Planned'}>
+      {isToday && (
+        <section className="ov-block" aria-label="Checklist">
+          <h2 className="ov-head">Checklist</h2>
+          <TodayChecklist checklist={overview.checklist} />
+        </section>
+      )}
+
+      <section className="ov-block" aria-label={isToday ? 'Coming up' : 'Planned'}>
         <h2 className="ov-head">
-          {isToday ? 'Rest of today' : 'Planned'}
-          {overview.ahead.length > 0 && <span className="ov-count">{overview.ahead.length}</span>}
+          {isToday ? 'Coming up' : 'Planned'}
+          {overview.timed.length > 0 && <span className="ov-count">{overview.timed.length}</span>}
         </h2>
-        {overview.ahead.length === 0 ? (
+        {overview.timed.length === 0 ? (
           <p className="ov-empty">
             <Sunrise size={14} aria-hidden />
-            {isToday ? "That's everything for today." : 'Nothing scheduled yet.'}
+            {isToday ? 'Nothing else scheduled today.' : 'Nothing scheduled yet.'}
           </p>
         ) : (
           <div className="ov-list">
-            {overview.ahead.map((item) => (
+            {overview.timed.map((item) => (
+              <CanvasCard key={item.id} item={item} onComplete={(id) => complete.mutate(id)} />
+            ))}
+          </div>
+        )}
+        {/* Other days have no habit checklist, so their tasks live here. */}
+        {!isToday && overview.checklist.length > 0 && (
+          <div className="ov-list">
+            {overview.checklist.map((item) => (
               <CanvasCard key={item.id} item={item} onComplete={(id) => complete.mutate(id)} />
             ))}
           </div>
         )}
       </section>
-
-      {isToday && (
-        <section className="ov-block" aria-label="Habits">
-          <h2 className="ov-head">Habits</h2>
-          <HabitChips />
-        </section>
-      )}
 
       {contextSlot}
 

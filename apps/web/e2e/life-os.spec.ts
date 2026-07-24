@@ -86,14 +86,17 @@ test('Today overview: capture, pager, now/next, habit check-in', async ({ page }
 
   await page.getByRole('link', { name: 'Today', exact: true }).click();
 
-  // Overview anchors: capture, the day pager on Today, the live now/next card.
+  // Overview anchors: the docked capture, the day pager, the live now/next card.
   await expect(page.getByLabel('Capture anything')).toBeVisible();
   await expect(page.getByRole('button', { name: /^Today · / })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Right now' })).toBeVisible();
 
-  // Habit chip checks in right from the overview's Habits block.
-  await page.getByRole('button', { name: /Check in Stretch/ }).click();
-  await expect(page.getByRole('button', { name: /Stretch: done today/ })).toBeVisible();
+  // Habits live in the one checklist now — ticking there marks them done.
+  const checklist = page.getByRole('region', { name: 'Checklist' });
+  await expect(checklist).toBeVisible();
+  await checklist.getByRole('button', { name: /Check in Stretch/ }).click();
+  await expect(checklist.getByText('Stretch')).toBeVisible();
+  await expect(checklist.getByText('done')).toBeVisible();
 
   // Pager: yesterday has no now/next card and no "Today ·" title; snap back.
   await page.getByRole('button', { name: 'Previous day' }).click();
@@ -101,6 +104,17 @@ test('Today overview: capture, pager, now/next, habit check-in', async ({ page }
   await expect(page.getByRole('region', { name: 'Right now' })).toBeHidden();
   await page.getByRole('button', { name: /^Yesterday · / }).click();
   await expect(page.getByRole('button', { name: /^Today · / })).toBeVisible();
+});
+
+test('the capture dock and the asks bell are on every page', async ({ page }) => {
+  await go(page, '/progress');
+  // Capture is docked app-wide now, not just on Today.
+  await expect(page.locator('.capture-dock').getByLabel('Capture anything')).toBeVisible();
+
+  // The bell opens the asks panel, which leads with why answering is worth it.
+  await page.locator('.sidebar').getByRole('button', { name: /Atlas has/ }).click();
+  await expect(page.getByText(/Answer these and Atlas plans your days better/)).toBeVisible();
+  await page.getByRole('button', { name: 'Close' }).click();
 });
 
 test('History shows cross-domain moments and filters by domain', async ({ page }) => {
@@ -130,6 +144,30 @@ test('History shows cross-domain moments and filters by domain', async ({ page }
   // /timeline still redirects to the Today home.
   await page.goto('/timeline');
   await expect(page).toHaveURL(/\/today$/);
+});
+
+test('Tasks filters, searches, and quick-adds into a group', async ({ page }) => {
+  await go(page, '/tasks');
+
+  // Quick-add drops a task straight into Today with its due date pre-set.
+  await page.getByRole('button', { name: /Add to today/i }).first().click();
+  await page.getByLabel('New task in Today').fill('Quick added task');
+  await page.getByRole('button', { name: 'Add task', exact: true }).click();
+  await expect(page.getByText('Quick added task')).toBeVisible();
+
+  // Search narrows the list; a non-match disappears.
+  await page.getByLabel('Search tasks').fill('Quick added');
+  await expect(page.getByText('Quick added task')).toBeVisible();
+  await page.getByLabel('Search tasks').fill('zzzz-no-match');
+  await expect(page.getByText('Nothing matches that')).toBeVisible();
+  await page.getByLabel('Search tasks').fill('');
+
+  // Filter chips switch the view.
+  await page.getByRole('button', { name: 'Overdue', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Overdue', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
 });
 
 test('Progress charts the long arc and passes the axe scan', async ({ page }) => {

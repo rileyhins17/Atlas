@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { StatsDayDTO } from '@atlas/shared';
-import { delta, moodSeries, weeklyBuckets } from '@/lib/progress';
+import {
+  bestDay,
+  delta,
+  habitConsistency,
+  moodDistribution,
+  moodSeries,
+  weeklyBuckets,
+} from '@/lib/progress';
 
 const day = (over: Partial<StatsDayDTO>): StatsDayDTO => ({
   day: over.day ?? '2026-07-01',
@@ -52,3 +59,41 @@ describe('moodSeries', () => {
   });
 });
 
+
+describe('moodDistribution', () => {
+  it('counts days into 1–5 buckets, rounding averages and skipping blanks', () => {
+    const days = [
+      day({ moodAvg: 4.4 }), // → 4
+      day({ moodAvg: 4.6 }), // → 5
+      day({ moodAvg: null }), // skipped
+      day({ moodAvg: 1 }),
+    ];
+    expect(moodDistribution(days)).toEqual([1, 0, 0, 1, 1]);
+  });
+
+  it('clamps out-of-range averages into the 1–5 scale', () => {
+    expect(moodDistribution([day({ moodAvg: 0.2 }), day({ moodAvg: 9 })])).toEqual([1, 0, 0, 0, 1]);
+  });
+});
+
+describe('bestDay', () => {
+  it('picks the day with the most activity', () => {
+    const days = [day({ day: '2026-07-01', events: 2 }), day({ day: '2026-07-02', events: 9 })];
+    expect(bestDay(days)?.day).toBe('2026-07-02');
+  });
+
+  it('is null when nothing happened at all', () => {
+    expect(bestDay([day({ events: 0 }), day({ events: 0 })])).toBeNull();
+  });
+});
+
+describe('habitConsistency', () => {
+  it('is the share of days with at least one check-in', () => {
+    const days = [day({ habitChecks: 1 }), day({ habitChecks: 3 }), day({ habitChecks: 0 }), day({})];
+    expect(habitConsistency(days)).toBe(50);
+  });
+
+  it('is 0 for an empty window rather than NaN', () => {
+    expect(habitConsistency([])).toBe(0);
+  });
+});

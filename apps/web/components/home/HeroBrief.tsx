@@ -13,7 +13,14 @@ import { formatAgo, localDayKey } from '@/lib/dates';
  * refresh. Unconfigured setups get a warm pointer to Settings instead of a
  * dead zone.
  */
-export function HeroBrief({ compact = false }: { compact?: boolean }) {
+export function HeroBrief({
+  compact = false,
+  greeting,
+}: {
+  compact?: boolean;
+  /** Rendered as the brief's opening line — Atlas greets you, then briefs you. */
+  greeting?: string;
+}) {
   const status = useAiStatus();
   const insights = useInsights();
   const generate = useGenerateDailyBrief();
@@ -25,6 +32,7 @@ export function HeroBrief({ compact = false }: { compact?: boolean }) {
   if (status.data && !status.data.providerConfigured) {
     return (
       <div className={`hero-brief ${compact ? 'compact' : ''}`}>
+        {greeting && <p className="hero-brief-greeting">{greeting}</p>}
         <p className="hero-brief-text muted" style={{ margin: 0 }}>
           Atlas can brief you each day, file whatever you type, and chat over your whole life —{' '}
           <Link href="/settings">connect the AI in Settings</Link> to switch it on.
@@ -35,6 +43,7 @@ export function HeroBrief({ compact = false }: { compact?: boolean }) {
 
   return (
     <div className={`hero-brief ${compact ? 'compact' : ''}`} aria-busy={generate.isPending || insights.isPending}>
+      {greeting && <p className="hero-brief-greeting">{greeting}</p>}
       {insights.isPending ? (
         <div className="row" style={{ gap: 10, alignItems: 'center' }}>
           <Constellation loading size={compact ? 22 : 30} />

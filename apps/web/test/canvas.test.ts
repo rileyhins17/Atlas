@@ -215,6 +215,24 @@ describe('buildDayOverview', () => {
     const o = buildDayOverview(canvasAt(at(8)), at(8)); // 7:45–9:00 is Open
     expect(o.now).toBeNull();
   });
+
+  it('splits what is ahead into things you tick off vs things you show up to', () => {
+    const o = buildDayOverview(canvasAt(at(14, 30)), at(14, 30));
+    // Tasks are the checklist; events are the schedule. Together they are `ahead`.
+    expect(o.checklist.every((i) => i.type === 'task')).toBe(true);
+    expect(o.checklist.map((i) => (i.type === 'task' ? i.title : ''))).toEqual(['Ship it']);
+    expect(o.timed.map((i) => (i.type === 'event' ? i.title : ''))).toEqual([
+      'Workshop',
+      'Dinner out',
+    ]);
+    expect(o.checklist.length + o.timed.length).toBe(o.ahead.length);
+  });
+
+  it('keeps both split lists empty once the day is done', () => {
+    const o = buildDayOverview(canvasAt(at(23, 30)), at(23, 30));
+    expect(o.checklist).toEqual([]);
+    expect(o.timed).toEqual([]);
+  });
 });
 
 describe('now + flavor', () => {

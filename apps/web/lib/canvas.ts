@@ -256,6 +256,13 @@ export interface DayOverview {
   next: CanvasItem | null;
   /** Everything still ahead today, chronological — `next` is its first entry. */
   ahead: CanvasItem[];
+  /**
+   * Things you TICK OFF: tasks still due today. The UI merges habits in — they
+   * aren't canvas items, but they belong to the same "check it and move on" act.
+   */
+  checklist: CanvasItem[];
+  /** Things you SHOW UP TO: timed events still ahead. Different verb, own block. */
+  timed: CanvasItem[];
   /** What already happened today, most recent first (collapsed in the UI). */
   earlier: CanvasItem[];
   /** All-day events, surfaced as a banner. */
@@ -291,6 +298,8 @@ export function buildDayOverview(canvas: DayCanvas, now: Date): DayOverview {
         : null,
     next: ahead[0] ?? null,
     ahead,
+    checklist: ahead.filter((i) => i.type === 'task'),
+    timed: ahead.filter((i) => i.type === 'event'),
     earlier,
     allDay: canvas.allDay,
   };

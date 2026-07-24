@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { ChatMessageDTO } from '@atlas/shared';
+import type { CaptureContext } from '@/components/home/HomeCapture';
 
 const SIDEBAR_KEY = 'atlas.sidebar.collapsed';
 
@@ -28,6 +29,17 @@ export interface AtlasUi {
   /** Question queued by openChat(ask) for the rail to send once mounted. */
   pendingAsk: string | null;
   consumePendingAsk: () => string | null;
+  /**
+   * Time window attached to the capture dock, set by "Plan" on a full-day gap.
+   * Lives here because the gap button and the dock are on opposite ends of the
+   * tree (a page section vs. the app shell).
+   */
+  captureContext: CaptureContext | null;
+  /** Sets the window AND pulls focus into the dock. */
+  planWindow: (context: CaptureContext) => void;
+  clearCaptureContext: () => void;
+  /** Bumped by planWindow so the dock knows to focus its input. */
+  captureFocusToken: number;
 }
 
 const AtlasUiContext = createContext<AtlasUi | null>(null);
@@ -49,6 +61,8 @@ export function AtlasUiProvider({ children }: { children: ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [messages, setMessagesState] = useState<ChatMessageDTO[]>([]);
   const [pendingAsk, setPendingAsk] = useState<string | null>(null);
+  const [captureContext, setCaptureContext] = useState<CaptureContext | null>(null);
+  const [captureFocusToken, setCaptureFocusToken] = useState(0);
 
   // Restore the sidebar preference after mount (SSR-safe).
   useEffect(() => {
@@ -81,6 +95,13 @@ export function AtlasUiProvider({ children }: { children: ReactNode }) {
     if (ask) setPendingAsk(null);
     return ask;
   }, [pendingAsk]);
+
+  const planWindow = useCallback((context: CaptureContext) => {
+    setCaptureContext(context);
+    setCaptureFocusToken((t) => t + 1);
+  }, []);
+
+  const clearCaptureContext = useCallback(() => setCaptureContext(null), []);
 
   const setMessages = useCallback(
     (update: (m: ChatMessageDTO[]) => ChatMessageDTO[]) => setMessagesState(update),
@@ -120,6 +141,10 @@ export function AtlasUiProvider({ children }: { children: ReactNode }) {
       setMessages,
       pendingAsk,
       consumePendingAsk,
+      captureContext,
+      planWindow,
+      clearCaptureContext,
+      captureFocusToken,
     }),
     [
       commandOpen,
@@ -131,6 +156,10 @@ export function AtlasUiProvider({ children }: { children: ReactNode }) {
       setMessages,
       pendingAsk,
       consumePendingAsk,
+      captureContext,
+      planWindow,
+      clearCaptureContext,
+      captureFocusToken,
     ],
   );
 
