@@ -90,15 +90,16 @@ current as of the searches below:
 
 | Piece | Choice | Cost |
 |---|---|---|
-| Server | **Hetzner CX22** (2 vCPU, 4 GB RAM) | **~$5.39/mo** |
+| Server | **Hetzner CPX21** (3 vCPU, 4 GB RAM) in a US region | **~$8-9/mo** |
 | DNS + TLS | Cloudflare (free tier) + Caddy auto-HTTPS | **$0** |
 | Database | Postgres in the same Compose stack | **$0** |
 | Domain | `.com` / `.app` | ~$1/mo amortised |
-| **Total** | | **≈ $6.50/mo** |
+| **Total** | | **≈ $9-10/mo** |
 
 **Hetzner over DigitalOcean**: the comparable DigitalOcean droplet is ~$18/mo for
-*less* RAM, and Hetzner includes 20 TB egress versus DO's 1 TB. For a single-tenant
-app this is a 70% saving with no real downside.
+*less* RAM. Note the 20 TB egress figure applies to Hetzner's **EU** regions; US
+regions are metered lower (1-8 TB). Either way a single-tenant life OS serves
+kilobytes, so egress is not the deciding factor — price and RAM are.
 
 **4 GB RAM matters here specifically.** The embedding model (`LocalEmbedder`) is
 loaded **in-process** and is ~110 MB of weights plus runtime overhead. A 1 GB box
@@ -118,10 +119,16 @@ will OOM. Do not economise below CX22.
 3. Point the nameservers at Cloudflare (automatic if you buy there).
 
 ### B. Get a server
-1. Create a Hetzner Cloud account → new project → **CX22**, Ubuntu 24.04,
-   location closest to you (Ashburn/Hillsboro for North America).
-2. Add your SSH key during creation. **Never enable password login.**
-3. Note the IPv4 address.
+1. Create a Hetzner Cloud account → new project → **Add Server**, Ubuntu 24.04.
+2. **Location first, THEN server type** — the two are coupled and this is the
+   trap. Hetzner's **CX line is EU-only**. Pick a US location (Ashburn VA or
+   Hillsboro OR) and the CX types simply do not appear in the list; US regions
+   carry **CPX** (AMD) and CCX (dedicated) only. Take **CPX21** — 3 vCPU, 4 GB
+   RAM. **Not CPX11**, which is 2 GB and will OOM when the embedding model loads.
+   (CX22 at ~$5.39/mo is real, but only in Germany/Finland — worth it only if you
+   would rather have the lower price and 20 TB traffic than ~90 ms less latency.)
+3. Add your SSH key during creation. **Never enable password login.**
+4. Note the IPv4 address.
 
 ### C. DNS
 Atlas runs on **ONE origin**. `infra/Caddyfile` proxies `/api/*` to the API
