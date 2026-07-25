@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { TaskDTO } from '@atlas/shared';
+import type { RollForwardAction, TaskDTO } from '@atlas/shared';
 import { TasksApi } from '@/lib/api';
 import { qk } from './keys';
 
@@ -21,6 +21,31 @@ export function useTaskDurations() {
     queryFn: TasksApi.durations,
     staleTime: 5 * 60_000,
     select: (list) => new Map(list.map((e) => [e.key, e])),
+  });
+}
+
+/** Open work that was due before today — the batched decision on Today. */
+export function useSlippedTasks() {
+  return useQuery({ queryKey: qk.slipped, queryFn: TasksApi.slipped });
+}
+
+/**
+ * Answer the whole slipped list at once.
+ *
+ * Invalidates broadly on purpose: rolling changes due dates, dropping removes
+ * tasks from every list, and both write timeline rows — so the task views, the
+ * day surfaces and the feed are all stale afterwards.
+ */
+export function useRollForward() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ taskIds, action }: { taskIds: string[]; action: RollForwardAction }) =>
+      TasksApi.rollForward(taskIds, action),
+    meta: { errorFallback: "Couldn't update those" },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: qk.tasks });
+      void qc.invalidateQueries({ queryKey: ['timeline'] });
+    },
   });
 }
 

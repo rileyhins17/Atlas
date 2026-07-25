@@ -13,6 +13,7 @@ import type { PlanProposalDTO } from '@atlas/shared';
 import { formatClock } from '@/lib/dates';
 import { NowNext } from './NowNext';
 import { FreeTime } from './FreeTime';
+import { SlippedTasks } from './SlippedTasks';
 import { TodayChecklist } from './TodayChecklist';
 import { CanvasCard } from './CanvasCard';
 import { TimeSection } from './TimeSection';
@@ -85,6 +86,10 @@ export function DayOverviewView({
       )}
 
       {isToday && <NowNext overview={overview} now={now} />}
+
+      {/* Before anything else about today: settle what didn't happen. Planning
+          on top of a backlog you have not looked at is how the list dies. */}
+      {isToday && <SlippedTasks />}
 
       {isToday && (
         <FreeTime

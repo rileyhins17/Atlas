@@ -21,6 +21,8 @@ import type {
   JournalDTO,
   NoteDTO,
   PlanDayDTO,
+  RollForwardAction,
+  RollForwardResultDTO,
   RoutineBlockDTO,
   RoutineBlockInput,
   SettingsDTO,
@@ -142,6 +144,13 @@ export const TasksApi = {
   remove: (id: string) => request<{ ok: true }>(`/tasks/${id}`, { method: 'DELETE' }),
   /** Learned medians, keyed by normalised title — see durationKey(). */
   durations: () => request<DurationEstimate[]>('/tasks/durations'),
+  /** Open work that was due before today. */
+  slipped: () => request<TaskDTO[]>('/tasks/slipped'),
+  rollForward: (taskIds: string[], action: RollForwardAction) =>
+    request<RollForwardResultDTO>('/tasks/roll-forward', {
+      method: 'POST',
+      body: JSON.stringify({ taskIds, action }),
+    }),
 };
 
 export const HabitsApi = {

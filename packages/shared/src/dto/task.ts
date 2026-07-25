@@ -26,6 +26,33 @@ export const UpdateTaskInput = z.object({
 });
 export type UpdateTaskInput = z.infer<typeof UpdateTaskInput>;
 
+/**
+ * Deciding, in one go, what to do about work that did not happen.
+ *
+ * Overdue lists are where task apps go to die: things pile up, the list stops
+ * describing anything real, and the user stops reading it. The cure is not a
+ * better sort order, it is a small forced decision — move it to today, or admit
+ * it is not happening. Batched so the whole backlog costs two taps, and both
+ * answers are recorded, because "I keep dropping this" is exactly the signal
+ * Atlas should be learning from.
+ */
+export const RollForwardAction = z.enum(['today', 'drop']);
+export type RollForwardAction = z.infer<typeof RollForwardAction>;
+
+export const RollForwardInput = z.object({
+  // Bounded: this is a bulk write, so the request can never be unbounded.
+  taskIds: z.array(z.string().min(1).max(64)).min(1).max(100),
+  action: RollForwardAction,
+});
+export type RollForwardInput = z.infer<typeof RollForwardInput>;
+
+export const RollForwardResultDTO = z.object({
+  action: RollForwardAction,
+  /** How many tasks the action actually applied to. */
+  count: z.number().int(),
+});
+export type RollForwardResultDTO = z.infer<typeof RollForwardResultDTO>;
+
 export const TaskDTO = z.object({
   id: z.string(),
   title: z.string(),

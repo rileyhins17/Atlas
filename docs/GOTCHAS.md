@@ -126,6 +126,13 @@ Append every new setup/build snag here (root cause + fix) so no future thread wa
 - **The maths lives in `@atlas/shared`, not the API.** The planner's prompt and the `usually 1h` chip must never disagree about what a task takes, and the only way to guarantee that is one implementation.
 - **A client-supplied `taskId` must be ownership-checked.** `CalendarService.create` looks the task up scoped by `userId` before attaching it — otherwise one user could bind a block to another user's task and the duration learned from it would cross accounts.
 
+## Rolling unfinished work forward (v8.2)
+- **"Overdue" must be measured against the USER's midnight, not the server's.** `slipped` uses `localDayStartUtc(User.timezone)`. With a UTC server and a Toronto user, a server-midnight boundary is wrong for four hours every day — it would offer work that is still due today and teach the user to dismiss the card unread.
+- **Roll to 23:59 local, never to midnight.** A task rolled to local midnight is instantly in the past again and shows up as overdue on the very next render.
+- **Dropping ARCHIVES.** Deleting destroys the signal the AI is supposed to learn from, and marking it `DONE` is a lie that inflates every completion count on Progress. Archived rows are already excluded from `TasksService.list` (`status: { not: 'ARCHIVED' }`), so they vanish from the UI without pretending to be finished. Verify after any change that a dropped task still has `completedAt = null`.
+- **Write one timeline row per task, not one per batch.** "I keep putting this specific thing off" is per-task knowledge; a single "dropped 3 tasks" row is unusable to the AI.
+- **A selection set held in component state must be cleared after the batch action succeeds.** Found live: the task deliberately held back came back still deselected, which left the card rendering one task with both buttons disabled and no explanation. Anything left after an action is a fresh decision.
+
 ## Day bucketing: FIXED — one clock per user (v8.1)
 - **`User.timezone` is now the single clock**, and the thing that made the old mismatch real was its `'UTC'` default: it was only ever corrected by finding the Proactive-AI card in Settings, so Today (browser-local) and Progress (`AT TIME ZONE User.timezone`) disagreed for every user outside UTC. Registration sends the device zone and `useTimezoneSync` pushes it whenever it differs, which repairs existing accounts too. If you add another day-bucketed surface, bucket it by `User.timezone` and it will agree with the rest by construction.
 - **The zone is now client-supplied, so treat it as untrusted.** It is interpolated into `AT TIME ZONE` in raw SQL; `register` runs it through `safeTz` and `PATCH /settings` rejects an unknown zone with a 400.

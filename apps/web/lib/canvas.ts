@@ -60,6 +60,10 @@ export const CANVAS_NOISE_TYPES = new Set([
   'task.deleted',
   'connector.connected',
   'finance.synced',
+  // Rolling a task into today puts it in today's checklist — a card saying so
+  // is the same fact twice. ('task.dropped' is NOT noise: the task disappears
+  // from every list, so the feed row is the only trace of the decision.)
+  'task.rolled_forward',
   // The completed row carries the whole session summary; the start is noise.
   'workout.started',
 ]);

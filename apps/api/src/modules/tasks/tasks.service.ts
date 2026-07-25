@@ -1,8 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { nextOccurrence, type CreateTaskInput, type TaskDTO, type UpdateTaskInput } from '@atlas/shared';
+import {
+  nextOccurrence,
+  type CreateTaskInput,
+  type RollForwardAction,
+  type RollForwardResultDTO,
+  type TaskDTO,
+  type UpdateTaskInput,
+} from '@atlas/shared';
 import type { Task } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
+import { localDayStartUtc, safeTz } from '../ai/time.util.js';
 
 function toDto(t: Task): TaskDTO {
   return {
@@ -68,6 +76,87 @@ export class TasksService {
       skip: page.offset,
     });
     return tasks.map(toDto);
+  }
+
+  /** Local midnight for this user, from the one clock the whole app buckets by. */
+  private async dayStart(userId: string): Promise<Date> {
+    const user = await this.prisma.client.user.findUnique({
+      where: { id: userId },
+      select: { timezone: true },
+    });
+    return localDayStartUtc(safeTz(user?.timezone ?? 'UTC'));
+  }
+
+  /**
+   * Open work that was due before today — what did not happen.
+   *
+   * Anything due *today* is deliberately excluded: the day is not over, so it
+   * has not slipped yet, and asking about it would train the user to dismiss
+   * this without reading it.
+   */
+  async slipped(userId: string, limit = 25): Promise<TaskDTO[]> {
+    const tasks = await this.prisma.client.task.findMany({
+      where: {
+        userId,
+        status: { in: ['TODO', 'IN_PROGRESS'] },
+        dueAt: { lt: await this.dayStart(userId) },
+      },
+      orderBy: [{ dueAt: 'asc' }, { priority: 'desc' }],
+      take: limit,
+    });
+    return tasks.map(toDto);
+  }
+
+  /**
+   * Answer the slipped list in one go: move it to today, or admit it is not
+   * happening.
+   *
+   * Dropping ARCHIVES rather than deletes or completes. Deleting would destroy
+   * the signal, and marking it DONE would be a lie that quietly inflates every
+   * completion statistic on the Progress page. Archived means "I decided
+   * against this", which is a different and more useful fact.
+   */
+  async rollForward(
+    userId: string,
+    taskIds: string[],
+    action: RollForwardAction,
+  ): Promise<RollForwardResultDTO> {
+    // Scope the write by userId as well as id: the ids come from the client and
+    // one that belongs to someone else must simply not match.
+    const tasks = await this.prisma.client.task.findMany({
+      where: { id: { in: taskIds }, userId, status: { in: ['TODO', 'IN_PROGRESS'] } },
+    });
+    if (tasks.length === 0) return { action, count: 0 };
+    const ids = tasks.map((t) => t.id);
+
+    if (action === 'today') {
+      // End of the user's local day, so a rolled task reads as "today" on every
+      // surface rather than landing at midnight and looking overdue again.
+      const due = new Date((await this.dayStart(userId)).getTime() + 86_400_000 - 60_000);
+      await this.prisma.client.task.updateMany({ where: { id: { in: ids } }, data: { dueAt: due } });
+    } else {
+      await this.prisma.client.task.updateMany({
+        where: { id: { in: ids } },
+        data: { status: 'ARCHIVED' },
+      });
+    }
+
+    // One row per task, not one for the batch: the AI reads this log to learn
+    // what you actually keep putting off, and that is per-task knowledge.
+    for (const task of tasks) {
+      await this.timeline.write({
+        userId,
+        type: action === 'today' ? 'task.rolled_forward' : 'task.dropped',
+        source: 'tasks',
+        title:
+          action === 'today'
+            ? `Moved to today: ${task.title}`
+            : `Decided against: ${task.title}`,
+        refType: 'task',
+        refId: task.id,
+      });
+    }
+    return { action, count: ids.length };
   }
 
   async update(userId: string, id: string, input: UpdateTaskInput): Promise<TaskDTO> {

@@ -329,3 +329,53 @@ test('Today offers free time around the routine, never during work', async ({ pa
     await expect(page.locator('.freetime-fix')).toBeVisible();
   }
 });
+
+test('work that slipped is settled in one batched decision', async ({ page }) => {
+  await go(page, '/today');
+
+  // Seed two overdue tasks through the API: the quick-adds can only create
+  // work due today or later, and an "Overdue" group does not exist until
+  // something is actually overdue.
+  const titles = [`Slipped A ${Date.now()}`, `Slipped B ${Date.now()}`];
+  await page.evaluate(async (ts) => {
+    const dueAt = new Date(Date.now() - 2 * 86_400_000).toISOString();
+    for (const title of ts) {
+      await fetch('http://localhost:4000/tasks', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ title, dueAt }),
+      });
+    }
+  }, titles);
+
+  await page.reload();
+  const card = page.locator('.slipped');
+  await expect(card).toBeVisible();
+  await expect(card.getByText(titles[0]!)).toBeVisible();
+
+  // Deselecting one takes it out of the batch — the counts on BOTH answers move
+  // together, because either is a decision about the same chosen set.
+  const first = card.locator('.slipped-item').filter({ hasText: titles[0]! });
+  await first.locator('input[type=checkbox]').uncheck();
+  await expect(card.locator('.slipped-move')).toContainText('Move 1 to today');
+
+  await card.locator('.slipped-move').click();
+
+  // The one that was moved leaves the card; the one held back is still asked
+  // about, and — the bug this pins — is selectable again rather than arriving
+  // pre-deselected with both buttons dead.
+  await expect(card.getByText(titles[1]!)).toBeHidden();
+  await expect(card.getByText(titles[0]!)).toBeVisible();
+  await expect(card.locator('.slipped-move')).toBeEnabled();
+
+  // Dropping is the honest second answer, and it empties the card.
+  await card.locator('.slipped-drop').click();
+  await expect(card).toBeHidden();
+
+  // Dropped work is archived, not completed: it disappears from the task list
+  // rather than counting as something you got done.
+  await go(page, '/tasks');
+  await expect(page.locator('.task', { hasText: titles[0]! })).toHaveCount(0);
+  await expect(page.locator('.task', { hasText: titles[1]! })).toHaveCount(1);
+});

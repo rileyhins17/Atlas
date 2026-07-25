@@ -6,6 +6,7 @@ export const qk = {
   me: ['auth', 'me'] as const,
   tasks: ['tasks'] as const,
   taskDurations: ['tasks', 'durations'] as const,
+  slipped: ['tasks', 'slipped'] as const,
   habits: ['habits'] as const,
   journal: ['journal'] as const,
   notes: ['notes'] as const,

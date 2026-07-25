@@ -12,8 +12,10 @@ import {
 import {
   CreateTaskInput,
   PaginationQuery,
+  RollForwardInput,
   UpdateTaskInput,
   type DurationEstimate,
+  type RollForwardResultDTO,
   type TaskDTO,
 } from '@atlas/shared';
 import { ZodValidationPipe } from '../../common/zod.pipe.js';
@@ -42,6 +44,21 @@ export class TasksController {
   @Get('durations')
   async durationEstimates(@CurrentUser() user: AuthedUser): Promise<DurationEstimate[]> {
     return [...(await this.durations.estimates(user.id)).values()];
+  }
+
+  /** Open work that was due before today — what did not happen. */
+  @Get('slipped')
+  slipped(@CurrentUser() user: AuthedUser): Promise<TaskDTO[]> {
+    return this.tasks.slipped(user.id);
+  }
+
+  /** Answer the whole slipped list at once: move it to today, or drop it. */
+  @Post('roll-forward')
+  rollForward(
+    @CurrentUser() user: AuthedUser,
+    @Body(new ZodValidationPipe(RollForwardInput)) body: RollForwardInput,
+  ): Promise<RollForwardResultDTO> {
+    return this.tasks.rollForward(user.id, body.taskIds, body.action);
   }
 
   @Get()

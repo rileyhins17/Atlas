@@ -2668,6 +2668,38 @@ input[type='checkbox']:checked::after {
   font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
 }
 
+/* ── Slipped work: the batched decision ──────────────────────────────────── */
+.slipped { display: flex; flex-direction: column; gap: 9px; }
+.slipped-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.slipped-later {
+  border: 0; background: none; padding: 0; cursor: pointer;
+  font: inherit; font-size: 11.5px; font-weight: 600; color: var(--text-muted);
+}
+.slipped-later:hover { color: var(--text); text-decoration: underline; }
+.slipped-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.slipped-item {
+  display: flex; align-items: center; gap: 9px; cursor: pointer;
+  padding: 6px 2px; font-size: 13.5px;
+}
+.slipped-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Deselected still reads clearly — it is a choice, not disabled state. */
+.slipped-title.off { color: var(--text-muted); text-decoration: line-through; }
+.slipped-when { font-size: 11.5px; font-weight: 600; color: var(--text-muted); flex-shrink: 0; }
+.slipped-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.slipped-move, .slipped-drop {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: var(--radius-pill);
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.slipped-move { border: 0; background: var(--accent-strong); color: #fff; }
+/* Dropping is deliberately the quieter of the two, but never hidden — the
+   whole point is that both answers are one tap away. */
+.slipped-drop {
+  border: 1px solid var(--border-subtle); background: var(--surface-raised); color: var(--text-muted);
+}
+.slipped-drop:hover { color: var(--text); }
+.slipped-move:disabled, .slipped-drop:disabled { opacity: 0.6; cursor: default; }
+
 /* ── Routine editor ──────────────────────────────────────────────────────── */
 .routine-list { display: flex; flex-direction: column; gap: 8px; }
 .routine-row {
