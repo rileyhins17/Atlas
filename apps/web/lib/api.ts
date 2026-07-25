@@ -315,6 +315,12 @@ export const StatsApi = {
 };
 
 export const RoutineApi = {
+  addBlock: (input: RoutineBlockInput) =>
+    request<RoutineBlockDTO>('/routine/blocks', { method: 'POST', body: JSON.stringify(input) }),
+  updateBlock: (id: string, patch: Partial<RoutineBlockInput>) =>
+    request<RoutineBlockDTO>(`/routine/blocks/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+  removeBlock: (id: string) =>
+    request<{ ok: true }>(`/routine/blocks/${id}`, { method: 'DELETE' }),
   list: () => request<RoutineBlockDTO[]>('/routine'),
   replace: (blocks: RoutineBlockInput[]) =>
     request<RoutineBlockDTO[]>('/routine', { method: 'PUT', body: JSON.stringify({ blocks }) }),

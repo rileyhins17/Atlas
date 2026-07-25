@@ -368,23 +368,23 @@ export function buildDayOverview(canvas: DayCanvas, now: Date): DayOverview {
   };
 }
 
-/** Sleep is not free time, and neither is the wind-down before it. */
-const NOT_FREE = new Set(['sleep', 'winddown']);
 /** Below this a gap isn't worth offering — you can't plan into 10 minutes. */
 const MIN_GAP_MS = 20 * 60_000;
 
 /**
- * The windows still open ahead of `now`. A section counts as free when it is an
- * Open gap OR a routine block that doesn't own your attention (a meal you could
- * work through is still yours). Any section holding a scheduled item is not
- * free — something already claims it.
+ * The windows still open ahead of `now`.
+ *
+ * Only genuinely unclaimed time counts: an Open gap, with nothing scheduled in
+ * it. EVERY routine block is excluded, not just sleep and work — a meal or a
+ * gym slot is time you already spoke for, and offering it back would recreate
+ * the exact problem this feature exists to fix (the day claiming you're free
+ * when you aren't).
  */
 function openGaps(canvas: DayCanvas, now: Date): { start: Date; end: Date; minutes: number }[] {
   const out: { start: Date; end: Date; minutes: number }[] = [];
   for (const s of canvas.sections) {
     if (s.end <= now) continue;
-    if (s.kind === 'routine' && NOT_FREE.has(s.routineKind ?? '')) continue;
-    if (s.kind === 'routine') continue; // work/school/etc: occupied by definition
+    if (s.kind === 'routine') continue;
     if (s.items.some((i) => i.type === 'event')) continue;
     // A gap already under way starts "now", not at its nominal start.
     const start = s.start > now ? s.start : now;

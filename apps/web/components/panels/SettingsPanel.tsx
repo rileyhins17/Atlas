@@ -14,6 +14,7 @@ import { DataPrivacyPanel } from './DataPrivacyPanel';
 import { AiSettingsCard } from './AiSettingsCard';
 import { ProactiveSettingsCard } from './ProactiveSettingsCard';
 import { PlaidCard } from './PlaidCard';
+import { RoutineEditor } from './RoutineEditor';
 
 export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
   // Set by the OAuth callback redirect (?google=connected|denied).
@@ -55,6 +56,10 @@ export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
     <>
       <PageHeader title="Settings" subtitle="Connections, your data, and your account." />
       {flash && <Card style={{ borderColor: 'var(--brand-alt)' }}>{flash}</Card>}
+
+      <div id="routine">
+        <RoutineEditor />
+      </div>
 
       <AiSettingsCard />
 

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Sparkles, Sun } from 'lucide-react';
 import type { DayOverview } from '@/lib/canvas';
 import { formatClock } from '@/lib/dates';
@@ -61,6 +62,12 @@ export function FreeTime({
           </button>
         ))}
       </div>
+
+      {/* If this block is wrong, the routine is wrong — so send people straight
+          to the fix instead of leaving them to work out where it lives. */}
+      <Link href="/settings#routine" className="freetime-fix">
+        Wrong? Fix your work &amp; sleep hours
+      </Link>
 
       {onPlanDay && (
         <button

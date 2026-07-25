@@ -42,11 +42,17 @@ test('a fresh account onboards through the form into a routine-backed canvas', a
   await page.getByRole('button', { name: 'Add habit' }).click();
   await page.getByRole('button', { name: 'Build my week' }).click();
 
-  // Lands on the Today overview: the day pager is up, and expanding the full
-  // day shows the work block built from the exact times just entered.
+  // Lands on the Today overview.
   await expect(page.getByRole('button', { name: /^Today · / })).toBeVisible({ timeout: 20_000 });
   await page.getByRole('button', { name: /Full day, hour by hour/i }).click();
-  await expect(page.getByText('9:30 AM – 5:30 PM')).toBeVisible();
+
+  // The work block itself is asserted through the routine editor, NOT the
+  // canvas: onboarding writes Work on weekdays only, so a canvas assertion
+  // silently depends on which day the suite happens to run. This test passed at
+  // 21:56 Friday local and failed at 04:44 Saturday for exactly that reason —
+  // the same class of time-bomb as the old after-9pm grouping flake.
+  await page.goto('/settings');
+  await expect(page.locator('.routine-summary')).toContainText('09:30–17:30');
 
   // The free-text answers are pinned notes.
   await page.getByRole('link', { name: 'Notes', exact: true }).click();

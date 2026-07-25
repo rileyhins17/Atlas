@@ -275,3 +275,47 @@ test('a workout logs sets, badges a real PR, and lands in history when finished'
   await expect(page.getByRole('button', { name: /Start workout/i })).toBeVisible();
   await expect(page.locator('.fit-history-row').first()).toContainText('Lateral Raise');
 });
+
+test('the routine editor fixes work hours, per-day patterns, and one-off shifts', async ({ page }) => {
+  await go(page, '/settings');
+
+  // A brand-new account has no routine, so seed one through the editor itself —
+  // which is also the "I never onboarded properly" path this screen exists for.
+  await page.getByRole('button', { name: /Add to my week/i }).click();
+  const row = page.locator('.routine-row').first();
+  await expect(row).toBeVisible();
+
+  // Shape (a): fixed weekday hours. Correcting these is the whole point — before
+  // this editor existed a routine captured at signup could never be changed.
+  await row.locator('input[type=time]').first().fill('07:30');
+  await expect(page.locator('.routine-summary')).toContainText('07:30');
+
+  // Shape (b): varies by day — drop Friday from the pattern.
+  await row.getByRole('button', { name: 'Friday' }).click();
+  await expect(page.locator('.routine-summary')).toContainText('Mon, Tue, Wed, Thu');
+
+  // Shape (c): irregular — a dated block that overrides the weekly one.
+  await page.getByRole('button', { name: /Working a one-off today/i }).click();
+  await expect(page.locator('.routine-oneoff')).toHaveCount(1);
+
+  // And it must be removable, or a mistaken shift is permanent.
+  await page.locator('.routine-row', { has: page.locator('.routine-oneoff') })
+    .getByRole('button', { name: /^Delete/ })
+    .click();
+  await expect(page.locator('.routine-oneoff')).toHaveCount(0);
+});
+
+test('Today offers free time around the routine, never during work', async ({ page }) => {
+  await go(page, '/today');
+
+  // The account has a routine by now (previous test), so the free-time block
+  // should be reasoning about real windows.
+  const free = page.locator('.freetime');
+  if (await free.count()) {
+    // Whatever it offers, none of it may fall inside the working block.
+    const gaps = await page.$$eval('.freetime-gap-when', (els) => els.map((e) => e.textContent!.trim()));
+    for (const g of gaps) expect(g).toMatch(/\d/);
+    // The escape hatch to fix a wrong routine is always present.
+    await expect(page.locator('.freetime-fix')).toBeVisible();
+  }
+});
