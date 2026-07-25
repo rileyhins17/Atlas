@@ -423,9 +423,13 @@ function WorkoutHistory() {
   );
 }
 
+/** The names people actually use. Tapping one starts the session immediately. */
+const QUICK_STARTS = ['Push', 'Pull', 'Legs', 'Upper', 'Full body'];
+
 export function FitnessPanel() {
   const active = useActiveWorkout();
   const start = useStartWorkout();
+  const history = useWorkoutHistory();
   const [title, setTitle] = useState('');
 
   const workout = active.data ?? null;
@@ -451,7 +455,7 @@ export function FitnessPanel() {
       ) : workout ? (
         <ActiveWorkout workout={workout} />
       ) : (
-        <Card stack>
+        <Card stack className="fit-start">
           <form
             className="row"
             onSubmit={(e) => {
@@ -461,19 +465,61 @@ export function FitnessPanel() {
             }}
           >
             <Input
-              placeholder="Push day, Legs, … (optional)"
+              placeholder="Name it (optional)"
               aria-label="Workout name"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
             <Button type="submit" disabled={start.isPending}>
-              <Dumbbell size={15} aria-hidden /> Start workout
+              <Dumbbell size={15} aria-hidden /> Start
             </Button>
           </form>
+
+          {/* Naming a session is the only decision here, so offer the usual
+              answers rather than an empty field and a blinking cursor. */}
+          <div className="fit-quick" role="group" aria-label="Quick start">
+            {QUICK_STARTS.map((name) => (
+              <button
+                key={name}
+                type="button"
+                className="fit-quick-chip"
+                disabled={start.isPending}
+                onClick={() => start.mutate({ title: name })}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
         </Card>
       )}
 
-      {!workout && (
+      {!workout && (history.data?.length ?? 0) === 0 && !history.isPending && (
+        <section className="fit-pitch" aria-label="What Atlas tracks">
+          <h2 className="section-title" style={{ marginTop: 20 }}>
+            What you get once you log one
+          </h2>
+          <ul className="fit-pitch-list">
+            <li>
+              <strong>Last time, on screen.</strong> Every exercise shows what you
+              lifted before, so you are never guessing at the weight.
+            </li>
+            <li>
+              <strong>Sets pre-filled.</strong> The entry row starts from your last
+              set — repeating or adding 2.5&nbsp;kg is one tap, no typing.
+            </li>
+            <li>
+              <strong>Records that mean something.</strong> A PR only counts when you
+              actually beat your best, and warm-ups never inflate it.
+            </li>
+            <li>
+              <strong>Volume in your Progress.</strong> Sessions and kilograms lifted
+              join the rest of your life stats.
+            </li>
+          </ul>
+        </section>
+      )}
+
+      {!workout && ((history.data?.length ?? 0) > 0 || history.isPending) && (
         <>
           <h2 className="section-title" style={{ marginTop: 22 }}>
             Recent sessions

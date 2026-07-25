@@ -16,7 +16,9 @@ export const TEST_PASSWORD = 'e2e-password-123';
  * failures: a genuine error fails again immediately.
  */
 export async function register(page: Page, email = uniqueEmail()): Promise<string> {
-  await page.goto('/');
+  // "/" is the public landing page now — the sign-in gate lives inside the
+  // dashboard shell, so registration has to start from an app route.
+  await page.goto('/today');
   await page.getByRole('button', { name: /Need an account/ }).click();
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(TEST_PASSWORD);

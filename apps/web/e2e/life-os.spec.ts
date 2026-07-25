@@ -254,7 +254,10 @@ test('a recurring task rolls forward to its next occurrence when completed', asy
 test('a workout logs sets, badges a real PR, and lands in history when finished', async ({ page }) => {
   await go(page, '/fitness');
 
-  await page.getByRole('button', { name: /Start workout/i }).click();
+  // Quick-start chips are the primary path now: naming the session is the only
+  // decision, so the usual answers are offered rather than an empty field.
+  await expect(page.getByRole('button', { name: 'Push', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Push', exact: true }).click();
   await expect(page.locator('.fit-active')).toBeVisible();
 
   // Search-first picker: the catalog is long, scrolling it mid-workout is slow.
@@ -282,7 +285,7 @@ test('a workout logs sets, badges a real PR, and lands in history when finished'
   // Finishing must clear the session, not leave the logger on screen.
   await page.getByRole('button', { name: /^Finish$/ }).click();
   await expect(page.locator('.fit-active')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /Start workout/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Push', exact: true })).toBeVisible();
   await expect(page.locator('.fit-history-row').first()).toContainText('Lateral Raise');
 });
 

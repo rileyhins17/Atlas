@@ -2895,3 +2895,84 @@ input[type='checkbox']:checked::after {
 .bottom-nav .active svg {
   color: var(--nav-active-text);
 }
+
+/* ── Training: first-run ─────────────────────────────────────────────────── */
+.fit-quick { display: flex; flex-wrap: wrap; gap: 7px; }
+.fit-quick-chip {
+  border: 1px solid var(--border-subtle); background: transparent; color: var(--text-muted);
+  border-radius: var(--radius-pill); padding: 7px 14px;
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.fit-quick-chip:hover { color: var(--text-primary); border-color: var(--accent-strong); }
+.fit-quick-chip:disabled { opacity: 0.6; cursor: default; }
+
+.fit-pitch-list {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 11px;
+}
+.fit-pitch-list li {
+  padding: 12px 15px; border-radius: 13px;
+  background: var(--surface-raised); border: 1px solid var(--border-subtle);
+  font-size: 13.5px; line-height: 1.5; color: var(--text-muted);
+}
+.fit-pitch-list strong { color: var(--text-primary); font-weight: 650; }
+
+/* ── Public landing page ─────────────────────────────────────────────────────
+   The only route a signed-out visitor (or a crawler) sees. Self-contained so it
+   does not inherit the app shell's sidebar/dock layout. */
+.landing {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 20px 22px 80px;
+}
+.landing-nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.landing-brand { display: inline-flex; align-items: center; gap: 9px; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+.landing-signin {
+  padding: 10px 18px; border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle); color: var(--text-primary);
+  font-size: 14px; font-weight: 600; text-decoration: none;
+}
+.landing-signin:hover { border-color: var(--accent-strong); }
+
+.landing-hero { padding: 72px 0 56px; max-width: 720px; }
+.landing-hero h1 {
+  margin: 0; font-size: clamp(34px, 6vw, 56px); line-height: 1.06;
+  letter-spacing: -0.03em; font-weight: 700;
+}
+.landing-sub {
+  margin: 20px 0 30px; font-size: clamp(15px, 2.2vw, 18px);
+  line-height: 1.6; color: var(--text-muted); max-width: 60ch;
+}
+.landing-cta {
+  display: inline-block; padding: 14px 28px; border-radius: var(--radius-pill);
+  background: var(--accent-strong); color: #fff;
+  font-size: 15px; font-weight: 650; text-decoration: none;
+}
+.landing-cta:hover { filter: brightness(1.06); }
+.landing-note { margin: 14px 0 0; font-size: 13px; color: var(--text-muted); }
+
+.landing-grid {
+  display: grid; gap: 14px; margin-top: 26px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+.landing-card {
+  padding: 22px; border-radius: 18px;
+  background: var(--surface-raised); border: 1px solid var(--border-subtle);
+}
+.landing-card h2 { margin: 0 0 8px; font-size: 16px; font-weight: 650; letter-spacing: -0.01em; }
+.landing-card p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--text-muted); }
+
+.landing-close { margin-top: 64px; padding: 40px 0; max-width: 640px; }
+.landing-close h2 { margin: 0 0 14px; font-size: clamp(24px, 4vw, 34px); letter-spacing: -0.02em; }
+.landing-close p { margin: 0 0 26px; font-size: 15.5px; line-height: 1.65; color: var(--text-muted); }
+
+.landing-foot {
+  margin-top: 40px; padding-top: 22px; border-top: 1px solid var(--border-subtle);
+  font-size: 13px; color: var(--text-muted);
+}
+
+@media (max-width: 640px) {
+  .landing-hero { padding: 44px 0 36px; }
+  .landing-hero h1 br { display: none; }
+}
