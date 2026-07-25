@@ -182,7 +182,11 @@ test('Progress charts the long arc and passes the axe scan', async ({ page }) =>
 
   // Headline tiles render (the empty state would replace them entirely).
   await expect(page.getByText('Tasks done')).toBeVisible();
-  await expect(page.getByText('Habit check-ins')).toBeVisible();
+  // Habit check-ins was deliberately dropped from the tiles — it duplicated the
+  // consistency % already in the hero strip.
+  await expect(page.getByText('Habit check-ins')).toHaveCount(0);
+  // Mood is ONE visual with a labelled axis; the distribution bars are gone.
+  await expect(page.locator('.prog-mood-bar')).toHaveCount(0);
 
   await page.addStyleTag({
     content: '*, *::before, *::after { animation: none !important; transition: none !important; }',
@@ -210,4 +214,29 @@ test('Today and the open command bar pass the axe scan', async ({ page }) => {
     (v) => v.impact === 'serious' || v.impact === 'critical',
   );
   expect(serious, JSON.stringify(serious.map((v) => v.id), null, 2)).toEqual([]);
+});
+
+test('a recurring task rolls forward to its next occurrence when completed', async ({ page }) => {
+  await go(page, '/tasks');
+
+  const title = `Recurring ${Date.now()}`;
+  await page.getByRole('button', { name: /Add to today/i }).first().click();
+  // Repeat is a tap, not a typed RRULE.
+  await page.getByRole('button', { name: 'Every weekday', exact: true }).click();
+  await page.getByLabel(/New task in Today/i).fill(title);
+  await page.getByRole('button', { name: 'Add task', exact: true }).click();
+
+  const row = page.locator('.task', { hasText: title });
+  await expect(row).toHaveCount(1);
+  // The rule reads as English on the row, never as raw iCal.
+  await expect(row.getByText('Every weekday')).toBeVisible();
+
+  // Completing it must leave the series alive: one open instance, dated later.
+  await row.locator('button.check').first().click();
+  await expect(page.locator('.task', { hasText: title }).filter({ hasNot: page.locator('.done') })).toHaveCount(1);
+  await page.reload();
+  await expect(page.locator('.sidebar-user-name')).toBeVisible();
+  const open = page.locator('.task:not(.done)', { hasText: title });
+  await expect(open).toHaveCount(1);
+  await expect(open.getByText('Every weekday')).toBeVisible();
 });

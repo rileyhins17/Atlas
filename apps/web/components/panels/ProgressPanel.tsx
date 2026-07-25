@@ -11,12 +11,20 @@ import {
   delta,
   formatMinorCompact,
   habitConsistency,
-  moodDistribution,
+  habitRhythm,
   moodSeries,
+  reviewBullets,
   weeklyBuckets,
   type Delta,
 } from '@/lib/progress';
-import { EmptyState, ErrorState, Heatmap, ListSkeleton, Sparkline } from '@/components/ui';
+import {
+  EmptyState,
+  ErrorState,
+  Heatmap,
+  ListSkeleton,
+  ProgressRing,
+  Sparkline,
+} from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
 import { formatDayHeading } from '@/lib/dates';
 
@@ -26,7 +34,20 @@ const RANGES = [
   { days: 365, label: 'Year' },
 ] as const;
 
-const MOOD_LABELS = ['Rough', 'Low', 'OK', 'Good', 'Great'];
+/**
+ * Render the `**bold**` lead the review prompt asks for. Deliberately the only
+ * markdown we honour — a full parser is a dependency and an XSS surface for one
+ * emphasis rule.
+ */
+function renderBold(line: string): React.ReactNode[] {
+  return line.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+    part.startsWith('**') && part.endsWith('**') && part.length > 4 ? (
+      <strong key={i}>{part.slice(2, -2)}</strong>
+    ) : (
+      <span key={i}>{part}</span>
+    ),
+  );
+}
 
 function DeltaChip({ d, invert = false }: { d: Delta; invert?: boolean }) {
   if (d.direction === 'flat') {
@@ -95,10 +116,14 @@ function Card({
   );
 }
 
-/** Per-habit consistency rows — the real "am I keeping this up?" picture. */
-function HabitConsistency() {
+/**
+ * Per-habit consistency. A grid of squares showed that a habit exists; a hit
+ * rate, the live streak and a weekly pulse show whether it is actually holding
+ * — which is the only question this card is asked.
+ */
+function HabitConsistency({ days }: { days: number }) {
   const habits = useHabits();
-  const history = useHabitHistory(84); // 12 weeks, matching the heatmap width
+  const history = useHabitHistory(Math.min(Math.max(days, 7), 366));
 
   const list = habits.data ?? [];
   if (list.length === 0) {
@@ -109,16 +134,28 @@ function HabitConsistency() {
     <div className="prog-habits">
       {list.slice(0, 6).map((h) => {
         const row = history.data?.find((r) => r.habitId === h.id);
-        const counts = new Map<string, number>((row?.days ?? []).map((d) => [d.day, d.count]));
+        const { rate, weekly } = habitRhythm(row?.days ?? [], h.target || 1, days);
+        const pct = Math.round(rate * 100);
         return (
           <div key={h.id} className="prog-habit-row">
-            <span className="prog-habit-name">{h.name}</span>
-            <Heatmap
-              counts={counts}
-              weeks={12}
-              target={h.target || 1}
-              label={`${h.name}: last 12 weeks`}
-            />
+            <ProgressRing value={rate} size={38} strokeWidth={4} label={`${h.name}: ${pct}% of days`}>
+              <span className="prog-habit-pct">{pct}</span>
+            </ProgressRing>
+            <div className="prog-habit-meta">
+              <span className="prog-habit-name">{h.name}</span>
+              <span className="prog-habit-sub">
+                {pct}% of days{h.streak > 0 ? ` · ${h.streak}-day streak` : ''}
+              </span>
+            </div>
+            {weekly.length >= 2 && (
+              <Sparkline
+                points={weekly}
+                label={`${h.name}: check-ins per week`}
+                width={120}
+                height={30}
+                fill
+              />
+            )}
           </div>
         );
       })}
@@ -145,7 +182,6 @@ export function ProgressPanel() {
       habitsWeekly: weeklyBuckets(data.days, (d) => d.habitChecks),
       netWeekly: weeklyBuckets(data.days, (d) => d.earnedMinor - d.spentMinor),
       mood: moodSeries(data.days),
-      moodDist: moodDistribution(data.days),
       best: bestDay(data.days),
       consistency: habitConsistency(data.days),
       hasMoney: data.days.some((d) => d.spentMinor > 0 || d.earnedMinor > 0),
@@ -154,7 +190,6 @@ export function ProgressPanel() {
   }, [data]);
 
   const review = insights.data?.find((i) => i.kind === 'weekly_review') ?? null;
-  const moodMax = derived ? Math.max(1, ...derived.moodDist) : 1;
 
   return (
     <div className="stream">
@@ -211,11 +246,6 @@ export function ProgressPanel() {
               d={delta(data.totals.current.tasksCompleted, data.totals.previous.tasksCompleted)}
             />
             <Tile
-              label="Habit check-ins"
-              value={String(data.totals.current.habitChecks)}
-              d={delta(data.totals.current.habitChecks, data.totals.previous.habitChecks)}
-            />
-            <Tile
               label="Average mood"
               value={data.totals.current.moodAvg === null ? '—' : data.totals.current.moodAvg.toFixed(1)}
               d={delta(
@@ -261,29 +291,34 @@ export function ProgressPanel() {
               />
             </Card>
 
-            <Card title="Habit consistency" hint="last 12 weeks" wide>
-              <HabitConsistency />
+            <Card title="Habit consistency" hint={`last ${days} days`} wide>
+              <HabitConsistency days={days} />
             </Card>
 
-            <Card title="Mood" hint="1–5 over time">
+            <Card title="Mood" hint="over time">
               {derived.mood.length >= 2 ? (
-                <Sparkline points={derived.mood} min={1} max={5} label="Mood over time" width={320} height={64} />
+                // The axis is what makes the line readable: without it a flat
+                // stretch at 4 and one at 2 draw identically.
+                <div className="prog-mood-chart">
+                  <div className="prog-mood-axis" aria-hidden>
+                    <span>5</span>
+                    <span>4</span>
+                    <span>3</span>
+                    <span>2</span>
+                    <span>1</span>
+                  </div>
+                  <Sparkline
+                    points={derived.mood}
+                    min={1}
+                    max={5}
+                    label="Mood over time, 1 to 5"
+                    width={286}
+                    height={90}
+                  />
+                </div>
               ) : (
                 <p className="prog-muted">Journal a couple of times to see your mood trend.</p>
               )}
-              <div className="prog-mood-dist" aria-label="Mood distribution">
-                {derived.moodDist.map((count, i) => (
-                  <div key={MOOD_LABELS[i]} className="prog-mood-col">
-                    <div
-                      className="prog-mood-bar"
-                      style={{ height: `${Math.round((count / moodMax) * 100)}%` }}
-                      aria-hidden
-                    />
-                    <span className="prog-mood-label">{MOOD_LABELS[i]}</span>
-                    <span className="prog-mood-count">{count}</span>
-                  </div>
-                ))}
-              </div>
             </Card>
 
             {/* Money only earns a card once there IS money data — no zero-filled noise. */}
@@ -300,7 +335,11 @@ export function ProgressPanel() {
             {/* The weekly review has been getting written all along and never shown. */}
             {review && (
               <Card title="Atlas's weekly review" hint={formatDayHeading(new Date(review.createdAt))} wide>
-                <p className="prog-review">{review.body}</p>
+                <ul className="prog-review-list">
+                  {reviewBullets(review.body).map((line, i) => (
+                    <li key={i}>{renderBold(line)}</li>
+                  ))}
+                </ul>
               </Card>
             )}
           </div>

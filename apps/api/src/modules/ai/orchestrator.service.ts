@@ -8,6 +8,7 @@ import { TimelineService } from '../../core/timeline.service.js';
 import { ModuleRegistryService } from '../../core/domain-module.js';
 import { ConnectorsService } from '../../core/connectors.service.js';
 import { loadEnv } from '../../config/env.js';
+import { safeTz } from './time.util.js';
 import { StatsService } from '../stats/stats.service.js';
 import { ToolRouterService } from './tool-router.service.js';
 import { EmbeddingService } from './embedding.service.js';
@@ -30,31 +31,61 @@ const CHAT_SYSTEM_PROMPT =
   'you to (e.g. "add a task", "log my workout") rather than just describing what to do.';
 
 const BRAIN_DUMP_SYSTEM_PROMPT =
-  'You are Atlas\'s intake parser. The user will paste messy, unstructured text ' +
-  '(a brain dump). Break it into concrete items and file each one with the right ' +
-  'tool: tasks.create for to-dos, calendar.add for events with a date/time, ' +
-  'journal.add for reflective/emotional content, notes.remember for durable facts, ' +
-  'habits.log for a check-in against an existing habit. Call tools directly for ' +
-  'every actionable item you find; do not just describe what you would do. If ' +
-  'nothing actionable is present, reply briefly saying so and call no tools.';
+  "You are Atlas's intake parser. The user types in plain language; turn it into " +
+  'real records with the right tool: tasks.create for to-dos, calendar.add for ' +
+  'anything with a date/time, calendar.block to reserve a span of time for ' +
+  'focused work, journal.add for reflective/emotional content, notes.remember ' +
+  'for durable facts, habits.log for a check-in against an existing habit. Call ' +
+  'tools directly for every actionable item; never just describe what you would do.\n\n' +
+  'Scheduling rules:\n' +
+  '- Resolve every relative date/time ("tomorrow", "next Friday", "in an hour") ' +
+  'against the "Now" block below.\n' +
+  '- Pass local times, not UTC.\n' +
+  '- When a duration is given ("a 1-hour block", "30 minutes"), use ' +
+  'durationMinutes instead of inventing an end time.\n' +
+  '- If an event has no stated duration, default to 60 minutes.\n' +
+  '- If a time is genuinely ambiguous, create a task with a due date rather than ' +
+  'guessing a specific hour.\n' +
+  '- For anything repeating ("every weekday", "each Monday"), set the recurrence ' +
+  'RRULE on tasks.create.\n\n' +
+  'If nothing actionable is present, reply briefly saying so and call no tools.';
 
-const BRIEF_SYSTEM_PROMPT =
-  "You are Atlas, writing the user's daily brief from their cross-domain " +
-  'context and recent activity. Be concise (120-200 words): what stands out, ' +
-  "what's due or upcoming, and one gentle nudge. Plain prose, no headers, no tools.";
+const BRIEF_SYSTEM_PROMPT = `You are Atlas, writing the user's daily brief from
+their cross-domain context and recent activity. Be concise (120-200 words): what
+stands out, what's due or upcoming, and one gentle nudge. Plain prose, no headers,
+no tools.
 
-const WEEKLY_REVIEW_SYSTEM_PROMPT =
-  "You are Atlas, writing the user's weekly review from their cross-domain " +
-  "context and the past week's activity. In 150-250 words of plain prose (no " +
-  'headers, no tools): what they got done and where they slipped across tasks, ' +
-  'habits, calendar, journal mood and spending; one honest pattern you notice ' +
-  'over the week; and one concrete focus for the week ahead. Encouraging, not fluffy.';
+Honesty rules: only describe what is actually in the context below. Never invent
+activity, and never claim a pattern, trend or correlation unless there are enough
+data points to support it - two entries is not a trend, and two unrelated domains
+moving together is not a cause. When the data is thin or the user is new, say so
+plainly and say what you would need to see; a short honest answer beats a padded one.`;
+
+const WEEKLY_REVIEW_SYSTEM_PROMPT = `You are Atlas, writing the user's weekly
+review from their cross-domain context and the past week's activity.
+
+Format it to be scanned, not read: 3-6 short bullet lines, each starting with "- "
+and opening with a bolded 1-3 word label in **asterisks**, then one sentence. No
+headers, no preamble, no tools. Cover what got done, where they slipped, one honest
+pattern, and one concrete focus for the week ahead. Encouraging, not fluffy.
+
+Example shape:
+- **Tasks** You closed 12, up from 7 - most of them early in the week.
+- **Focus next** Pick one evening to clear the three overdue items.
+
+Honesty rules: only describe what is actually in the context below. Never invent
+activity, and never claim a pattern, trend or correlation unless there are enough
+data points to support it - two entries is not a trend, and two unrelated domains
+moving together is not a cause. When the data is thin or the user is new, say so
+plainly and say what you would need to see; a short honest answer beats a padded one.`;
 
 const QUESTIONS_SYSTEM_PROMPT =
   'You are Atlas, reviewing the context below for genuine knowledge gaps about ' +
   'the user. If (and only if) you notice something worth asking about — a ' +
   "thin journal entry, a stalled habit, a goal with no tasks — call ai.ask_question " +
-  'for it. Ask at most 2 questions. If nothing stands out, call no tools.';
+  'for it. Ask at most 2 questions. If nothing stands out, call no tools. Base ' +
+  'questions only on what the context actually shows; do not ask about activity ' +
+  'you assumed rather than observed.';
 
 const ASK_QUESTION_TOOL: AiToolSpec = {
   name: 'ai.ask_question',
@@ -133,6 +164,39 @@ export class OrchestratorService {
     return buildContext(chunks, CONTEXT_TOKEN_BUDGET).text;
   }
 
+  /**
+   * Anchor the model in time. Without this the model resolves "tomorrow at 2pm"
+   * against its training data and silently schedules into the wrong day — every
+   * relative date in a capture depends on this block existing.
+   *
+   * It changes only once per minute and sits at the FRONT of the context, which
+   * is safe for the prefix cache in a way per-message recall is not (see the
+   * prompt-order gotcha): a whole day of calls shares the same date line, and
+   * only the trailing time drifts.
+   */
+  private async nowBlock(userId: string): Promise<string> {
+    const user = await this.prisma.client.user.findUnique({
+      where: { id: userId },
+      select: { timezone: true },
+    });
+    const tz = safeTz(user?.timezone || 'UTC');
+    const now = new Date();
+    const local = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(now);
+    return `## Now
+It is currently ${local} (${tz}).
+Resolve every relative date and time ("today", "tomorrow", "next Friday", "in an
+hour") against this. All datetimes you pass to tools are in this timezone — do
+not convert to UTC yourself.`;
+  }
+
   private async recentActivityText(userId: string, limit = 15): Promise<string> {
     const recent = await this.timeline.recent(userId, limit);
     if (recent.length === 0) return 'No recent activity.';
@@ -145,11 +209,14 @@ export class OrchestratorService {
     userId: string,
     activityLimit: number,
   ): Promise<{ contextText: string; activityText: string }> {
-    const [contextText, activityText] = await Promise.all([
+    const [nowText, moduleText, activityText] = await Promise.all([
+      this.nowBlock(userId),
       this.buildSystemChunk(userId),
       this.recentActivityText(userId, activityLimit),
     ]);
-    return { contextText, activityText };
+    return { contextText: `${nowText}
+
+${moduleText}`, activityText };
   }
 
   /**
@@ -208,8 +275,13 @@ export class OrchestratorService {
 
   /** Parse a free-form brain dump into real records via tool calls. */
   async organizeBrainDump(userId: string, text: string): Promise<ToolLoopResult> {
+    // Capture is where relative dates actually arrive ("gym tomorrow at 6"), so
+    // this path needs the time anchor most — it previously had no context at all.
+    const nowText = await this.nowBlock(userId);
     const messages: ChatMessage[] = [
-      { role: 'system', content: BRAIN_DUMP_SYSTEM_PROMPT },
+      { role: 'system', content: `${BRAIN_DUMP_SYSTEM_PROMPT}
+
+${nowText}` },
       { role: 'user', content: text },
     ];
     const tools = this.registry.collectToolSpecs();

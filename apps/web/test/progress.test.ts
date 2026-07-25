@@ -4,8 +4,9 @@ import {
   bestDay,
   delta,
   habitConsistency,
-  moodDistribution,
+  habitRhythm,
   moodSeries,
+  reviewBullets,
   weeklyBuckets,
 } from '@/lib/progress';
 
@@ -60,19 +61,43 @@ describe('moodSeries', () => {
 });
 
 
-describe('moodDistribution', () => {
-  it('counts days into 1–5 buckets, rounding averages and skipping blanks', () => {
-    const days = [
-      day({ moodAvg: 4.4 }), // → 4
-      day({ moodAvg: 4.6 }), // → 5
-      day({ moodAvg: null }), // skipped
-      day({ moodAvg: 1 }),
-    ];
-    expect(moodDistribution(days)).toEqual([1, 0, 0, 1, 1]);
+describe('habitRhythm', () => {
+  const hist = (counts: number[]) =>
+    counts.map((count, i) => ({ day: `2026-07-${String(i + 1).padStart(2, '0')}`, count }));
+
+  it('scores a day as met only when it reaches the target', () => {
+    // target 2: days with 2+ count, days with 1 do not.
+    const { rate } = habitRhythm(hist([2, 1, 3, 0]), 2, 4);
+    expect(rate).toBe(0.5);
   });
 
-  it('clamps out-of-range averages into the 1–5 scale', () => {
-    expect(moodDistribution([day({ moodAvg: 0.2 }), day({ moodAvg: 9 })])).toEqual([1, 0, 0, 0, 1]);
+  it('buckets check-ins per week, oldest first, anchored to the window END', () => {
+    // Anchoring at the end (like weeklyBuckets) keeps the newest bucket a full
+    // week; the leftover partial week is the OLDEST one.
+    const { weekly } = habitRhythm(hist([1, 1, 1, 1, 1, 1, 1, 5, 5]), 1, 9);
+    expect(weekly).toEqual([2, 15]); // 2-day partial, then the last 7 days
+  });
+
+  it('rates against the WINDOW, not the days returned — silence still counts', () => {
+    // Only 3 recorded days inside a 10-day window: 70% of it was a miss.
+    const { rate } = habitRhythm(hist([1, 1, 1]), 1, 10);
+    expect(rate).toBeCloseTo(0.3);
+  });
+});
+
+describe('reviewBullets', () => {
+  it('strips list markers and keeps the bold lead intact', () => {
+    const out = reviewBullets('- **Tasks:** you finished 12.\n* **Mood:** steady.');
+    expect(out).toEqual(['**Tasks:** you finished 12.', '**Mood:** steady.']);
+  });
+
+  it('falls back to sentence splitting when the model answers in prose', () => {
+    const out = reviewBullets('You did well. Mood held steady. Keep going!');
+    expect(out).toEqual(['You did well.', 'Mood held steady.', 'Keep going!']);
+  });
+
+  it('drops blank lines rather than rendering empty bullets', () => {
+    expect(reviewBullets('- one\n\n\n- two')).toEqual(['one', 'two']);
   });
 });
 

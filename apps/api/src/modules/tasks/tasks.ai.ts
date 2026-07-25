@@ -30,14 +30,22 @@ export class TasksAiAdapter implements DomainModule, OnModuleInit {
     return [
       {
         name: 'tasks.create',
-        description: 'Create a task for the user.',
+        description:
+          "Create a task. dueAt is the user's LOCAL time (see the Now block) — do not convert " +
+          'to UTC. Set recurrence for anything that repeats.',
         parameters: {
           type: 'object',
           properties: {
             title: { type: 'string', description: 'Short task title' },
             notes: { type: 'string' },
             priority: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'] },
-            dueAt: { type: 'string', format: 'date-time' },
+            dueAt: { type: 'string', format: 'date-time', description: 'Local due date/time' },
+            recurrence: {
+              type: 'string',
+              description:
+                'RFC-5545 RRULE for a repeating task, e.g. "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR" ' +
+                'for every weekday, or "FREQ=DAILY". Omit for one-off tasks.',
+            },
           },
           required: ['title'],
         },

@@ -29,6 +29,8 @@ function task(over: Partial<TaskDTO>): TaskDTO {
     completedAt: null,
     tags: [],
     goalId: null,
+    recurrence: null,
+    recurrenceParentId: null,
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),
     ...over,

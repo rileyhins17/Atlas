@@ -1,5 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { CreateEventInput, EventDTO, UpdateEventInput } from '@atlas/shared';
+import {
+  nextOccurrences,
+  type CreateEventInput,
+  type EventDTO,
+  type UpdateEventInput,
+} from '@atlas/shared';
 import type { Event } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
@@ -14,11 +19,48 @@ function toDto(e: Event): EventDTO {
     endAt: e.endAt.toISOString(),
     allDay: e.allDay,
     source: e.source,
+    recurrence: e.recurrence,
     createdAt: e.createdAt.toISOString(),
   };
 }
 
 const MAX_PAGE = 100;
+/** Ceiling on instances generated from one rule inside a single window. */
+const MAX_OCCURRENCES_PER_SERIES = 100;
+
+/**
+ * Project a stored series onto a window as read-only occurrence rows. The
+ * stored row IS the first occurrence, so it comes back from the query normally
+ * and only the later ones are synthesised here.
+ *
+ * Synthetic rows carry `id = "<rootId>@<epochMs>"` and `isOccurrence: true` so
+ * the UI can render them but never PATCH/DELETE them as if they were rows.
+ */
+function expandSeries(event: Event, from: Date, to: Date): EventDTO[] {
+  const durationMs = event.endAt.getTime() - event.startAt.getTime();
+  // `after` is exclusive, so step back a millisecond to keep an occurrence
+  // landing exactly on the window start.
+  const after = new Date(Math.max(from.getTime() - 1, event.startAt.getTime()));
+  const dates = nextOccurrences(
+    event.recurrence,
+    event.startAt,
+    after,
+    MAX_OCCURRENCES_PER_SERIES,
+  );
+  const base = toDto(event);
+  const out: EventDTO[] = [];
+  for (const startAt of dates) {
+    if (startAt.getTime() >= to.getTime()) break;
+    out.push({
+      ...base,
+      id: `${event.id}@${startAt.getTime()}`,
+      startAt: startAt.toISOString(),
+      endAt: new Date(startAt.getTime() + durationMs).toISOString(),
+      isOccurrence: true,
+    });
+  }
+  return out;
+}
 
 @Injectable()
 export class CalendarService {
@@ -45,7 +87,25 @@ export class CalendarService {
       orderBy: { startAt: 'asc' },
       take,
     });
-    return events.map(toDto);
+    const rows = events.map(toDto);
+
+    // Recurring series are expanded on READ, never materialised in the DB, so
+    // nothing accumulates and editing the rule instantly changes every future
+    // occurrence. Only a bounded window can be expanded — an open-ended list
+    // has no natural end to stop generating at.
+    const to = opts.to;
+    if (!to) return rows;
+    const series = await this.prisma.client.event.findMany({
+      where: { userId, recurrence: { not: null }, startAt: { lt: to } },
+      orderBy: { startAt: 'asc' },
+      take: MAX_PAGE,
+    });
+    if (series.length === 0) return rows;
+
+    const merged = [...rows];
+    for (const s of series) merged.push(...expandSeries(s, from, to));
+    merged.sort((a, b) => a.startAt.localeCompare(b.startAt));
+    return merged.slice(0, take);
   }
 
   async create(userId: string, input: CreateEventInput): Promise<EventDTO> {
@@ -58,6 +118,7 @@ export class CalendarService {
         startAt: input.startAt,
         endAt: input.endAt,
         allDay: input.allDay,
+        recurrence: input.recurrence,
         source: 'atlas',
       },
     });

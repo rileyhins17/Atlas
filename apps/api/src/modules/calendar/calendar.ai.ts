@@ -26,16 +26,45 @@ export class CalendarAiAdapter implements DomainModule, OnModuleInit {
     return [
       {
         name: 'calendar.add',
-        description: 'Create a calendar event for the user.',
+        description:
+          'Create a calendar event. Datetimes are the user\'s LOCAL time (see the Now block) — ' +
+          'do not convert to UTC. Give either endAt or durationMinutes; if neither is stated, ' +
+          'durationMinutes defaults to 60.',
         parameters: {
           type: 'object',
           properties: {
             title: { type: 'string' },
-            startAt: { type: 'string', format: 'date-time' },
-            endAt: { type: 'string', format: 'date-time' },
+            startAt: { type: 'string', format: 'date-time', description: "Local start time" },
+            endAt: { type: 'string', format: 'date-time', description: 'Local end time (optional if durationMinutes given)' },
+            durationMinutes: {
+              type: 'number',
+              description: 'How long the event runs, in minutes. Preferred over guessing endAt.',
+            },
             location: { type: 'string' },
+            recurrence: {
+              type: 'string',
+              description:
+                'RFC-5545 RRULE for a repeating event, e.g. "FREQ=WEEKLY;BYDAY=MO,WE" or ' +
+                '"FREQ=DAILY;INTERVAL=2". Omit for one-off events.',
+            },
           },
-          required: ['title', 'startAt', 'endAt'],
+          required: ['title', 'startAt'],
+        },
+      },
+      {
+        name: 'calendar.block',
+        description:
+          'Reserve a block of time for focused work ("block an hour to review designs"). Same as ' +
+          'calendar.add but duration-first — use this when the user is carving out time rather ' +
+          'than recording a meeting.',
+        parameters: {
+          type: 'object',
+          properties: {
+            title: { type: 'string', description: 'What the block is for' },
+            startAt: { type: 'string', format: 'date-time', description: 'Local start time' },
+            durationMinutes: { type: 'number', description: 'Length of the block in minutes' },
+          },
+          required: ['title', 'startAt', 'durationMinutes'],
         },
       },
     ];

@@ -14,3 +14,4 @@ export { Kbd } from './Kbd';
 export { ProgressRing, type ProgressRingProps } from './ProgressRing';
 export { Sparkline, type SparklineProps } from './Sparkline';
 export { Heatmap, type HeatmapProps } from './Heatmap';
+export { RecurrencePicker, type RecurrencePickerProps } from './RecurrencePicker';

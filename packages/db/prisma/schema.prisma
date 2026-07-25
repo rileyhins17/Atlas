@@ -168,11 +168,17 @@ model Task {
   // Optional link back to a goal.
   goalId      String?
   goal        Goal?        @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  // RFC 5545 RRULE ("FREQ=WEEKLY;BYDAY=MO,WE"). Null = one-off. Rules we can't
+  // parse are stored verbatim and simply never expanded — never rewritten.
+  recurrence  String?
+  // Set on a materialised instance; points at the series root task.
+  recurrenceParentId String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
   @@index([userId, status])
   @@index([userId, dueAt])
+  @@index([userId, recurrenceParentId])
   @@map("tasks")
 }
 
@@ -191,6 +197,10 @@ model Event {
   // Provenance for two-way sync (e.g. Google Calendar event id + connector).
   source      String    @default("atlas")
   externalId  String?
+  // RRULE for a repeating series; the row itself is the first occurrence.
+  // Google sends `singleEvents=true` instances, so synced rows stay null.
+  recurrence  String?
+  recurrenceParentId String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 

@@ -9,6 +9,42 @@ import { CalendarService } from '../calendar/calendar.service.js';
 import { MemoryService } from '../../core/memory.service.js';
 
 const TaskCompleteInput = z.object({ id: z.string() });
+
+/** Default span when the model gives a start but no end and no duration. */
+const DEFAULT_EVENT_MINUTES = 60;
+
+/**
+ * What the model may send for an event: `endAt` OR `durationMinutes`. Models
+ * are far more reliable at "how long is it" than at arithmetic on end times, so
+ * duration is the preferred path and this normalises both into a real endAt.
+ */
+const AiEventInput = z.object({
+  title: z.string().min(1).max(300),
+  startAt: z.coerce.date(),
+  endAt: z.coerce.date().optional(),
+  durationMinutes: z.number().int().min(1).max(24 * 60).optional(),
+  location: z.string().max(500).optional(),
+  description: z.string().max(5_000).optional(),
+  recurrence: z.string().max(500).optional(),
+});
+
+function toEventInput(raw: unknown) {
+  const parsed = AiEventInput.parse(raw);
+  const minutes = parsed.durationMinutes ?? DEFAULT_EVENT_MINUTES;
+  const endAt =
+    parsed.endAt && parsed.endAt > parsed.startAt
+      ? parsed.endAt
+      : new Date(parsed.startAt.getTime() + minutes * 60_000);
+  return CreateEventInput.parse({
+    title: parsed.title,
+    startAt: parsed.startAt,
+    endAt,
+    location: parsed.location,
+    description: parsed.description,
+    recurrence: parsed.recurrence,
+    allDay: false,
+  });
+}
 const HabitLogInput = z.object({ id: z.string(), value: z.number().optional(), note: z.string().optional() });
 const AskQuestionInput = z.object({
   question: z.string().min(1).max(2_000),
@@ -48,8 +84,11 @@ export class ToolRouterService {
         return this.journal.create(userId, CreateJournalInput.parse(args));
       case 'notes.remember':
         return this.notes.create(userId, CreateNoteInput.parse(args));
+      // Both event tools normalise through the same duration-aware shape; block
+      // is just the duration-first phrasing of add.
       case 'calendar.add':
-        return this.calendar.create(userId, CreateEventInput.parse(args));
+      case 'calendar.block':
+        return this.calendar.create(userId, toEventInput(args));
       case 'ai.ask_question': {
         const parsed = AskQuestionInput.parse(args);
         await this.memory.askUser({ userId, ...parsed });

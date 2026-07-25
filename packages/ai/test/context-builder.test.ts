@@ -23,14 +23,34 @@ describe('buildContext', () => {
     expect(built.text).toContain('## habits (habits)');
   });
 
-  it('drops chunks that would exceed the token budget', () => {
+  it('trims an oversized chunk rather than dropping it whole', () => {
+    // A domain that no longer fits still keeps a voice: the AI must never
+    // silently reason about a life with an entire domain missing.
     const small = chunk('tasks', 'a'.repeat(20));
     const huge = chunk('journal', 'x'.repeat(4000));
-    const budget = estimateTokens(`## tasks (tasks)\n${'a'.repeat(20)}`) + 5;
-    const built = buildContext([small, huge], budget);
-    expect(built.includedSources).toEqual(['tasks']);
-    expect(built.droppedSources).toEqual(['journal']);
-    expect(built.text).not.toContain('journal');
+    const built = buildContext([small, huge], 200);
+    expect(built.includedSources).toEqual(['tasks', 'journal']);
+    expect(built.trimmedSources).toEqual(['journal']);
+    expect(built.text).toContain('## journal (journal)');
+    expect(built.text).toContain('(trimmed)');
+    expect(built.tokensEstimate).toBeLessThanOrEqual(200);
+  });
+
+  it('drops a chunk only when there is no room even for its floor', () => {
+    const filler = chunk('tasks', 'a'.repeat(4000));
+    const late = chunk('journal', 'x'.repeat(400));
+    const built = buildContext([filler, late], 120);
+    expect(built.droppedSources).toContain('journal');
+  });
+
+  it('skips domains that have nothing to report', () => {
+    const built = buildContext(
+      [chunk('tasks', 'No tasks yet.'), chunk('habits', 'Gym: 3 day streak')],
+      1000,
+    );
+    expect(built.includedSources).toEqual(['habits']);
+    expect(built.droppedSources).toEqual(['tasks']);
+    expect(built.text).not.toContain('No tasks yet');
   });
 
   it('respects the budget: tokensEstimate never exceeds it', () => {
@@ -41,12 +61,12 @@ describe('buildContext', () => {
     expect(built.includedSources.length + built.droppedSources.length).toBe(chunks.length);
   });
 
-  it('can still include a later smaller chunk after dropping a big one', () => {
+  it('never exceeds the budget even when everything is oversized', () => {
     const big = chunk('big', 'x'.repeat(4000));
-    const small = chunk('small', 'y'.repeat(20));
-    const built = buildContext([big, small], 50);
-    expect(built.droppedSources).toEqual(['big']);
-    expect(built.includedSources).toEqual(['small']);
+    const small = chunk('small', 'y'.repeat(4000));
+    const built = buildContext([big, small], 200);
+    expect(built.tokensEstimate).toBeLessThanOrEqual(200);
+    expect(built.includedSources).toContain('big');
   });
 
   it('returns empty output for no chunks', () => {
@@ -55,5 +75,6 @@ describe('buildContext', () => {
     expect(built.tokensEstimate).toBe(0);
     expect(built.includedSources).toEqual([]);
     expect(built.droppedSources).toEqual([]);
+    expect(built.trimmedSources).toEqual([]);
   });
 });

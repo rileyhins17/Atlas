@@ -48,15 +48,46 @@ export function moodSeries(days: StatsDayDTO[]): number[] {
 // components import their helpers from one place.
 export { formatMinorCompact } from './money';
 
-/** Count of each mood value 1–5 across the window, for the distribution bar. */
-export function moodDistribution(days: StatsDayDTO[]): number[] {
-  const buckets = [0, 0, 0, 0, 0];
-  for (const d of days) {
-    if (d.moodAvg === null) continue;
-    const rounded = Math.min(5, Math.max(1, Math.round(d.moodAvg)));
-    buckets[rounded - 1]! += 1;
+/**
+ * One habit's shape over a window: how often it was actually met, and the
+ * per-week pulse. A 12-week grid of squares told you a habit existed; a rate
+ * and a line tell you whether it's holding.
+ */
+export function habitRhythm(
+  days: { day: string; count: number }[],
+  target: number,
+  window: number,
+): { rate: number; weekly: number[] } {
+  const goal = Math.max(1, target);
+  const recent = days.slice(-window);
+  const met = recent.filter((d) => d.count >= goal).length;
+  const rate = window === 0 ? 0 : met / window;
+  const weekly: number[] = [];
+  for (let end = recent.length; end > 0; end -= 7) {
+    const start = Math.max(0, end - 7);
+    weekly.unshift(recent.slice(start, end).reduce((sum, d) => sum + d.count, 0));
   }
-  return buckets;
+  return { rate, weekly };
+}
+
+/**
+ * Split an AI review into short bullets, keeping any `**bold**` lead intact.
+ * The prompt asks for bullets, but a model will occasionally answer in prose —
+ * falling back to sentence splitting means the card is never a wall of text.
+ */
+export function reviewBullets(body: string): string[] {
+  const lines = body
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => l.replace(/^[-*•]\s*/, '').trim())
+    .filter(Boolean);
+  if (lines.length > 1) return lines;
+  // One blob: break it on sentence ends instead.
+  return (lines[0] ?? '')
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 /** The day with the most activity in the window — the period's headline. */

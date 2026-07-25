@@ -1,11 +1,20 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { EventDTO } from '@atlas/shared';
+import { describeRrule, type EventDTO } from '@atlas/shared';
 import { errorMessage } from '@/lib/api';
 import { useCreateEvent, useDeleteEvent, useEvents } from '@/lib/hooks/events';
-import { CalendarDays, MapPin, X } from 'lucide-react';
-import { Button, Card, EmptyState, ErrorState, IconButton, Input, ListSkeleton } from '@/components/ui';
+import { CalendarDays, MapPin, Repeat, X } from 'lucide-react';
+import {
+  Button,
+  Card,
+  EmptyState,
+  ErrorState,
+  IconButton,
+  Input,
+  ListSkeleton,
+  RecurrencePicker,
+} from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
 import { formatClock, formatDayHeading, localDayKey } from '@/lib/dates';
 
@@ -31,6 +40,7 @@ export function CalendarPanel() {
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [location, setLocation] = useState('');
+  const [repeat, setRepeat] = useState<string | null>(null);
   const [clientError, setClientError] = useState<string | null>(null);
   const eventsQuery = useEvents();
   const create = useCreateEvent();
@@ -60,6 +70,7 @@ export function CalendarPanel() {
         startAt: new Date(start).toISOString(),
         endAt: new Date(end).toISOString(),
         location: location.trim() || undefined,
+        ...(repeat ? { recurrence: repeat } : {}),
       },
       {
         onSuccess: () => {
@@ -67,6 +78,7 @@ export function CalendarPanel() {
           setStart('');
           setEnd('');
           setLocation('');
+          setRepeat(null);
         },
       },
     );
@@ -108,6 +120,7 @@ export function CalendarPanel() {
             value={location}
             onChange={(e) => setLocation(e.target.value)}
           />
+          <RecurrencePicker value={repeat} onChange={setRepeat} />
           <Button type="submit" disabled={create.isPending}>
             Add event
           </Button>
@@ -151,9 +164,21 @@ export function CalendarPanel() {
                           </>
                         ) : null}
                         {ev.source !== 'atlas' && ' · Google'}
+                        {describeRrule(ev.recurrence) ? (
+                          <>
+                            <Repeat size={11} aria-hidden /> {describeRrule(ev.recurrence)}
+                          </>
+                        ) : null}
                       </div>
                     </div>
-                    <IconButton label={`Delete "${ev.title}"`} onClick={() => remove.mutate(ev.id)}>
+                    {/* Expanded occurrences have a synthetic id — deleting one
+                        would 404, and per-instance exceptions (EXDATE) are out
+                        of scope. Only the stored row can be removed. */}
+                    <IconButton
+                      label={`Delete "${ev.title}"`}
+                      disabled={ev.isOccurrence === true}
+                      onClick={() => remove.mutate(ev.id)}
+                    >
                       <X size={16} aria-hidden />
                     </IconButton>
                   </div>

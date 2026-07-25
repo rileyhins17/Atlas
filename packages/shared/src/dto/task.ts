@@ -8,6 +8,9 @@ export const CreateTaskInput = z.object({
   dueAt: z.coerce.date().optional(),
   tags: z.array(z.string()).default([]),
   goalId: z.string().optional(),
+  // An RRULE string. Deliberately only length-bounded: a rule we can't parse is
+  // stored verbatim rather than rejected, so a sync can never lose one.
+  recurrence: z.string().max(500).optional(),
 });
 export type CreateTaskInput = z.infer<typeof CreateTaskInput>;
 
@@ -19,6 +22,7 @@ export const UpdateTaskInput = z.object({
   dueAt: z.coerce.date().nullable().optional(),
   tags: z.array(z.string()).optional(),
   goalId: z.string().nullable().optional(),
+  recurrence: z.string().max(500).nullable().optional(),
 });
 export type UpdateTaskInput = z.infer<typeof UpdateTaskInput>;
 
@@ -32,6 +36,8 @@ export const TaskDTO = z.object({
   completedAt: z.string().nullable(),
   tags: z.array(z.string()),
   goalId: z.string().nullable(),
+  recurrence: z.string().nullable(),
+  recurrenceParentId: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });

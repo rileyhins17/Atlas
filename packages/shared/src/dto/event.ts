@@ -8,6 +8,7 @@ export const CreateEventInput = z
     startAt: z.coerce.date(),
     endAt: z.coerce.date(),
     allDay: z.boolean().default(false),
+    recurrence: z.string().max(500).optional(),
   })
   .refine((v) => v.endAt >= v.startAt, { message: 'endAt must be after startAt', path: ['endAt'] });
 export type CreateEventInput = z.infer<typeof CreateEventInput>;
@@ -19,6 +20,7 @@ export const UpdateEventInput = z.object({
   startAt: z.coerce.date().optional(),
   endAt: z.coerce.date().optional(),
   allDay: z.boolean().optional(),
+  recurrence: z.string().max(500).nullable().optional(),
 });
 export type UpdateEventInput = z.infer<typeof UpdateEventInput>;
 
@@ -48,6 +50,10 @@ export const EventDTO = z.object({
   endAt: z.string(),
   allDay: z.boolean(),
   source: z.string(),
+  recurrence: z.string().nullable(),
+  // True when this row was expanded from a rule rather than stored as itself.
+  // Such rows carry a synthetic id and must not be PATCHed directly.
+  isOccurrence: z.boolean().optional(),
   createdAt: z.string(),
 });
 export type EventDTO = z.infer<typeof EventDTO>;

@@ -5,7 +5,15 @@ import type { TaskDTO } from '@atlas/shared';
 import { ChevronDown, ChevronRight, ListTodo, Plus, Search, X } from 'lucide-react';
 import { errorMessage } from '@/lib/api';
 import { useCreateTask, useTasks } from '@/lib/hooks/tasks';
-import { Button, Card, EmptyState, ErrorState, Input, ListSkeleton } from '@/components/ui';
+import {
+  Button,
+  Card,
+  EmptyState,
+  ErrorState,
+  Input,
+  ListSkeleton,
+  RecurrencePicker,
+} from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
 import { TaskRow } from '@/components/TaskRow';
 import { dayDiff } from '@/lib/dates';
@@ -69,6 +77,7 @@ function QuickAdd({ groupKey, groupLabel }: { groupKey: string; groupLabel: stri
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [priority, setPriority] = useState<TaskDTO['priority']>('MEDIUM');
+  const [repeat, setRepeat] = useState<string | null>(null);
   const create = useCreateTask();
 
   function submit(e: React.FormEvent) {
@@ -77,10 +86,17 @@ function QuickAdd({ groupKey, groupLabel }: { groupKey: string; groupLabel: stri
     if (!text || create.isPending) return;
     // dueAt is a Date in the shared DTO (zod coerces at the boundary); JSON
     // serialises it to ISO on the way out.
-    const due = quickAddDueDate(groupKey, new Date());
+    // A repeating task needs an anchor date to step from, so a rule with no
+    // horizon (the "No date" group) starts today rather than never advancing.
+    const due = quickAddDueDate(groupKey, new Date()) ?? (repeat ? new Date() : null);
     create.mutate(
-      { title: text, priority, ...(due ? { dueAt: due } : {}) },
-      { onSuccess: () => setTitle('') },
+      { title: text, priority, ...(due ? { dueAt: due } : {}), ...(repeat ? { recurrence: repeat } : {}) },
+      {
+        onSuccess: () => {
+          setTitle('');
+          setRepeat(null);
+        },
+      },
     );
   }
 
@@ -125,6 +141,7 @@ function QuickAdd({ groupKey, groupLabel }: { groupKey: string; groupLabel: stri
           <X size={14} aria-hidden />
         </Button>
       </div>
+      <RecurrencePicker value={repeat} onChange={setRepeat} />
     </form>
   );
 }

@@ -90,11 +90,23 @@ export class StatsService {
   async summarizeForAi(userId: string): Promise<string> {
     const stats = await this.rollup(userId, 30);
     const { current, previous } = stats.totals;
+
+    // Tell the model how thin the data actually is. Without this it sees only
+    // totals and will happily narrate a "trend" from two data points.
+    const activeDays = stats.days.filter((d) => d.events > 0).length;
+    if (activeDays < 5) {
+      return [
+        `Stats: only ${activeDays} of the last 30 days have any recorded activity.`,
+        'This is far too little to support any trend, pattern or correlation.',
+        'Say plainly that it is early and what you would need to see, rather than',
+        'drawing conclusions from these numbers.',
+      ].join('\n');
+    }
     const pct = (cur: number, prev: number) =>
       prev === 0 ? (cur > 0 ? '+new' : '±0%') : `${cur >= prev ? '+' : ''}${Math.round(((cur - prev) / prev) * 100)}%`;
     const mood = (v: number | null) => (v === null ? 'n/a' : v.toFixed(1));
     return [
-      'Last 30 days vs the 30 before (for spotting cross-domain patterns):',
+      `Last 30 days vs the 30 before (${activeDays} of 30 days had activity):`,
       `- Tasks completed: ${current.tasksCompleted} (${pct(current.tasksCompleted, previous.tasksCompleted)})`,
       `- Habit check-ins: ${current.habitChecks} (${pct(current.habitChecks, previous.habitChecks)})`,
       `- Avg mood: ${mood(current.moodAvg)} (before: ${mood(previous.moodAvg)})`,

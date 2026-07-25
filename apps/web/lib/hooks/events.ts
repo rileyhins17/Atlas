@@ -4,10 +4,24 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { EventsApi } from '@/lib/api';
 import { qk } from './keys';
 
+/** How far ahead the agenda looks. Under the API's 62-day window cap. */
+const AGENDA_DAYS = 60;
+
 export function useEvents() {
   // Wrapped: EventsApi.list takes an options object now, and TanStack would
   // otherwise pass its QueryFunctionContext into it.
-  return useQuery({ queryKey: qk.events, queryFn: () => EventsApi.list() });
+  //
+  // The window is not optional: the server can only expand a recurring series
+  // inside a bounded range (an open-ended list has no point to stop generating
+  // at), so an unwindowed agenda would show a weekly event exactly once.
+  return useQuery({
+    queryKey: qk.events,
+    queryFn: () => {
+      const from = new Date(Date.now() - 86_400_000);
+      const to = new Date(from.getTime() + AGENDA_DAYS * 86_400_000);
+      return EventsApi.list({ from: from.toISOString(), to: to.toISOString(), limit: 100 });
+    },
+  });
 }
 
 /** Events for one local day (Day Canvas) — [dayStart, dayStart+24h). */

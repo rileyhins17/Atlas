@@ -47,6 +47,8 @@ const task = (over: Partial<TaskDTO>): TaskDTO =>
     completedAt: null,
     tags: [],
     goalId: null,
+    recurrence: null,
+    recurrenceParentId: null,
     createdAt: NOW.toISOString(),
     updatedAt: NOW.toISOString(),
     ...over,

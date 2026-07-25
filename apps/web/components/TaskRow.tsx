@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { TaskDTO } from '@atlas/shared';
-import { Check, Flag, X } from 'lucide-react';
+import { describeRrule, type TaskDTO } from '@atlas/shared';
+import { Check, Flag, Repeat, X } from 'lucide-react';
 import { useCompleteTask, useDeleteTask, useUpdateTask } from '@/lib/hooks/tasks';
 import { IconButton, Badge } from '@/components/ui';
 import { formatDue } from '@/lib/dates';
@@ -22,6 +22,7 @@ export function TaskRow({ task, compact = false }: { task: TaskDTO; compact?: bo
   const inputRef = useRef<HTMLInputElement>(null);
 
   const done = task.status === 'DONE';
+  const repeat = describeRrule(task.recurrence);
   const due = task.dueAt ? new Date(task.dueAt) : null;
   const overdue = !done && due !== null && due.getTime() < Date.now();
 
@@ -100,6 +101,13 @@ export function TaskRow({ task, compact = false }: { task: TaskDTO; compact?: bo
             {tag}
           </Badge>
         ))}
+
+      {repeat && !done && (
+        <span className="repeat-chip-label" title={`Repeats: ${repeat}`}>
+          <Repeat size={11} aria-hidden />
+          {repeat}
+        </span>
+      )}
 
       {due && !done && (
         <span className={`due-chip ${overdue ? 'overdue' : ''}`}>{formatDue(due)}</span>

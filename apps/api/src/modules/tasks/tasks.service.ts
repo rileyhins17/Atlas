@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { CreateTaskInput, TaskDTO, UpdateTaskInput } from '@atlas/shared';
+import { nextOccurrence, type CreateTaskInput, type TaskDTO, type UpdateTaskInput } from '@atlas/shared';
 import type { Task } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
@@ -15,6 +15,8 @@ function toDto(t: Task): TaskDTO {
     completedAt: t.completedAt?.toISOString() ?? null,
     tags: t.tags,
     goalId: t.goalId,
+    recurrence: t.recurrence,
+    recurrenceParentId: t.recurrenceParentId,
     createdAt: t.createdAt.toISOString(),
     updatedAt: t.updatedAt.toISOString(),
   };
@@ -43,6 +45,7 @@ export class TasksService {
         dueAt: input.dueAt,
         tags: input.tags,
         goalId: input.goalId,
+        recurrence: input.recurrence,
       },
     });
     await this.timeline.write({
@@ -79,6 +82,7 @@ export class TasksService {
         dueAt: input.dueAt,
         tags: input.tags,
         goalId: input.goalId,
+        recurrence: input.recurrence,
         completedAt: input.status === 'DONE' ? new Date() : input.status ? null : undefined,
       },
     });
@@ -90,6 +94,9 @@ export class TasksService {
       refType: 'task',
       refId: task.id,
     });
+    // Completing via PATCH must advance a series exactly like POST /complete
+    // does — the web checkbox uses one, the AI tool uses the other.
+    if (input.status === 'DONE') await this.spawnNextInstance(userId, task);
     return toDto(task);
   }
 
@@ -107,7 +114,70 @@ export class TasksService {
       refType: 'task',
       refId: task.id,
     });
+    await this.spawnNextInstance(userId, task);
     return toDto(task);
+  }
+
+  /**
+   * Recurring tasks are materialised LAZILY: a series keeps exactly one open
+   * instance, and finishing it creates the next. No cron, nothing accumulates,
+   * and a series you stop completing simply stops.
+   *
+   * The next date is always computed from the SERIES ROOT, never from the row
+   * just completed — anchoring on the instance would let "monthly on the 31st"
+   * drift to the 28th forever once February clamped it once, and would make
+   * COUNT/UNTIL uncountable.
+   */
+  private async spawnNextInstance(userId: string, done: Task): Promise<void> {
+    if (!done.recurrence) return;
+
+    const seriesId = done.recurrenceParentId ?? done.id;
+    const root =
+      seriesId === done.id
+        ? done
+        : await this.prisma.client.task.findFirst({ where: { id: seriesId, userId } });
+    if (!root) return; // series root deleted — the chain ends here, quietly
+
+    // A series without a due date has nothing to step from; fall back to when
+    // the root was created so a dateless recurring task still advances.
+    const anchor = root.dueAt ?? root.createdAt;
+    const after = done.dueAt ?? new Date();
+    const next = nextOccurrence(done.recurrence, anchor, after);
+    if (!next) return; // COUNT/UNTIL exhausted, or a rule we don't expand
+
+    // Guard against a double-complete racing two instances into existence.
+    const existing = await this.prisma.client.task.findFirst({
+      where: {
+        userId,
+        recurrenceParentId: seriesId,
+        status: { in: ['TODO', 'IN_PROGRESS'] },
+      },
+      select: { id: true },
+    });
+    if (existing) return;
+
+    const spawned = await this.prisma.client.task.create({
+      data: {
+        userId,
+        title: done.title,
+        notes: done.notes,
+        priority: done.priority,
+        dueAt: next,
+        tags: done.tags,
+        goalId: done.goalId,
+        recurrence: done.recurrence,
+        recurrenceParentId: seriesId,
+      },
+    });
+    await this.timeline.write({
+      userId,
+      type: 'task.created',
+      source: 'tasks',
+      title: `Next up: ${spawned.title}`,
+      refType: 'task',
+      refId: spawned.id,
+      payload: { recurring: true, dueAt: spawned.dueAt?.toISOString() ?? null },
+    });
   }
 
   async remove(userId: string, id: string): Promise<{ ok: true }> {

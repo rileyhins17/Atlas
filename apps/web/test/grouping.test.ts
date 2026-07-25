@@ -18,6 +18,8 @@ function task(partial: Partial<TaskDTO>): TaskDTO {
     completedAt: null,
     tags: [],
     goalId: null,
+    recurrence: null,
+    recurrenceParentId: null,
     createdAt: NOW.toISOString(),
     updatedAt: NOW.toISOString(),
     ...partial,
@@ -73,6 +75,7 @@ describe('groupEventsByDay', () => {
       endAt: new Date().toISOString(),
       allDay: false,
       source: 'atlas',
+      recurrence: null,
       createdAt: new Date().toISOString(),
       ...partial,
     };
