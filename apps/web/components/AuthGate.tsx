@@ -3,16 +3,19 @@
 import { useState } from 'react';
 import { LoginInput, RegisterInput } from '@atlas/shared';
 import { errorMessage } from '@/lib/api';
-import { useLogin, useRegister } from '@/lib/hooks/auth';
+import { useAuthConfig, useLogin, useRegister } from '@/lib/hooks/auth';
 import { Button, Input } from '@/components/ui';
 
 export function AuthGate() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [clientError, setClientError] = useState<string | null>(null);
   const login = useLogin();
   const register = useRegister();
+  const authConfig = useAuthConfig();
+  const inviteRequired = authConfig.data?.inviteRequired ?? false;
 
   const active = mode === 'login' ? login : register;
   const busy = active.isPending;
@@ -29,8 +32,16 @@ export function AuthGate() {
       setClientError(parsed.error.issues[0]?.message ?? 'Check your email and password');
       return;
     }
+    if (mode === 'register' && inviteRequired && inviteCode.trim() === '') {
+      setClientError('An invite code is required to create an account.');
+      return;
+    }
     setClientError(null);
-    active.mutate({ email, password });
+    if (mode === 'register') {
+      register.mutate({ email, password, ...(inviteCode.trim() ? { inviteCode: inviteCode.trim() } : {}) });
+    } else {
+      login.mutate({ email, password });
+    }
   }
 
   return (
@@ -58,6 +69,16 @@ export function AuthGate() {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
+        {mode === 'register' && inviteRequired && (
+          <Input
+            placeholder="Invite code"
+            aria-label="Invite code"
+            autoComplete="off"
+            value={inviteCode}
+            onChange={(e) => setInviteCode(e.target.value)}
+            required
+          />
+        )}
         <Button type="submit" disabled={busy}>
           {busy ? '…' : mode === 'login' ? 'Sign in' : 'Create account'}
         </Button>

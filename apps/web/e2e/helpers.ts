@@ -20,6 +20,12 @@ export async function register(page: Page, email = uniqueEmail()): Promise<strin
   await page.getByRole('button', { name: /Need an account/ }).click();
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(TEST_PASSWORD);
+  // A deployment with INVITE_CODE set closes sign-up, and the field only
+  // renders in that case — so fill it when it is there and stay silent when it
+  // is not. This keeps one helper working against both an open local API and a
+  // gated one, without the suite needing to know which it got.
+  const invite = page.getByLabel('Invite code');
+  if (await invite.count()) await invite.fill(process.env.INVITE_CODE ?? '');
   await page.getByRole('button', { name: 'Create account' }).click();
 
   const signedIn = page.locator('.sidebar-user-name');

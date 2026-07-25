@@ -1,7 +1,16 @@
-import { Body, Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
-import { LoginInput, RegisterInput, type UserDTO } from '@atlas/shared';
+import { LoginInput, RegisterInput, type AuthConfigDTO, type UserDTO } from '@atlas/shared';
 import { ZodValidationPipe } from '../common/zod.pipe.js';
 import { AuthService } from './auth.service.js';
 import { CurrentUser } from './current-user.decorator.js';
@@ -26,6 +35,15 @@ function setSessionCookie(res: Response, token: string): void {
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
+  /**
+   * Public: tells the sign-up form whether to ask for an invite code. Exposes
+   * only the boolean, never the code itself.
+   */
+  @Get('config')
+  config(): AuthConfigDTO {
+    return { inviteRequired: Boolean(loadEnv().INVITE_CODE) };
+  }
+
   // Account creation is expensive and abusable: 5 per minute per IP.
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('register')
@@ -34,6 +52,13 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<UserDTO> {
+    // Closed sign-up when the deployment configures a code. Checked here rather
+    // than in the DTO so the requirement is a property of the environment, not
+    // of the request shape — local dev and the e2e suite stay open by default.
+    const required = loadEnv().INVITE_CODE;
+    if (required && body.inviteCode !== required) {
+      throw new ForbiddenException('That invite code is not valid.');
+    }
     await this.auth.register(body);
     // Auto-login after registration.
     const { token, user } = await this.auth.login(

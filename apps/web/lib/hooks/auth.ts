@@ -40,6 +40,19 @@ export function useLogin() {
   });
 }
 
+/**
+ * Whether sign-up needs an invite code. Public and cacheable — it is a property
+ * of the deployment, not of the visitor.
+ */
+export function useAuthConfig() {
+  return useQuery({
+    queryKey: ['auth', 'config'],
+    queryFn: AuthApi.config,
+    staleTime: Infinity,
+    retry: false,
+  });
+}
+
 export function useRegister() {
   const qc = useQueryClient();
   return useMutation({

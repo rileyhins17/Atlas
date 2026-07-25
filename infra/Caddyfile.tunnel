@@ -1,0 +1,19 @@
+# Caddy for the Cloudflare Tunnel setup: Atlas served from the local machine,
+# with Cloudflare terminating TLS in front of it.
+#
+# Plain HTTP on :80 deliberately — the tunnel connects to this over loopback and
+# Cloudflare provides the certificate the public sees. Caddy must NOT try to get
+# its own cert here: there is no public port 80 for an ACME challenge to reach.
+#
+#   caddy run --config infra/Caddyfile.tunnel
+:80 {
+	# handle_path STRIPS the /api prefix, so /api/health reaches the API as
+	# /health. A plain reverse_proxy would forward /api/health and 404.
+	handle_path /api/* {
+		reverse_proxy 127.0.0.1:4000
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:3000
+	}
+}

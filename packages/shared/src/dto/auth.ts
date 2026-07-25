@@ -5,8 +5,16 @@ export const RegisterInput = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
   displayName: z.string().min(1).max(80).optional(),
   timezone: z.string().default('UTC'),
+  /** Required only when the deployment sets INVITE_CODE. */
+  inviteCode: z.string().max(200).optional(),
 });
 export type RegisterInput = z.infer<typeof RegisterInput>;
+
+/** Public, unauthenticated: lets the sign-up form know whether to ask for a code. */
+export const AuthConfigDTO = z.object({
+  inviteRequired: z.boolean(),
+});
+export type AuthConfigDTO = z.infer<typeof AuthConfigDTO>;
 
 export const LoginInput = z.object({
   email: z.string().email(),

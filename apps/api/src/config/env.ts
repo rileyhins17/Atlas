@@ -14,6 +14,14 @@ const EnvSchema = z.object({
     .string()
     .regex(/^[0-9a-fA-F]{64}$/, 'APP_ENCRYPTION_KEY must be 64 hex chars (32 bytes)'),
   WEB_ORIGIN: z.string().default('http://localhost:3000'),
+  // Closed sign-up. When set, POST /auth/register demands a matching code.
+  // Unset (the default) leaves registration open, which is right for local dev
+  // and for the e2e suite, but NOT for a deployment reachable from the internet
+  // — an open sign-up there lets strangers create accounts and spend your AI
+  // budget. Deliberately a plain shared secret: a full invite-token table is
+  // real product work, and this is the control that actually needs to exist the
+  // moment the app has a public hostname.
+  INVITE_CODE: z.string().min(6).optional(),
   // Direct DeepSeek API model id (api.deepseek.com). Use a concrete id, not the
   // "deepseek-chat" alias — the alias resolves server-side (currently to
   // deepseek-v4-flash) and the resolved name is what lands in the ai_usage

@@ -1,6 +1,7 @@
 import type {
   AccountDTO,
   AiQuestionDTO,
+  AuthConfigDTO,
   HabitHistoryDTO,
   TimelinePageDTO,
   ChatMessageDTO,
@@ -119,7 +120,9 @@ export function browserTimezone(): string {
 
 export const AuthApi = {
   me: () => request<UserDTO>('/auth/me'),
-  register: (input: { email: string; password: string }) =>
+  /** Public: whether this deployment has closed sign-up behind an invite code. */
+  config: () => request<AuthConfigDTO>('/auth/config'),
+  register: (input: { email: string; password: string; inviteCode?: string }) =>
     request<UserDTO>('/auth/register', {
       method: 'POST',
       // Send the device's zone at signup. `User.timezone` is the ONE clock both
