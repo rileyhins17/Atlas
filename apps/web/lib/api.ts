@@ -33,7 +33,29 @@ import type {
   UserDTO,
 } from '@atlas/shared';
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+/**
+ * Where the browser reaches the API.
+ *
+ * An explicit NEXT_PUBLIC_API_URL always wins. Otherwise this is decided at
+ * RUNTIME from the hostname, which matters because the value is otherwise baked
+ * in at build time: a production build made without the variable set silently
+ * shipped a bundle pointing at http://localhost:4000, so every phone tried to
+ * call its OWN localhost and failed CORS with no server-side error to notice.
+ *
+ * Served from a real hostname, the API is same-origin behind the reverse proxy
+ * at /api. On localhost it is the dev API on :4000. Deriving it removes the
+ * chance of shipping a bundle that cannot talk to its own backend.
+ */
+function resolveBase(): string {
+  const explicit = process.env.NEXT_PUBLIC_API_URL;
+  if (explicit) return explicit;
+  if (typeof window === 'undefined') return 'http://localhost:4000';
+  const { hostname } = window.location;
+  const local = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+  return local ? 'http://localhost:4000' : '/api';
+}
+
+const BASE = resolveBase();
 
 export class ApiError extends Error {
   constructor(
