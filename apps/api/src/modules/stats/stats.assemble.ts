@@ -7,7 +7,15 @@ import type { PeriodTotalsDTO, StatsDayDTO, StatsDTO } from '@atlas/shared';
  * the boundary.
  */
 
-export type StatsMetric = 'tasks' | 'habits' | 'mood' | 'spent' | 'earned' | 'events';
+export type StatsMetric =
+  | 'tasks'
+  | 'habits'
+  | 'mood'
+  | 'spent'
+  | 'earned'
+  | 'workouts'
+  | 'volume'
+  | 'events';
 
 export interface MetricRow {
   metric: StatsMetric;
@@ -17,11 +25,30 @@ export interface MetricRow {
 }
 
 function emptyDay(day: string): StatsDayDTO {
-  return { day, tasksCompleted: 0, habitChecks: 0, moodAvg: null, spentMinor: 0, earnedMinor: 0, events: 0 };
+  return {
+    day,
+    tasksCompleted: 0,
+    habitChecks: 0,
+    moodAvg: null,
+    spentMinor: 0,
+    earnedMinor: 0,
+    workouts: 0,
+    volumeGrams: 0,
+    events: 0,
+  };
 }
 
 function emptyTotals(): PeriodTotalsDTO {
-  return { tasksCompleted: 0, habitChecks: 0, moodAvg: null, spentMinor: 0, earnedMinor: 0, events: 0 };
+  return {
+    tasksCompleted: 0,
+    habitChecks: 0,
+    moodAvg: null,
+    spentMinor: 0,
+    earnedMinor: 0,
+    workouts: 0,
+    volumeGrams: 0,
+    events: 0,
+  };
 }
 
 /** ISO day-key sequence [from, from+days) — plain date math on Y-M-D parts. */
@@ -49,6 +76,12 @@ function apply(target: StatsDayDTO | PeriodTotalsDTO, metric: StatsMetric, value
       break;
     case 'earned':
       target.earnedMinor += value;
+      break;
+    case 'workouts':
+      target.workouts += value;
+      break;
+    case 'volume':
+      target.volumeGrams += value;
       break;
     case 'events':
       target.events += value;

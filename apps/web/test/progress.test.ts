@@ -17,6 +17,8 @@ const day = (over: Partial<StatsDayDTO>): StatsDayDTO => ({
   moodAvg: null,
   spentMinor: 0,
   earnedMinor: 0,
+  workouts: 0,
+  volumeGrams: 0,
   events: 0,
   ...over,
 });

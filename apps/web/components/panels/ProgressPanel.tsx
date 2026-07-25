@@ -179,12 +179,14 @@ export function ProgressPanel() {
     return {
       counts: new Map<string, number>(data.days.map((d: StatsDayDTO) => [d.day, d.events])),
       tasksWeekly: weeklyBuckets(data.days, (d) => d.tasksCompleted),
+      volumeWeekly: weeklyBuckets(data.days, (d) => Math.round(d.volumeGrams / 1000)),
       habitsWeekly: weeklyBuckets(data.days, (d) => d.habitChecks),
       netWeekly: weeklyBuckets(data.days, (d) => d.earnedMinor - d.spentMinor),
       mood: moodSeries(data.days),
       best: bestDay(data.days),
       consistency: habitConsistency(data.days),
       hasMoney: data.days.some((d) => d.spentMinor > 0 || d.earnedMinor > 0),
+      hasTraining: data.totals.current.workouts > 0 || data.totals.previous.workouts > 0,
       anyActivity: data.days.some((d) => d.events > 0),
     };
   }, [data]);
@@ -229,6 +231,12 @@ export function ProgressPanel() {
               <span className="prog-hero-value">{derived.consistency}%</span>
               <span className="prog-hero-label">of days with a habit</span>
             </div>
+            {derived.hasTraining && (
+              <div className="prog-hero-stat">
+                <span className="prog-hero-value">{data.totals.current.workouts}</span>
+                <span className="prog-hero-label">workouts</span>
+              </div>
+            )}
             {derived.best && (
               <div className="prog-hero-stat">
                 <span className="prog-hero-value">
@@ -320,6 +328,24 @@ export function ProgressPanel() {
                 <p className="prog-muted">Journal a couple of times to see your mood trend.</p>
               )}
             </Card>
+
+            {/* Training, like money, only earns a card once it has real data. */}
+            {derived.hasTraining && (
+              <Card title="Training volume" hint="kg per week">
+                <Sparkline
+                  points={derived.volumeWeekly}
+                  label="Training volume per week, in kilograms"
+                  width={320}
+                  height={64}
+                  fill
+                />
+                <p className="prog-muted">
+                  {data.totals.current.workouts} session
+                  {data.totals.current.workouts === 1 ? '' : 's'} ·{' '}
+                  {Math.round(data.totals.current.volumeGrams / 1000).toLocaleString()} kg lifted
+                </p>
+              </Card>
+            )}
 
             {/* Money only earns a card once there IS money data — no zero-filled noise. */}
             {derived.hasMoney && (

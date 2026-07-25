@@ -60,6 +60,8 @@ export const CANVAS_NOISE_TYPES = new Set([
   'task.deleted',
   'connector.connected',
   'finance.synced',
+  // The completed row carries the whole session summary; the start is noise.
+  'workout.started',
 ]);
 
 /** Ignore sub-5-minute slivers between routine blocks — not a plannable gap. */

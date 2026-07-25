@@ -36,7 +36,7 @@ export class StatsService {
     // tz is a BOUND parameter (never string-interpolated).
     const q = <T>(sql: Prisma.Sql) => this.prisma.client.$queryRaw<T[]>(sql);
 
-    const [tasks, habits, mood, money, events] = await Promise.all([
+    const [tasks, habits, mood, money, events, workouts, volume] = await Promise.all([
       q<{ day: string; value: number }>(Prisma.sql`
         SELECT ((("completedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${tz})::date)::text AS day,
                COUNT(*)::int AS value
@@ -70,6 +70,26 @@ export class StatsService {
         FROM timeline_events
         WHERE "userId" = ${userId} AND "occurredAt" >= ${prevFrom}
         GROUP BY 1`),
+      // Finished sessions only — an open workout isn't a training day yet.
+      q<{ day: string; value: number }>(Prisma.sql`
+        SELECT ((("endedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${tz})::date)::text AS day,
+               COUNT(*)::int AS value
+        FROM workouts
+        WHERE "userId" = ${userId} AND "endedAt" IS NOT NULL AND "endedAt" >= ${prevFrom}
+        GROUP BY 1`),
+      // Volume bucketed by the SESSION's end day, not the set's own timestamp,
+      // so a workout spanning local midnight stays one training day. Warm-ups
+      // are excluded here exactly as they are in FitnessService.
+      q<{ day: string; value: bigint }>(Prisma.sql`
+        SELECT ((("endedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${tz})::date)::text AS day,
+               COALESCE(SUM(s."weightGrams"::bigint * s.reps), 0) AS value
+        FROM workout_sets s
+        JOIN workouts w ON w.id = s."workoutId"
+        WHERE s."userId" = ${userId}
+          AND w."endedAt" IS NOT NULL AND w."endedAt" >= ${prevFrom}
+          AND s.warmup = false
+          AND s."weightGrams" IS NOT NULL AND s.reps IS NOT NULL
+        GROUP BY 1`),
     ]);
 
     const rows: MetricRow[] = [
@@ -81,6 +101,10 @@ export class StatsService {
         { metric: 'earned' as StatsMetric, day: m.day, value: Number(m.earned) },
       ]),
       ...tag('events', events),
+      ...tag('workouts', workouts),
+      // Volume arrives as a bigint sum; Number() is safe here because a
+      // lifetime of training is nowhere near 2^53 grams.
+      ...volume.map((v) => ({ metric: 'volume' as StatsMetric, day: v.day, value: Number(v.value) })),
     ];
 
     return assembleStats(rows, currentFromDay, days);
@@ -111,6 +135,14 @@ export class StatsService {
       `- Habit check-ins: ${current.habitChecks} (${pct(current.habitChecks, previous.habitChecks)})`,
       `- Avg mood: ${mood(current.moodAvg)} (before: ${mood(previous.moodAvg)})`,
       `- Spent: ${(current.spentMinor / 100).toFixed(2)} (${pct(current.spentMinor, previous.spentMinor)}), earned: ${(current.earnedMinor / 100).toFixed(2)}`,
+      // Training only earns a line once there IS training — a zero here would
+      // invite the model to comment on a domain the user doesn't use.
+      ...(current.workouts > 0 || previous.workouts > 0
+        ? [
+            `- Workouts: ${current.workouts} (${pct(current.workouts, previous.workouts)}), ` +
+              `${Math.round(current.volumeGrams / 1000)} kg total volume`,
+          ]
+        : []),
     ].join('\n');
   }
 

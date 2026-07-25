@@ -16,6 +16,9 @@ export const StatsDayDTO = z.object({
   /** Money out (positive number of minor units) and money in. */
   spentMinor: z.number().int(),
   earnedMinor: z.number().int(),
+  /** Finished training sessions, and their working-set volume in grams. */
+  workouts: z.number().int(),
+  volumeGrams: z.number().int(),
   /** Timeline events — overall activity. */
   events: z.number().int(),
 });
@@ -27,6 +30,8 @@ export const PeriodTotalsDTO = z.object({
   moodAvg: z.number().nullable(),
   spentMinor: z.number().int(),
   earnedMinor: z.number().int(),
+  workouts: z.number().int(),
+  volumeGrams: z.number().int(),
   events: z.number().int(),
 });
 export type PeriodTotalsDTO = z.infer<typeof PeriodTotalsDTO>;

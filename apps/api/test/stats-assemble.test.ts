@@ -53,4 +53,30 @@ describe('assembleStats', () => {
     expect(stats.totals.current.moodAvg).toBeNull();
     expect(stats.totals.previous.moodAvg).toBeNull();
   });
+
+  it('rolls up training sessions and volume per day and per window', () => {
+    const stats = assembleStats(
+      [
+        row('workouts', '2026-06-29', 1),
+        row('volume', '2026-06-29', 500_000),
+        row('workouts', '2026-07-01', 1),
+        row('volume', '2026-07-01', 830_000),
+        row('workouts', '2026-07-02', 1),
+        row('volume', '2026-07-02', 120_000),
+      ],
+      '2026-07-01',
+      3,
+    );
+    expect(stats.days[0]).toMatchObject({ workouts: 1, volumeGrams: 830_000 });
+    expect(stats.days[2]).toMatchObject({ workouts: 0, volumeGrams: 0 });
+    expect(stats.totals.current).toMatchObject({ workouts: 2, volumeGrams: 950_000 });
+    // The pre-window session must land in `previous`, never leak into current.
+    expect(stats.totals.previous).toMatchObject({ workouts: 1, volumeGrams: 500_000 });
+  });
+
+  it('zero-fills training on days with no session', () => {
+    const stats = assembleStats([], '2026-07-01', 2);
+    expect(stats.days.every((d) => d.workouts === 0 && d.volumeGrams === 0)).toBe(true);
+    expect(stats.totals.current.volumeGrams).toBe(0);
+  });
 });
