@@ -1,0 +1,23 @@
+{
+  "name": "Atlas — your life OS",
+  "short_name": "Atlas",
+  "description": "One place for your day, your tasks, your habits and your money — with an AI that actually knows your life.",
+  "start_url": "/today",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0e1116",
+  "theme_color": "#0e1116",
+  "orientation": "portrait-primary",
+  "categories": ["productivity", "lifestyle"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "Today", "url": "/today" },
+    { "name": "Tasks", "url": "/tasks" },
+    { "name": "Training", "url": "/fitness" }
+  ]
+}

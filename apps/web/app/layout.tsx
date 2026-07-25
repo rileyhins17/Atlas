@@ -16,7 +16,24 @@ export const metadata: Metadata = {
   title: 'Atlas',
   description: 'Your personal life OS.',
   manifest: '/manifest.webmanifest',
+  // iOS ignores the manifest almost entirely — the home-screen install is driven
+  // by these tags plus a PNG apple-touch-icon (it will NOT render an SVG one,
+  // which is why the icon files are rasterised).
   appleWebApp: { capable: true, title: 'Atlas', statusBarStyle: 'black-translucent' },
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
+  // Safari surfaces this when the page is shared or added to the home screen.
+  openGraph: {
+    title: 'Atlas — your life OS',
+    description: 'One place for your day, your tasks, your habits and your money.',
+    type: 'website',
+  },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
