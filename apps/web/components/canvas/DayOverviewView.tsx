@@ -8,7 +8,11 @@ import { useDayEvents } from '@/lib/hooks/events';
 import { useDayActuals } from '@/lib/hooks/timeline';
 import { buildDayCanvas, buildDayOverview, type CanvasSection } from '@/lib/canvas';
 import { ListSkeleton } from '@/components/ui';
+import { usePlanDay, useAcceptProposal } from '@/lib/hooks/plan';
+import type { PlanProposalDTO } from '@atlas/shared';
+import { formatClock } from '@/lib/dates';
 import { NowNext } from './NowNext';
+import { FreeTime } from './FreeTime';
 import { TodayChecklist } from './TodayChecklist';
 import { CanvasCard } from './CanvasCard';
 import { TimeSection } from './TimeSection';
@@ -38,6 +42,10 @@ export function DayOverviewView({
   const [now, setNow] = useState(() => new Date());
   const [showEarlier, setShowEarlier] = useState(false);
   const [showFullDay, setShowFullDay] = useState(false);
+  const [proposals, setProposals] = useState<PlanProposalDTO[] | null>(null);
+  const [planNote, setPlanNote] = useState<string | null>(null);
+  const plan = usePlanDay();
+  const accept = useAcceptProposal();
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
@@ -77,6 +85,76 @@ export function DayOverviewView({
       )}
 
       {isToday && <NowNext overview={overview} now={now} />}
+
+      {isToday && (
+        <FreeTime
+          overview={overview}
+          planning={plan.isPending}
+          onPlan={(gap) =>
+            onPlanGap?.({
+              kind: 'open',
+              label: 'Open',
+              start: gap.start,
+              end: gap.end,
+              items: [],
+              isNow: false,
+            })
+          }
+          onPlanDay={() => {
+            setProposals(null);
+            setPlanNote(null);
+            plan.mutate(
+              overview.gaps.map((g) => ({
+                startAt: g.start.toISOString(),
+                endAt: g.end.toISOString(),
+              })),
+              {
+                onSuccess: (res) => {
+                  setProposals(res.proposals);
+                  setPlanNote(res.note);
+                },
+              },
+            );
+          }}
+        />
+      )}
+
+      {planNote && proposals?.length === 0 && <p className="plan-note">{planNote}</p>}
+
+      {proposals && proposals.length > 0 && (
+        <section className="ov-block plan-proposals" aria-label="Proposed plan">
+          <h2 className="ov-title">Atlas suggests</h2>
+          {/* Proposals are inert until accepted — nothing here has touched your
+              calendar yet, which is what makes a wrong suggestion cheap. */}
+          {proposals.map((p) => (
+            <div key={p.taskId} className="plan-row">
+              <div className="plan-row-main">
+                <span className="plan-row-title">{p.title}</span>
+                <span className="plan-row-why">{p.why}</span>
+              </div>
+              <span className="plan-row-when">
+                {formatClock(new Date(p.startAt))}–{formatClock(new Date(p.endAt))}
+              </span>
+              <button
+                type="button"
+                className="plan-accept"
+                disabled={accept.isPending}
+                onClick={() =>
+                  accept.mutate(
+                    { title: p.title, startAt: p.startAt, endAt: p.endAt },
+                    {
+                      onSuccess: () =>
+                        setProposals((cur) => (cur ?? []).filter((x) => x.taskId !== p.taskId)),
+                    },
+                  )
+                }
+              >
+                Add
+              </button>
+            </div>
+          ))}
+        </section>
+      )}
 
       {isToday && (
         <section className="ov-block" aria-label="Checklist">

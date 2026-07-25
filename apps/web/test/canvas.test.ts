@@ -19,6 +19,7 @@ const block = (over: Partial<RoutineBlockDTO>): RoutineBlockDTO => ({
   label: over.label ?? 'Block',
   kind: over.kind ?? 'custom',
   days: over.days ?? DAILY,
+  onDate: over.onDate ?? null,
   startMin: over.startMin ?? 0,
   endMin: over.endMin ?? 60,
   ...over,
@@ -199,11 +200,15 @@ describe('buildDayOverview', () => {
     ]);
   });
 
-  it('surfaces the current routine block and the next thing up', () => {
+  it('surfaces the current routine block, the live item, and the next thing up', () => {
     const o = buildDayOverview(canvasAt(at(14, 30)), at(14, 30));
     expect(o.now).toMatchObject({ label: 'Work' });
     expect(o.now!.until.getHours()).toBe(17);
-    expect(o.next && o.next.type === 'event' ? o.next.title : null).toBe('Workshop');
+    // 2:30 PM is INSIDE the Workshop, so it is what's happening, not what's
+    // next — this expectation used to read `next: 'Workshop'`, which is exactly
+    // the "it says Next for something already running" bug.
+    expect(o.current && o.current.type === 'event' ? o.current.title : null).toBe('Workshop');
+    expect(o.next && o.next.type === 'event' ? o.next.title : null).toBe('Dinner out');
   });
 
   it('reports nothing ahead once the day is done', () => {
@@ -267,5 +272,189 @@ describe('now + flavor', () => {
     });
     const evening = buildDayCanvas(at(12), ROUTINE, [], [], [], at(18)); // 18:00 → Open
     expect(supposedTo(evening)).toBeNull();
+  });
+});
+
+describe('date-specific routine blocks (shift work)', () => {
+  const DAY = '2026-07-15'; // the Wednesday these tests run on
+
+  it('a dated block REPLACES the weekly pattern for that day', () => {
+    // Usual week says 9–5. This Wednesday the shift is 7–3.
+    const canvas = buildDayCanvas(
+      at(12),
+      [
+        block({ label: 'Work', kind: 'work', days: WEEKDAYS, startMin: 540, endMin: 1020 }),
+        block({ label: 'Shift', kind: 'work', onDate: DAY, startMin: 420, endMin: 900 }),
+      ],
+      [],
+      [],
+      [],
+      at(12),
+    );
+    const work = canvas.sections.filter((s) => s.kind === 'routine');
+    expect(work).toHaveLength(1);
+    expect(work[0]!.label).toBe('Shift');
+    expect(work[0]!.start.getHours()).toBe(7);
+    expect(work[0]!.end.getHours()).toBe(15);
+  });
+
+  it('leaves other days on the weekly pattern', () => {
+    const canvas = buildDayCanvas(
+      at(12, 0, 1), // Thursday
+      [
+        block({ label: 'Work', kind: 'work', days: WEEKDAYS, startMin: 540, endMin: 1020 }),
+        block({ label: 'Shift', kind: 'work', onDate: DAY, startMin: 420, endMin: 900 }),
+      ],
+      [],
+      [],
+      [],
+      at(12, 0, 1),
+    );
+    const work = canvas.sections.filter((s) => s.kind === 'routine');
+    expect(work.map((w) => w.label)).toEqual(['Work']);
+  });
+});
+
+describe("'off' clears the routine rather than adding to it", () => {
+  const DAY = '2026-07-15';
+
+  it('a full-day off wipes the usual work block', () => {
+    const canvas = buildDayCanvas(
+      at(12),
+      [
+        block({ label: 'Work', kind: 'work', days: WEEKDAYS, startMin: 540, endMin: 1020 }),
+        block({ label: 'Day off', kind: 'off', onDate: DAY, startMin: 0, endMin: 1439 }),
+      ],
+      [],
+      [],
+      [],
+      at(12),
+    );
+    expect(canvas.sections.every((s) => s.kind === 'open')).toBe(true);
+  });
+
+  it('a partial off splits the block around it, keeping both sides', () => {
+    // Work 9–17, off 12–13 → 9–12 and 13–17 survive.
+    const canvas = buildDayCanvas(
+      at(12),
+      [
+        block({ label: 'Work', kind: 'work', days: WEEKDAYS, startMin: 540, endMin: 1020 }),
+        block({ label: 'Appointment', kind: 'off', onDate: DAY, startMin: 720, endMin: 780 }),
+      ],
+      [],
+      [],
+      [],
+      at(12),
+    );
+    const work = canvas.sections.filter((s) => s.kind === 'routine');
+    expect(work).toHaveLength(2);
+    expect([work[0]!.start.getHours(), work[0]!.end.getHours()]).toEqual([9, 12]);
+    expect([work[1]!.start.getHours(), work[1]!.end.getHours()]).toEqual([13, 17]);
+    // And the carved-out hour is offered as free time.
+    expect(canvas.sections.some((s) => s.kind === 'open' && s.start.getHours() === 12)).toBe(true);
+  });
+});
+
+describe('overview: current vs next', () => {
+  it('an event already under way is CURRENT, not next', () => {
+    // The reported bug: sleep booked 4:11 → 11:00, read at 4:13 as "Next 4:11".
+    const canvas = buildDayCanvas(
+      at(4, 13),
+      [],
+      [
+        event({
+          title: 'Sleep',
+          startAt: at(4, 11).toISOString(),
+          endAt: at(11, 0).toISOString(),
+        }),
+      ],
+      [],
+      [],
+      at(4, 13),
+    );
+    const o = buildDayOverview(canvas, at(4, 13));
+    expect(o.current && o.current.type === 'event' ? o.current.title : null).toBe('Sleep');
+    // It must NOT also be announced as the next thing.
+    expect(o.next && o.next.type === 'event' ? o.next.title : null).not.toBe('Sleep');
+  });
+
+  it('an event that has not started yet is next, and nothing is current', () => {
+    const canvas = buildDayCanvas(
+      at(9),
+      [],
+      [event({ title: 'Standup', startAt: at(10).toISOString(), endAt: at(10, 30).toISOString() })],
+      [],
+      [],
+      at(9),
+    );
+    const o = buildDayOverview(canvas, at(9));
+    expect(o.current).toBeNull();
+    expect(o.next && o.next.type === 'event' ? o.next.title : null).toBe('Standup');
+  });
+
+  it('an event that already ended is neither current nor next', () => {
+    const canvas = buildDayCanvas(
+      at(12),
+      [],
+      [event({ title: 'Standup', startAt: at(10).toISOString(), endAt: at(10, 30).toISOString() })],
+      [],
+      [],
+      at(12),
+    );
+    const o = buildDayOverview(canvas, at(12));
+    expect(o.current).toBeNull();
+    expect(o.next).toBeNull();
+    expect(o.earlier.some((i) => i.type === 'event' && i.title === 'Standup')).toBe(true);
+  });
+});
+
+describe('overview: free-time gaps', () => {
+  const workDay = [
+    block({ label: 'Sleep', kind: 'sleep', days: DAILY, startMin: 1380, endMin: 420 }),
+    block({ label: 'Work', kind: 'work', days: WEEKDAYS, startMin: 540, endMin: 1020 }),
+  ];
+
+  it('offers the window between work ending and wind-down', () => {
+    const o = buildDayOverview(
+      buildDayCanvas(at(18), workDay, [], [], [], at(18)),
+      at(18),
+    );
+    // Work ends 17:00, sleep starts 23:00 → 17:00–23:00 free, already under way.
+    expect(o.gaps).toHaveLength(1);
+    expect(o.gaps[0]!.start.getHours()).toBe(18); // clipped to now, not 17
+    expect(o.gaps[0]!.end.getHours()).toBe(23);
+  });
+
+  it('never offers work hours as free time — the whole point', () => {
+    const o = buildDayOverview(buildDayCanvas(at(10), workDay, [], [], [], at(10)), at(10));
+    const insideWork = o.gaps.some((g) => g.start.getHours() >= 9 && g.start.getHours() < 17);
+    expect(insideWork).toBe(false);
+  });
+
+  it('never offers sleep as free time', () => {
+    const o = buildDayOverview(buildDayCanvas(at(23, 30), workDay, [], [], [], at(23, 30)), at(23, 30));
+    expect(o.gaps).toHaveLength(0);
+  });
+
+  it('a window with an event in it is already claimed', () => {
+    const canvas = buildDayCanvas(
+      at(18),
+      workDay,
+      [event({ title: 'Dinner out', startAt: at(19).toISOString(), endAt: at(21).toISOString() })],
+      [],
+      [],
+      at(18),
+    );
+    expect(buildDayOverview(canvas, at(18)).gaps).toHaveLength(0);
+  });
+
+  it('ignores slivers too short to plan into', () => {
+    const packed = [
+      block({ label: 'Work', kind: 'work', days: DAILY, startMin: 540, endMin: 1020 }),
+      block({ label: 'Gym', kind: 'exercise', days: DAILY, startMin: 1030, endMin: 1140 }),
+    ];
+    // The 10-minute 17:00–17:10 gap must not be offered.
+    const o = buildDayOverview(buildDayCanvas(at(17), packed, [], [], [], at(17)), at(17));
+    expect(o.gaps.some((g) => g.minutes < 20)).toBe(false);
   });
 });

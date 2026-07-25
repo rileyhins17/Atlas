@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { ChatMessage } from '@atlas/connectors';
 import type { Insight } from '@atlas/db';
-import type { AiToolSpec, InsightDTO } from '@atlas/shared';
+import type { AiToolSpec, InsightDTO, PlanDayDTO, PlanProposalDTO } from '@atlas/shared';
 import { buildContext, CostGuard, runToolLoop, type ToolLoopResult } from '@atlas/ai';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
@@ -78,6 +78,56 @@ activity, and never claim a pattern, trend or correlation unless there are enoug
 data points to support it - two entries is not a trend, and two unrelated domains
 moving together is not a cause. When the data is thin or the user is new, say so
 plainly and say what you would need to see; a short honest answer beats a padded one.`;
+
+const PLAN_DAY_SYSTEM_PROMPT = `You are Atlas, fitting the user's OWN open tasks into
+the free windows they actually have today.
+
+You will be given a list of free windows and a list of the user's unfinished tasks.
+Reply with ONLY a JSON object, no prose and no code fences:
+{"proposals":[{"taskId":"<id from the list>","startAt":"<ISO>","endAt":"<ISO>","why":"<one short sentence>"}],"note":null}
+
+Hard rules:
+- Every taskId MUST come from the task list you were given. Never invent a task,
+  never invent an id, and never propose the same task twice.
+- Every slot MUST sit inside one of the given windows, and slots must not overlap.
+- Leave a window empty rather than stuffing it. Fewer, well-placed slots beat a
+  packed day, and a day with no realistic work to place should return an empty
+  list with a short note saying so.
+- Respect what the task looks like: something overdue or urgent goes earlier,
+  something long needs a window long enough to hold it. If nothing fits a window,
+  skip that window.
+- Default to 30-60 minutes unless the task clearly implies otherwise.
+- "why" is one plain sentence about the placement, not a pep talk.`;
+
+/**
+ * Pull the JSON object out of a model reply. Models wrap JSON in prose or code
+ * fences often enough that a bare JSON.parse fails in normal operation, so this
+ * takes the outermost braces and gives up quietly rather than throwing.
+ */
+function parsePlanReply(
+  content: string,
+): { proposals: { taskId?: string; startAt?: string; endAt?: string; why?: string }[]; note: string | null } | null {
+  const start = content.indexOf('{');
+  const end = content.lastIndexOf('}');
+  if (start === -1 || end <= start) return null;
+  try {
+    const raw = JSON.parse(content.slice(start, end + 1)) as {
+      proposals?: unknown;
+      note?: unknown;
+    };
+    const proposals = Array.isArray(raw.proposals) ? raw.proposals : [];
+    return {
+      proposals: proposals as { taskId?: string; startAt?: string; endAt?: string; why?: string }[],
+      note: typeof raw.note === 'string' ? raw.note : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Newline as a const: writing '
+' inline through tooling keeps getting mangled. */
+const NL = String.fromCharCode(10);
 
 const QUESTIONS_SYSTEM_PROMPT =
   'You are Atlas, reviewing the context below for genuine knowledge gaps about ' +
@@ -274,6 +324,89 @@ ${moduleText}`, activityText };
   }
 
   /** Parse a free-form brain dump into real records via tool calls. */
+  /**
+   * Propose where today's open tasks could go in today's free windows.
+   *
+   * Deliberately NOT a tool-calling loop: this returns proposals for the user to
+   * accept, and the model is never given the power to write them. A plan you
+   * didn't agree to is worse than no plan, and a hallucinated task on your
+   * calendar is worse still — so every proposal is matched back to a real task
+   * id here and silently dropped if it doesn't match.
+   */
+  async planDay(userId: string, gaps: { startAt: Date; endAt: Date }[]): Promise<PlanDayDTO> {
+    const open = await this.prisma.client.task.findMany({
+      where: { userId, status: { in: ['TODO', 'IN_PROGRESS'] } },
+      orderBy: [{ dueAt: 'asc' }, { priority: 'desc' }],
+      take: 25,
+    });
+    if (open.length === 0) {
+      return { proposals: [], note: 'Nothing open to schedule — your task list is clear.' };
+    }
+
+    const nowText = await this.nowBlock(userId);
+    const windows = gaps
+      .map((g) => `- ${g.startAt.toISOString()} to ${g.endAt.toISOString()} (${Math.round((g.endAt.getTime() - g.startAt.getTime()) / 60_000)} min)`)
+      .join(NL);
+    const tasks = open
+      .map((t) => {
+        const due = t.dueAt ? `, due ${t.dueAt.toISOString().slice(0, 10)}` : '';
+        return `- id=${t.id} | ${t.title} | ${t.priority.toLowerCase()}${due}`;
+      })
+      .join(NL);
+
+    const messages: ChatMessage[] = [
+      { role: 'system', content: PLAN_DAY_SYSTEM_PROMPT },
+      {
+        role: 'user',
+        content: `${nowText}
+
+Free windows today:
+${windows}
+
+Open tasks:
+${tasks}
+
+Propose a plan.`,
+      },
+    ];
+
+    const reply = await this.chatCall(userId, 'plan_day', messages);
+    const parsed = parsePlanReply(reply.content ?? '');
+    if (!parsed) return { proposals: [], note: 'Could not put a plan together just now.' };
+
+    // Match every proposal back to a real task. Anything that doesn't match is
+    // a hallucination and is dropped rather than shown.
+    const byId = new Map(open.map((t) => [t.id, t]));
+    const seen = new Set<string>();
+    const proposals: PlanProposalDTO[] = [];
+    for (const p of parsed.proposals) {
+      // Everything off the wire is untrusted and optional — the model can and
+      // does omit fields.
+      if (!p.taskId || !p.startAt || !p.endAt) continue;
+      const task = byId.get(p.taskId);
+      if (!task || seen.has(p.taskId)) continue;
+      const start = new Date(p.startAt);
+      const end = new Date(p.endAt);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) continue;
+      // The slot must genuinely sit inside a window we offered.
+      const fits = gaps.some((g) => start >= g.startAt && end <= g.endAt);
+      if (!fits) continue;
+      seen.add(p.taskId);
+      proposals.push({
+        taskId: task.id,
+        title: task.title,
+        startAt: start.toISOString(),
+        endAt: end.toISOString(),
+        why: String(p.why ?? '').slice(0, 200),
+      });
+    }
+    proposals.sort((a, b) => a.startAt.localeCompare(b.startAt));
+    return {
+      proposals,
+      note: proposals.length === 0 ? (parsed.note ?? 'No slot looked like a good fit.') : null,
+    };
+  }
+
   async organizeBrainDump(userId: string, text: string): Promise<ToolLoopResult> {
     // Capture is where relative dates actually arrive ("gym tomorrow at 6"), so
     // this path needs the time anchor most — it previously had no context at all.

@@ -56,3 +56,40 @@ export const InsightDTO = z.object({
   createdAt: z.string(),
 });
 export type InsightDTO = z.infer<typeof InsightDTO>;
+
+/**
+ * "Plan my day" — the model PROPOSES; nothing is written until the user accepts.
+ * That separation is the whole safety story: a wrong suggestion costs a glance,
+ * never a corrupted calendar.
+ */
+export const PlanDayInput = z.object({
+  /** The windows the client computed from the routine, in ISO. */
+  gaps: z
+    .array(
+      z.object({
+        startAt: z.coerce.date(),
+        endAt: z.coerce.date(),
+      }),
+    )
+    .min(1)
+    .max(12),
+});
+export type PlanDayInput = z.infer<typeof PlanDayInput>;
+
+export const PlanProposalDTO = z.object({
+  /** The task this slot is for. Always an EXISTING task id — never invented. */
+  taskId: z.string(),
+  title: z.string(),
+  startAt: z.string(),
+  endAt: z.string(),
+  /** One short sentence: why here. Shown under the proposal. */
+  why: z.string(),
+});
+export type PlanProposalDTO = z.infer<typeof PlanProposalDTO>;
+
+export const PlanDayDTO = z.object({
+  proposals: z.array(PlanProposalDTO),
+  /** Set when the model declined to plan — e.g. nothing to schedule. */
+  note: z.string().nullable(),
+});
+export type PlanDayDTO = z.infer<typeof PlanDayDTO>;

@@ -8,6 +8,7 @@ const block = (over: Partial<RoutineBlockDTO>): RoutineBlockDTO => ({
   label: over.label ?? 'Block',
   kind: over.kind ?? 'custom',
   days: over.days ?? DAILY,
+  onDate: null,
   startMin: over.startMin ?? 0,
   endMin: over.endMin ?? 60,
   ...over,

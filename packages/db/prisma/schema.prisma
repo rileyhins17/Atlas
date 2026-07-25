@@ -76,13 +76,21 @@ model RoutineBlock {
   label     String
   kind      String   @default("custom") // sleep | work | school | meal | exercise | winddown | custom
   // Which weekdays this block applies to: 7-bit mask, bit 0 = Monday … bit 6 = Sunday.
+  // Ignored entirely when `onDate` is set.
   days      Int      @default(127)
+  // A SINGLE local date this block applies to, as YYYY-MM-DD. Null = the normal
+  // weekly pattern. This is what makes irregular/shift work expressible at all:
+  // those users have no weekly rule, they have "working 7–3 this Tuesday".
+  // Stored as text, not a DateTime, because it is a calendar date in the user's
+  // own local frame — a timestamp would drift across timezones and DST.
+  onDate    String?
   // Minutes from local midnight. start > end means the block wraps past midnight (sleep).
   startMin  Int
   endMin    Int
   createdAt DateTime @default(now())
 
   @@index([userId])
+  @@index([userId, onDate])
   @@map("routine_blocks")
 }
 

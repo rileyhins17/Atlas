@@ -89,30 +89,72 @@ function routineSegments(blocks: RoutineBlockDTO[], dayStart: Date): Segment[] {
   const dayEnd = new Date(dayStart.getTime() + DAY_MS);
   const todayMask = 1 << dayBit(dayStart);
   const yesterdayMask = 1 << dayBit(new Date(dayStart.getTime() - DAY_MS));
-  const segments: Segment[] = [];
+  const todayKey = localDayKey(dayStart);
+  const yesterdayKey = localDayKey(new Date(dayStart.getTime() - DAY_MS));
 
-  for (const b of blocks) {
+  // A dated block DESCRIBES this particular day, so it replaces the weekly block
+  // it stands in for — but only the one of the SAME KIND. "Working 7–3 today"
+  // should override the usual 9–5 work block and leave sleep and meals alone,
+  // and it must not leak into any other day. 'off' never replaces anything; it
+  // is a carver, handled below.
+  const replacedKinds = new Set(
+    blocks.filter((b) => b.onDate === todayKey && b.kind !== 'off').map((b) => b.kind),
+  );
+  const source = blocks.filter((b) =>
+    b.onDate ? b.onDate === todayKey || b.onDate === yesterdayKey : !replacedKinds.has(b.kind),
+  );
+
+  const applies = (b: RoutineBlockDTO, mask: number, key: string) =>
+    b.onDate ? b.onDate === key : (b.days & mask) !== 0;
+
+  const raw: Segment[] = [];
+  for (const b of source) {
     if (b.startMin <= b.endMin) {
-      if (b.days & todayMask) {
-        segments.push({ block: b, start: atMinute(dayStart, b.startMin), end: atMinute(dayStart, b.endMin) });
+      if (applies(b, todayMask, todayKey)) {
+        raw.push({ block: b, start: atMinute(dayStart, b.startMin), end: atMinute(dayStart, b.endMin) });
       }
     } else {
       // Morning tail (block started yesterday).
-      if (b.days & yesterdayMask) {
-        segments.push({ block: b, start: dayStart, end: atMinute(dayStart, b.endMin) });
+      if (applies(b, yesterdayMask, yesterdayKey)) {
+        raw.push({ block: b, start: dayStart, end: atMinute(dayStart, b.endMin) });
       }
       // Night head (block starts today, runs to midnight).
-      if (b.days & todayMask) {
-        segments.push({ block: b, start: atMinute(dayStart, b.startMin), end: dayEnd });
+      if (applies(b, todayMask, todayKey)) {
+        raw.push({ block: b, start: atMinute(dayStart, b.startMin), end: dayEnd });
       }
     }
   }
 
+  // 'off' is not something you do — it CLEARS the routine for its window, so a
+  // vacation day or a swapped shift stops reading as Work. Subtract those spans
+  // from everything else before resolving overlaps.
+  const offs = raw.filter((r) => r.block.kind === 'off');
+  const kept: Segment[] = [];
+  for (const seg of raw.filter((r) => r.block.kind !== 'off')) {
+    let pieces: Segment[] = [seg];
+    for (const off of offs) {
+      const next: Segment[] = [];
+      for (const p of pieces) {
+        // No overlap — the piece survives whole.
+        if (off.end <= p.start || off.start >= p.end) {
+          next.push(p);
+          continue;
+        }
+        // The head before the off window, and the tail after it. Either may be
+        // empty, which is how a fully-covered segment disappears.
+        if (p.start < off.start) next.push({ ...p, end: off.start });
+        if (off.end < p.end) next.push({ ...p, start: off.end });
+      }
+      pieces = next;
+    }
+    kept.push(...pieces);
+  }
+
   // Chronological; overlaps resolved deterministically: earlier start wins,
   // the later segment is clamped forward (dropped if fully swallowed).
-  segments.sort((a, b) => a.start.getTime() - b.start.getTime());
+  kept.sort((a, b) => a.start.getTime() - b.start.getTime());
   const resolved: Segment[] = [];
-  for (const seg of segments) {
+  for (const seg of kept) {
     const prev = resolved[resolved.length - 1];
     if (prev && seg.start.getTime() < prev.end.getTime()) {
       if (seg.end.getTime() <= prev.end.getTime()) continue; // swallowed
@@ -254,7 +296,14 @@ export function supposedTo(canvas: DayCanvas): { label: string; until: Date } | 
 export interface DayOverview {
   /** The routine block you're inside right now (null in a gap / on other days). */
   now: { label: string; kind: string; until: Date } | null;
-  /** The next scheduled thing (event or due task), if any remain today. */
+  /**
+   * A timed item that has ALREADY STARTED and hasn't ended — you are in it now.
+   * Kept separate from `next` because calling a live thing "Next 4:11" when it
+   * began two minutes ago is simply wrong, and that is what the UI showed
+   * before this existed.
+   */
+  current: CanvasItem | null;
+  /** The next thing that hasn't started yet, if any remain today. */
   next: CanvasItem | null;
   /** Everything still ahead today, chronological — `next` is its first entry. */
   ahead: CanvasItem[];
@@ -269,6 +318,11 @@ export interface DayOverview {
   earlier: CanvasItem[];
   /** All-day events, surfaced as a banner. */
   allDay: CanvasItem[];
+  /**
+   * Unclaimed windows still ahead today — the raw material for planning.
+   * Sleep and wind-down are NOT free time, so they never appear here.
+   */
+  gaps: { start: Date; end: Date; minutes: number }[];
 }
 
 /**
@@ -293,16 +347,50 @@ export function buildDayOverview(canvas: DayCanvas, now: Date): DayOverview {
   ahead.sort((a, b) => a.at.getTime() - b.at.getTime());
   earlier.sort((a, b) => b.at.getTime() - a.at.getTime());
 
+  // Split "happening right now" out of "ahead". An event that started at 4:11
+  // and runs to 11:00 is not your NEXT thing at 4:13 — it's your current one.
+  const live = ahead.find((i) => i.type === 'event' && i.at <= now && (i.end ? i.end > now : false)) ?? null;
+  const upcoming = ahead.filter((i) => i !== live);
+
   return {
     now:
       current && current.kind === 'routine'
         ? { label: current.label, kind: current.routineKind ?? 'custom', until: current.end }
         : null,
-    next: ahead[0] ?? null,
+    current: live,
+    next: upcoming[0] ?? null,
     ahead,
     checklist: ahead.filter((i) => i.type === 'task'),
     timed: ahead.filter((i) => i.type === 'event'),
     earlier,
     allDay: canvas.allDay,
+    gaps: openGaps(canvas, now),
   };
+}
+
+/** Sleep is not free time, and neither is the wind-down before it. */
+const NOT_FREE = new Set(['sleep', 'winddown']);
+/** Below this a gap isn't worth offering — you can't plan into 10 minutes. */
+const MIN_GAP_MS = 20 * 60_000;
+
+/**
+ * The windows still open ahead of `now`. A section counts as free when it is an
+ * Open gap OR a routine block that doesn't own your attention (a meal you could
+ * work through is still yours). Any section holding a scheduled item is not
+ * free — something already claims it.
+ */
+function openGaps(canvas: DayCanvas, now: Date): { start: Date; end: Date; minutes: number }[] {
+  const out: { start: Date; end: Date; minutes: number }[] = [];
+  for (const s of canvas.sections) {
+    if (s.end <= now) continue;
+    if (s.kind === 'routine' && NOT_FREE.has(s.routineKind ?? '')) continue;
+    if (s.kind === 'routine') continue; // work/school/etc: occupied by definition
+    if (s.items.some((i) => i.type === 'event')) continue;
+    // A gap already under way starts "now", not at its nominal start.
+    const start = s.start > now ? s.start : now;
+    const ms = s.end.getTime() - start.getTime();
+    if (ms < MIN_GAP_MS) continue;
+    out.push({ start, end: s.end, minutes: Math.round(ms / 60_000) });
+  }
+  return out;
 }

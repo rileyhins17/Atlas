@@ -19,6 +19,7 @@ import type {
   InsightDTO,
   JournalDTO,
   NoteDTO,
+  PlanDayDTO,
   RoutineBlockDTO,
   RoutineBlockInput,
   SettingsDTO,
@@ -197,6 +198,12 @@ export const TimelineApi = {
     const qs = params.toString();
     return request<TimelinePageDTO>(`/timeline${qs ? `?${qs}` : ''}`);
   },
+};
+
+export const PlanApi = {
+  /** Ask for proposals. Returns suggestions only — nothing is written. */
+  planDay: (gaps: { startAt: string; endAt: string }[]) =>
+    request<PlanDayDTO>('/ai/plan-day', { method: 'POST', body: JSON.stringify({ gaps }) }),
 };
 
 export const AiQuestionsApi = {

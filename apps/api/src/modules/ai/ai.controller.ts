@@ -6,9 +6,11 @@ import {
   ChatInput,
   ConnectProviderInput,
   PaginationQuery,
+  PlanDayInput,
   type AiQuestionDTO,
   type ChatResponseDTO,
   type InsightDTO,
+  type PlanDayDTO,
 } from '@atlas/shared';
 import { ZodValidationPipe } from '../../common/zod.pipe.js';
 import { SessionGuard } from '../../auth/session.guard.js';
@@ -147,6 +149,18 @@ export class AiController {
    * cost, and record it to the usage ledger — WITHOUT calling the model. Lets us
    * verify the whole AI pipeline end-to-end for $0 in Phase 0.
    */
+  /**
+   * Propose a plan for today. Returns proposals ONLY — the user accepts them in
+   * the UI, which creates the events through the normal calendar path.
+   */
+  @Post('plan-day')
+  planDay(
+    @CurrentUser() user: AuthedUser,
+    @Body(new ZodValidationPipe(PlanDayInput)) body: PlanDayInput,
+  ): Promise<PlanDayDTO> {
+    return this.orchestrator.planDay(user.id, body.gaps);
+  }
+
   @Post('dry-run')
   async dryRun(@CurrentUser() user: AuthedUser) {
     const chunks = await this.registry.collectContext(user.id);

@@ -2621,3 +2621,42 @@ input[type='checkbox']:checked::after {
   .fit-field { width: 72px; }
   .fit-history-ex { min-width: 0; flex-basis: 100%; }
 }
+
+/* ── Free time + the proposed plan ───────────────────────────────────────── */
+.freetime { display: flex; flex-direction: column; gap: 9px; }
+.freetime-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.freetime-total { font-size: 11.5px; color: var(--text-muted); font-weight: 600; }
+.freetime-gaps { display: flex; flex-wrap: wrap; gap: 7px; }
+.freetime-gap {
+  display: flex; flex-direction: column; gap: 1px; align-items: flex-start;
+  padding: 7px 12px; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--border-subtle); background: var(--surface-raised); color: inherit;
+  font: inherit; transition: border-color var(--dur-fast) var(--ease);
+}
+.freetime-gap:hover { border-color: var(--accent-strong); }
+.freetime-gap-when { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.freetime-gap-len { font-size: 11px; color: var(--text-muted); }
+.freetime-plan {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  align-self: flex-start; padding: 8px 14px; border-radius: var(--radius-pill);
+  border: 0; background: var(--accent-strong); color: #fff;
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.freetime-plan:disabled { opacity: 0.65; cursor: default; }
+
+.plan-note { margin: 8px 0 0; font-size: 12.5px; color: var(--text-muted); }
+.plan-proposals { display: flex; flex-direction: column; gap: 8px; }
+.plan-row {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 13px; border-radius: 13px;
+  background: var(--surface-raised); border: 1px solid var(--border-subtle);
+}
+.plan-row-main { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.plan-row-title { font-size: 13.5px; font-weight: 600; }
+.plan-row-why { font-size: 11.5px; color: var(--text-muted); }
+.plan-row-when { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.plan-accept {
+  border: 0; border-radius: var(--radius-pill); padding: 6px 14px;
+  background: var(--accent-strong); color: #fff;
+  font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
