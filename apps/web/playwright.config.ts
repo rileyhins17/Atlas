@@ -1,4 +1,22 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
+
+// The API under test loads the repo-root .env, so once sign-up is gated by
+// INVITE_CODE the suite has to present the same value or every register() is
+// rejected with 403 — which surfaces as a confusing "element not found" when
+// the signed-in shell never appears. Read just that one key; nothing else in
+// the file is the suite's business.
+if (!process.env.INVITE_CODE) {
+  try {
+    // Playwright loads this config as CommonJS, so import.meta is unavailable.
+    const env = readFileSync(resolve(__dirname, '../../.env'), 'utf8');
+    const match = /^INVITE_CODE=(.*)$/m.exec(env);
+    if (match?.[1]) process.env.INVITE_CODE = match[1].trim();
+  } catch {
+    // No .env (CI) means sign-up is open, which is what the suite expects.
+  }
+}
 
 // Full-stack e2e: drives the real web app against a real API + Postgres.
 // Locally the webServer entries boot the built API + web (reusing any already

@@ -15,6 +15,7 @@ import { AiSettingsCard } from './AiSettingsCard';
 import { ProactiveSettingsCard } from './ProactiveSettingsCard';
 import { PlaidCard } from './PlaidCard';
 import { RoutineEditor } from './RoutineEditor';
+import { SettingsSection } from './SettingsSection';
 
 export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
   // Set by the OAuth callback redirect (?google=connected|denied).
@@ -57,15 +58,22 @@ export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
       <PageHeader title="Settings" subtitle="Connections, your data, and your account." />
       {flash && <Card style={{ borderColor: 'var(--brand-alt)' }}>{flash}</Card>}
 
-      <div id="routine">
+      {/* Your week first: it drives what Today calls free time, so it is the
+          setting people actually come here to correct. */}
+      <SettingsSection id="routine" title="Your week" hint="sleep, work and the shape of your day" defaultOpen>
         <RoutineEditor />
-      </div>
+      </SettingsSection>
 
-      <AiSettingsCard />
+      <SettingsSection id="ai" title="Atlas AI" hint="model key and usage">
+        <AiSettingsCard />
+      </SettingsSection>
 
-      <ProactiveSettingsCard />
+      <SettingsSection id="proactive" title="Briefs & notifications" hint="when Atlas checks in">
+        <ProactiveSettingsCard />
+      </SettingsSection>
 
-      <Card stack style={{ marginTop: 12 }}>
+      <SettingsSection id="google" title="Google Calendar" hint={status?.connected ? 'connected' : 'not connected'}>
+      <Card stack>
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <strong>Google Calendar</strong>
           {status && (
@@ -128,10 +136,15 @@ export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
         )}
         {error && <div className="error">{error}</div>}
       </Card>
+      </SettingsSection>
 
-      <PlaidCard />
+      <SettingsSection id="banking" title="Banking" hint="connect an account">
+        <PlaidCard />
+      </SettingsSection>
 
-      <DataPrivacyPanel onSignOut={onSignOut} />
+      <SettingsSection id="data" title="Your data & account" hint="export, sign out, delete">
+        <DataPrivacyPanel onSignOut={onSignOut} />
+      </SettingsSection>
     </>
   );
 }
