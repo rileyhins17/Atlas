@@ -18,3 +18,4 @@ export * from './dto/stats.js';
 export * from './dto/recurrence.js';
 export * from './dto/fitness.js';
 export * from './dto/fitness-util.js';
+export * from './dto/duration.js';

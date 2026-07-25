@@ -10,6 +10,7 @@ import type {
   CreateNoteInput,
   CreateExerciseInput,
   CreateTaskInput,
+  DurationEstimate,
   EventDTO,
   ExerciseDTO,
   HabitDTO,
@@ -139,6 +140,8 @@ export const TasksApi = {
     request<TaskDTO>(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   complete: (id: string) => request<TaskDTO>(`/tasks/${id}/complete`, { method: 'POST' }),
   remove: (id: string) => request<{ ok: true }>(`/tasks/${id}`, { method: 'DELETE' }),
+  /** Learned medians, keyed by normalised title — see durationKey(). */
+  durations: () => request<DurationEstimate[]>('/tasks/durations'),
 };
 
 export const HabitsApi = {
@@ -171,6 +174,8 @@ export type NewEvent = {
   location?: string;
   description?: string;
   allDay?: boolean;
+  /** Set when the block was reserved for a task, so its real length can be learned. */
+  taskId?: string;
 };
 
 export const EventsApi = {

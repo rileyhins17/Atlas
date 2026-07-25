@@ -20,6 +20,7 @@ function toDto(e: Event): EventDTO {
     allDay: e.allDay,
     source: e.source,
     recurrence: e.recurrence,
+    taskId: e.taskId,
     createdAt: e.createdAt.toISOString(),
   };
 }
@@ -75,6 +76,16 @@ export class CalendarService {
     return event;
   }
 
+  /** Same guarantee for a task a block is being attached to. */
+  private async ownedTask(userId: string, taskId: string): Promise<{ id: string }> {
+    const task = await this.prisma.client.task.findFirst({
+      where: { id: taskId, userId },
+      select: { id: true },
+    });
+    if (!task) throw new NotFoundException('Task not found');
+    return task;
+  }
+
   /** Upcoming + recently-past events, bounded (commercial-grade: never unbounded). */
   async list(
     userId: string,
@@ -109,6 +120,10 @@ export class CalendarService {
   }
 
   async create(userId: string, input: CreateEventInput): Promise<EventDTO> {
+    // Never trust a client-supplied id: without this check one user could
+    // attach a block to another user's task, and the duration Atlas learns
+    // from it would leak across accounts.
+    const taskId = input.taskId ? (await this.ownedTask(userId, input.taskId)).id : null;
     const event = await this.prisma.client.event.create({
       data: {
         userId,
@@ -119,6 +134,7 @@ export class CalendarService {
         endAt: input.endAt,
         allDay: input.allDay,
         recurrence: input.recurrence,
+        taskId,
         source: 'atlas',
       },
     });

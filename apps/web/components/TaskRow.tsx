@@ -1,9 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { describeRrule, type TaskDTO } from '@atlas/shared';
+import { describeRrule, durationKey, formatDuration, type TaskDTO } from '@atlas/shared';
 import { Check, Flag, Repeat, X } from 'lucide-react';
-import { useCompleteTask, useDeleteTask, useUpdateTask } from '@/lib/hooks/tasks';
+import {
+  useCompleteTask,
+  useDeleteTask,
+  useTaskDurations,
+  useUpdateTask,
+} from '@/lib/hooks/tasks';
 import { IconButton, Badge } from '@/components/ui';
 import { formatDue } from '@/lib/dates';
 
@@ -21,7 +26,9 @@ export function TaskRow({ task, compact = false }: { task: TaskDTO; compact?: bo
   const [draft, setDraft] = useState(task.title);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const durations = useTaskDurations();
   const done = task.status === 'DONE';
+  const usual = durations.data?.get(durationKey(task.title));
   const repeat = describeRrule(task.recurrence);
   const due = task.dueAt ? new Date(task.dueAt) : null;
   const overdue = !done && due !== null && due.getTime() < Date.now();
@@ -111,6 +118,17 @@ export function TaskRow({ task, compact = false }: { task: TaskDTO; compact?: bo
 
       {due && !done && (
         <span className={`due-chip ${overdue ? 'overdue' : ''}`}>{formatDue(due)}</span>
+      )}
+
+      {/* Only ever shown once it is measured from what this user actually did,
+          never as a guess — depth that arrives as a consequence of use. */}
+      {usual && !done && !compact && (
+        <span
+          className="usual-chip"
+          title={`Measured from ${usual.samples} completed blocks`}
+        >
+          usually {formatDuration(usual.minutes)}
+        </span>
       )}
 
       <span className="task-actions">

@@ -76,6 +76,7 @@ describe('groupEventsByDay', () => {
       allDay: false,
       source: 'atlas',
       recurrence: null,
+      taskId: null,
       createdAt: new Date().toISOString(),
       ...partial,
     };

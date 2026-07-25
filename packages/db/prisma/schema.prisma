@@ -184,6 +184,9 @@ model Task {
   recurrence  String?
   // Set on a materialised instance; points at the series root task.
   recurrenceParentId String?
+  // Blocks reserved for this task; their spans are the raw material for
+  // "usually takes you ~1h 20m".
+  blocks      Event[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -212,9 +215,17 @@ model Event {
   // Google sends `singleEvents=true` instances, so synced rows stay null.
   recurrence  String?
   recurrenceParentId String?
+  // The task this block was reserved for, when it was scheduled from one
+  // ("Plan my day", or the AI's calendar.block). This is what lets Atlas learn
+  // how long work ACTUALLY takes: the block says when you started, the task's
+  // completedAt says when you stopped. Cleared rather than cascaded, so
+  // deleting a task never silently removes time from your calendar.
+  taskId      String?
+  task        Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  @@index([userId, taskId])
   // Scoped by user: an external id is only unique WITHIN an account. A calendar
   // event shared between two Atlas users carries the same Google id for both,
   // so a global unique would collide and let one user's sync overwrite the

@@ -2468,6 +2468,13 @@ input[type='checkbox']:checked::after {
   font-size: 11.5px; font-weight: 600; color: var(--text-muted);
 }
 
+/* What this task usually takes, measured from completed blocks. Quieter than
+   the due chip on purpose: it is context, never a demand for attention. */
+.usual-chip {
+  flex-shrink: 0; font-size: 11.5px; font-weight: 500;
+  color: var(--text-muted); white-space: nowrap;
+}
+
 /* ── Progress: density ───────────────────────────────────────────────────── */
 .prog-hero {
   display: flex; flex-wrap: wrap; gap: 26px;

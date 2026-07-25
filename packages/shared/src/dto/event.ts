@@ -9,6 +9,9 @@ export const CreateEventInput = z
     endAt: z.coerce.date(),
     allDay: z.boolean().default(false),
     recurrence: z.string().max(500).optional(),
+    // Set when this block was reserved for a specific task ("Plan my day").
+    // Ownership is checked server-side — a client id is never trusted.
+    taskId: z.string().min(1).max(64).optional(),
   })
   .refine((v) => v.endAt >= v.startAt, { message: 'endAt must be after startAt', path: ['endAt'] });
 export type CreateEventInput = z.infer<typeof CreateEventInput>;
@@ -51,6 +54,8 @@ export const EventDTO = z.object({
   allDay: z.boolean(),
   source: z.string(),
   recurrence: z.string().nullable(),
+  /** The task this block was reserved for, if any. */
+  taskId: z.string().nullable(),
   // True when this row was expanded from a rule rather than stored as itself.
   // Such rows carry a synthetic id and must not be PATCHed directly.
   isOccurrence: z.boolean().optional(),

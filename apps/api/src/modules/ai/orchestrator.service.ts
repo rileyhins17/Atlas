@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { ChatMessage } from '@atlas/connectors';
 import type { Insight } from '@atlas/db';
 import type { AiToolSpec, InsightDTO, PlanDayDTO, PlanProposalDTO } from '@atlas/shared';
+import { durationKey } from '@atlas/shared';
 import { buildContext, CostGuard, runToolLoop, type ToolLoopResult } from '@atlas/ai';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
@@ -10,6 +11,7 @@ import { ConnectorsService } from '../../core/connectors.service.js';
 import { loadEnv } from '../../config/env.js';
 import { safeTz } from './time.util.js';
 import { StatsService } from '../stats/stats.service.js';
+import { TaskDurationService } from '../tasks/task-duration.service.js';
 import { ToolRouterService } from './tool-router.service.js';
 import { EmbeddingService } from './embedding.service.js';
 import { parsePlanReply } from './plan-day.util.js';
@@ -109,7 +111,10 @@ Hard rules:
 - Respect what the task looks like: something overdue or urgent goes earlier,
   something long needs a window long enough to hold it. If nothing fits a window,
   skip that window.
-- Default to 30-60 minutes unless the task clearly implies otherwise.
+- When a task says "usually takes N min", that is measured from what the user
+  actually did — use it as the length of the slot. Only your own guess is
+  negotiable; their history is not.
+- Default to 30-60 minutes for anything with no measured history.
 - "why" is one plain sentence about the placement, not a pep talk.`;
 
 /** Newline as a const: writing '
@@ -169,6 +174,7 @@ export class OrchestratorService {
     private readonly toolRouter: ToolRouterService,
     private readonly embeddings: EmbeddingService,
     private readonly stats: StatsService,
+    private readonly durations: TaskDurationService,
   ) {}
 
   private async chatCall(
@@ -343,10 +349,20 @@ ${moduleText}`, activityText };
     const windows = gaps
       .map((g) => `- ${g.startAt.toISOString()} to ${g.endAt.toISOString()} (${Math.round((g.endAt.getTime() - g.startAt.getTime()) / 60_000)} min)`)
       .join(NL);
+
+    // How long this user's own work actually takes, where there is enough
+    // history to say. This is what stops the model defaulting everything to an
+    // invented 45 minutes — it is measurement, not a guess, and it only appears
+    // for tasks that have earned it.
+    const learned = await this.durations.estimates(userId);
     const tasks = open
       .map((t) => {
         const due = t.dueAt ? `, due ${t.dueAt.toISOString().slice(0, 10)}` : '';
-        return `- id=${t.id} | ${t.title} | ${t.priority.toLowerCase()}${due}`;
+        const est = learned.get(durationKey(t.title));
+        const usual = est
+          ? `, usually takes ${est.minutes} min (${est.samples} times)`
+          : '';
+        return `- id=${t.id} | ${t.title} | ${t.priority.toLowerCase()}${due}${usual}`;
       })
       .join(NL);
 

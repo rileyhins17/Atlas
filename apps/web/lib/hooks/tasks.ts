@@ -9,6 +9,21 @@ export function useTasks() {
   return useQuery({ queryKey: qk.tasks, queryFn: TasksApi.list });
 }
 
+/**
+ * How long the user's own work actually takes, keyed by `durationKey(title)`.
+ *
+ * Long-lived on purpose: it moves only when a planned task is completed, and
+ * it is read by every task row, so refetching it per render would be noise.
+ */
+export function useTaskDurations() {
+  return useQuery({
+    queryKey: qk.taskDurations,
+    queryFn: TasksApi.durations,
+    staleTime: 5 * 60_000,
+    select: (list) => new Map(list.map((e) => [e.key, e])),
+  });
+}
+
 export function useCreateTask() {
   const qc = useQueryClient();
   return useMutation({

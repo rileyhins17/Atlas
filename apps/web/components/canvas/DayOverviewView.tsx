@@ -141,7 +141,7 @@ export function DayOverviewView({
                 disabled={accept.isPending}
                 onClick={() =>
                   accept.mutate(
-                    { title: p.title, startAt: p.startAt, endAt: p.endAt },
+                    { taskId: p.taskId, title: p.title, startAt: p.startAt, endAt: p.endAt },
                     {
                       onSuccess: () =>
                         setProposals((cur) => (cur ?? []).filter((x) => x.taskId !== p.taskId)),

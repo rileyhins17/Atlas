@@ -16,11 +16,18 @@ export function usePlanDay() {
   });
 }
 
-/** Accepting a proposal creates a real calendar event through the normal path. */
+/**
+ * Accepting a proposal creates a real calendar event through the normal path.
+ *
+ * The block carries `taskId`, which is what lets Atlas learn how long the work
+ * actually took: the block says when you started, completing the task says when
+ * you stopped. Without the link the two facts are unconnectable and the planner
+ * is stuck guessing forever.
+ */
 export function useAcceptProposal() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (p: { title: string; startAt: string; endAt: string }) => {
+    mutationFn: async (p: { taskId: string; title: string; startAt: string; endAt: string }) => {
       const { EventsApi } = await import('@/lib/api');
       return EventsApi.create(p);
     },
