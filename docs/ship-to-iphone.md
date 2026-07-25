@@ -83,7 +83,41 @@ Avoid GoDaddy: cheap year one, expensive renewals, aggressive upsells.
 
 ---
 
-## 3 · Hosting: the cheap, correct setup
+## 2.5 · WHAT IS ACTUALLY RUNNING TODAY — Cloudflare Tunnel
+
+Atlas is **live at https://atlaslife.app right now**, served from Riley's own PC
+through a Cloudflare Tunnel. No VPS, no open inbound ports, no hosting bill. This
+happened because Hetzner signup was blocked, and it turned out to be a perfectly
+good way to get the app onto a phone the same day.
+
+**How it fits together:** Cloudflare terminates TLS at the edge → the tunnel
+carries the request to `127.0.0.1:80` → local Caddy (`infra/Caddyfile.tunnel`)
+splits `/api/*` to the API on :4000 and everything else to Next on :3000.
+
+One hostname, so the browser stays on a single origin and the session cookie
+works. Caddy serves plain HTTP here on purpose: there is no public port 80 for an
+ACME challenge to reach, and it does not need one — Cloudflare owns the
+certificate. That also satisfies `.app`'s HSTS preload, which would otherwise
+make the site unreachable rather than merely insecure.
+
+**Auto-start:** `infra/start-atlas.cmd` is copied into the Windows Startup
+folder, so the whole stack comes back after a reboot as soon as Riley logs in.
+It runs as the logged-in user — no admin rights, no Windows service. (Installing
+`cloudflared` as a real service is nicer, but needs a UAC prompt that could not
+be approved remotely.)
+
+**The real limitation:** the PC has to be awake and logged in. Sleep is downtime.
+This is a genuinely fine way to run a single-user app you are testing, and a bad
+way to run something other people depend on — which is what the VPS section below
+is for, whenever signup cooperates. Moving is a `docker compose up` on the new box
+and one DNS change; nothing in the app knows the difference.
+
+**Sign-up is closed.** `INVITE_CODE` is set in `.env`, so `POST /auth/register`
+demands a matching code — a public hostname with open registration lets strangers
+create accounts and spend the AI budget. `GET /auth/config` reports only the
+boolean so the form knows whether to show the field.
+
+## 3 · Hosting: the cheap, correct setup (for when you move off the tunnel)
 
 You already have Docker Compose + Caddy planned in `docs/architecture.md`. Costs,
 current as of the searches below:
