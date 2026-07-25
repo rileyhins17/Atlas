@@ -2,6 +2,7 @@ import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/co
 import { createHash, randomBytes } from 'node:crypto';
 import type { RegisterInput, LoginInput, UserDTO } from '@atlas/shared';
 import { PrismaService } from '../core/prisma.service.js';
+import { safeTz } from '../modules/ai/time.util.js';
 import { hashPassword, verifyPassword } from './password.util.js';
 
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
@@ -33,7 +34,10 @@ export class AuthService {
         email: input.email,
         passwordHash: await hashPassword(input.password),
         displayName: input.displayName ?? null,
-        timezone: input.timezone,
+        // Every day rollup buckets by this with `AT TIME ZONE`, so an
+        // unparseable zone would break the user's whole Progress page. Fall
+        // back rather than store something Postgres will choke on.
+        timezone: safeTz(input.timezone),
       },
     });
     return this.toDto(user);

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { LogOut, MessageCircle, PanelLeft, Search, Settings as SettingsIcon } from 'lucide-react';
 import { useMe, useLogout } from '@/lib/hooks/auth';
+import { useTimezoneSync } from '@/lib/hooks/timezone';
 import { IconButton, Kbd } from '@/components/ui';
 import { Logo } from '@/components/Logo';
 import { AuthGate } from '@/components/AuthGate';
@@ -25,6 +26,9 @@ import { ChatRail } from '@/components/atlas/ChatRail';
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const me = useMe();
+  // Runs before the early returns — hooks cannot be conditional, and it no-ops
+  // until `me` resolves anyway.
+  useTimezoneSync(me.data);
 
   if (me.isPending) {
     return (

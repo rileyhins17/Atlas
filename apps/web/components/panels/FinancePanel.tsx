@@ -47,12 +47,15 @@ function AccountCard({ account }: { account: AccountDTO }) {
   );
 }
 
+/** Stable "no data yet" identity — see the note in CalendarPanel. */
+const NO_TXNS: TransactionDTO[] = [];
+
 export function FinancePanel() {
   const accountsQuery = useAccounts();
   const txnsQuery = useTransactions();
 
   const accounts = accountsQuery.data ?? [];
-  const txns = txnsQuery.data ?? [];
+  const txns = txnsQuery.data ?? NO_TXNS;
   const grouped = useMemo(() => groupTransactionsByDay(txns), [txns]);
 
   return (

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { TaskDTO } from '@atlas/shared';
-import { ChevronDown, ChevronRight, ListTodo, Plus, Search, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Search, X } from 'lucide-react';
 import { errorMessage } from '@/lib/api';
 import { useCreateTask, useTasks } from '@/lib/hooks/tasks';
 import {
@@ -146,6 +146,9 @@ function QuickAdd({ groupKey, groupLabel }: { groupKey: string; groupLabel: stri
   );
 }
 
+/** Stable "no data yet" identity — see the note in CalendarPanel. */
+const NO_TASKS: TaskDTO[] = [];
+
 export function TasksPanel() {
   const [filter, setFilter] = useState<TaskFilter>('all');
   const [query, setQuery] = useState('');
@@ -154,7 +157,7 @@ export function TasksPanel() {
   const tasksQuery = useTasks();
   const create = useCreateTask();
 
-  const all = tasksQuery.data ?? [];
+  const all = tasksQuery.data ?? NO_TASKS;
   const visible = useMemo(
     () => filterTasks(all, filter, query, new Date()),
     [all, filter, query],

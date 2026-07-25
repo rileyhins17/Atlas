@@ -149,6 +149,9 @@ function BlockRow({ block }: { block: RoutineBlockDTO }) {
   );
 }
 
+/** Stable "no data yet" identity — see the note in CalendarPanel. */
+const NO_BLOCKS: RoutineBlockDTO[] = [];
+
 /**
  * The week, editable.
  *
@@ -161,7 +164,7 @@ export function RoutineEditor() {
   const routine = useRoutine();
   const add = useAddRoutineBlock();
 
-  const blocks = routine.data ?? [];
+  const blocks = routine.data ?? NO_BLOCKS;
   const { weekly, dated } = useMemo(
     () => ({
       weekly: blocks.filter((b) => !b.onDate),

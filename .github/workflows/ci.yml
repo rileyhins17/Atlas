@@ -29,6 +29,9 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter @atlas/db generate
 
+      - name: Lint
+        run: pnpm lint
+
       - name: Build
         run: pnpm build
 

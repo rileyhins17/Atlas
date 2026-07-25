@@ -35,6 +35,13 @@ export function groupEventsByDay(events: EventDTO[], now = new Date()): Array<[s
   return [...byDay.entries()];
 }
 
+/**
+ * Stable identity for "no data yet". A fresh `[]` on every render changes the
+ * dependency of the memo below, so the grouping would rerun on every render
+ * while the query is loading.
+ */
+const NO_EVENTS: EventDTO[] = [];
+
 export function CalendarPanel() {
   const [title, setTitle] = useState('');
   const [start, setStart] = useState('');
@@ -46,7 +53,7 @@ export function CalendarPanel() {
   const create = useCreateEvent();
   const remove = useDeleteEvent();
 
-  const events = eventsQuery.data ?? [];
+  const events = eventsQuery.data ?? NO_EVENTS;
   const grouped = useMemo(() => groupEventsByDay(events), [events]);
   const error =
     clientError ??

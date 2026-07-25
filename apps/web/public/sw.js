@@ -29,10 +29,11 @@ self.addEventListener('activate', (event) => {
 
 // Web Push: show the notification the API sent.
 self.addEventListener('push', (event) => {
-  let data = {};
+  let data;
   try {
     data = event.data ? event.data.json() : {};
   } catch {
+    // A push that isn't JSON still deserves a generic notification.
     data = {};
   }
   const title = data.title || 'Atlas';

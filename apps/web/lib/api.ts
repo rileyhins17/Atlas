@@ -98,10 +98,34 @@ export const AccountApi = {
     }),
 };
 
+/**
+ * The device's IANA zone, or 'UTC' where Intl cannot say.
+ *
+ * This is the value `User.timezone` is kept in step with. Atlas deliberately
+ * has ONE clock per user rather than one per surface: the day rollups in
+ * `/stats` bucket server-side with `AT TIME ZONE`, which can only use a stored
+ * zone, so the stored zone has to be the real one.
+ */
+export function browserTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+
 export const AuthApi = {
   me: () => request<UserDTO>('/auth/me'),
   register: (input: { email: string; password: string }) =>
-    request<UserDTO>('/auth/register', { method: 'POST', body: JSON.stringify(input) }),
+    request<UserDTO>('/auth/register', {
+      method: 'POST',
+      // Send the device's zone at signup. `User.timezone` is the ONE clock both
+      // Today and Progress bucket days by, and its 'UTC' default is only ever
+      // corrected by finding a settings toggle — so left unsent, the two
+      // surfaces disagree about which day something happened for every user
+      // outside UTC. See browserTimezone().
+      body: JSON.stringify({ ...input, timezone: browserTimezone() }),
+    }),
   login: (input: { email: string; password: string }) =>
     request<UserDTO>('/auth/login', { method: 'POST', body: JSON.stringify(input) }),
   logout: () => request<{ ok: true }>('/auth/logout', { method: 'POST' }),

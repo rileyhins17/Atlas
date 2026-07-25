@@ -1,22 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { EventDTO, TaskDTO, TimelineEventDTO } from '@atlas/shared';
+import type { TaskDTO, TimelineEventDTO } from '@atlas/shared';
 import { feedRowHref, groupFeedByDay, openTaskRef } from '@/lib/stream';
 
 // Local-time constructors keep day boundaries stable in any test timezone.
 const now = new Date(2026, 6, 15, 12, 0); // Wed Jul 15 2026, noon local
-
-function event(over: Partial<EventDTO> & { startAt: string; endAt: string }): EventDTO {
-  return {
-    id: over.id ?? `e${Math.random()}`,
-    title: over.title ?? 'Event',
-    description: null,
-    location: over.location ?? null,
-    allDay: over.allDay ?? false,
-    source: 'atlas',
-    createdAt: now.toISOString(),
-    ...over,
-  } as EventDTO;
-}
 
 function task(over: Partial<TaskDTO>): TaskDTO {
   return {
