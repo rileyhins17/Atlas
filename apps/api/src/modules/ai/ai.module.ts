@@ -7,6 +7,7 @@ import { JournalModule } from '../journal/journal.module.js';
 import { NotesModule } from '../notes/notes.module.js';
 import { CalendarModule } from '../calendar/calendar.module.js';
 import { PushModule } from '../push/push.module.js';
+import { FitnessModule } from '../fitness/fitness.module.js';
 import { StatsModule } from '../stats/stats.module.js';
 import { AiController } from './ai.controller.js';
 import { AiQuestionsService } from './ai-questions.service.js';
@@ -21,7 +22,7 @@ import { ProactiveService } from './proactive.service.js';
  * already declared the tool names each module handles).
  */
 @Module({
-  imports: [AuthModule, TasksModule, HabitsModule, JournalModule, NotesModule, CalendarModule, PushModule, StatsModule],
+  imports: [AuthModule, TasksModule, HabitsModule, JournalModule, NotesModule, CalendarModule, FitnessModule, PushModule, StatsModule],
   controllers: [AiController],
   providers: [
     AiQuestionsService,

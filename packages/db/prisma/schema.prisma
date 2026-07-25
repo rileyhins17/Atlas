@@ -50,6 +50,9 @@ model User {
   journalEntries JournalEntry[]
   notes          Note[]
   goals          Goal[]
+  exercises      Exercise[]
+  workouts       Workout[]
+  workoutSets    WorkoutSet[]
   accounts       Account[]
   transactions   Transaction[]
   timelineEvents TimelineEvent[]
@@ -244,6 +247,81 @@ model HabitLog {
 
   @@index([habitId, loggedAt])
   @@map("habit_logs")
+}
+
+// ── Domain: Fitness / strength training (v7) ─────────────────────────────────
+
+// The movement itself, not a performance of it. Rows are either seeded catalog
+// entries (userId null, shared and read-only) or a user's own additions, so a
+// custom lift never leaks between accounts.
+model Exercise {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  // Primary muscle group: chest | back | legs | shoulders | arms | core | other
+  muscle    String   @default("other")
+  // How a set of this movement is measured, which decides what the logger asks
+  // for: weight_reps | reps | duration | distance.
+  kind      String   @default("weight_reps")
+  createdAt DateTime @default(now())
+
+  sets      WorkoutSet[]
+
+  // Two users may each add their own "Nordic Curl" without colliding, because
+  // Postgres treats NULLs as distinct. Note the flip side: this constraint does
+  // NOT dedupe the seeded rows either (they all have userId = null), which is
+  // why FitnessService.seedCatalog checks names explicitly instead of trusting
+  // `skipDuplicates`.
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("exercises")
+}
+
+// One training session. `endedAt` null means it is STILL IN PROGRESS — that is
+// how the app finds the workout to resume, so there is at most one open per user.
+model Workout {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String    @default("Workout")
+  notes     String?
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  sets      WorkoutSet[]
+
+  @@index([userId, startedAt])
+  @@map("workouts")
+}
+
+// A single logged set. Weight is stored in GRAMS as an integer: kg/lb floats
+// accumulate rounding error over a volume sum, and 2.5 kg plate maths must stay
+// exact. Duration is seconds, distance is metres — all integers for the same
+// reason.
+model WorkoutSet {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workoutId  String
+  workout    Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  exerciseId String
+  exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  // Order within the workout, so exercises and their sets render as logged.
+  position   Int      @default(0)
+  weightGrams Int?
+  reps       Int?
+  durationSec Int?
+  distanceM  Int?
+  // A warm-up set counts toward neither volume nor a personal record.
+  warmup     Boolean  @default(false)
+  completedAt DateTime @default(now())
+
+  @@index([workoutId, position])
+  @@index([userId, exerciseId, completedAt])
+  @@map("workout_sets")
 }
 
 model Goal {

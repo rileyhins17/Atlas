@@ -1,11 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import { CreateEventInput, CreateJournalInput, CreateNoteInput, CreateTaskInput, LogHabitInput } from '@atlas/shared';
+import {
+  CreateEventInput,
+  CreateJournalInput,
+  CreateNoteInput,
+  CreateTaskInput,
+  LogHabitInput,
+  StartWorkoutInput,
+} from '@atlas/shared';
 import { TasksService } from '../tasks/tasks.service.js';
 import { HabitsService } from '../habits/habits.service.js';
 import { JournalService } from '../journal/journal.service.js';
 import { NotesService } from '../notes/notes.service.js';
 import { CalendarService } from '../calendar/calendar.service.js';
+import { FitnessService } from '../fitness/fitness.service.js';
 import { MemoryService } from '../../core/memory.service.js';
 
 const TaskCompleteInput = z.object({ id: z.string() });
@@ -67,6 +75,7 @@ export class ToolRouterService {
     private readonly journal: JournalService,
     private readonly notes: NotesService,
     private readonly calendar: CalendarService,
+    private readonly fitness: FitnessService,
     private readonly memory: MemoryService,
   ) {}
 
@@ -89,6 +98,10 @@ export class ToolRouterService {
       case 'calendar.add':
       case 'calendar.block':
         return this.calendar.create(userId, toEventInput(args));
+      // Starting a session only; the model is deliberately not allowed to log
+      // sets — see the comment on FitnessAiAdapter.getToolSpecs.
+      case 'fitness.start_workout':
+        return this.fitness.start(userId, StartWorkoutInput.parse(args ?? {}));
       case 'ai.ask_question': {
         const parsed = AskQuestionInput.parse(args);
         await this.memory.askUser({ userId, ...parsed });

@@ -8,9 +8,14 @@ import type {
   CreateHabitInput,
   CreateJournalInput,
   CreateNoteInput,
+  CreateExerciseInput,
   CreateTaskInput,
   EventDTO,
+  ExerciseDTO,
   HabitDTO,
+  LastPerformanceDTO,
+  LogSetInput,
+  WorkoutDTO,
   InsightDTO,
   JournalDTO,
   NoteDTO,
@@ -56,7 +61,16 @@ async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
     throw new ApiError(res.status, message);
   }
   if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+  // A handler returning null serialises to an EMPTY body with a 200/201 — not
+  // a 204 — and `res.json()` throws on empty input. Both "no active workout"
+  // and "the empty session was discarded" arrive this way.
+  //
+  // It must resolve to null, NOT undefined: TanStack Query rejects an undefined
+  // query result outright ("Query data cannot be undefined"), so a nullable GET
+  // would render its error state instead of its empty state.
+  const text = await res.text();
+  if (text.length === 0) return null as T;
+  return JSON.parse(text) as T;
 }
 
 export const AccountApi = {
@@ -146,6 +160,30 @@ export const EventsApi = {
   create: (input: NewEvent) =>
     request<EventDTO>('/events', { method: 'POST', body: JSON.stringify(input) }),
   remove: (id: string) => request<{ ok: true }>(`/events/${id}`, { method: 'DELETE' }),
+};
+
+export const FitnessApi = {
+  exercises: () => request<ExerciseDTO[]>('/fitness/exercises'),
+  createExercise: (input: CreateExerciseInput) =>
+    request<ExerciseDTO>('/fitness/exercises', { method: 'POST', body: JSON.stringify(input) }),
+  lastPerformance: (exerciseId: string) =>
+    request<LastPerformanceDTO | null>(`/fitness/exercises/${exerciseId}/last`),
+  active: () => request<WorkoutDTO | null>('/fitness/workouts/active'),
+  history: (limit = 20) => request<WorkoutDTO[]>(`/fitness/workouts?limit=${limit}`),
+  start: (input: { title?: string }) =>
+    request<WorkoutDTO>('/fitness/workouts', { method: 'POST', body: JSON.stringify(input) }),
+  logSet: (workoutId: string, input: LogSetInput) =>
+    request<WorkoutDTO>(`/fitness/workouts/${workoutId}/sets`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  deleteSet: (workoutId: string, setId: string) =>
+    request<WorkoutDTO>(`/fitness/workouts/${workoutId}/sets/${setId}`, { method: 'DELETE' }),
+  finish: (workoutId: string, input: { notes?: string }) =>
+    request<WorkoutDTO | null>(`/fitness/workouts/${workoutId}/finish`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
 };
 
 export const TimelineApi = {

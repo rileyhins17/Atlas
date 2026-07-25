@@ -11,6 +11,12 @@ allowBuilds:
   # native binary and protobufjs generates code at install time.
   onnxruntime-node: true
   protobufjs: true
+  # Native resolver pulled in transitively by eslint-config-next. Nothing in
+  # build/typecheck/test/dev touches it (only ESLint would), so its native
+  # binary is denied rather than built. pnpm writes a "set this to true or
+  # false" placeholder here on install, and that literal string makes every
+  # later `pnpm install` — and therefore `pnpm dev` — fail outright.
+  unrs-resolver: false
 
 # @huggingface/transformers imports onnxruntime-common but never declares it (it
 # only depends on onnxruntime-node/-web, which depend on -common). That phantom

@@ -23,4 +23,8 @@ export const qk = {
   stats: (days: number) => ['stats', days] as const,
   dayEvents: (fromIso: string) => ['events', 'day', fromIso] as const,
   dayActuals: (fromIso: string) => ['timeline', 'day', fromIso] as const,
+  exercises: ['fitness', 'exercises'] as const,
+  activeWorkout: ['fitness', 'active'] as const,
+  workouts: ['fitness', 'workouts'] as const,
+  lastPerformance: (exerciseId: string) => ['fitness', 'last', exerciseId] as const,
 };

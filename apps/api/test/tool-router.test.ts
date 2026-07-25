@@ -7,10 +7,11 @@ function makeRouter() {
   const journal = { create: vi.fn().mockResolvedValue({ id: 'journal_1' }) };
   const notes = { create: vi.fn().mockResolvedValue({ id: 'note_1' }) };
   const calendar = { create: vi.fn().mockResolvedValue({ id: 'event_1' }) };
+  const fitness = { start: vi.fn().mockResolvedValue({ id: 'workout_1' }) };
   const memory = { askUser: vi.fn().mockResolvedValue(undefined) };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const router = new ToolRouterService(tasks as any, habits as any, journal as any, notes as any, calendar as any, memory as any);
-  return { router, tasks, habits, journal, notes, calendar, memory };
+  const router = new ToolRouterService(tasks as any, habits as any, journal as any, notes as any, calendar as any, fitness as any, memory as any);
+  return { router, tasks, habits, journal, notes, calendar, fitness, memory };
 }
 
 describe('ToolRouterService', () => {
@@ -66,6 +67,17 @@ describe('ToolRouterService', () => {
       expect.objectContaining({ userId: 'user-1', question: 'How are you feeling this week?' }),
     );
     expect(result).toEqual({ ok: true });
+  });
+
+  it('routes fitness.start_workout, defaulting a missing argument object', async () => {
+    const { router, fitness } = makeRouter();
+    await router.execute('user-1', 'fitness.start_workout', { title: 'Push day' });
+    expect(fitness.start).toHaveBeenCalledWith('user-1', { title: 'Push day' });
+
+    // The model often calls a no-argument tool with null/undefined rather than
+    // {}, which would otherwise blow up in zod before reaching the service.
+    await router.execute('user-1', 'fitness.start_workout', undefined);
+    expect(fitness.start).toHaveBeenLastCalledWith('user-1', {});
   });
 
   it('throws on an unknown tool name', async () => {

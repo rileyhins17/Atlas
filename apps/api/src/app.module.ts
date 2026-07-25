@@ -10,6 +10,7 @@ import { JournalModule } from './modules/journal/journal.module.js';
 import { NotesModule } from './modules/notes/notes.module.js';
 import { CalendarModule } from './modules/calendar/calendar.module.js';
 import { FinanceModule } from './modules/finance/finance.module.js';
+import { FitnessModule } from './modules/fitness/fitness.module.js';
 import { AiModule } from './modules/ai/ai.module.js';
 import { AccountModule } from './modules/account/account.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
@@ -37,6 +38,7 @@ import { OriginCheckMiddleware } from './common/origin-check.middleware.js';
     NotesModule,
     CalendarModule,
     FinanceModule,
+    FitnessModule,
     AiModule,
     AccountModule,
     SettingsModule,

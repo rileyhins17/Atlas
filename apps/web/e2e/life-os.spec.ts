@@ -240,3 +240,38 @@ test('a recurring task rolls forward to its next occurrence when completed', asy
   await expect(open).toHaveCount(1);
   await expect(open.getByText('Every weekday')).toBeVisible();
 });
+
+test('a workout logs sets, badges a real PR, and lands in history when finished', async ({ page }) => {
+  await go(page, '/fitness');
+
+  await page.getByRole('button', { name: /Start workout/i }).click();
+  await expect(page.locator('.fit-active')).toBeVisible();
+
+  // Search-first picker: the catalog is long, scrolling it mid-workout is slow.
+  await page.getByRole('button', { name: /Add exercise/i }).click();
+  await page.getByLabel('Search exercises').fill('lateral');
+  await page.getByRole('option', { name: /Lateral Raise/ }).click();
+  await expect(page.locator('.fit-block')).toBeVisible();
+
+  for (const [kg, reps] of [
+    ['10', '12'],
+    ['14', '10'],
+    ['12', '12'],
+  ]) {
+    await page.getByLabel(/Weight in kg for Lateral Raise/i).fill(kg);
+    await page.getByLabel(/Reps for Lateral Raise/i).fill(reps);
+    await page.getByRole('button', { name: /Log set/i }).click();
+  }
+  await expect(page.locator('.fit-set')).toHaveCount(3);
+
+  // Exactly two records: the first-ever set, then the one that beats it. The
+  // third is heavier than nothing but lighter than 14 kg, so it is NOT a PR —
+  // an app that celebrates every set teaches you to ignore the badge.
+  await expect(page.locator('.fit-pr')).toHaveCount(2);
+
+  // Finishing must clear the session, not leave the logger on screen.
+  await page.getByRole('button', { name: /^Finish$/ }).click();
+  await expect(page.locator('.fit-active')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Start workout/i })).toBeVisible();
+  await expect(page.locator('.fit-history-row').first()).toContainText('Lateral Raise');
+});

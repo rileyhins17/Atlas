@@ -16,3 +16,5 @@ export * from './dto/push.js';
 export * from './dto/routine.js';
 export * from './dto/stats.js';
 export * from './dto/recurrence.js';
+export * from './dto/fitness.js';
+export * from './dto/fitness-util.js';

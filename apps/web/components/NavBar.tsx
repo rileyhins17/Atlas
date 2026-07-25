@@ -15,6 +15,7 @@ import {
   StickyNote,
   TrendingUp,
   Wallet,
+  Dumbbell,
 } from 'lucide-react';
 
 /** Live your life (primary) vs. manage the data behind it (grouped). */
@@ -30,6 +31,7 @@ const MANAGE = [
   { href: '/habits', label: 'Habits', icon: Flame },
   { href: '/journal', label: 'Journal', icon: BookOpen },
   { href: '/notes', label: 'Notes', icon: StickyNote },
+  { href: '/fitness', label: 'Training', icon: Dumbbell },
   { href: '/finance', label: 'Finance', icon: Wallet },
 ] as const;
 
