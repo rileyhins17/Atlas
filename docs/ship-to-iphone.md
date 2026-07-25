@@ -113,10 +113,13 @@ will OOM. Do not economise below CX22.
 
 ## 4 · Exact steps (do these in order)
 
-### A. Buy the domain
-1. Check your shortlist at Cloudflare Registrar.
-2. Buy it. Enable WHOIS privacy (free).
-3. Point the nameservers at Cloudflare (automatic if you buy there).
+### A. Buy the domain — ✅ DONE
+`atlaslife.app`, registered at Cloudflare (so DNS and nameservers are already
+wired; nothing to point).
+
+> **`.app` is HSTS-preloaded.** Chrome, Safari and Firefox refuse plain HTTP on
+> it outright — there is no "proceed anyway" screen. Nothing loads until a valid
+> certificate is in place, so treat TLS as part of the deploy, not a follow-up.
 
 ### B. Get a server
 1. Create a Hetzner Cloud account → new project → **Add Server**, Ubuntu 24.04.
@@ -136,15 +139,20 @@ container and everything else to the web container, so there is **no `api`
 subdomain** — an earlier draft of this doc said to create one, which was wrong
 and would have meant cross-site cookies for no benefit.
 
-In Cloudflare DNS for your domain, one record:
-- `A`, name `@`, value = your server IP, **proxy ON** (orange cloud).
-- Optionally `CNAME`, name `www`, target `@`, proxy ON.
+In Cloudflare DNS for `atlaslife.app`, one record:
+- `A`, name `@`, value = your server IP, **proxy OFF (grey cloud / DNS only)**.
+- Optionally `CNAME`, name `www`, target `atlaslife.app`, also grey.
 
-> **Proxy ON + Caddy needs care.** With the orange cloud on, Cloudflare terminates
-> TLS itself, so set SSL/TLS mode to **Full (strict)** — otherwise you get a
-> redirect loop. Caddy's HTTP-01 ACME challenge cannot complete through the proxy;
-> either use Cloudflare's own certificate (Full strict is enough) or start with the
-> proxy **OFF** (grey cloud) until Caddy has issued its cert, then turn it on.
+**Start with the proxy OFF and leave it off.** Caddy then gets a real Let's
+Encrypt certificate over HTTP-01 and auto-renews it, which is one moving part
+that simply works. Turning the orange cloud on adds a second TLS terminator and
+three ways to break: HTTP-01 can no longer complete through the proxy, anything
+other than **Full (strict)** gives a redirect loop, and Full (strict) then demands
+a valid origin cert of its own (a Cloudflare Origin Certificate installed into
+Caddy). None of that buys a single-user app anything.
+
+Turn the proxy on later, if ever — the reason would be hiding the origin IP or
+absorbing an attack, neither of which is a day-one concern.
 
 ### D. Deploy
 On the server:
@@ -156,8 +164,8 @@ Then create `.env` on the server (**never commit it**) with a fresh
 `SESSION_SECRET`, `APP_ENCRYPTION_KEY`, the Postgres credentials, your
 `GOOGLE_*` and `PLAID_*` keys, and:
 ```
-ATLAS_DOMAIN=yourdomain.app
-WEB_ORIGIN=https://yourdomain.app
+ATLAS_DOMAIN=atlaslife.app
+WEB_ORIGIN=https://atlaslife.app
 # Same origin — the browser reaches the API through Caddy at /api, so this is a
 # PATH, not a URL. Setting it to a full https://api.… host would break cookies.
 NEXT_PUBLIC_API_URL=/api
@@ -177,7 +185,7 @@ docker compose -f infra/docker-compose.yml exec api node -e "process.exit(0)" &&
 
 ### E. Put it on your iPhone
 1. Open **Safari** (it must be Safari — Chrome on iOS cannot install PWAs).
-2. Go to `https://yourdomain.app` and sign in.
+2. Go to `https://atlaslife.app` and sign in.
 3. Share button → **Add to Home Screen** → Add.
 4. You now have an Atlas icon that opens full-screen with no browser chrome.
 
