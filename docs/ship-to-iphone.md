@@ -124,13 +124,20 @@ will OOM. Do not economise below CX22.
 3. Note the IPv4 address.
 
 ### C. DNS
-In Cloudflare DNS for your domain:
-- `A` record, name `@`, value = your server IP, **proxy ON** (orange cloud).
-- `A` record, name `api`, value = same IP, **proxy ON**.
+Atlas runs on **ONE origin**. `infra/Caddyfile` proxies `/api/*` to the API
+container and everything else to the web container, so there is **no `api`
+subdomain** — an earlier draft of this doc said to create one, which was wrong
+and would have meant cross-site cookies for no benefit.
 
-> Proxy ON gives you free DDoS protection and hides the origin IP. Caddy still
-> needs to answer ACME challenges — use Cloudflare's **Full (strict)** SSL mode
-> so both ends are encrypted.
+In Cloudflare DNS for your domain, one record:
+- `A`, name `@`, value = your server IP, **proxy ON** (orange cloud).
+- Optionally `CNAME`, name `www`, target `@`, proxy ON.
+
+> **Proxy ON + Caddy needs care.** With the orange cloud on, Cloudflare terminates
+> TLS itself, so set SSL/TLS mode to **Full (strict)** — otherwise you get a
+> redirect loop. Caddy's HTTP-01 ACME challenge cannot complete through the proxy;
+> either use Cloudflare's own certificate (Full strict is enough) or start with the
+> proxy **OFF** (grey cloud) until Caddy has issued its cert, then turn it on.
 
 ### D. Deploy
 On the server:
@@ -142,11 +149,21 @@ Then create `.env` on the server (**never commit it**) with a fresh
 `SESSION_SECRET`, `APP_ENCRYPTION_KEY`, the Postgres credentials, your
 `GOOGLE_*` and `PLAID_*` keys, and:
 ```
-WEB_ORIGIN=https://yourdomain.app
-NEXT_PUBLIC_API_URL=https://api.yourdomain.app
 ATLAS_DOMAIN=yourdomain.app
+WEB_ORIGIN=https://yourdomain.app
+# Same origin — the browser reaches the API through Caddy at /api, so this is a
+# PATH, not a URL. Setting it to a full https://api.… host would break cookies.
+NEXT_PUBLIC_API_URL=/api
 ```
-Then `docker compose up -d` and `pnpm --filter @atlas/db exec prisma migrate deploy`.
+Then bring the whole stack up (note the `full` profile — without it only Postgres
+starts, which is the local-dev shape):
+```bash
+docker compose --env-file .env -f infra/docker-compose.yml --profile full up -d --build
+```
+Then apply migrations against the container database:
+```bash
+docker compose -f infra/docker-compose.yml exec api node -e "process.exit(0)" && pnpm --filter @atlas/db exec prisma migrate deploy
+```
 
 > **Rotate every secret** for production. The Plaid production secret in
 > particular was pasted into a chat transcript and must not be reused.
