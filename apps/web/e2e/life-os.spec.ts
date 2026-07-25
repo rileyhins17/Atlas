@@ -232,13 +232,23 @@ test('a recurring task rolls forward to its next occurrence when completed', asy
   await expect(row.getByText('Every weekday')).toBeVisible();
 
   // Completing it must leave the series alive: one open instance, dated later.
+  // The next instance is spawned by the server DURING the completion request,
+  // so wait for that response — reloading before it lands races the spawn and
+  // the fresh page fetches a list that does not have the new row yet.
+  const completed = page.waitForResponse(
+    (r) => r.url().includes('/complete') && r.request().method() === 'POST',
+  );
   await row.locator('button.check').first().click();
-  await expect(page.locator('.task', { hasText: title }).filter({ hasNot: page.locator('.done') })).toHaveCount(1);
-  await page.reload();
-  await expect(page.locator('.sidebar-user-name')).toBeVisible();
+  await completed;
+
   const open = page.locator('.task:not(.done)', { hasText: title });
   await expect(open).toHaveCount(1);
   await expect(open.getByText('Every weekday')).toBeVisible();
+
+  // And it is real, not optimistic UI, so it survives a reload.
+  await page.reload();
+  await expect(page.locator('.sidebar-user-name')).toBeVisible();
+  await expect(page.locator('.task:not(.done)', { hasText: title })).toHaveCount(1);
 });
 
 test('a workout logs sets, badges a real PR, and lands in history when finished', async ({ page }) => {

@@ -12,9 +12,22 @@ import { safeTz } from './time.util.js';
 import { StatsService } from '../stats/stats.service.js';
 import { ToolRouterService } from './tool-router.service.js';
 import { EmbeddingService } from './embedding.service.js';
+import { parsePlanReply } from './plan-day.util.js';
 
 const CONTEXT_TOKEN_BUDGET = 3_000;
+/**
+ * Completion budget for a normal call.
+ *
+ * `deepseek-v4-flash` is a REASONING model: its `reasoning_content` is billed
+ * against — and consumes — the same `max_tokens` as the visible answer. A call
+ * that thinks for 700 tokens has 100 left to answer in. Anything whose output
+ * has to be complete to be usable therefore needs real headroom, not this.
+ */
 const MAX_RESPONSE_TOKENS = 800;
+/** Long-form prose the user reads in full; observed truncating at 800. */
+const NARRATIVE_RESPONSE_TOKENS = 2_000;
+/** A plan is only usable if its JSON closes, and the JSON comes after the reasoning. */
+const PLAN_RESPONSE_TOKENS = 3_000;
 const MEMORY_RECALL_LIMIT = 3;
 /**
  * Max L2 distance for a recalled memory to be worth prompt space. Vectors are
@@ -99,32 +112,6 @@ Hard rules:
 - Default to 30-60 minutes unless the task clearly implies otherwise.
 - "why" is one plain sentence about the placement, not a pep talk.`;
 
-/**
- * Pull the JSON object out of a model reply. Models wrap JSON in prose or code
- * fences often enough that a bare JSON.parse fails in normal operation, so this
- * takes the outermost braces and gives up quietly rather than throwing.
- */
-function parsePlanReply(
-  content: string,
-): { proposals: { taskId?: string; startAt?: string; endAt?: string; why?: string }[]; note: string | null } | null {
-  const start = content.indexOf('{');
-  const end = content.lastIndexOf('}');
-  if (start === -1 || end <= start) return null;
-  try {
-    const raw = JSON.parse(content.slice(start, end + 1)) as {
-      proposals?: unknown;
-      note?: unknown;
-    };
-    const proposals = Array.isArray(raw.proposals) ? raw.proposals : [];
-    return {
-      proposals: proposals as { taskId?: string; startAt?: string; endAt?: string; why?: string }[],
-      note: typeof raw.note === 'string' ? raw.note : null,
-    };
-  } catch {
-    return null;
-  }
-}
-
 /** Newline as a const: writing '
 ' inline through tooling keeps getting mangled. */
 const NL = String.fromCharCode(10);
@@ -189,6 +176,7 @@ export class OrchestratorService {
     purpose: string,
     messages: ChatMessage[],
     tools?: Record<string, unknown>[],
+    maxTokens: number = MAX_RESPONSE_TOKENS,
   ) {
     await this.costGuard.assertUnderCap();
     const env = loadEnv();
@@ -196,8 +184,16 @@ export class OrchestratorService {
     const res = await this.connectors.deepseek.chat(ctx, messages, {
       model: env.AI_MODEL,
       tools,
-      maxTokens: MAX_RESPONSE_TOKENS,
+      maxTokens,
     });
+    // Truncation is otherwise invisible: the reply just ends mid-sentence, or
+    // mid-JSON. Log it so a budget that has become too small shows up as a
+    // signal rather than as an occasional mystery empty result.
+    if (res.finishReason === 'length') {
+      this.logger.warn(
+        `${purpose}: model output hit the ${maxTokens}-token cap and was truncated`,
+      );
+    }
     await this.costGuard.record({
       model: res.model,
       promptTokens: res.usage.promptTokens,
@@ -370,7 +366,13 @@ Propose a plan.`,
       },
     ];
 
-    const reply = await this.chatCall(userId, 'plan_day', messages);
+    const reply = await this.chatCall(
+      userId,
+      'plan_day',
+      messages,
+      undefined,
+      PLAN_RESPONSE_TOKENS,
+    );
     const parsed = parsePlanReply(reply.content ?? '');
     if (!parsed) return { proposals: [], note: 'Could not put a plan together just now.' };
 
@@ -459,7 +461,13 @@ ${nowText}` },
       { role: 'system', content: BRIEF_SYSTEM_PROMPT },
       { role: 'user', content: `${contextText}\n\nRecent activity:\n${activityText}\n\nWrite today's brief.` },
     ];
-    const res = await this.chatCall(userId, 'daily_brief', messages);
+    const res = await this.chatCall(
+      userId,
+      'daily_brief',
+      messages,
+      undefined,
+      NARRATIVE_RESPONSE_TOKENS,
+    );
 
     const now = new Date();
     const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
@@ -499,7 +507,13 @@ ${nowText}` },
         content: `${contextText}\n\nActivity over the last 7 days:\n${activityText}${statsText ? `\n\n${statsText}` : ''}\n\nWrite this week's review.`,
       },
     ];
-    const res = await this.chatCall(userId, 'weekly_review', messages);
+    const res = await this.chatCall(
+      userId,
+      'weekly_review',
+      messages,
+      undefined,
+      NARRATIVE_RESPONSE_TOKENS,
+    );
 
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 86_400_000);

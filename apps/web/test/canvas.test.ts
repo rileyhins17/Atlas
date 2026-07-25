@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { EventDTO, RoutineBlockDTO, TaskDTO, TimelineEventDTO } from '@atlas/shared';
 import { buildDayCanvas, buildDayOverview, supposedTo, CANVAS_NOISE_TYPES, type DayCanvas } from '@/lib/canvas';
+import { localDayKey } from '@/lib/dates';
 
 /**
  * The Day Canvas engine is the heart of Atlas v4 — these tests pin its whole
@@ -436,7 +437,9 @@ describe('overview: free-time gaps', () => {
     expect(o.gaps).toHaveLength(0);
   });
 
-  it('a window with an event in it is already claimed', () => {
+  it('subtracts an event from its window instead of writing the window off', () => {
+    // 17:00–23:00 is free; dinner claims 19:00–21:00. What is left is the two
+    // sides of it, not nothing — one event must never swallow a whole evening.
     const canvas = buildDayCanvas(
       at(18),
       workDay,
@@ -445,7 +448,70 @@ describe('overview: free-time gaps', () => {
       [],
       at(18),
     );
+    const { gaps } = buildDayOverview(canvas, at(18));
+    expect(gaps.map((g) => `${fmt(g.start)}-${fmt(g.end)}`)).toEqual(['18:00-19:00', '21:00-23:00']);
+  });
+
+  it('offers nothing when an event covers the rest of the window', () => {
+    const canvas = buildDayCanvas(
+      at(18),
+      workDay,
+      [event({ title: 'Long dinner', startAt: at(17).toISOString(), endAt: at(23).toISOString() })],
+      [],
+      [],
+      at(18),
+    );
     expect(buildDayOverview(canvas, at(18)).gaps).toHaveLength(0);
+  });
+
+  it('treats an event with no end time as claiming half an hour', () => {
+    // The schema types endAt as required, but the canvas tolerates a blank one
+    // arriving off the wire — that is the only way `end` is ever null.
+    const canvas = buildDayCanvas(
+      at(18),
+      workDay,
+      [event({ title: 'Call', startAt: at(19).toISOString(), endAt: '' })],
+      [],
+      [],
+      at(18),
+    );
+    const { gaps } = buildDayOverview(canvas, at(18));
+    expect(gaps.map((g) => `${fmt(g.start)}-${fmt(g.end)}`)).toEqual(['18:00-19:00', '19:30-23:00']);
+  });
+
+  it('drops the leftover slice when subtracting an event leaves only a sliver', () => {
+    // 18:00–18:10 survives the subtraction but is too short to plan into.
+    const canvas = buildDayCanvas(
+      at(18),
+      workDay,
+      [event({ title: 'Dinner out', startAt: at(18, 10).toISOString(), endAt: at(23).toISOString() })],
+      [],
+      [],
+      at(18),
+    );
+    expect(buildDayOverview(canvas, at(18)).gaps).toHaveLength(0);
+  });
+
+  it('a day off carves the routine out and the whole day becomes plannable', () => {
+    // The exact shape the routine editor's "I am off today" button writes.
+    const dayOff = [
+      ...workDay,
+      block({
+        label: 'Day off',
+        kind: 'off',
+        days: DAILY,
+        onDate: localDayKey(at(12)),
+        startMin: 0,
+        endMin: 1439,
+      }),
+    ];
+    const { gaps } = buildDayOverview(
+      buildDayCanvas(at(12), dayOff, [], [], [], at(12)),
+      at(12),
+    );
+    expect(gaps).toHaveLength(1);
+    expect(fmt(gaps[0]!.start)).toBe('12:00');
+    expect(gaps[0]!.minutes).toBeGreaterThan(11 * 60);
   });
 
   it('ignores slivers too short to plan into', () => {

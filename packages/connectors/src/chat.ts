@@ -33,6 +33,12 @@ export interface ChatResult {
   content: string;
   /** Present when the model wants to call one or more tools instead of (or alongside) replying. */
   toolCalls?: ChatToolCall[];
+  /**
+   * Why the model stopped — `'stop'` normally, `'length'` when it ran out of
+   * completion budget. Worth checking: a truncated reply is not an error and
+   * arrives looking like a short one, so nothing else reveals it.
+   */
+  finishReason?: string;
   usage: ChatUsage;
   model: string;
   raw: unknown;
@@ -63,7 +69,10 @@ export interface EmbedOptions {
 /** Shared response parsing for OpenAI-compatible chat/completions APIs. */
 export function parseChatCompletion(data: unknown, fallbackModel: string): ChatResult {
   const parsed = data as {
-    choices?: { message?: { content?: string | null; tool_calls?: ChatToolCall[] } }[];
+    choices?: {
+      message?: { content?: string | null; tool_calls?: ChatToolCall[] };
+      finish_reason?: string;
+    }[];
     usage?: {
       prompt_tokens?: number;
       completion_tokens?: number;
@@ -74,11 +83,13 @@ export function parseChatCompletion(data: unknown, fallbackModel: string): ChatR
     };
     model?: string;
   };
-  const message = parsed.choices?.[0]?.message;
+  const choice = parsed.choices?.[0];
+  const message = choice?.message;
   const usage = parsed.usage;
   return {
     content: message?.content ?? '',
     toolCalls: message?.tool_calls,
+    finishReason: choice?.finish_reason,
     usage: {
       promptTokens: usage?.prompt_tokens ?? 0,
       completionTokens: usage?.completion_tokens ?? 0,

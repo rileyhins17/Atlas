@@ -50,4 +50,19 @@ describe('parseChatCompletion', () => {
     const res = parseChatCompletion({ choices: [{ message: { content: 'x' } }] }, 'm');
     expect(res.usage).toEqual({ promptTokens: 0, completionTokens: 0, cachedPromptTokens: 0 });
   });
+
+  it('surfaces finish_reason so a truncated reply is detectable', () => {
+    // A truncated reply is a successful 200 with a short body — without this
+    // there is no way to tell it apart from a genuinely brief answer.
+    const cut = parseChatCompletion(
+      { choices: [{ message: { content: '{"proposals":[' }, finish_reason: 'length' }] },
+      'm',
+    );
+    expect(cut.finishReason).toBe('length');
+    const done = parseChatCompletion(
+      { choices: [{ message: { content: 'x' }, finish_reason: 'stop' }] },
+      'm',
+    );
+    expect(done.finishReason).toBe('stop');
+  });
 });

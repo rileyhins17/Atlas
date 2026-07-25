@@ -372,25 +372,55 @@ export function buildDayOverview(canvas: DayCanvas, now: Date): DayOverview {
 const MIN_GAP_MS = 20 * 60_000;
 
 /**
+ * How long an event with no end time is treated as claiming. Atlas always
+ * writes an end, so this only covers imported events; half an hour is the
+ * smallest claim that isn't just a reminder.
+ */
+const UNBOUNDED_EVENT_MS = 30 * 60_000;
+
+/**
  * The windows still open ahead of `now`.
  *
- * Only genuinely unclaimed time counts: an Open gap, with nothing scheduled in
- * it. EVERY routine block is excluded, not just sleep and work — a meal or a
- * gym slot is time you already spoke for, and offering it back would recreate
- * the exact problem this feature exists to fix (the day claiming you're free
- * when you aren't).
+ * Only genuinely unclaimed time counts: an Open gap, minus anything already
+ * scheduled inside it. EVERY routine block is excluded, not just sleep and
+ * work — a meal or a gym slot is time you already spoke for, and offering it
+ * back would recreate the exact problem this feature exists to fix (the day
+ * claiming you're free when you aren't).
+ *
+ * Events are SUBTRACTED rather than disqualifying the window they sit in. A
+ * single one-hour event must not swallow an eight-hour evening: that made the
+ * day read as fully booked the moment you accepted one proposal, and on a day
+ * off — the one day the whole span is open — it hid free time entirely.
  */
 function openGaps(canvas: DayCanvas, now: Date): { start: Date; end: Date; minutes: number }[] {
   const out: { start: Date; end: Date; minutes: number }[] = [];
   for (const s of canvas.sections) {
     if (s.end <= now) continue;
     if (s.kind === 'routine') continue;
-    if (s.items.some((i) => i.type === 'event')) continue;
+
     // A gap already under way starts "now", not at its nominal start.
-    const start = s.start > now ? s.start : now;
-    const ms = s.end.getTime() - start.getTime();
-    if (ms < MIN_GAP_MS) continue;
-    out.push({ start, end: s.end, minutes: Math.round(ms / 60_000) });
+    let pieces = [{ start: s.start > now ? s.start : now, end: s.end }];
+    for (const item of s.items) {
+      if (item.type !== 'event') continue;
+      const busyStart = item.at;
+      const busyEnd = item.end ?? new Date(item.at.getTime() + UNBOUNDED_EVENT_MS);
+      const next: { start: Date; end: Date }[] = [];
+      for (const p of pieces) {
+        if (busyEnd <= p.start || busyStart >= p.end) {
+          next.push(p);
+          continue;
+        }
+        if (p.start < busyStart) next.push({ start: p.start, end: busyStart });
+        if (busyEnd < p.end) next.push({ start: busyEnd, end: p.end });
+      }
+      pieces = next;
+    }
+
+    for (const p of pieces) {
+      const ms = p.end.getTime() - p.start.getTime();
+      if (ms < MIN_GAP_MS) continue;
+      out.push({ start: p.start, end: p.end, minutes: Math.round(ms / 60_000) });
+    }
   }
-  return out;
+  return out.sort((a, b) => a.start.getTime() - b.start.getTime());
 }
