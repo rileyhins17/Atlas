@@ -7,6 +7,7 @@ import { errorMessage } from '@/lib/api';
 import { useAccounts, useTransactions } from '@/lib/hooks/finance';
 import { Card, EmptyState, ErrorState, ListSkeleton } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
+import { PlaidCard } from './PlaidCard';
 import { formatDayHeading, localDayKey } from '@/lib/dates';
 import { formatMoney } from '@/lib/money';
 
@@ -62,6 +63,11 @@ export function FinancePanel() {
     <>
       <PageHeader title="Finance" subtitle="Accounts and spending." />
 
+      {/* The connect flow belongs here, not behind a Settings hunt. */}
+      <div style={{ marginBottom: 14 }}>
+        <PlaidCard />
+      </div>
+
       <Card stack>
         {accountsQuery.isPending ? (
           <ListSkeleton rows={2} circle={false} />
@@ -74,7 +80,7 @@ export function FinancePanel() {
           <EmptyState
             icon={Wallet}
             title="No accounts yet"
-            hint="Connect a bank with Plaid in Settings to pull your accounts and transactions in."
+            hint="Connect a bank above to pull your accounts and transactions in, or add one by hand."
           />
         ) : (
           <div className="stack" style={{ gap: 6 }}>

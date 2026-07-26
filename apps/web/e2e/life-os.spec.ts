@@ -544,3 +544,20 @@ test('goals split into short and long term', async ({ page }) => {
     .click();
   await expect(page.locator('section[aria-label="Long term"]')).toContainText('Run a half marathon');
 });
+
+test('connectors are offered on their own pages, not only in Settings', async ({ page }) => {
+  // Connecting your calendar is something you think of while looking at your
+  // calendar — hiding it in Settings made it undiscoverable.
+  await go(page, '/calendar');
+  await expect(page.getByRole('button', { name: 'Connect Google Calendar' })).toBeVisible();
+
+  await go(page, '/finance');
+  await expect(page.getByRole('button', { name: 'Connect a bank' })).toBeVisible();
+  // The empty state should point at the button above it, not somewhere else.
+  await expect(page.getByText(/Connect a bank above/)).toBeVisible();
+
+  // Settings still offers both — one component, rendered twice.
+  await go(page, '/settings');
+  await page.getByRole('button', { name: /Google Calendar/ }).first().click();
+  await expect(page.getByRole('button', { name: 'Connect Google Calendar' })).toBeVisible();
+});

@@ -30,6 +30,7 @@ import {
   useToast,
 } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
+import { GoogleCalendarCard } from '@/components/connectors/GoogleCalendarCard';
 import { useSubmitLatch } from '@/lib/hooks/submit-latch';
 import { formatClock, localDayKey } from '@/lib/dates';
 import {
@@ -245,6 +246,13 @@ export function CalendarPanel() {
           </Button>
         }
       />
+
+      {/* Connecting Google is something you think of while looking at your
+          calendar, not while hunting through Settings. Same component both
+          places, so the two can never drift. */}
+      <div style={{ marginBottom: 14 }}>
+        <GoogleCalendarCard compact />
+      </div>
 
       {/* Week navigation. The strip is the whole control: swipeable by nature,
           one tap per day, and it shows where the busy days are before you go. */}

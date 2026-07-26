@@ -1,14 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { errorMessage } from '@/lib/api';
-import {
-  useGoogleConnectStart,
-  useGoogleDisconnect,
-  useGoogleStatus,
-  useGoogleSync,
-} from '@/lib/hooks/google';
-import { Button, Card, ErrorState, Skeleton } from '@/components/ui';
+import { useGoogleStatus } from '@/lib/hooks/google';
+
 import { PageHeader } from '@/components/PageHeader';
 import { DataPrivacyPanel } from './DataPrivacyPanel';
 import { AiSettingsCard } from './AiSettingsCard';
@@ -17,47 +10,15 @@ import { PlaidCard } from './PlaidCard';
 import { RoutineEditor } from './RoutineEditor';
 import { SettingsSection } from './SettingsSection';
 import { TrainingSettingsCard } from './TrainingSettingsCard';
+import { GoogleCalendarCard } from '@/components/connectors/GoogleCalendarCard';
 
 export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
-  // Set by the OAuth callback redirect (?google=connected|denied).
-  const [flash, setFlash] = useState<string | null>(null);
-  const statusQuery = useGoogleStatus();
-  const connectStart = useGoogleConnectStart();
-  const sync = useGoogleSync();
-  const disconnect = useGoogleDisconnect();
-
-  useEffect(() => {
-    const param = new URLSearchParams(window.location.search).get('google');
-    if (param === 'connected') setFlash('Google Calendar connected. Run a sync to pull your events in.');
-    if (param === 'denied') setFlash('Google Calendar connection was cancelled.');
-    if (param) window.history.replaceState({}, '', window.location.pathname);
-  }, []);
-
-  const status = statusQuery.data ?? null;
-  const busy = connectStart.isPending || sync.isPending || disconnect.isPending;
-  const result = sync.data ?? null;
-  const error = connectStart.error
-    ? errorMessage(connectStart.error, 'Failed to start Google connect')
-    : sync.error
-      ? errorMessage(sync.error, 'Sync failed')
-      : disconnect.error
-        ? errorMessage(disconnect.error, 'Failed to disconnect')
-        : null;
-
-  function connect() {
-    connectStart.mutate(undefined, {
-      onSuccess: ({ url }) => {
-        // Full navigation, not a popup: Google blocks its consent screen in many
-        // embedded/popup contexts, and the callback needs our session cookie.
-        window.location.href = url;
-      },
-    });
-  }
+  // Only the section hint needs status now; GoogleCalendarCard owns the flow.
+  const status = useGoogleStatus().data ?? null;
 
   return (
     <>
       <PageHeader title="Settings" subtitle="Connections, your data, and your account." />
-      {flash && <Card style={{ borderColor: 'var(--brand-alt)' }}>{flash}</Card>}
 
       {/* Your week first: it drives what Today calls free time, so it is the
           setting people actually come here to correct. */}
@@ -77,70 +38,12 @@ export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
         <ProactiveSettingsCard />
       </SettingsSection>
 
-      <SettingsSection id="google" title="Google Calendar" hint={status?.connected ? 'connected' : 'not connected'}>
-      <Card stack>
-        <div className="row" style={{ justifyContent: 'space-between' }}>
-          <strong>Google Calendar</strong>
-          {status && (
-            <span className="muted" style={{ fontSize: 12 }}>
-              {!status.configured ? 'unavailable on this server' : status.connected ? 'connected' : 'not connected'}
-            </span>
-          )}
-        </div>
-
-        {statusQuery.isPending ? (
-          <div className="stack" style={{ gap: 8 }}>
-            <Skeleton height={14} width="80%" />
-            <Skeleton height={14} width="55%" />
-          </div>
-        ) : statusQuery.isError ? (
-          <ErrorState
-            message={errorMessage(statusQuery.error, 'Failed to load connector status')}
-            onRetry={() => void statusQuery.refetch()}
-          />
-        ) : status === null ? null : !status.configured ? (
-          <span className="muted" style={{ fontSize: 13 }}>
-            This server has no Google OAuth client configured.
-          </span>
-        ) : (
-          <>
-            <div className="muted" style={{ fontSize: 13 }}>
-              Two-way sync. Your Google events appear in Atlas and events you add here are pushed to
-              Google. If the same event changes in both places, Google wins. Atlas never deletes
-              anything from your Google calendar.
-            </div>
-            <div className="row">
-              {status.connected ? (
-                <>
-                  <Button onClick={() => sync.mutate()} disabled={busy}>
-                    {sync.isPending ? 'Syncing…' : 'Sync now'}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() => disconnect.mutate(undefined, { onSuccess: () => sync.reset() })}
-                    disabled={busy}
-                  >
-                    Disconnect
-                  </Button>
-                </>
-              ) : (
-                <Button onClick={connect} disabled={busy}>
-                  {connectStart.isPending ? '…' : 'Connect Google Calendar'}
-                </Button>
-              )}
-            </div>
-          </>
-        )}
-
-        {result && (
-          <div className="muted" style={{ fontSize: 13 }}>
-            Synced: {result.imported} imported, {result.updated} updated, {result.pushed} pushed,{' '}
-            {result.deleted} removed.
-            {result.errors.length > 0 && ` ${result.errors.length} error(s).`}
-          </div>
-        )}
-        {error && <div className="error">{error}</div>}
-      </Card>
+      <SettingsSection
+        id="google"
+        title="Google Calendar"
+        hint={status?.connected ? 'connected' : 'not connected'}
+      >
+        <GoogleCalendarCard />
       </SettingsSection>
 
       <SettingsSection id="banking" title="Banking" hint="connect an account">
