@@ -53,10 +53,12 @@ export function AuthGate() {
           what this actually is, which is the only thing a first-time visitor
           needs from this screen. */}
       <div className="gate-brand">
-        <span className="gate-mark" aria-hidden>
-          <Logo size={40} />
+        <span className="gate-lockup">
+          <span className="gate-mark" aria-hidden>
+            <Logo size={26} />
+          </span>
+          <h1 className="gate-word">Atlas</h1>
         </span>
-        <h1 className="gate-word">Atlas</h1>
         <p className="gate-tag">Your day, your habits, your life — in one place.</p>
       </div>
 

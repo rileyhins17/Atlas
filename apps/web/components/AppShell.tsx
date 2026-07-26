@@ -46,13 +46,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="gate-toolbar">
           <ThemeToggle />
         </div>
+        {/* The brand lockup belongs to AuthGate, which owns the whole
+            sign-in composition. The shell used to render its own copy as well,
+            which produced two stacked Atlas headers and a screen of dead space
+            between them. */}
         <div className="gate-body">
-          <div className="gate-brand">
-            <Logo size={46} />
-            <span className="wordmark" style={{ fontSize: 27 }}>
-              Atlas
-            </span>
-          </div>
           <AuthGate />
         </div>
       </div>

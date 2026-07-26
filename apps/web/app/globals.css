@@ -722,15 +722,26 @@ input[type='checkbox']:checked::after {
 .gate-toolbar {
   display: flex;
   justify-content: flex-end;
-  padding: 16px;
+  /* Just enough to clear the edge — this row holds one theme toggle, but its
+     16px padding plus the button height was measuring 76px of the screen
+     before the logo even started. */
+  padding: 8px 12px 0;
 }
 .gate-body {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 0 16px 64px;
+  /* Anchored to the UPPER THIRD, not dead centre. The sign-in block is about
+     390px tall, so centring it in an 844px phone left ~276px above and ~176px
+     below — a small card floating in a void, which is what "too much
+     whitespace" actually was. Sign-in forms belong near the top, where the eye
+     lands and where a thumb can reach on a phone. */
+  justify-content: flex-start;
+  /* Small: the toolbar above already supplies breathing room, and .gate adds
+     its own. Stacking three generous paddings is how ~200px of nothing ended
+     up above the logo. */
+  padding: clamp(8px, 2.5vh, 28px) 16px 16px;
 }
 
 .install-prompt {
@@ -2963,34 +2974,40 @@ input[type='checkbox']:checked::after {
    of purpose — and the whole thing is optically centred rather than pushed to
    the bottom. */
 .gate {
-  min-height: 100svh;
+  /* NOT 100svh: this renders inside .gate-body, which already fills the shell
+     and centres its children. Claiming the viewport height again made the page
+     twice as tall as the screen. */
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 26px;
-  padding: 32px 20px calc(32px + env(safe-area-inset-bottom));
+  /* flex-start, not centre: this box is taller than its contents, so centring
+     re-introduced the vertical slack the parent had just removed. */
+  justify-content: flex-start;
+  /* Tight: brand and form read as ONE object. The earlier stacked lockup left
+     roughly 400px of dead space above the card on a phone. */
+  gap: 14px;
+  padding: 16px 20px calc(16px + env(safe-area-inset-bottom));
 }
-.gate-brand { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; }
+.gate-brand { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; }
+
+/* Mark and wordmark side by side rather than stacked — the same identity in
+   about a third of the vertical space. */
+.gate-lockup { display: inline-flex; align-items: center; gap: 10px; }
 .gate-mark {
   display: grid; place-items: center;
-  width: 74px; height: 74px; border-radius: 24px;
+  width: 44px; height: 44px; border-radius: 14px;
   background: linear-gradient(150deg, color-mix(in srgb, var(--brand) 22%, transparent), transparent 70%);
   border: 1px solid color-mix(in srgb, var(--brand) 35%, transparent);
-  /* A soft bloom rather than a hard ring — the old outline read as a stray
-     border, not as branding. */
-  box-shadow: 0 8px 28px -12px color-mix(in srgb, var(--brand) 55%, transparent);
+  box-shadow: 0 6px 20px -10px color-mix(in srgb, var(--brand) 55%, transparent);
 }
-.gate-word {
-  margin: 2px 0 0; font-size: 30px; font-weight: 700;
-  letter-spacing: -0.03em; line-height: 1;
-}
-.gate-tag { margin: 0; font-size: 13.5px; color: var(--text-muted); max-width: 30ch; line-height: 1.5; }
+.gate-word { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
+.gate-tag { margin: 0; font-size: 13px; color: var(--text-muted); max-width: 34ch; line-height: 1.45; }
 
 .gate-card {
-  width: 100%; max-width: 360px;
-  display: flex; flex-direction: column; gap: 11px;
-  padding: 22px; border-radius: 20px;
+  width: 100%; max-width: 352px;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 18px; border-radius: 18px;
   background: var(--surface-raised); border: 1px solid var(--border-subtle);
   box-shadow: 0 22px 50px -32px rgb(0 0 0 / 0.55);
 }
@@ -2999,21 +3016,19 @@ input[type='checkbox']:checked::after {
    front instead of hidden under the thing you were about to submit. */
 .gate-tabs {
   display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
-  padding: 4px; margin-bottom: 4px;
+  padding: 4px; margin-bottom: 2px;
   border-radius: var(--radius-pill); background: var(--surface-sunken);
 }
 .gate-tab {
-  padding: 9px 10px; border: 0; border-radius: var(--radius-pill);
+  padding: 8px 10px; border: 0; border-radius: var(--radius-pill);
   background: transparent; color: var(--text-muted);
   font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer;
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .gate-tab.on { background: var(--surface-raised); color: var(--text-primary); }
 
 .gate-remember {
   display: flex; align-items: center; gap: 9px;
   font-size: 13px; color: var(--text-muted); cursor: pointer;
-  padding: 2px 0;
 }
 .gate-remember input { width: 17px; height: 17px; min-height: 0; accent-color: var(--accent-strong); }
 
