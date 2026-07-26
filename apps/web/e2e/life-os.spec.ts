@@ -13,10 +13,21 @@ import { register } from './helpers';
 
 const STATE = 'test-results/.life-os-state.json';
 
-/** Navigate and wait for the signed-in shell (hotkeys attach with it). */
+/**
+ * Navigate and wait until the app is actually INTERACTIVE, not merely painted.
+ *
+ * `.sidebar-user-name` becoming visible only proves markup rendered. The global
+ * hotkey listener (⌘K, ⌘J) is attached by AtlasUiProvider in an effect, so a
+ * keypress sent between paint and hydration is simply dropped — the command bar
+ * never opens and the failure reads as "element not found", which looks like a
+ * missing feature rather than a race.
+ *
+ * The capture dock is client-only, so waiting for it proves hydration ran.
+ */
 async function go(page: import('@playwright/test').Page, path: string) {
   await page.goto(path);
   await expect(page.locator('.sidebar-user-name')).toBeVisible();
+  await expect(page.getByLabel('Capture anything')).toBeAttached();
 }
 
 test.beforeAll(async ({ browser }) => {

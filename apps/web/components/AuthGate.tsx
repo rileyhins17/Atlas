@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { LoginInput, RegisterInput } from '@atlas/shared';
 import { errorMessage } from '@/lib/api';
 import { useAuthConfig, useLogin, useRegister } from '@/lib/hooks/auth';
-import { Button, Input } from '@/components/ui';
 import { Logo } from '@/components/Logo';
 
 export function AuthGate() {
@@ -46,27 +45,28 @@ export function AuthGate() {
     }
   }
 
+  const heading = mode === 'login' ? 'Welcome back' : 'Create your account';
+  const blurb =
+    mode === 'login'
+      ? 'Pick up where your day left off.'
+      : 'Atlas plans around the hours you actually have.';
+
   return (
     <div className="gate">
-      {/* The mark used to sit in a bare ring with a lot of dead space beneath
-          it. Now it is a proper lockup — glyph, wordmark, and one line saying
-          what this actually is, which is the only thing a first-time visitor
-          needs from this screen. */}
-      <div className="gate-brand">
-        <span className="gate-lockup">
-          <span className="gate-mark" aria-hidden>
-            <Logo size={26} />
-          </span>
-          <h1 className="gate-word">Atlas</h1>
+      <div className="gate-inner">
+        {/* Small, quiet mark. On this screen the heading is the hero — the
+            brand only needs to identify, not dominate. */}
+        <span className="gate-mark" aria-hidden>
+          <Logo size={22} />
         </span>
-        <p className="gate-tag">Your day, your habits, your life — in one place.</p>
-      </div>
 
-      <form className="gate-card" onSubmit={submit}>
-        <div className="gate-tabs" role="group" aria-label="Sign in or create an account">
+        <h1 className="gate-heading">{heading}</h1>
+        <p className="gate-blurb">{blurb}</p>
+
+        <div className="gate-seg" role="group" aria-label="Sign in or create an account">
           <button
             type="button"
-            className={`gate-tab ${mode === 'login' ? 'on' : ''}`}
+            className={`gate-seg-btn ${mode === 'login' ? 'on' : ''}`}
             aria-label="Show the sign in form"
             aria-pressed={mode === 'login'}
             onClick={() => {
@@ -78,7 +78,7 @@ export function AuthGate() {
           </button>
           <button
             type="button"
-            className={`gate-tab ${mode === 'register' ? 'on' : ''}`}
+            className={`gate-seg-btn ${mode === 'register' ? 'on' : ''}`}
             aria-label="Show the create account form"
             aria-pressed={mode === 'register'}
             onClick={() => {
@@ -90,53 +90,73 @@ export function AuthGate() {
           </button>
         </div>
 
-        <Input
-          type="email"
-          placeholder="Email"
-          aria-label="Email"
-          autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          autoFocus
-          required
-        />
-        <Input
-          type="password"
-          placeholder={mode === 'login' ? 'Password' : 'Password (min 8 characters)'}
-          aria-label="Password"
-          autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        {mode === 'register' && inviteRequired && (
-          <Input
-            placeholder="Invite code"
-            aria-label="Invite code"
-            autoComplete="off"
-            value={inviteCode}
-            onChange={(e) => setInviteCode(e.target.value)}
-            required
-          />
-        )}
+        {/* Labels ABOVE the fields, not placeholders inside them. A placeholder
+            disappears the moment you type, so by the time anything is filled in
+            the form no longer says what any of it is. */}
+        <form className="gate-form" onSubmit={submit}>
+          <label className="gate-field">
+            <span className="gate-label">Email</span>
+            <input
+              className="gate-input"
+              type="email"
+              aria-label="Email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoFocus
+              required
+            />
+          </label>
 
-        {/* On by default — being signed out every time you close the app is the
-            most annoying thing a daily tool can do. The control exists to opt
-            OUT on a shared machine, not to opt in. */}
-        <label className="gate-remember">
-          <input
-            type="checkbox"
-            checked={remember}
-            onChange={(e) => setRemember(e.target.checked)}
-          />
-          <span>Keep me signed in</span>
-        </label>
+          <label className="gate-field">
+            <span className="gate-label">Password</span>
+            <input
+              className="gate-input"
+              type="password"
+              aria-label="Password"
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            {mode === 'register' && <span className="gate-hint">At least 8 characters.</span>}
+          </label>
 
-        <Button type="submit" disabled={busy}>
-          {busy ? 'One moment…' : mode === 'login' ? 'Sign in' : 'Create account'}
-        </Button>
-        {error && <div className="error">{error}</div>}
-      </form>
+          {mode === 'register' && inviteRequired && (
+            <label className="gate-field">
+              <span className="gate-label">Invite code</span>
+              <input
+                className="gate-input"
+                aria-label="Invite code"
+                autoComplete="off"
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value)}
+                required
+              />
+              <span className="gate-hint">Atlas is invite-only while in early access.</span>
+            </label>
+          )}
+
+          <label className="gate-remember">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+            />
+            <span>Keep me signed in</span>
+          </label>
+
+          {error && (
+            <div className="gate-error" role="alert">
+              {error}
+            </div>
+          )}
+
+          <button className="gate-submit" type="submit" disabled={busy}>
+            {busy ? 'One moment…' : mode === 'login' ? 'Sign in' : 'Create account'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

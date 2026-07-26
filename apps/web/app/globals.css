@@ -195,14 +195,6 @@ a {
   letter-spacing: -0.01em;
   color: var(--text-primary);
 }
-/* Centered brand above the sign-in card. */
-.gate-brand {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  margin: 40px 0 28px;
-}
 
 .card {
   background: var(--surface-raised);
@@ -2973,64 +2965,100 @@ input[type='checkbox']:checked::after {
    low on the page. The mark now reads as a lockup — glyph, wordmark, one line
    of purpose — and the whole thing is optically centred rather than pushed to
    the bottom. */
+/* ── Sign in / create account ────────────────────────────────────────────────
+   Design intent: ONE column, no card. A bordered panel floating on a page is
+   two containers doing the job of none — the page is already the container.
+   The heading is the hero; the brand mark just identifies. Labels sit above
+   their fields because a placeholder vanishes as soon as you type, leaving a
+   form that no longer says what any of it is. */
 .gate {
-  /* NOT 100svh: this renders inside .gate-body, which already fills the shell
-     and centres its children. Claiming the viewport height again made the page
-     twice as tall as the screen. */
   width: 100%;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  /* flex-start, not centre: this box is taller than its contents, so centring
-     re-introduced the vertical slack the parent had just removed. */
-  justify-content: flex-start;
-  /* Tight: brand and form read as ONE object. The earlier stacked lockup left
-     roughly 400px of dead space above the card on a phone. */
-  gap: 14px;
-  padding: 16px 20px calc(16px + env(safe-area-inset-bottom));
+  justify-content: center;
+  padding: clamp(16px, 4vh, 44px) 20px calc(24px + env(safe-area-inset-bottom));
 }
-.gate-brand { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; }
+.gate-inner { width: 100%; max-width: 348px; }
 
-/* Mark and wordmark side by side rather than stacked — the same identity in
-   about a third of the vertical space. */
-.gate-lockup { display: inline-flex; align-items: center; gap: 10px; }
 .gate-mark {
   display: grid; place-items: center;
-  width: 44px; height: 44px; border-radius: 14px;
-  background: linear-gradient(150deg, color-mix(in srgb, var(--brand) 22%, transparent), transparent 70%);
-  border: 1px solid color-mix(in srgb, var(--brand) 35%, transparent);
-  box-shadow: 0 6px 20px -10px color-mix(in srgb, var(--brand) 55%, transparent);
-}
-.gate-word { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
-.gate-tag { margin: 0; font-size: 13px; color: var(--text-muted); max-width: 34ch; line-height: 1.45; }
-
-.gate-card {
-  width: 100%; max-width: 352px;
-  display: flex; flex-direction: column; gap: 10px;
-  padding: 18px; border-radius: 18px;
-  background: var(--surface-raised); border: 1px solid var(--border-subtle);
-  box-shadow: 0 22px 50px -32px rgb(0 0 0 / 0.55);
+  width: 40px; height: 40px; border-radius: 13px;
+  background: color-mix(in srgb, var(--brand) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand) 28%, transparent);
 }
 
-/* Two tabs beat a mode-toggle button at the bottom: the choice is visible up
-   front instead of hidden under the thing you were about to submit. */
-.gate-tabs {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
-  padding: 4px; margin-bottom: 2px;
-  border-radius: var(--radius-pill); background: var(--surface-sunken);
+.gate-heading {
+  margin: 20px 0 0;
+  font-size: 27px; font-weight: 700; letter-spacing: -0.032em; line-height: 1.15;
 }
-.gate-tab {
-  padding: 8px 10px; border: 0; border-radius: var(--radius-pill);
+.gate-blurb { margin: 7px 0 0; font-size: 14px; line-height: 1.5; color: var(--text-muted); }
+
+/* Segmented switch, flush and quiet — it orients, it is not the action. */
+.gate-seg {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 3px;
+  margin: 22px 0 20px; padding: 3px;
+  border-radius: 11px; background: var(--surface-sunken);
+}
+.gate-seg-btn {
+  padding: 8px 10px; border: 0; border-radius: 9px;
   background: transparent; color: var(--text-muted);
-  font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
 }
-.gate-tab.on { background: var(--surface-raised); color: var(--text-primary); }
+.gate-seg-btn.on {
+  background: var(--surface-raised); color: var(--text-primary);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.18);
+}
+
+.gate-form { display: flex; flex-direction: column; gap: 15px; }
+.gate-field { display: flex; flex-direction: column; gap: 6px; }
+.gate-label {
+  font-size: 12.5px; font-weight: 600; letter-spacing: 0.01em;
+  color: var(--text-muted);
+}
+.gate-input {
+  width: 100%; padding: 12px 14px;
+  border-radius: 11px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font: inherit; font-size: 15px;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.gate-input::placeholder { color: color-mix(in srgb, var(--text-muted) 70%, transparent); }
+.gate-input:focus {
+  outline: none;
+  border-color: var(--accent-strong);
+  /* A ring rather than a thicker border, so nothing shifts on focus. */
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 22%, transparent);
+}
+.gate-hint { font-size: 12px; color: var(--text-muted); }
 
 .gate-remember {
   display: flex; align-items: center; gap: 9px;
-  font-size: 13px; color: var(--text-muted); cursor: pointer;
+  font-size: 13.5px; color: var(--text-muted); cursor: pointer;
+  padding: 2px 0;
 }
-.gate-remember input { width: 17px; height: 17px; min-height: 0; accent-color: var(--accent-strong); }
+.gate-remember input {
+  width: 18px; height: 18px; min-height: 0;
+  accent-color: var(--accent-strong); cursor: pointer;
+}
+
+.gate-submit {
+  margin-top: 3px; padding: 13px 18px;
+  border: 0; border-radius: 12px;
+  background: var(--accent-strong); color: #fff;
+  font: inherit; font-size: 15px; font-weight: 650; cursor: pointer;
+  transition: filter var(--dur-fast) var(--ease), transform 90ms var(--ease);
+}
+.gate-submit:hover:not(:disabled) { filter: brightness(1.07); }
+.gate-submit:active:not(:disabled) { transform: scale(0.985); }
+.gate-submit:disabled { opacity: 0.6; cursor: default; }
+
+.gate-error {
+  padding: 10px 13px; border-radius: 10px;
+  background: color-mix(in srgb, var(--danger-role, #ef4444) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger-role, #ef4444) 34%, transparent);
+  font-size: 13px; color: var(--danger-text, #ef4444); line-height: 1.45;
+}
 
 .onb-cal-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
 
@@ -3053,8 +3081,7 @@ input[type='checkbox']:checked::after {
 .main-inner > * {
   animation: atlas-rise var(--dur-base, 180ms) var(--ease, cubic-bezier(0.2, 0, 0, 1)) both;
 }
-.gate-card { animation: atlas-rise 220ms var(--ease, cubic-bezier(0.2, 0, 0, 1)) both; }
-.gate-brand { animation: atlas-fade 320ms var(--ease, cubic-bezier(0.2, 0, 0, 1)) both; }
+.gate-inner { animation: atlas-rise 220ms var(--ease, cubic-bezier(0.2, 0, 0, 1)) both; }
 .onb-step { animation: atlas-rise 200ms var(--ease, cubic-bezier(0.2, 0, 0, 1)) both; }
 
 /* Press feedback. The complaint that the app "isn't intuitive" is partly that
@@ -3097,8 +3124,7 @@ input[type='checkbox']:checked::after {
 
 @media (prefers-reduced-motion: reduce) {
   .main-inner > *,
-  .gate-card,
-  .gate-brand,
+  .gate-inner,
   .onb-step,
   .task,
   .feed-row,

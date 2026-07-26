@@ -31,7 +31,10 @@ export async function register(page: Page, email = uniqueEmail()): Promise<strin
   await page.getByRole('button', { name: 'Create account', exact: true }).click();
 
   const signedIn = page.locator('.sidebar-user-name');
-  const gateError = page.locator('.gate-shell .error');
+  // The redesigned gate renders errors as .gate-error; the old .error class
+  // no longer exists, so a failed registration was invisible to the retry and
+  // timed out instead of retrying.
+  const gateError = page.locator('.gate-error, .gate-shell .error');
   await expect(signedIn.or(gateError).first()).toBeVisible({ timeout: 15_000 });
   if (await gateError.isVisible().catch(() => false)) {
     // Cold-start hiccup — the account may or may not exist now; a fresh email
