@@ -14,6 +14,8 @@ const EnvSchema = z.object({
     .string()
     .regex(/^[0-9a-fA-F]{64}$/, 'APP_ENCRYPTION_KEY must be 64 hex chars (32 bytes)'),
   WEB_ORIGIN: z.string().default('http://localhost:3000'),
+  /** Error reporting. Unset = disabled, and the app runs identically without it. */
+  SENTRY_DSN: z.string().url().optional(),
   // Closed sign-up. When set, POST /auth/register demands a matching code.
   // Unset (the default) leaves registration open, which is right for local dev
   // and for the e2e suite, but NOT for a deployment reachable from the internet

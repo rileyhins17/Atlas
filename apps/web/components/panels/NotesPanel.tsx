@@ -6,6 +6,7 @@ import { useCreateNote, useDeleteNote, useNotes } from '@/lib/hooks/notes';
 import { Pin, StickyNote, X } from 'lucide-react';
 import { Button, Card, CardListSkeleton, EmptyState, ErrorState, IconButton, Input, Textarea } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
+import { useSubmitLatch } from '@/lib/hooks/submit-latch';
 
 function NoteCard({
   note,
@@ -40,6 +41,7 @@ export function NotesPanel() {
   const [pinned, setPinned] = useState(false);
   const notesQuery = useNotes();
   const create = useCreateNote();
+  const latch = useSubmitLatch();
   const remove = useDeleteNote();
 
   const notes = notesQuery.data ?? [];
@@ -52,15 +54,18 @@ export function NotesPanel() {
   function save(e: React.FormEvent) {
     e.preventDefault();
     if (!body.trim()) return;
-    create.mutate(
-      { title: title.trim() || undefined, body: body.trim(), pinned },
-      {
-        onSuccess: () => {
-          setTitle('');
-          setBody('');
-          setPinned(false);
+    latch((release) =>
+      create.mutate(
+        { title: title.trim() || undefined, body: body.trim(), pinned },
+        {
+          onSettled: release,
+          onSuccess: () => {
+            setTitle('');
+            setBody('');
+            setPinned(false);
+          },
         },
-      },
+      ),
     );
   }
 

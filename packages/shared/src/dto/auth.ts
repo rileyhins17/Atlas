@@ -1,8 +1,19 @@
 import { z } from 'zod';
 
+/**
+ * 320 is the RFC 5321 ceiling (64-char local part + @ + 255-char domain), and
+ * 200 is far past any real passphrase.
+ *
+ * Both were previously unbounded, so the 1MB body limit was the only ceiling:
+ * a 100KB email was accepted and stored, and scrypt would derive a key over a
+ * megabyte of input. Cheap to send, not cheap to hash.
+ */
+const email = z.string().email().max(320);
+const password = z.string().max(200);
+
 export const RegisterInput = z.object({
-  email: z.string().email(),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  email,
+  password: password.min(8, 'Password must be at least 8 characters'),
   displayName: z.string().min(1).max(80).optional(),
   timezone: z.string().default('UTC'),
   /** Required only when the deployment sets INVITE_CODE. */
@@ -24,8 +35,8 @@ export const AuthConfigDTO = z.object({
 export type AuthConfigDTO = z.infer<typeof AuthConfigDTO>;
 
 export const LoginInput = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
+  email,
+  password: password.min(1),
   remember: z.boolean().default(true),
 });
 export type LoginInput = z.infer<typeof LoginInput>;

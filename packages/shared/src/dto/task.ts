@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { TaskPriority, TaskStatus } from '../enums.js';
+import { RruleString } from './recurrence.js';
 
 export const CreateTaskInput = z.object({
   title: z.string().min(1).max(500),
@@ -8,9 +9,7 @@ export const CreateTaskInput = z.object({
   dueAt: z.coerce.date().optional(),
   tags: z.array(z.string()).default([]),
   goalId: z.string().optional(),
-  // An RRULE string. Deliberately only length-bounded: a rule we can't parse is
-  // stored verbatim rather than rejected, so a sync can never lose one.
-  recurrence: z.string().max(500).optional(),
+  recurrence: RruleString.optional(),
 });
 export type CreateTaskInput = z.infer<typeof CreateTaskInput>;
 
@@ -22,7 +21,7 @@ export const UpdateTaskInput = z.object({
   dueAt: z.coerce.date().nullable().optional(),
   tags: z.array(z.string()).optional(),
   goalId: z.string().nullable().optional(),
-  recurrence: z.string().max(500).nullable().optional(),
+  recurrence: RruleString.nullable().optional(),
 });
 export type UpdateTaskInput = z.infer<typeof UpdateTaskInput>;
 

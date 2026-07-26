@@ -18,6 +18,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { TaskRow } from '@/components/TaskRow';
 import { dayDiff } from '@/lib/dates';
 import { filterTasks, quickAddDueDate, TASK_FILTERS, type TaskFilter } from '@/lib/tasks-filter';
+import { useSubmitLatch } from '@/lib/hooks/submit-latch';
 
 const PRIORITY_WEIGHT: Record<TaskDTO['priority'], number> = {
   URGENT: 0,
@@ -79,6 +80,7 @@ function QuickAdd({ groupKey, groupLabel }: { groupKey: string; groupLabel: stri
   const [priority, setPriority] = useState<TaskDTO['priority']>('MEDIUM');
   const [repeat, setRepeat] = useState<string | null>(null);
   const create = useCreateTask();
+  const latch = useSubmitLatch();
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -89,14 +91,17 @@ function QuickAdd({ groupKey, groupLabel }: { groupKey: string; groupLabel: stri
     // A repeating task needs an anchor date to step from, so a rule with no
     // horizon (the "No date" group) starts today rather than never advancing.
     const due = quickAddDueDate(groupKey, new Date()) ?? (repeat ? new Date() : null);
-    create.mutate(
-      { title: text, priority, ...(due ? { dueAt: due } : {}), ...(repeat ? { recurrence: repeat } : {}) },
-      {
-        onSuccess: () => {
-          setTitle('');
-          setRepeat(null);
+    latch((release) =>
+      create.mutate(
+        { title: text, priority, ...(due ? { dueAt: due } : {}), ...(repeat ? { recurrence: repeat } : {}) },
+        {
+          onSuccess: () => {
+            setTitle('');
+            setRepeat(null);
+          },
+          onSettled: release,
         },
-      },
+      ),
     );
   }
 
@@ -156,6 +161,7 @@ export function TasksPanel() {
   const [title, setTitle] = useState('');
   const tasksQuery = useTasks();
   const create = useCreateTask();
+  const latch = useSubmitLatch();
 
   const all = tasksQuery.data ?? NO_TASKS;
   const visible = useMemo(
@@ -178,7 +184,9 @@ export function TasksPanel() {
     e.preventDefault();
     const text = title.trim();
     if (!text || create.isPending) return;
-    create.mutate({ title: text }, { onSuccess: () => setTitle('') });
+    latch((release) =>
+      create.mutate({ title: text }, { onSuccess: () => setTitle(''), onSettled: release }),
+    );
   }
 
   return (

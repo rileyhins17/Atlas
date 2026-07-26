@@ -5,8 +5,11 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module.js';
 import { loadEnv } from './config/env.js';
+import { initObservability } from './common/observability.js';
 
 async function bootstrap(): Promise<void> {
+  // Before NestFactory: the SDK patches modules as they load.
+  const tracking = initObservability();
   const env = loadEnv();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: true });
 
@@ -33,7 +36,10 @@ async function bootstrap(): Promise<void> {
 
   await app.listen(env.API_PORT, '0.0.0.0');
   // eslint-disable-next-line no-console
-  console.log(`Atlas API listening on http://localhost:${env.API_PORT}`);
+  console.log(
+    `Atlas API listening on http://localhost:${env.API_PORT}` +
+      (tracking ? ' · error reporting on' : ' · error reporting off (no SENTRY_DSN)'),
+  );
 }
 
 void bootstrap();

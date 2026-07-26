@@ -30,6 +30,7 @@ import {
   useToast,
 } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
+import { useSubmitLatch } from '@/lib/hooks/submit-latch';
 import { formatClock, localDayKey } from '@/lib/dates';
 import {
   DURATION_PRESETS,
@@ -105,6 +106,7 @@ export function CalendarPanel() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [clientError, setClientError] = useState<string | null>(null);
   const { toast } = useToast();
+  const latch = useSubmitLatch();
 
   // The "now" line and the live-event highlight are wrong the moment the clock
   // moves past them, so re-render on the minute rather than only on refetch.
@@ -180,23 +182,28 @@ export function CalendarPanel() {
     };
 
     if (draft.id) {
-      update.mutate(
-        {
-          id: draft.id,
-          // null clears a rule server-side; undefined would leave it untouched.
-          patch: { ...payload, recurrence: draft.recurrence ?? null },
-        },
-        { onSuccess: () => setDraft(null) },
+      latch((release) =>
+        update.mutate(
+          {
+            id: draft.id!,
+            // null clears a rule server-side; undefined would leave it untouched.
+            patch: { ...payload, recurrence: draft.recurrence ?? null },
+          },
+          { onSuccess: () => setDraft(null), onSettled: release },
+        ),
       );
     } else {
-      create.mutate(
-        { ...payload, ...(draft.recurrence ? { recurrence: draft.recurrence } : {}) },
-        {
-          onSuccess: () => {
-            setDraft(null);
-            setSelectedDay(draft.day);
+      latch((release) =>
+        create.mutate(
+          { ...payload, ...(draft.recurrence ? { recurrence: draft.recurrence } : {}) },
+          {
+            onSuccess: () => {
+              setDraft(null);
+              setSelectedDay(draft.day);
+            },
+            onSettled: release,
           },
-        },
+        ),
       );
     }
   }

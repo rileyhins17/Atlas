@@ -6,6 +6,7 @@ import { useCreateJournalEntry, useJournal } from '@/lib/hooks/journal';
 import { Angry, Frown, Meh, PenLine, Smile, Laugh, type LucideIcon } from 'lucide-react';
 import { Button, Card, CardListSkeleton, EmptyState, ErrorState, IconButton, Sparkline, Textarea } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
+import { useSubmitLatch } from '@/lib/hooks/submit-latch';
 import { formatAgo } from '@/lib/dates';
 
 // A 5-point mood scale, worst → best. Index + 1 is the stored mood value.
@@ -16,6 +17,7 @@ export function JournalPanel() {
   const [mood, setMood] = useState<number | null>(null);
   const journalQuery = useJournal();
   const create = useCreateJournalEntry();
+  const latch = useSubmitLatch();
 
   const entries = journalQuery.data ?? [];
   const error = create.error ? errorMessage(create.error, 'Failed to save entry') : null;
@@ -23,14 +25,17 @@ export function JournalPanel() {
   function save(e: React.FormEvent) {
     e.preventDefault();
     if (!body.trim()) return;
-    create.mutate(
-      { body: body.trim(), mood: mood ?? undefined },
-      {
-        onSuccess: () => {
-          setBody('');
-          setMood(null);
+    latch((release) =>
+      create.mutate(
+        { body: body.trim(), mood: mood ?? undefined },
+        {
+          onSettled: release,
+          onSuccess: () => {
+            setBody('');
+            setMood(null);
+          },
         },
-      },
+      ),
     );
   }
 

@@ -155,6 +155,22 @@ export function AuthGate() {
           <button className="gate-submit" type="submit" disabled={busy}>
             {busy ? 'One moment…' : mode === 'login' ? 'Sign in' : 'Create account'}
           </button>
+
+          {/* Only on the register side: consent belongs where the account is
+              actually created, not on a screen you see every time you sign in. */}
+          {mode === 'register' && (
+            <p className="gate-legal">
+              By creating an account you agree to the{' '}
+              <a href="/terms" target="_blank" rel="noopener noreferrer">
+                Terms
+              </a>{' '}
+              and{' '}
+              <a href="/privacy" target="_blank" rel="noopener noreferrer">
+                Privacy Policy
+              </a>
+              .
+            </p>
+          )}
         </form>
       </div>
     </div>

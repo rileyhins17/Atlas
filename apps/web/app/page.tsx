@@ -110,7 +110,10 @@ export default function Landing() {
         </Link>
       </section>
 
-      <footer className="landing-foot">Atlas — a personal life OS.</footer>
+      <footer className="landing-foot">
+        Atlas — a personal life OS. · <Link href="/privacy">Privacy</Link> ·{' '}
+        <Link href="/terms">Terms</Link>
+      </footer>
     </main>
   );
 }

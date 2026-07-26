@@ -7,6 +7,7 @@
  * Google sync can hand us an exotic rule, we'll store and return it unchanged,
  * and only our own expansion declines to guess at it.
  */
+import { z } from 'zod';
 
 export type Freq = 'DAILY' | 'WEEKLY' | 'MONTHLY';
 
@@ -249,3 +250,22 @@ export const RECURRENCE_PRESETS = [
   { key: 'weekly', label: 'Weekly', rule: 'FREQ=WEEKLY' },
   { key: 'monthly', label: 'Monthly', rule: 'FREQ=MONTHLY' },
 ] as const;
+
+/**
+ * An RRULE accepted from a CLIENT — the preset picker or an AI tool call.
+ *
+ * Distinct from the preserve-verbatim rule at the top of this file, which
+ * governs rules arriving from a *sync*. Those are written through Prisma
+ * directly and never pass through a zod DTO, so validating here cannot lose a
+ * Google rule.
+ *
+ * Length alone used to be the only check, which meant `FREQ=NONSENSE;;;` was
+ * stored happily and then silently never recurred — the worst kind of failure,
+ * because the UI showed a repeat was set and nothing ever came of it.
+ */
+export const RruleString = z
+  .string()
+  .max(500)
+  .refine((v) => parseRrule(v) !== null, {
+    message: 'That repeat rule is not one Atlas can schedule',
+  });

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { RruleString } from './recurrence.js';
 
 export const CreateEventInput = z
   .object({
@@ -8,7 +9,7 @@ export const CreateEventInput = z
     startAt: z.coerce.date(),
     endAt: z.coerce.date(),
     allDay: z.boolean().default(false),
-    recurrence: z.string().max(500).optional(),
+    recurrence: RruleString.optional(),
     // Set when this block was reserved for a specific task ("Plan my day").
     // Ownership is checked server-side — a client id is never trusted.
     taskId: z.string().min(1).max(64).optional(),
@@ -23,7 +24,7 @@ export const UpdateEventInput = z.object({
   startAt: z.coerce.date().optional(),
   endAt: z.coerce.date().optional(),
   allDay: z.boolean().optional(),
-  recurrence: z.string().max(500).nullable().optional(),
+  recurrence: RruleString.nullable().optional(),
 });
 export type UpdateEventInput = z.infer<typeof UpdateEventInput>;
 

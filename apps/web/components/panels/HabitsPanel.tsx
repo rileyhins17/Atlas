@@ -23,6 +23,7 @@ import {
 } from '@/components/ui';
 import { IconButton } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
+import { useSubmitLatch } from '@/lib/hooks/submit-latch';
 import { localDayKey } from '@/lib/dates';
 
 const HISTORY_DAYS = 84; // 12 weeks of heatmap
@@ -32,6 +33,7 @@ export function HabitsPanel() {
   const habitsQuery = useHabits();
   const historyQuery = useHabitHistory(HISTORY_DAYS);
   const create = useCreateHabit();
+  const latch = useSubmitLatch();
   const log = useLogHabit();
   const remove = useDeleteHabit();
 
@@ -49,7 +51,9 @@ export function HabitsPanel() {
   function addHabit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
-    create.mutate({ name: name.trim() }, { onSuccess: () => setName('') });
+    latch((release) =>
+      create.mutate({ name: name.trim() }, { onSuccess: () => setName(''), onSettled: release }),
+    );
   }
 
   return (

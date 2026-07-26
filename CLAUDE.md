@@ -82,12 +82,21 @@ Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **371 un
 pass and a full-route UI pass. It is ordered by what blocks shipping and says what was measured
 rather than assumed. Read it before planning any "make it production ready" work.
 
-The short version — nothing else should ship before these:
-- **No privacy policy or ToS**, and **no error tracking**. Both gate a second user having an account.
-- **Rotate the Plaid production secret** — it was pasted into a chat transcript.
+The short version of what is STILL open:
+- **Rotate the Plaid production secret** — it was pasted into a chat transcript. Needs Riley's Plaid
+  login; nobody else can do it.
+- **`SENTRY_DSN` is unset**, so the error reporting that is now wired in reports nothing.
 - **Unverified live:** Google Calendar token refresh and delete propagation; Plaid production.
 - **Offline renders a blank page**, on a PWA meant for an iPhone home screen.
-- **~350 accounts in the database**, nearly all test junk.
+- The Plaid webhook does not verify Plaid's signature (harmless while it is a no-op).
+
+Done and verified: legal pages, error-reporting plumbing, input bounds, double-submit, RRULE
+validation, and the account purge (440 → 3).
+
+**The database has 3 accounts.** Riley's two, plus `aidanmageebusiness@gmail.com` — a real third
+person with their own DeepSeek key. Do not purge by email pattern: `phase2-test@example.com` looked
+like junk and held the only live Google Calendar credential (since moved to
+`rileyhinsperger16@gmail.com`). Always dry-run a destructive query and read the output.
 
 Cross-user isolation was stress-tested across every module and is clean — user B cannot reach user
 A's rows by any route tried.

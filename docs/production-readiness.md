@@ -36,34 +36,41 @@ typecheck 10/10, lint clean, 157 web unit tests, **e2e 21/21** including two new
 
 ---
 
-## Blockers — before anyone other than you signs up
+## Blockers
 
-### B1 · No privacy policy or terms of service
-Non-optional once a second person has an account, and Google OAuth verification will demand a
-privacy-policy URL before Calendar leaves test mode.
-**Fix:** two static routes under the existing landing-page pattern (server components, no client JS).
-Half a day. Link both from the footer and the sign-up screen.
+### ~~B1 · No privacy policy or terms of service~~ — DONE
+`/privacy` and `/terms` are live: static server components, no client JS, linked from the landing
+footer, the sign-up form and the sitemap. The privacy policy states plainly that AI features send a
+summary of your data to DeepSeek, which is the disclosure Google's OAuth review will look for.
+**Still yours to do:** have a lawyer read both before you charge anyone money. They are written to be
+accurate, not to be a substitute for advice.
 
-### B2 · Rotate the Plaid production secret
+### B2 · Rotate the Plaid production secret — **REQUIRES YOU**
 It was pasted into a chat transcript. Assume it is compromised.
-**Fix:** rotate in the Plaid dashboard, update `.env`, restart. Do this before Plaid production is
-switched on, not after.
+This is the one item on the list nobody can do on your behalf: rotating a production credential means
+signing into the Plaid dashboard and generating a new secret. Paste the replacement into `.env` as
+`PLAID_SECRET` and restart the API. Do it before Plaid production is switched on, not after.
 
-### B3 · No error tracking
-Right now a 500 in production is invisible unless you happen to read the console. `AllExceptionsFilter`
-already logs structured JSON with a `requestId` — the plumbing is there, there is just no sink.
-**Fix:** Sentry (free tier) in both API and web. The `requestId` already correlates the two.
+### ~~B3 · No error tracking~~ — DONE, needs a DSN
+`@sentry/node` is wired into `AllExceptionsFilter`, reporting every 5xx with the same `requestId` the
+client is shown — so a user saying "it broke, here's the code" maps straight to a stack trace. The
+session cookie and Authorization header are stripped before anything leaves the process.
+**Inert until you set `SENTRY_DSN`.** Create a free Node project at sentry.io, paste the DSN into
+`.env`, restart. The API logs which mode it is in on boot.
 
 ### B4 · The app runs on your PC
 It must be awake and logged in. Fine for one tester; not somewhere another person's data should live.
 **Fix:** `docker compose --profile full up -d` on a VPS plus one DNS change — the path is already
 written up in `docs/ship-to-iphone.md`.
 
-### B5 · ~350 junk accounts
-Almost entirely test residue, and my two harnesses added a handful more.
-**Fix:** delete every account matching the test-email patterns (`e2e-`, `stress-`, `uistress-`,
-`shot-`, `dur-`, `planday-`, `phase2-`, `atlas-verify-`) except your own. Do it *after* B2, since the
-export path is the thing to sanity-check first.
+### ~~B5 · ~350 junk accounts~~ — DONE
+440 accounts → **3**. 437 test accounts deleted by email domain (an allowlist, not a prefix rule).
+Two things the dry run caught that a pattern-match would have destroyed:
+- `phase2-test@example.com` matched a test prefix but held **the only live Google Calendar
+  connection**. That credential was moved to `rileyhinsperger16@gmail.com` before the purge, and now
+  decrypts there (the AES key is global, not per-user, so the row moves cleanly).
+- **`aidanmageebusiness@gmail.com` is a real third account** with its own DeepSeek key, habits and
+  notes. It was kept. If that is not someone you meant to have access, that is worth knowing.
 
 ---
 
@@ -75,24 +82,20 @@ no explanation. Measured: `net::ERR_INTERNET_DISCONNECTED` → empty body.
 **Fix:** a service-worker offline fallback route plus cache-first for the shell. The manifest and SW
 registration already exist; only the fallback is missing.
 
-### H2 · `email` and `password` have no maximum length
-`z.string().email()` and `z.string().min(8)` with no `.max()`. A 100KB email is accepted and stored;
-the body limit (1MB) is the only ceiling, and scrypt will happily derive over a 1MB input.
-**Fix:** `.max(320)` on email (the RFC ceiling) and `.max(200)` on password, in
-`packages/shared/src/dto/auth.ts`. One line each, and it closes a cheap CPU-exhaustion vector.
+### ~~H2 · `email` and `password` have no maximum length~~ — DONE
+Now `.max(320)` on email (the RFC 5321 ceiling) and `.max(200)` on password. Verified live: a 100KB
+email and a 100KB password both return 400 at the boundary instead of reaching scrypt.
 
-### H3 · Double-submit creates duplicate rows
-Two rapid clicks on the task composer produced two identical tasks. `isPending` guards the button
-visually but the second click lands before React re-renders.
-**Fix:** disable on submit via the mutation's own `isPending` *and* guard the handler — the calendar
-composer now does the latter; apply the same to tasks, habits, notes and journal.
+### ~~H3 · Double-submit creates duplicate rows~~ — DONE
+`isPending` was never enough — it only flips true *after* a render, so two clicks in the same frame
+both read `false`. `useSubmitLatch` closes a ref synchronously and reopens on `onSettled`. Applied to
+tasks (both composers), habits, notes, journal and the calendar.
 
-### H4 · An invalid RRULE is accepted and silently does nothing
-`recurrence: z.string().max(500)` is length-checked but never parsed. `FREQ=NONSENSE;;;` stores fine
-and then never recurs, with no error anywhere.
-**Fix:** refine the field with the existing `parseRrule` from `packages/shared`. Keep the
-preserve-unknown-rules behaviour for Google round-trips, but reject input that parses to nothing when
-it came from a client rather than a sync.
+### ~~H4 · An invalid RRULE is accepted and silently does nothing~~ — DONE
+`RruleString` refines the field through the existing `parseRrule`, so `FREQ=NONSENSE;;;` is now
+rejected instead of being stored and silently never recurring. Safe because Google sync writes
+through Prisma directly and never through these DTOs — the preserve-unknown-rules guarantee for syncs
+is untouched.
 
 ### H5 · Google Calendar token refresh and delete propagation are unverified live
 Both are written but neither has been exercised against a real expired token or a real remote delete.
@@ -119,7 +122,7 @@ handler does any work.
 | M4 | Zero-length and 365-day events are both accepted. | Not wrong, but a `0m` event is almost always a mistake — warn rather than block. |
 | M5 | Duplicate habit names are allowed. | Warn on create if the name already exists; a hard constraint would be annoying. |
 | M6 | Two workouts can be active at once. | `POST /fitness/workouts` should return the existing active workout instead of creating a second. |
-| M7 | A zero-length routine block (`startMin === endMin`) passes validation. | Refine to require `startMin !== endMin`. |
+| ~~M7~~ | ~~A zero-length routine block passes validation.~~ **DONE** — rejected now, while a block that wraps past midnight (sleep) still works, and a patch moving one end at a time is still allowed. | — |
 | M8 | The embedding sweep runs in-process with no lock — two API replicas would both run it. | Harmless today (single instance); needs an advisory lock before B4's VPS move ever scales past one. |
 | M9 | Times render without AM/PM under some locales (`0:30`, `3:00`), making morning and evening indistinguishable. | Pin `hour12` explicitly in `formatClock`, or follow a user setting. |
 | M10 | The week strip runs Mon–Sun, so on a **Sunday** you see zero upcoming days. | Either roll the strip from today, or show "next event" in the empty state. Deliberate trade-off: fixed weeks match the routine model's Monday-based day bits, and one tap pages forward. |
@@ -139,14 +142,15 @@ Two things my harness reported that turned out to be wrong. Recording them so th
 
 ---
 
-## Suggested order
+## What is left
 
-1. **B2** rotate Plaid, **B5** purge accounts — an hour, and B2 is time-sensitive.
-2. **H2, H3, H4, M7** — validation and double-submit. All small, all in DTOs or handlers.
-3. **B1** legal pages, **B3** Sentry — the two things that gate a second user.
-4. **H1** offline fallback — the one most likely to be noticed on a phone.
-5. **H5** verify Google live, **H6** Plaid webhook signature.
-6. **B4** move to a VPS.
-7. **M1–M10** as they annoy you.
+1. **B2** rotate the Plaid secret — **yours to do**, and the only item nobody else can.
+2. Paste a **`SENTRY_DSN`** into `.env` so B3 actually reports. One line, then restart.
+3. **H1** offline fallback — the one most likely to be noticed on a phone.
+4. **H5** verify Google live, **H6** Plaid webhook signature.
+5. **B4** move to a VPS.
+6. **M1–M10** as they annoy you.
 
-Steps 1–3 are what stand between "works for Riley" and "another person can safely have an account".
+Everything in steps 1–3 of the original order is done except B2, which needs your Plaid login, and
+the DSN paste. A second person can now have an account without that being reckless — legal pages
+exist, errors are reportable, isolation is proven, and the input bounds that were open are closed.

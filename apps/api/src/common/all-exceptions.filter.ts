@@ -8,6 +8,7 @@ import {
 import { ConnectorNotConfiguredError } from '@atlas/connectors';
 import type { Response } from 'express';
 import type { RequestWithId } from './request-id.middleware.js';
+import { reportServerError } from './observability.js';
 
 /**
  * Catch-all error boundary. Client-facing errors (4xx from HttpException) pass
@@ -48,6 +49,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
           stack: exception instanceof Error ? exception.stack : undefined,
         }),
       );
+      // Same requestId the client is shown, so "it broke, here's the code" maps
+      // straight to a stack trace. No-op unless SENTRY_DSN is set.
+      reportServerError(exception, {
+        requestId: req.requestId,
+        method: req.method,
+        path: req.path,
+        userId: (req as RequestWithId & { user?: { id?: string } }).user?.id,
+      });
     }
 
     const body = isHttp
