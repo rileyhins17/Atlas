@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Check, Plus } from 'lucide-react';
 import { HabitsApi, NotesApi, SettingsApi } from '@/lib/api';
 import { useReplaceRoutine } from '@/lib/hooks/routine';
+import { useGoogleConnectStart, useGoogleStatus } from '@/lib/hooks/google';
 import { qk } from '@/lib/hooks/keys';
 import { Button, Input, Textarea, useToast } from '@/components/ui';
 import { Constellation } from '@/components/atlas/Constellation';
@@ -41,6 +42,9 @@ export function OnboardingWizard() {
   const replaceRoutine = useReplaceRoutine();
 
   const [step, setStep] = useState(0);
+  const [offerCalendar, setOfferCalendar] = useState(false);
+  const googleConnect = useGoogleConnectStart();
+  const googleStatus = useGoogleStatus();
   const [building, setBuilding] = useState(false);
 
   const [name, setName] = useState('');
@@ -102,10 +106,54 @@ export function OnboardingWizard() {
         qc.invalidateQueries({ queryKey: qk.me }),
       ]);
       toast(`Your week is mapped${name.trim() ? `, ${name.trim()}` : ''}. Welcome to Atlas.`, 'success');
+      // Offer the calendar only AFTER everything is saved. Connecting Google is
+      // a full-page redirect, so asking mid-wizard would throw away every
+      // answer the user had just typed.
+      setOfferCalendar(true);
     } catch {
       toast('Could not save everything — you can adjust it later in Settings.', 'error');
       setBuilding(false);
     }
+  }
+
+  // Everything is persisted by now, so leaving for Google's consent screen is
+  // safe. Skipping is a first-class choice: the app is fully usable without it.
+  if (offerCalendar) {
+    return (
+      <section className="onb" aria-label="Connect your calendar">
+        <div className="onb-step">
+          <h1 className="onb-q">One last thing.</h1>
+          <p className="onb-help">
+            Connect Google Calendar and Atlas can plan around the meetings you already
+            have, instead of guessing your day is empty. Two-way — events you add here
+            go back to Google.
+          </p>
+          <div className="onb-cal-actions">
+            <Button
+              onClick={() =>
+                googleConnect.mutate(undefined, {
+                  onSuccess: ({ url }) => {
+                    window.location.href = url;
+                  },
+                })
+              }
+              disabled={googleConnect.isPending || googleStatus.data?.configured === false}
+            >
+              {googleConnect.isPending ? 'Opening Google…' : 'Connect Google Calendar'}
+            </Button>
+            <Button variant="ghost" onClick={() => setOfferCalendar(false)}>
+              Skip for now
+            </Button>
+          </div>
+          {googleStatus.data?.configured === false && (
+            <p className="onb-help">
+              This server has no Google client configured — you can connect later from
+              Settings.
+            </p>
+          )}
+        </div>
+      </section>
+    );
   }
 
   if (building) {

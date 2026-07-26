@@ -144,7 +144,7 @@ export const AuthApi = {
   me: () => request<UserDTO>('/auth/me'),
   /** Public: whether this deployment has closed sign-up behind an invite code. */
   config: () => request<AuthConfigDTO>('/auth/config'),
-  register: (input: { email: string; password: string; inviteCode?: string }) =>
+  register: (input: { email: string; password: string; inviteCode?: string; remember?: boolean }) =>
     request<UserDTO>('/auth/register', {
       method: 'POST',
       // Send the device's zone at signup. `User.timezone` is the ONE clock both
@@ -154,7 +154,7 @@ export const AuthApi = {
       // outside UTC. See browserTimezone().
       body: JSON.stringify({ ...input, timezone: browserTimezone() }),
     }),
-  login: (input: { email: string; password: string }) =>
+  login: (input: { email: string; password: string; remember?: boolean }) =>
     request<UserDTO>('/auth/login', { method: 'POST', body: JSON.stringify(input) }),
   logout: () => request<{ ok: true }>('/auth/logout', { method: 'POST' }),
 };

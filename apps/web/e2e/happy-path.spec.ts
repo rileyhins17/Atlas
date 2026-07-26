@@ -31,11 +31,11 @@ test('register, sign out, and sign back in', async ({ browser }) => {
   const email = await register(page);
 
   await page.getByRole('button', { name: 'Sign out' }).click();
-  await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
 
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(TEST_PASSWORD);
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.locator('.sidebar-user-name')).toHaveText(email);
   await page.close();
 });

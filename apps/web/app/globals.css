@@ -1955,25 +1955,6 @@ input[type='checkbox']:checked::after {
 }
 
 /* Habit chips — small inline rings, tappable check-in. */
-.habit-chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
-.habit-chip {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 3px 9px 3px 4px; border-radius: 999px;
-  border: 1px solid var(--border-subtle); background: var(--surface-inset);
-  font: inherit; font-size: 12.5px; color: var(--text-primary); cursor: pointer;
-  transition: border-color .12s ease, background .12s ease;
-  text-decoration: none;
-}
-.habit-chip:hover:not(:disabled) { border-color: var(--brand); }
-.habit-chip.done { border-color: color-mix(in srgb, var(--success-role) 45%, transparent); }
-.habit-chip-ring { flex: none; display: flex; }
-.habit-chip-name { white-space: nowrap; }
-.habit-chip-streak {
-  display: inline-flex; align-items: center; gap: 2px;
-  font-size: 11px; font-weight: 650; color: var(--brand);
-}
-.habit-chip-add { color: var(--text-muted); padding: 4px 11px; }
-.habit-chip-add:hover { color: var(--brand); }
 
 /* Glance line — the plan as one peripheral sentence. */
 
@@ -2796,7 +2777,6 @@ input[type='checkbox']:checked::after {
 
   /* Habit rings and mood buttons are the two most-tapped controls in the app. */
   .habit-ring-btn,
-  .habit-chip,
   .mood-btn {
     min-width: 44px;
     min-height: 44px;
@@ -2975,4 +2955,151 @@ input[type='checkbox']:checked::after {
 @media (max-width: 640px) {
   .landing-hero { padding: 44px 0 36px; }
   .landing-hero h1 br { display: none; }
+}
+
+/* ── Sign-in / create-account screen ─────────────────────────────────────────
+   Previously: a bare ring around the glyph, a large gap, then a card floating
+   low on the page. The mark now reads as a lockup — glyph, wordmark, one line
+   of purpose — and the whole thing is optically centred rather than pushed to
+   the bottom. */
+.gate {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  padding: 32px 20px calc(32px + env(safe-area-inset-bottom));
+}
+.gate-brand { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; }
+.gate-mark {
+  display: grid; place-items: center;
+  width: 74px; height: 74px; border-radius: 24px;
+  background: linear-gradient(150deg, color-mix(in srgb, var(--brand) 22%, transparent), transparent 70%);
+  border: 1px solid color-mix(in srgb, var(--brand) 35%, transparent);
+  /* A soft bloom rather than a hard ring — the old outline read as a stray
+     border, not as branding. */
+  box-shadow: 0 8px 28px -12px color-mix(in srgb, var(--brand) 55%, transparent);
+}
+.gate-word {
+  margin: 2px 0 0; font-size: 30px; font-weight: 700;
+  letter-spacing: -0.03em; line-height: 1;
+}
+.gate-tag { margin: 0; font-size: 13.5px; color: var(--text-muted); max-width: 30ch; line-height: 1.5; }
+
+.gate-card {
+  width: 100%; max-width: 360px;
+  display: flex; flex-direction: column; gap: 11px;
+  padding: 22px; border-radius: 20px;
+  background: var(--surface-raised); border: 1px solid var(--border-subtle);
+  box-shadow: 0 22px 50px -32px rgb(0 0 0 / 0.55);
+}
+
+/* Two tabs beat a mode-toggle button at the bottom: the choice is visible up
+   front instead of hidden under the thing you were about to submit. */
+.gate-tabs {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+  padding: 4px; margin-bottom: 4px;
+  border-radius: var(--radius-pill); background: var(--surface-sunken);
+}
+.gate-tab {
+  padding: 9px 10px; border: 0; border-radius: var(--radius-pill);
+  background: transparent; color: var(--text-muted);
+  font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.gate-tab.on { background: var(--surface-raised); color: var(--text-primary); }
+
+.gate-remember {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 13px; color: var(--text-muted); cursor: pointer;
+  padding: 2px 0;
+}
+.gate-remember input { width: 17px; height: 17px; min-height: 0; accent-color: var(--accent-strong); }
+
+.onb-cal-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+
+/* ── Motion ──────────────────────────────────────────────────────────────────
+   One shared vocabulary instead of ad-hoc keyframes per component: content
+   arrives with a short rise-and-fade, interactive things respond on press, and
+   everything honours reduced-motion. Durations stay under ~220ms — anything
+   longer stops reading as responsiveness and starts reading as lag. */
+@keyframes atlas-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes atlas-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Page content on arrival. Applied to the routed content only, so the shell
+   (sidebar, dock) never re-animates as you navigate. */
+.main-inner > * {
+  animation: atlas-rise var(--dur-base, 180ms) var(--ease, cubic-bezier(0.2, 0, 0, 1)) both;
+}
+.gate-card { animation: atlas-rise 220ms var(--ease, cubic-bezier(0.2, 0, 0, 1)) both; }
+.gate-brand { animation: atlas-fade 320ms var(--ease, cubic-bezier(0.2, 0, 0, 1)) both; }
+.onb-step { animation: atlas-rise 200ms var(--ease, cubic-bezier(0.2, 0, 0, 1)) both; }
+
+/* Press feedback. The complaint that the app "isn't intuitive" is partly that
+   taps have no acknowledgement — a control that does not react feels broken
+   even when it worked. */
+.btn:active:not(:disabled),
+.chip:active,
+.gate-tab:active,
+.fit-quick-chip:active,
+.repeat-chip:active,
+.routine-day:active,
+.freetime-gap:active,
+.onb-chip:active {
+  transform: scale(0.97);
+}
+.btn,
+.chip,
+.gate-tab,
+.fit-quick-chip,
+.repeat-chip,
+.routine-day,
+.freetime-gap,
+.onb-chip {
+  transition:
+    transform 90ms var(--ease, cubic-bezier(0.2, 0, 0, 1)),
+    background var(--dur-fast, 120ms) var(--ease, cubic-bezier(0.2, 0, 0, 1)),
+    border-color var(--dur-fast, 120ms) var(--ease, cubic-bezier(0.2, 0, 0, 1)),
+    color var(--dur-fast, 120ms) var(--ease, cubic-bezier(0.2, 0, 0, 1));
+}
+
+/* Rows that appear in a list (tasks, feed, sets) stagger in very slightly, so a
+   newly added item is visibly NEW rather than silently present. */
+.task,
+.feed-row,
+.fit-set,
+.plan-row,
+.routine-row {
+  animation: atlas-fade 160ms var(--ease, cubic-bezier(0.2, 0, 0, 1)) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .main-inner > *,
+  .gate-card,
+  .gate-brand,
+  .onb-step,
+  .task,
+  .feed-row,
+  .fit-set,
+  .plan-row,
+  .routine-row {
+    animation: none;
+  }
+  .btn:active:not(:disabled),
+  .chip:active,
+  .gate-tab:active,
+  .fit-quick-chip:active,
+  .repeat-chip:active,
+  .routine-day:active,
+  .freetime-gap:active,
+  .onb-chip:active {
+    transform: none;
+  }
 }

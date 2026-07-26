@@ -32,7 +32,7 @@ describe('AuthGate client-side validation', () => {
     const user = userEvent.setup();
     wrap(<AuthGate />);
 
-    await user.click(screen.getByRole('button', { name: /Need an account/ }));
+    await user.click(screen.getByRole('button', { name: 'Show the create account form' }));
     await user.type(screen.getByLabelText('Email'), 'a@b.com');
     await user.type(screen.getByLabelText('Password'), 'short');
     await user.click(screen.getByRole('button', { name: 'Create account' }));

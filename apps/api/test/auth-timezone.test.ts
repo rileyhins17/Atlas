@@ -26,6 +26,9 @@ const input = (timezone: string) => ({
   email: 'a@b.c',
   password: 'password123',
   timezone,
+  // The service takes the PARSED input shape, where zod has already applied
+  // the default — so the fixture has to supply it exactly as the boundary does.
+  remember: true,
 });
 
 describe('register: timezone', () => {

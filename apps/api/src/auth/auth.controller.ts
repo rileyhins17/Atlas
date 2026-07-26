@@ -20,14 +20,28 @@ import { loadEnv } from '../config/env.js';
 
 const THIRTY_DAYS_MS = 1000 * 60 * 60 * 24 * 30;
 
-function setSessionCookie(res: Response, token: string): void {
-  const prod = loadEnv().NODE_ENV === 'production';
+/**
+ * Write the session cookie.
+ *
+ * `secure` is derived from the REQUEST, not from NODE_ENV. The deployed API is
+ * started with a plain `node dist/main.js`, so NODE_ENV was never actually
+ * "production" and the cookie went out without the Secure flag on an HTTPS
+ * site — exactly the kind of thing that survives every test and only shows up
+ * as "why do I have to log in again". Express is configured with `trust proxy`,
+ * so `req.secure` reflects X-Forwarded-Proto from Caddy and is true in the real
+ * deployment regardless of how the process was launched.
+ *
+ * `remember` decides persistence, which is the honest meaning of the checkbox:
+ * with it, a dated cookie that survives closing the browser; without it, a
+ * session cookie that does not.
+ */
+function setSessionCookie(req: Request, res: Response, token: string, remember: boolean): void {
   res.cookie(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: prod,
+    secure: req.secure,
     path: '/',
-    maxAge: THIRTY_DAYS_MS,
+    ...(remember ? { maxAge: THIRTY_DAYS_MS } : {}),
   });
 }
 
@@ -62,10 +76,10 @@ export class AuthController {
     await this.auth.register(body);
     // Auto-login after registration.
     const { token, user } = await this.auth.login(
-      { email: body.email, password: body.password },
+      { email: body.email, password: body.password, remember: body.remember },
       req.headers['user-agent'],
     );
-    setSessionCookie(res, token);
+    setSessionCookie(req, res, token, body.remember !== false);
     return user;
   }
 
@@ -78,7 +92,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<UserDTO> {
     const { token, user } = await this.auth.login(body, req.headers['user-agent']);
-    setSessionCookie(res, token);
+    setSessionCookie(req, res, token, body.remember !== false);
     return user;
   }
 

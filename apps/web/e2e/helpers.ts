@@ -19,7 +19,7 @@ export async function register(page: Page, email = uniqueEmail()): Promise<strin
   // "/" is the public landing page now — the sign-in gate lives inside the
   // dashboard shell, so registration has to start from an app route.
   await page.goto('/today');
-  await page.getByRole('button', { name: /Need an account/ }).click();
+  await page.getByRole('button', { name: 'Show the create account form' }).click();
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(TEST_PASSWORD);
   // A deployment with INVITE_CODE set closes sign-up, and the field only
@@ -28,7 +28,7 @@ export async function register(page: Page, email = uniqueEmail()): Promise<strin
   // gated one, without the suite needing to know which it got.
   const invite = page.getByLabel('Invite code');
   if (await invite.count()) await invite.fill(process.env.INVITE_CODE ?? '');
-  await page.getByRole('button', { name: 'Create account' }).click();
+  await page.getByRole('button', { name: 'Create account', exact: true }).click();
 
   const signedIn = page.locator('.sidebar-user-name');
   const gateError = page.locator('.gate-shell .error');
@@ -38,7 +38,7 @@ export async function register(page: Page, email = uniqueEmail()): Promise<strin
     // sidesteps "already registered" either way.
     const retryEmail = uniqueEmail();
     await page.getByLabel('Email').fill(retryEmail);
-    await page.getByRole('button', { name: 'Create account' }).click();
+    await page.getByRole('button', { name: 'Create account', exact: true }).click();
     await expect(page.locator('.sidebar-user-name')).toHaveText(retryEmail, { timeout: 15_000 });
     return retryEmail;
   }

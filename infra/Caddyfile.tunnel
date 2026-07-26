@@ -10,7 +10,15 @@
 	# handle_path STRIPS the /api prefix, so /api/health reaches the API as
 	# /health. A plain reverse_proxy would forward /api/health and 404.
 	handle_path /api/* {
-		reverse_proxy 127.0.0.1:4000
+		reverse_proxy 127.0.0.1:4000 {
+			# Caddy sets X-Forwarded-Proto from ITS OWN listener, which is plain
+			# http here, so the API saw an insecure request and omitted the
+			# Secure flag from the session cookie. Everything public is HTTPS —
+			# Cloudflare terminates TLS and .app is HSTS-preloaded, so http is
+			# not reachable at all — and the API trusts this header via
+			# `trust proxy`. Stating it is both correct and necessary.
+			header_up X-Forwarded-Proto https
+		}
 	}
 
 	handle {
