@@ -39,7 +39,24 @@ function makeRouter() {
       location: null,
     }),
   };
-  const routine = { addBlock: vi.fn().mockResolvedValue({ id: 'block_1', label: 'Work' }) };
+  const routine = {
+    addBlock: vi.fn().mockResolvedValue({ id: 'block_1', label: 'Work' }),
+    list: vi.fn().mockResolvedValue([]),
+    removeBlock: vi.fn().mockResolvedValue({ ok: true }),
+  };
+  const goals = {
+    create: vi.fn().mockResolvedValue({ id: 'goal_1', title: 'Run a half', horizon: 'short' }),
+    update: vi.fn().mockResolvedValue({ id: 'goal_1', title: 'Run a half' }),
+    remove: vi.fn().mockResolvedValue({ ok: true }),
+    owned: vi.fn().mockResolvedValue({
+      id: 'goal_1',
+      title: 'Run a half',
+      description: null,
+      horizon: 'short',
+      status: 'active',
+      targetDate: null,
+    }),
+  };
   const fitness = { start: vi.fn().mockResolvedValue({ id: 'workout_1' }) };
   const memory = { askUser: vi.fn().mockResolvedValue(undefined) };
   /* eslint-disable @typescript-eslint/no-explicit-any -- hand-rolled service doubles */
@@ -51,10 +68,11 @@ function makeRouter() {
     calendar as any,
     fitness as any,
     routine as any,
+    goals as any,
     memory as any,
   );
   /* eslint-enable @typescript-eslint/no-explicit-any */
-  return { router, tasks, habits, journal, notes, calendar, fitness, routine, memory };
+  return { router, tasks, habits, journal, notes, calendar, fitness, routine, goals, memory };
 }
 
 describe('ToolRouterService', () => {
@@ -207,5 +225,38 @@ describe('ToolRouterService undo', () => {
       expect.objectContaining({ label: 'Work', days: 31, startMin: 540, endMin: 1020 }),
     );
     expect(out.undo?.path).toBe('/routine/blocks/block_1');
+  });
+});
+
+describe('ToolRouterService goals', () => {
+  it('creates a goal with its horizon and offers a delete undo', async () => {
+    const { router, goals } = makeRouter();
+    const out = await router.execute('user-1', 'goals.create', {
+      title: 'Run a half',
+      horizon: 'short',
+    });
+    expect(goals.create).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ title: 'Run a half', horizon: 'short' }),
+    );
+    expect(out.summary).toBe('Added short-term goal "Run a half"');
+    expect(out.undo?.path).toBe('/goals/goal_1');
+  });
+
+  it('says so plainly when a goal is achieved', async () => {
+    const { router } = makeRouter();
+    const out = await router.execute('user-1', 'goals.update', {
+      id: 'goal_1',
+      status: 'achieved',
+    });
+    expect(out.summary).toBe('Marked "Run a half" achieved');
+    expect(out.undo?.body).toEqual({ status: 'active' });
+  });
+
+  it('restores a deleted goal with its horizon intact', async () => {
+    const { router } = makeRouter();
+    const out = await router.execute('user-1', 'goals.delete', { id: 'goal_1' });
+    expect(out.undo?.method).toBe('POST');
+    expect(out.undo?.body).toMatchObject({ title: 'Run a half', horizon: 'short' });
   });
 });
