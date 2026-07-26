@@ -51,6 +51,35 @@ export class HabitsAiAdapter implements DomainModule, OnModuleInit {
           required: ['name'],
         },
       },
+      {
+        name: 'habits.update',
+        description:
+          'Rename a habit, change how often it is meant to happen, or pause it by setting ' +
+          'active=false. Use the id from the Habits context.',
+        parameters: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            name: { type: 'string' },
+            cadence: { type: 'string', enum: ['daily', 'weekly'] },
+            target: { type: 'integer' },
+            active: { type: 'boolean', description: 'false pauses it without losing history' },
+          },
+          required: ['id'],
+        },
+      },
+      {
+        name: 'habits.delete',
+        description:
+          'Stop tracking a habit entirely and remove it from the checklist. This also removes ' +
+          'its check-in history — prefer habits.update with active=false when the user just ' +
+          'wants it off their plate for now.',
+        parameters: {
+          type: 'object',
+          properties: { id: { type: 'string' } },
+          required: ['id'],
+        },
+      },
     ];
   }
 }

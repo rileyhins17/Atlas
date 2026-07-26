@@ -21,7 +21,8 @@ export class HabitsService {
     private readonly timeline: TimelineService,
   ) {}
 
-  private async owned(userId: string, id: string): Promise<Habit> {
+  /** Ownership-scoped read, shared with the AI tool router for undo state. */
+  async owned(userId: string, id: string): Promise<Habit> {
     const habit = await this.prisma.client.habit.findFirst({ where: { id, userId } });
     if (!habit) throw new NotFoundException('Habit not found');
     return habit;
@@ -178,7 +179,9 @@ export class HabitsService {
     const habits = await this.list(userId);
     if (habits.length === 0) return 'No habits tracked.';
     const lines = habits.map(
-      (h) => `- ${h.name}: ${h.doneToday ? 'done today' : 'not yet today'}, streak ${h.streak}d`,
+      // The id is what makes habits.update / habits.delete addressable.
+      (h) =>
+        `- [${h.id}] ${h.name}: ${h.doneToday ? 'done today' : 'not yet today'}, streak ${h.streak}d`,
     );
     return `${habits.length} habit(s):\n${lines.join('\n')}`;
   }

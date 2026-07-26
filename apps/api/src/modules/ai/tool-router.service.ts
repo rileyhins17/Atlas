@@ -9,6 +9,7 @@ import {
   LogHabitInput,
   RoutineBlockInput,
   StartWorkoutInput,
+  UpdateHabitInput,
   UpdateNoteInput,
   UpdateTaskInput,
 } from '@atlas/shared';
@@ -77,6 +78,7 @@ const HabitLogInput = z.object({
 });
 const AiTaskPatch = UpdateTaskInput.extend({ id: z.string().min(1).max(64) });
 const AiNotePatch = UpdateNoteInput.extend({ id: z.string().min(1).max(64) });
+const AiHabitPatch = UpdateHabitInput.extend({ id: z.string().min(1).max(64) });
 const AskQuestionInput = z.object({
   question: z.string().min(1).max(2_000),
   rationale: z.string().max(2_000).optional(),
@@ -203,6 +205,37 @@ export class ToolRouterService {
           undo: del(`/habits/${habit.id}`, `Stop tracking "${habit.name}"`),
         };
       }
+      case 'habits.update': {
+        const { id, ...patch } = AiHabitPatch.parse(args);
+        const before = await this.habits.owned(userId, id);
+        const habit = await this.habits.update(userId, id, patch);
+        return {
+          result: habit,
+          summary:
+            patch.active === false ? `Paused "${habit.name}"` : `Updated "${habit.name}"`,
+          undo: patchBack(
+            `/habits/${id}`,
+            `Undo the change to "${before.name}"`,
+            pick(before as unknown as Record<string, unknown>, Object.keys(patch)),
+          ),
+        };
+      }
+      case 'habits.delete': {
+        const { id } = ByIdInput.parse(args);
+        const before = await this.habits.owned(userId, id);
+        await this.habits.remove(userId, id);
+        return {
+          result: { ok: true },
+          summary: `Stopped tracking "${before.name}"`,
+          // Recreating gives a fresh habit — the check-in history is gone for
+          // good, which is why the tool description steers toward pausing.
+          undo: recreate('/habits', `Track "${before.name}" again`, {
+            name: before.name,
+            cadence: before.cadence,
+            target: before.target,
+          }),
+        };
+      }
       case 'habits.log': {
         const { id, ...rest } = HabitLogInput.parse(args);
         const habit = await this.habits.log(userId, id, LogHabitInput.parse(rest));
@@ -232,6 +265,21 @@ export class ToolRouterService {
             'Undo that note change',
             pick(before as unknown as Record<string, unknown>, Object.keys(patch)),
           ),
+        };
+      }
+
+      case 'notes.delete': {
+        const { id } = ByIdInput.parse(args);
+        const before = await this.notes.owned(userId, id);
+        await this.notes.remove(userId, id);
+        return {
+          result: { ok: true },
+          summary: before.title ? `Deleted note "${before.title}"` : 'Deleted a note',
+          undo: recreate('/notes', 'Restore that note', {
+            ...(before.title ? { title: before.title } : {}),
+            body: before.body,
+            pinned: before.pinned,
+          }),
         };
       }
 
@@ -309,6 +357,26 @@ export class ToolRouterService {
       }
 
       // ── Fitness ──────────────────────────────────────────────────────────
+      case 'routine.remove_block': {
+        const { id } = ByIdInput.parse(args);
+        const blocks = await this.routine.list(userId);
+        const before = blocks.find((b) => b.id === id);
+        if (!before) throw new Error('Routine block not found');
+        await this.routine.removeBlock(userId, id);
+        return {
+          result: { ok: true },
+          summary: `Removed "${before.label}" from your week`,
+          undo: recreate('/routine/blocks', `Put "${before.label}" back`, {
+            label: before.label,
+            kind: before.kind,
+            days: before.days,
+            startMin: before.startMin,
+            endMin: before.endMin,
+            ...(before.onDate ? { onDate: before.onDate } : {}),
+          }),
+        };
+      }
+
       case 'fitness.start_workout': {
         const workout = await this.fitness.start(userId, StartWorkoutInput.parse(args ?? {}));
         return { result: workout, summary: `Started "${workout.title}"`, undo: null };

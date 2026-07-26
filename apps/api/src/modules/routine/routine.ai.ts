@@ -59,6 +59,17 @@ export class RoutineAiAdapter implements DomainModule, OnModuleInit {
           required: ['label', 'days', 'startMin', 'endMin'],
         },
       },
+      {
+        name: 'routine.remove_block',
+        description:
+          'Remove a block from the typical week ("I do not work Fridays any more"). Use the id ' +
+          'from the routine context.',
+        parameters: {
+          type: 'object',
+          properties: { id: { type: 'string' } },
+          required: ['id'],
+        },
+      },
     ];
   }
 }

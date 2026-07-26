@@ -120,7 +120,8 @@ export class RoutineService {
           : DAY_LETTERS.filter((_, i) => b.days & (1 << i)).join('');
       const wrap = b.startMin > b.endMin ? ' (overnight)' : '';
       const off = b.kind === 'off' ? ' — NOT working, this clears the usual block' : '';
-      return `- ${b.label}: ${fmt(b.startMin)}–${fmt(b.endMin)} ${when}${wrap}${off}`;
+      // The id is what makes routine.remove_block addressable.
+      return `- [${b.id}] ${b.label}: ${fmt(b.startMin)}–${fmt(b.endMin)} ${when}${wrap}${off}`;
     };
 
     const parts: string[] = [];

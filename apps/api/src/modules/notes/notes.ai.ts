@@ -51,6 +51,15 @@ export class NotesAiAdapter implements DomainModule, OnModuleInit {
           required: ['id'],
         },
       },
+      {
+        name: 'notes.delete',
+        description: 'Delete a note by its id when the user says it is no longer true or wanted.',
+        parameters: {
+          type: 'object',
+          properties: { id: { type: 'string' } },
+          required: ['id'],
+        },
+      },
     ];
   }
 }
