@@ -8,6 +8,34 @@ export interface ToolExecution {
   arguments: string;
   result: string;
   ok: boolean;
+  /** Plain-language description of the change, for the "Atlas changed" strip. */
+  summary: string | null;
+  /** How to reverse it. Server-built; null when the action is not reversible. */
+  undo: ToolUndo | null;
+}
+
+/**
+ * The inverse of one write, as a call against Atlas's own REST API.
+ *
+ * Built on the server from the row that was actually written — the model never
+ * supplies a path or a body, so replaying one can only reach data the caller's
+ * session could already reach.
+ */
+export interface ToolUndo {
+  label: string;
+  method: 'POST' | 'PATCH' | 'DELETE';
+  path: string;
+  body: Record<string, unknown> | null;
+}
+
+/**
+ * What a tool hands back. `result` is what the model sees; the rest is for the
+ * user interface and is never shown to the model.
+ */
+export interface ToolOutcome {
+  result: unknown;
+  summary?: string | null;
+  undo?: ToolUndo | null;
 }
 
 export interface ToolLoopResult {
@@ -24,7 +52,7 @@ export interface ToolLoopParams {
   /** Sends one chat request. Callers wrap this with their cost guard + provider. */
   chat: (messages: ChatMessage[], tools?: Record<string, unknown>[]) => Promise<ChatResult>;
   /** Runs a single tool call and returns a JSON-serializable result, or throws. */
-  executeTool: (name: string, args: unknown) => Promise<unknown>;
+  executeTool: (name: string, args: unknown) => Promise<ToolOutcome>;
   /** Caps round-trips so a model that keeps calling tools can't loop forever / rack up spend. */
   maxIterations?: number;
 }
@@ -68,6 +96,8 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
       const name = fromWireToolName(call.function.name);
       let ok = true;
       let resultText: string;
+      let summary: string | null = null;
+      let undo: ToolUndo | null = null;
       try {
         let args: unknown = {};
         try {
@@ -75,15 +105,24 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
         } catch {
           throw new Error('Malformed tool arguments JSON');
         }
-        const result = await executeTool(name, args);
-        resultText = JSON.stringify(result ?? { ok: true });
+        const outcome = await executeTool(name, args);
+        summary = outcome.summary ?? null;
+        undo = outcome.undo ?? null;
+        resultText = JSON.stringify(outcome.result ?? { ok: true });
       } catch (err) {
         ok = false;
         resultText = JSON.stringify({
           error: err instanceof Error ? err.message : 'Tool execution failed',
         });
       }
-      toolExecutions.push({ name, arguments: call.function.arguments, result: resultText, ok });
+      toolExecutions.push({
+        name,
+        arguments: call.function.arguments,
+        result: resultText,
+        ok,
+        summary,
+        undo,
+      });
       // Echo back the same (wire-safe) name the provider used for this call.
       messages.push({ role: 'tool', content: resultText, tool_call_id: call.id, name: call.function.name });
     }

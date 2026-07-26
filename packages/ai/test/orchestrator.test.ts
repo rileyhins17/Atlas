@@ -53,7 +53,11 @@ describe('runToolLoop', () => {
         }),
       )
       .mockResolvedValueOnce(chatResult({ content: 'Added "Buy milk" to your tasks.' }));
-    const executeTool = vi.fn().mockResolvedValue({ id: 'task_1', title: 'Buy milk' });
+    const executeTool = vi.fn().mockResolvedValue({
+      result: { id: 'task_1', title: 'Buy milk' },
+      summary: 'Added task "Buy milk"',
+      undo: { label: 'Remove it', method: 'DELETE', path: '/tasks/task_1', body: null },
+    });
 
     const result = await runToolLoop({
       messages: [{ role: 'user', content: 'add buy milk to my tasks' }],
@@ -65,7 +69,15 @@ describe('runToolLoop', () => {
     expect(executeTool).toHaveBeenCalledWith('tasks.create', { title: 'Buy milk' });
     expect(result.content).toBe('Added "Buy milk" to your tasks.');
     expect(result.toolExecutions).toEqual([
-      { name: 'tasks.create', arguments: '{"title":"Buy milk"}', result: JSON.stringify({ id: 'task_1', title: 'Buy milk' }), ok: true },
+      {
+        name: 'tasks.create',
+        arguments: '{"title":"Buy milk"}',
+        result: JSON.stringify({ id: 'task_1', title: 'Buy milk' }),
+        ok: true,
+        // Carried through for the UI; the model only ever sees `result`.
+        summary: 'Added task "Buy milk"',
+        undo: { label: 'Remove it', method: 'DELETE', path: '/tasks/task_1', body: null },
+      },
     ]);
     // usage accumulates across both round-trips, cache hits included
     expect(result.usage).toEqual({ promptTokens: 20, completionTokens: 10, cachedPromptTokens: 4 });
@@ -91,7 +103,15 @@ describe('runToolLoop', () => {
     });
 
     expect(result.toolExecutions).toEqual([
-      { name: 'tasks.create', arguments: '{}', result: JSON.stringify({ error: 'title is required' }), ok: false },
+      {
+        name: 'tasks.create',
+        arguments: '{}',
+        result: JSON.stringify({ error: 'title is required' }),
+        ok: false,
+        // A failed call changed nothing, so there is nothing to undo.
+        summary: null,
+        undo: null,
+      },
     ]);
     // the tool's error result gets fed back to the model as a tool message
     const secondCallMessages = chat.mock.calls[1]![0];
@@ -132,7 +152,7 @@ describe('runToolLoop', () => {
         toolCalls: [{ id: 'call_x', type: 'function', function: { name: 'tasks__create', arguments: '{"title":"x"}' } }],
       }),
     );
-    const executeTool = vi.fn().mockResolvedValue({ ok: true });
+    const executeTool = vi.fn().mockResolvedValue({ result: { ok: true } });
 
     const result = await runToolLoop({
       messages: [{ role: 'user', content: 'loop forever' }],

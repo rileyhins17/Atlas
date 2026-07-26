@@ -37,7 +37,9 @@ export class TasksService {
     private readonly timeline: TimelineService,
   ) {}
 
-  private async owned(userId: string, id: string): Promise<Task> {
+  /** Ownership-scoped read, shared with the AI tool router so it can capture
+   *  the "before" state an undo needs. */
+  async owned(userId: string, id: string): Promise<Task> {
     const task = await this.prisma.client.task.findFirst({ where: { id, userId } });
     if (!task) throw new NotFoundException('Task not found');
     return task;
@@ -294,8 +296,10 @@ export class TasksService {
       }),
     ]);
     if (open === 0) return 'No open tasks.';
+    // The id is what makes tasks.update / tasks.delete usable at all — without
+    // it the model can name a task but cannot address one.
     const lines = dueSoon.map(
-      (t) => `- ${t.title}${t.dueAt ? ` (due ${t.dueAt.toISOString().slice(0, 10)})` : ''}`,
+      (t) => `- [${t.id}] ${t.title}${t.dueAt ? ` (due ${t.dueAt.toISOString().slice(0, 10)})` : ''}`,
     );
     return `${open} open task(s). Next up:\n${lines.join('\n') || '(none with due dates)'}`;
   }

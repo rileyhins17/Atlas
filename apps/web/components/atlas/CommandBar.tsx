@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import * as RadixDialog from '@radix-ui/react-dialog';
+import { detectCaptureIntent, stripAskPrefix } from '@/lib/capture-intent';
 import {
   BookOpen,
   Calendar,
@@ -91,8 +92,9 @@ export function CommandBar() {
   }, [commandOpen]);
 
   const trimmed = query.trim();
-  const isAsk = trimmed.startsWith('?');
-  const askText = trimmed.replace(/^\?\s*/, '');
+  // Same rule as the capture dock: no prefix to learn, intent is detected.
+  const isAsk = detectCaptureIntent(trimmed) === 'ask';
+  const askText = stripAskPrefix(trimmed);
 
   const items = useMemo<Item[]>(() => {
     const list: Item[] = [];

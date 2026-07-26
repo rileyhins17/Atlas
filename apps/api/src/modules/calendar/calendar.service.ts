@@ -70,7 +70,9 @@ export class CalendarService {
     private readonly timeline: TimelineService,
   ) {}
 
-  private async owned(userId: string, id: string): Promise<Event> {
+  /** Ownership-scoped read, shared with the AI tool router so it can capture
+   *  the "before" state an undo needs. */
+  async owned(userId: string, id: string): Promise<Event> {
     const event = await this.prisma.client.event.findFirst({ where: { id, userId } });
     if (!event) throw new NotFoundException('Event not found');
     return event;

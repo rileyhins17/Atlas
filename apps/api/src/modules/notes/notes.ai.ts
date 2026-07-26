@@ -37,6 +37,20 @@ export class NotesAiAdapter implements DomainModule, OnModuleInit {
           required: ['body'],
         },
       },
+      {
+        name: 'notes.update',
+        description: 'Correct or extend an existing note. Use the id from the Notes context.',
+        parameters: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            title: { type: 'string' },
+            body: { type: 'string' },
+            pinned: { type: 'boolean', description: 'Pinned notes stay in Atlas context' },
+          },
+          required: ['id'],
+        },
+      },
     ];
   }
 }

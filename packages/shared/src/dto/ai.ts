@@ -22,11 +22,33 @@ export const ChatInput = z.object({
 });
 export type ChatInput = z.infer<typeof ChatInput>;
 
+/**
+ * How to reverse one thing Atlas did.
+ *
+ * Expressed as a call against Atlas's own REST API, and built ENTIRELY on the
+ * server from the row that was actually written — the model never supplies a
+ * path or a body. The client replays it with its own session, so an undo can
+ * only ever reach data that session could already reach.
+ */
+export const AiUndoStepDTO = z.object({
+  /** "Created task \"Buy milk\"" — what is being undone, in plain words. */
+  label: z.string(),
+  method: z.enum(['POST', 'PATCH', 'DELETE']),
+  /** Server-generated, e.g. "/tasks/abc123". */
+  path: z.string(),
+  body: z.record(z.unknown()).nullable(),
+});
+export type AiUndoStepDTO = z.infer<typeof AiUndoStepDTO>;
+
 export const ToolExecutionDTO = z.object({
   name: z.string(),
   arguments: z.string(),
   result: z.string(),
   ok: z.boolean(),
+  /** Plain-language summary of the change, e.g. "Moved Standup to 4:00 PM". */
+  summary: z.string().nullable().default(null),
+  /** Null when the action is not reversible (a read, or a log entry). */
+  undo: AiUndoStepDTO.nullable().default(null),
 });
 export type ToolExecutionDTO = z.infer<typeof ToolExecutionDTO>;
 

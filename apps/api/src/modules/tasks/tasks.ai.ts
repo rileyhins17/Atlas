@@ -51,6 +51,34 @@ export class TasksAiAdapter implements DomainModule, OnModuleInit {
         },
       },
       {
+        name: 'tasks.update',
+        description:
+          'Change an existing task: rename it, move its due date, change priority, or edit its ' +
+          'notes. Use the id from the Tasks context. Only send the fields that change.',
+        parameters: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            title: { type: 'string' },
+            notes: { type: 'string' },
+            priority: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'] },
+            dueAt: { type: 'string', format: 'date-time', description: 'Local due date/time' },
+          },
+          required: ['id'],
+        },
+      },
+      {
+        name: 'tasks.delete',
+        description:
+          'Delete a task the user no longer wants. Prefer tasks.complete when they actually did ' +
+          'it — deleting loses it from their history.',
+        parameters: {
+          type: 'object',
+          properties: { id: { type: 'string' } },
+          required: ['id'],
+        },
+      },
+      {
         name: 'tasks.complete',
         description: 'Mark a task as done by its id.',
         parameters: {

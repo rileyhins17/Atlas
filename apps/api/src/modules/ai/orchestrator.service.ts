@@ -427,12 +427,23 @@ Propose a plan.`,
 
   async organizeBrainDump(userId: string, text: string): Promise<ToolLoopResult> {
     // Capture is where relative dates actually arrive ("gym tomorrow at 6"), so
-    // this path needs the time anchor most — it previously had no context at all.
-    const nowText = await this.nowBlock(userId);
+    // this path needs the time anchor most.
+    //
+    // It also needs the module context, which it did NOT have: without it the
+    // model cannot see that anything already exists, so "rename that task" or
+    // "delete the milk one" had no id to act on and silently did nothing. The
+    // context carries "[id] Title" lines, which is what makes the update and
+    // delete tools reachable from the capture box at all. It sits in the system
+    // message with the instructions, so it stays in the cacheable prefix.
+    const [nowText, contextText] = await Promise.all([
+      this.nowBlock(userId),
+      this.buildSystemChunk(userId),
+    ]);
     const messages: ChatMessage[] = [
-      { role: 'system', content: `${BRAIN_DUMP_SYSTEM_PROMPT}
-
-${nowText}` },
+      {
+        role: 'system',
+        content: `${BRAIN_DUMP_SYSTEM_PROMPT}\n\n${nowText}\n\n${contextText}`,
+      },
       { role: 'user', content: text },
     ];
     const tools = this.registry.collectToolSpecs();

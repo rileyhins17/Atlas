@@ -67,6 +67,32 @@ export class CalendarAiAdapter implements DomainModule, OnModuleInit {
           required: ['title', 'startAt', 'durationMinutes'],
         },
       },
+      {
+        name: 'calendar.update',
+        description:
+          'Move or rename an existing event. Use the id from the Calendar context. Sending only ' +
+          'a new startAt keeps the original length, which is what "move my 3pm to 4pm" means.',
+        parameters: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            title: { type: 'string' },
+            startAt: { type: 'string', format: 'date-time', description: 'New local start' },
+            durationMinutes: { type: 'integer', description: 'New length, if it changed' },
+            location: { type: 'string' },
+          },
+          required: ['id'],
+        },
+      },
+      {
+        name: 'calendar.delete',
+        description: 'Cancel an event by its id.',
+        parameters: {
+          type: 'object',
+          properties: { id: { type: 'string' } },
+          required: ['id'],
+        },
+      },
     ];
   }
 }

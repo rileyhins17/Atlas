@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, Send, X } from 'lucide-react';
 import { useBrainDump } from '@/lib/hooks/ai';
 import { errorMessage } from '@/lib/api';
+import { detectCaptureIntent, stripAskPrefix } from '@/lib/capture-intent';
 import { useToast } from '@/components/ui';
 import { useAtlasUi } from '@/components/atlas/AtlasUiProvider';
 import { summarizeToolRuns } from '@/components/atlas/CommandBar';
@@ -19,9 +20,14 @@ export interface CaptureContext {
 
 /**
  * The universal capture box — Atlas's front door. Type anything in plain words
- * ("gym at 6", "call mom tomorrow", "feeling good today"), hit Enter, and the
- * AI files it into the right domain. Start with "?" to ask instead of file
- * (opens the chat rail). No commands, no menus — anyone can just type.
+ * ("gym at 6", "call mom tomorrow", "how am I doing?"), hit Enter, and Atlas
+ * works out whether to file it or answer it.
+ *
+ * There is no syntax to learn. Asking used to require a literal "?" prefix,
+ * which is invisible knowledge: nothing on screen taught it, and forgetting it
+ * silently filed your question as a task. Now intent is detected, and when the
+ * guess is wrong the toast offers the other reading in one tap — which is what
+ * makes a heuristic acceptable here.
  */
 export function HomeCapture({
   examples,
@@ -52,9 +58,8 @@ export function HomeCapture({
     const trimmed = text.trim();
     if (!trimmed || brainDump.isPending) return;
 
-    // "?how am I doing" → a question, not a capture: hand it to the chat rail.
-    if (trimmed.startsWith('?')) {
-      const ask = trimmed.replace(/^\?\s*/, '');
+    if (detectCaptureIntent(trimmed) === 'ask') {
+      const ask = stripAskPrefix(trimmed);
       if (ask) {
         openChat(ask);
         setText('');
@@ -62,12 +67,26 @@ export function HomeCapture({
       return;
     }
 
+    file(trimmed);
+  }
+
+  /** Send text to be filed, and offer the other reading if that was wrong. */
+  function file(trimmed: string) {
     // Carry the tapped time window to the AI so it files into that slot.
     const payload = context ? `${trimmed} (${context.hint})` : trimmed;
     brainDump.mutate(payload, {
       onSuccess: (res) => {
-        const ran = res.toolExecutions.filter((t) => t.ok).map((t) => t.name);
-        toast(ran.length > 0 ? `Filed: ${summarizeToolRuns(ran)}` : res.content.slice(0, 140), 'success');
+        const changes = res.toolExecutions.filter((t) => t.ok);
+        const ran = changes.map((t) => t.name);
+        // Prefer the server's plain-language summary; fall back to the domain
+        // names only when a tool did not supply one.
+        const said =
+          changes.map((t) => t.summary).filter(Boolean).join(' · ') ||
+          (ran.length > 0 ? `Filed: ${summarizeToolRuns(ran)}` : res.content.slice(0, 140));
+        toast(said, 'success', {
+          label: 'Ask instead',
+          onClick: () => openChat(trimmed),
+        });
         setText('');
         onClearContext?.();
         // The filed items are new canvas/feed rows — refresh immediately.
@@ -110,7 +129,7 @@ export function HomeCapture({
           placeholder={
             context
               ? `What should happen ${context.label}?`
-              : 'Capture anything — a task, a thought, an event. Start with ? to ask.'
+              : 'Type anything — "gym at 6", "call mom tomorrow", "how am I doing?"'
           }
           aria-label="Capture anything"
           rows={1}

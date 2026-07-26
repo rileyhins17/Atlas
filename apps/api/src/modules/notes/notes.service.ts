@@ -29,7 +29,9 @@ export class NotesService {
     private readonly memory: MemoryService,
   ) {}
 
-  private async owned(userId: string, id: string): Promise<Note> {
+  /** Ownership-scoped read, shared with the AI tool router so it can capture
+   *  the "before" state an undo needs. */
+  async owned(userId: string, id: string): Promise<Note> {
     const note = await this.prisma.client.note.findFirst({ where: { id, userId } });
     if (!note) throw new NotFoundException('Note not found');
     return note;

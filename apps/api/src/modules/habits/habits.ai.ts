@@ -36,6 +36,21 @@ export class HabitsAiAdapter implements DomainModule, OnModuleInit {
           required: ['id'],
         },
       },
+      {
+        name: 'habits.create',
+        description:
+          'Start tracking a new habit. Use when the user says they want to start doing something ' +
+          'regularly ("I want to read every day").',
+        parameters: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            cadence: { type: 'string', enum: ['daily', 'weekly'] },
+            target: { type: 'integer', description: 'Times per period, default 1' },
+          },
+          required: ['name'],
+        },
+      },
     ];
   }
 }
