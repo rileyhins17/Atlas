@@ -910,18 +910,35 @@ input[type='checkbox']:checked::after {
   }
 }
 
+/* ── Layer scale ─────────────────────────────────────────────────────────
+   40  capture dock, bottom nav, sidebar
+   60  chat rail (a panel, not a modal — it does not use the overlay)
+   80  modal backdrop  .dialog-overlay
+   81  modal content   .dialog-content, .command-bar, .asks-panel
+   100 toasts — must stay clickable above an open modal for Undo to work
+
+   Anything rendered behind .dialog-overlay MUST be in the 81 band. These
+   carried no z-index at all, which put every dialog underneath the capture
+   dock and hid its primary button. */
 .dialog-overlay {
   position: fixed;
   inset: 0;
+  z-index: 80;
   background: rgba(0, 0, 0, 0.55);
   animation: fade-in var(--dur-fast) var(--ease);
 }
 .dialog-content {
   position: fixed;
+  z-index: 81;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   width: min(440px, calc(100vw - var(--space-6)));
+  /* A long form (the event composer) must scroll inside the dialog rather
+     than run off the bottom of a short phone. */
+  max-height: calc(100dvh - var(--space-6));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--surface-raised);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
@@ -1580,6 +1597,10 @@ input[type='checkbox']:checked::after {
 /* — command bar (⌘K) — */
 .command-bar {
   position: fixed;
+  /* Modal content band — see the layer scale above .dialog-overlay. The
+     command bar renders behind the shared .dialog-overlay, so it has to sit in
+     the same band as .dialog-content or the backdrop swallows its clicks. */
+  z-index: 81;
   top: clamp(60px, 14vh, 150px);
   left: 50%;
   transform: translateX(-50%);
@@ -2325,7 +2346,7 @@ input[type='checkbox']:checked::after {
   font-size: 9.5px; font-weight: 700; line-height: 15px; text-align: center;
 }
 .asks-panel {
-  position: fixed; z-index: 60; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  position: fixed; z-index: 81; top: 50%; left: 50%; transform: translate(-50%, -50%);
   width: min(560px, calc(100vw - 32px)); max-height: min(80vh, 680px);
   display: flex; flex-direction: column;
   background: var(--surface-raised); border: 1px solid var(--border-subtle);
@@ -3142,5 +3163,322 @@ input[type='checkbox']:checked::after {
   .freetime-gap:active,
   .onb-chip:active {
     transform: none;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Calendar
+   Week strip + agenda + composer dialog. Every control is full-width and
+   stacked: the previous form sat two datetime-local inputs side by side,
+   which cannot shrink below ~260px each and pushed the page to 537px on a
+   390px phone.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.cal-nav-btn,
+.cal-today-btn {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.cal-today-btn {
+  flex: 1;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.cal-nav-btn:hover,
+.cal-today-btn:hover {
+  background: var(--surface-inset);
+  border-color: var(--brand);
+}
+
+/* Seven equal columns — never a horizontal scroller, so the whole week is
+   always reachable with one thumb. */
+.cal-strip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+}
+.cal-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-2) 0 6px;
+  min-height: 58px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.cal-day:hover {
+  background: var(--surface-raised);
+}
+.cal-day-name {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.cal-day-num {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.cal-day.on {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+}
+.cal-day.on,
+.cal-day.on .cal-day-num {
+  color: var(--text-on-accent);
+}
+/* Today is marked by a ring, so it stays legible when another day is selected. */
+.cal-day.is-today:not(.on) {
+  border-color: var(--brand);
+}
+.cal-day.is-today:not(.on) .cal-day-num {
+  color: var(--brand);
+}
+.cal-day-dots {
+  display: flex;
+  gap: 2px;
+  height: 4px;
+  align-items: center;
+}
+.cal-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--brand);
+}
+.cal-day.on .cal-dot {
+  background: var(--text-on-accent);
+}
+
+.cal-scope {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+  padding: 3px;
+  background: var(--surface-raised);
+  border-radius: var(--radius-sm);
+}
+.cal-scope-btn {
+  flex: 1;
+  min-height: 38px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 6px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.cal-scope-btn.on {
+  background: var(--surface-inset);
+  color: var(--text-primary);
+}
+
+/* An event row is a button: the whole row opens the editor, so there is no
+   tiny target to aim at and no separate "edit" affordance to discover. */
+.cal-event {
+  display: flex;
+  gap: var(--space-3);
+  width: 100%;
+  text-align: left;
+  padding: var(--space-3) var(--space-2);
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background var(--dur-fast) var(--ease);
+}
+.cal-event:last-child {
+  border-bottom: none;
+}
+.cal-event:hover {
+  background: var(--surface-raised);
+}
+.cal-event-time {
+  display: flex;
+  flex-direction: column;
+  min-width: 62px;
+  flex-shrink: 0;
+}
+.cal-event-start {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.cal-event-dur {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.cal-event-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.cal-event-title {
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.cal-event-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.cal-event.live {
+  background: rgba(232, 131, 106, 0.09);
+}
+.cal-live {
+  font-style: normal;
+  font-weight: 700;
+  color: var(--brand);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Composer */
+.cal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.cal-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+.cal-ends {
+  font-style: normal;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.cal-allday {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.cal-allday input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-strong);
+}
+.cal-durations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.cal-dur {
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.cal-dur.on {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: var(--text-on-accent);
+}
+.cal-warn {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.cal-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.cal-actions > * {
+  flex: 1;
+}
+
+/* Page header with a trailing action. */
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.page-head-text {
+  min-width: 0;
+}
+.page-head-action {
+  flex-shrink: 0;
+}
+
+/* An actionable toast needs to be clickable through the pass-through viewport. */
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  pointer-events: auto;
+}
+.toast-action {
+  border: none;
+  background: transparent;
+  color: var(--brand);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  margin: calc(var(--space-1) * -1) 0;
+  border-radius: 6px;
+}
+.toast-action:hover {
+  background: var(--surface-raised);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cal-day,
+  .cal-event,
+  .cal-dur,
+  .cal-scope-btn,
+  .cal-nav-btn,
+  .cal-today-btn {
+    transition: none;
   }
 }

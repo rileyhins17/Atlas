@@ -223,6 +223,8 @@ export const EventsApi = {
   },
   create: (input: NewEvent) =>
     request<EventDTO>('/events', { method: 'POST', body: JSON.stringify(input) }),
+  update: (id: string, patch: Partial<NewEvent> & { recurrence?: string | null }) =>
+    request<EventDTO>(`/events/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   remove: (id: string) => request<{ ok: true }>(`/events/${id}`, { method: 'DELETE' }),
 };
 

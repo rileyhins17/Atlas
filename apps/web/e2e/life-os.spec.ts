@@ -393,3 +393,56 @@ test('work that slipped is settled in one batched decision', async ({ page }) =>
   await expect(page.locator('.task', { hasText: titles[0]! })).toHaveCount(0);
   await expect(page.locator('.task', { hasText: titles[1]! })).toHaveCount(1);
 });
+
+test('calendar: create, edit and undo a delete', async ({ page }) => {
+  await go(page, '/calendar');
+
+  const title = `Cal ${Date.now()}`;
+
+  // Create. The composer is a dialog, so nothing is on screen until asked for
+  // — the old always-open form pushed the agenda below the fold.
+  await page.getByRole('button', { name: /New/ }).click();
+  await page.getByPlaceholder('Dentist, standup, gym…').fill(title);
+  await page.getByRole('button', { name: '45m' }).click();
+  await page.getByRole('button', { name: 'Add event' }).click();
+
+  const row = page.locator('.cal-event', { hasText: title });
+  await expect(row).toBeVisible();
+  await expect(row).toContainText('45m');
+
+  // Edit — the whole row is the affordance, and the API's PATCH was previously
+  // unreachable from the UI entirely.
+  await row.click();
+  const renamed = `${title} edited`;
+  await page.getByPlaceholder('Dentist, standup, gym…').fill(renamed);
+  await page.getByRole('button', { name: '1h 30m' }).click();
+  await page.getByRole('button', { name: 'Save changes' }).click();
+
+  const edited = page.locator('.cal-event', { hasText: renamed });
+  await expect(edited).toBeVisible();
+  await expect(edited).toContainText('1h 30m');
+
+  // Delete, then take it back.
+  await edited.click();
+  await page.getByRole('button', { name: 'Delete' }).click();
+  await expect(page.locator('.cal-event', { hasText: renamed })).toHaveCount(0);
+
+  await page.locator('.toast-action', { hasText: 'Undo' }).click();
+  await expect(page.locator('.cal-event', { hasText: renamed })).toBeVisible();
+});
+
+test('calendar: navigating weeks reaches the past and comes back', async ({ page }) => {
+  await go(page, '/calendar');
+
+  const strip = page.locator('.cal-strip');
+  const selectedBefore = await strip.locator('.cal-day.on .cal-day-num').textContent();
+
+  // The previous agenda hard-filtered anything before today, so yesterday was
+  // simply unreachable.
+  await page.getByRole('button', { name: 'Previous week' }).click();
+  await expect(strip.locator('.cal-day.is-today')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Today' }).click();
+  await expect(strip.locator('.cal-day.is-today')).toHaveCount(1);
+  await expect(strip.locator('.cal-day.on .cal-day-num')).toHaveText(selectedBefore ?? '');
+});

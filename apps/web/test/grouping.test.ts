@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { EventDTO, TaskDTO } from '@atlas/shared';
+import type { TaskDTO } from '@atlas/shared';
 import { groupTasks } from '../components/panels/TasksPanel';
-import { groupEventsByDay } from '../components/panels/CalendarPanel';
 import { weekCells } from '../components/panels/HabitsPanel';
 import { localDayKey } from '../lib/dates';
 
@@ -61,46 +60,6 @@ describe('groupTasks', () => {
       NOW,
     );
     expect(groups[0].tasks.map((t) => t.title)).toEqual(['earlier', 'a-urgent', 'b-low']);
-  });
-});
-
-describe('groupEventsByDay', () => {
-  function event(partial: Partial<EventDTO>): EventDTO {
-    return {
-      id: Math.random().toString(36).slice(2),
-      title: 'e',
-      description: null,
-      location: null,
-      startAt: new Date().toISOString(),
-      endAt: new Date().toISOString(),
-      allDay: false,
-      source: 'atlas',
-      recurrence: null,
-      taskId: null,
-      createdAt: new Date().toISOString(),
-      ...partial,
-    };
-  }
-
-  it('groups forward-looking events by local day, sorted within the day', () => {
-    // Fixed noon-local "now" so +3h can never cross midnight (this was flaky
-    // when the suite ran after 9pm with a real clock).
-    const today = NOW;
-    const laterToday = new Date(today.getTime() + 3 * 3600e3);
-    const yesterday = new Date(today.getTime() - 24 * 3600e3);
-    const grouped = groupEventsByDay(
-      [
-        event({ title: 'past', startAt: yesterday.toISOString() }),
-        event({ title: 'second', startAt: laterToday.toISOString() }),
-        event({ title: 'first', startAt: today.toISOString() }),
-      ],
-      NOW,
-    );
-    // Yesterday is dropped; today's two events are time-ordered.
-    const todayKey = localDayKey(today);
-    const todayGroup = grouped.find(([day]) => day === todayKey);
-    expect(grouped.some(([day]) => day === localDayKey(yesterday))).toBe(false);
-    expect(todayGroup?.[1].map((e) => e.title)).toEqual(['first', 'second']);
   });
 });
 

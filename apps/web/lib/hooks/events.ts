@@ -43,11 +43,40 @@ export function useCreateEvent() {
   });
 }
 
+/**
+ * Events across an explicit window — what the calendar navigates with.
+ *
+ * The window must stay under the API's 62-day cap, and it deliberately spans
+ * several weeks either side of the visible one so paging to the next or
+ * previous week is instant instead of a fresh round-trip.
+ */
+export function useEventsRange(from: Date, to: Date) {
+  const fromIso = from.toISOString();
+  const toIso = to.toISOString();
+  return useQuery({
+    queryKey: qk.eventsRange(fromIso, toIso),
+    queryFn: () => EventsApi.list({ from: fromIso, to: toIso, limit: 100 }),
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useUpdateEvent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: Parameters<typeof EventsApi.update>[1] }) =>
+      EventsApi.update(id, patch),
+    meta: { success: 'Event updated', errorFallback: 'Failed to update event' },
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.events }),
+  });
+}
+
 export function useDeleteEvent() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: EventsApi.remove,
-    meta: { success: 'Event deleted', errorFallback: 'Failed to delete event' },
+    // No `meta.success`: the calendar raises its own toast so it can attach an
+    // Undo action, and two toasts for one delete reads as a bug.
+    meta: { errorFallback: 'Failed to delete event' },
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.events }),
   });
 }

@@ -75,15 +75,27 @@ docs/                architecture, data-model, roadmap, guides, ADRs, GOTCHAS.
 
 ## Current state
 
-Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **371 unit tests** · **e2e 19/19** (Playwright + axe) · axe clean across phone-light, phone-dark and desktop-light.
+Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **371 unit tests** · **e2e 21/21** (Playwright + axe) · axe clean across phone-light, phone-dark and desktop-light.
 
 ### Known gaps — tracked, not hidden
+**`docs/production-readiness.md` is the authoritative list**, written from a 154-assertion API stress
+pass and a full-route UI pass. It is ordered by what blocks shipping and says what was measured
+rather than assumed. Read it before planning any "make it production ready" work.
+
+The short version — nothing else should ship before these:
+- **No privacy policy or ToS**, and **no error tracking**. Both gate a second user having an account.
+- **Rotate the Plaid production secret** — it was pasted into a chat transcript.
 - **Unverified live:** Google Calendar token refresh and delete propagation; Plaid production.
-- **Rotate the Plaid production secret** before going live — it was pasted into a chat transcript.
-- **No error tracking, no billing, no privacy policy or ToS.** Productization is deferred by Riley's instruction, but legal pages are non-optional before anyone else signs up.
-- **~350 accounts in the database**, nearly all test junk. Worth purging.
-- The embedding sweep runs in-process, so multiple API replicas would each run it. Harmless today; needs a lock before scaling out.
-- ~42 sub-44px tap targets remain, all inside scrollable list rows.
+- **Offline renders a blank page**, on a PWA meant for an iPhone home screen.
+- **~350 accounts in the database**, nearly all test junk.
+
+Cross-user isolation was stress-tested across every module and is clean — user B cannot reach user
+A's rows by any route tried.
+
+### Layering rule (learned the hard way)
+`.dialog-overlay` is z-80 and every modal surface must sit at **z-81** — `.dialog-content`,
+`.command-bar`, `.asks-panel`. Anything rendered behind that overlay but left below it becomes
+unclickable. The full scale is documented above `.dialog-overlay` in `globals.css`.
 
 ### What to build next
 `docs/atlas-next-ideas.md` is the prioritised roadmap and also lists what **not** to build. Tier 1 remaining: **energy-aware placement** and **one-tap "running 30 minutes late"**. (Duration learning and batched roll-forward have shipped.)

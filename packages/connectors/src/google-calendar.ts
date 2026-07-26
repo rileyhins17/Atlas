@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Connector, ConnectorContext } from './connector.js';
+import { ConnectorNotConfiguredError, type Connector, type ConnectorContext } from './connector.js';
 
 /**
  * OAuth tokens for one Google account. Stored AES-GCM encrypted in the
@@ -147,7 +147,10 @@ export class GoogleCalendarConnector implements Connector {
   private async accessToken(ctx: ConnectorContext): Promise<string> {
     const parsed = GoogleCredentialSchema.safeParse(await ctx.getSecret());
     if (!parsed.success) {
-      throw new Error('Google Calendar is not connected. Connect it in Settings.');
+      throw new ConnectorNotConfiguredError(
+        'google-calendar',
+        'Google Calendar is not connected. Connect it in Settings.',
+      );
     }
     const cred = parsed.data;
     if (cred.expiresAt - EXPIRY_SKEW_MS > Date.now()) return cred.accessToken;

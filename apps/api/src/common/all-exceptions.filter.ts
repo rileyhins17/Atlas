@@ -5,6 +5,7 @@ import {
   HttpStatus,
   type ExceptionFilter,
 } from '@nestjs/common';
+import { ConnectorNotConfiguredError } from '@atlas/connectors';
 import type { Response } from 'express';
 import type { RequestWithId } from './request-id.middleware.js';
 
@@ -22,7 +23,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const req = ctx.getRequest<RequestWithId>();
 
     const isHttp = exception instanceof HttpException;
-    const status = isHttp ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
+    // "You have not connected this integration" is a user-fixable precondition,
+    // not a server fault. 424 keeps it out of the 5xx logs and — unlike 400,
+    // which the web client treats as inline form validation — still surfaces
+    // the message to the user.
+    const notConfigured = exception instanceof ConnectorNotConfiguredError;
+    const status = isHttp
+      ? exception.getStatus()
+      : notConfigured
+        ? HttpStatus.FAILED_DEPENDENCY
+        : HttpStatus.INTERNAL_SERVER_ERROR;
 
     if (status >= 500) {
       // eslint-disable-next-line no-console
@@ -42,7 +52,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const body = isHttp
       ? exception.getResponse()
-      : { statusCode: status, message: 'Internal server error' };
+      : notConfigured
+        ? { statusCode: status, message: (exception as ConnectorNotConfiguredError).message }
+        : { statusCode: status, message: 'Internal server error' };
 
     res.status(status).json(
       typeof body === 'string'

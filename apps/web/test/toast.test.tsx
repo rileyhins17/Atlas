@@ -20,9 +20,11 @@ describe('Toast', () => {
       );
       fireEvent.click(screen.getByText('fire'));
 
-      const toast = screen.getByText('Saved');
-      expect(toast).toBeInTheDocument();
-      expect(toast).toHaveClass('toast', 'success');
+      // The message sits in a <span> so an optional action button can sit
+      // beside it, so assert against the toast element itself.
+      const label = screen.getByText('Saved');
+      expect(label).toBeInTheDocument();
+      expect(label.closest('.toast')).toHaveClass('toast', 'success');
 
       // TTL is 4s; after it, the toast is gone.
       act(() => vi.advanceTimersByTime(4000));

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Connector, ConnectorContext } from './connector.js';
+import { ConnectorNotConfiguredError, type Connector, type ConnectorContext } from './connector.js';
 import { parseChatCompletion, type ChatMessage, type ChatOptions, type ChatResult } from './chat.js';
 
 export const DeepSeekCredentialSchema = z.object({
@@ -33,7 +33,10 @@ export class DeepSeekConnector implements Connector {
     const secret = await ctx.getSecret();
     const parsed = DeepSeekCredentialSchema.safeParse(secret);
     if (!parsed.success) {
-      throw new Error('DeepSeek credential missing or invalid. Add an API key in Settings.');
+      throw new ConnectorNotConfiguredError(
+        'deepseek',
+        'Atlas AI needs an API key. Add one in Settings → Atlas AI.',
+      );
     }
     return parsed.data.apiKey;
   }

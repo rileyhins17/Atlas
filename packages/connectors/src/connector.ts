@@ -67,3 +67,23 @@ export class ConnectorRegistry {
     return [...this.connectors.values()];
   }
 }
+
+/**
+ * The user has not connected this integration (no credential, or one that no
+ * longer parses). Distinct from a transport failure: nothing is broken, the
+ * account simply is not set up, and the fix is a user action rather than a
+ * retry.
+ *
+ * The API maps this to 424 Failed Dependency in AllExceptionsFilter. Without
+ * it every AI route returned a bare 500 to anyone who had not yet added a key
+ * — which is the state of every new account.
+ */
+export class ConnectorNotConfiguredError extends Error {
+  readonly connectorId: string;
+
+  constructor(connectorId: string, message: string) {
+    super(message);
+    this.name = 'ConnectorNotConfiguredError';
+    this.connectorId = connectorId;
+  }
+}
