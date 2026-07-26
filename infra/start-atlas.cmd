@@ -14,6 +14,16 @@ set CFD=C:\Program Files (x86)\cloudflared\cloudflared.exe
 
 cd /d "%ATLAS%"
 
+REM Idempotent by design: running this twice must not leave two of anything.
+REM Each cloudflared instance opens FOUR edge connections, so re-running the
+REM script a few times during development left five tunnels and ~20 connections
+REM registered for one hostname. Caddy and Next hide the same mistake because
+REM they fail to bind a taken port; cloudflared happily starts another.
+taskkill /IM cloudflared.exe /F >nul 2>&1
+taskkill /IM caddy.exe /F >nul 2>&1
+taskkill /IM node.exe /F >nul 2>&1
+timeout /t 3 /nobreak >nul
+
 start "atlas-api" /min cmd /c "pnpm --filter @atlas/api start"
 start "atlas-web" /min cmd /c "pnpm --filter @atlas/web start"
 
