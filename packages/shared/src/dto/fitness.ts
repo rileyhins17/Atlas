@@ -80,6 +80,8 @@ export type WorkoutSetDTO = z.infer<typeof WorkoutSetDTO>;
 
 export const StartWorkoutInput = z.object({
   title: z.string().min(1).max(200).optional(),
+  /** Start from a saved day — its movements load as empty blocks, ready to log. */
+  templateId: z.string().min(1).max(64).optional(),
 });
 export type StartWorkoutInput = z.infer<typeof StartWorkoutInput>;
 
@@ -100,6 +102,8 @@ export const WorkoutDTO = z.object({
   volumeGrams: z.number().int(),
   /** Working sets (warm-ups excluded), which is what "3 sets" means to a lifter. */
   workingSets: z.number().int(),
+  /** The saved day this session came from, if any. */
+  templateId: z.string().nullable(),
 });
 export type WorkoutDTO = z.infer<typeof WorkoutDTO>;
 
@@ -123,3 +127,98 @@ export const LastPerformanceDTO = z.object({
   bestWeightGrams: z.number().int().nullable(),
 });
 export type LastPerformanceDTO = z.infer<typeof LastPerformanceDTO>;
+
+// ── Workout templates ─────────────────────────────────────────────────────
+// A named day in the user's split ("Push", "Pull", "Legs"). The point is that
+// mid-workout you should never scroll a 32-item catalog to find the movement
+// you do every week.
+
+export const TemplateExerciseDTO = z.object({
+  exerciseId: z.string(),
+  name: z.string(),
+  muscle: MuscleGroup,
+  kind: ExerciseKind,
+  position: z.number().int(),
+});
+export type TemplateExerciseDTO = z.infer<typeof TemplateExerciseDTO>;
+
+export const WorkoutTemplateDTO = z.object({
+  id: z.string(),
+  name: z.string(),
+  position: z.number().int(),
+  exercises: z.array(TemplateExerciseDTO),
+  /** When this day was last trained, so the UI can suggest what is due. */
+  lastPerformedAt: z.string().nullable(),
+  createdAt: z.string(),
+});
+export type WorkoutTemplateDTO = z.infer<typeof WorkoutTemplateDTO>;
+
+// 30 movements is already a very long session; the cap stops a paste from
+// turning one template into an unusable wall.
+const templateExerciseIds = z.array(z.string().min(1).max(64)).max(30);
+
+export const CreateWorkoutTemplateInput = z.object({
+  name: z.string().min(1).max(60),
+  exerciseIds: templateExerciseIds.default([]),
+});
+export type CreateWorkoutTemplateInput = z.infer<typeof CreateWorkoutTemplateInput>;
+
+export const UpdateWorkoutTemplateInput = z.object({
+  name: z.string().min(1).max(60).optional(),
+  /** Replaces the whole list, in order. Omit to leave the exercises alone. */
+  exerciseIds: templateExerciseIds.optional(),
+  position: z.number().int().min(0).max(100).optional(),
+});
+export type UpdateWorkoutTemplateInput = z.infer<typeof UpdateWorkoutTemplateInput>;
+
+/** Free text describing a split, e.g. "push: bench, incline db, lateral raises". */
+export const PlanSplitInput = z.object({
+  text: z.string().min(1).max(4_000),
+});
+export type PlanSplitInput = z.infer<typeof PlanSplitInput>;
+
+/**
+ * A proposed template. Nothing is written until the user accepts — same
+ * "AI proposes, you accept" contract as Plan My Day.
+ */
+export const ProposedTemplateDTO = z.object({
+  name: z.string(),
+  exercises: z.array(
+    z.object({
+      exerciseId: z.string().nullable(),
+      name: z.string(),
+      /** How the movement was resolved, so the UI can be honest about guesses. */
+      match: z.enum(['exact', 'fuzzy', 'new']),
+    }),
+  ),
+});
+export type ProposedTemplateDTO = z.infer<typeof ProposedTemplateDTO>;
+
+export const PlanSplitResultDTO = z.object({
+  templates: z.array(ProposedTemplateDTO),
+  /** True when the AI was consulted; false when local matching handled it all. */
+  usedAi: z.boolean(),
+  note: z.string().nullable(),
+});
+export type PlanSplitResultDTO = z.infer<typeof PlanSplitResultDTO>;
+
+/** Accepting a proposal. `exerciseId: null` means "create this movement". */
+export const ApplySplitInput = z.object({
+  templates: z
+    .array(
+      z.object({
+        name: z.string().min(1).max(60),
+        exercises: z
+          .array(
+            z.object({
+              exerciseId: z.string().min(1).max(64).nullable(),
+              name: z.string().min(1).max(120),
+            }),
+          )
+          .max(30),
+      }),
+    )
+    .min(1)
+    .max(20),
+});
+export type ApplySplitInput = z.infer<typeof ApplySplitInput>;

@@ -16,6 +16,9 @@ import type {
   ExerciseDTO,
   HabitDTO,
   LastPerformanceDTO,
+  PlanSplitResultDTO,
+  WeightUnitPref,
+  WorkoutTemplateDTO,
   LogSetInput,
   WorkoutDTO,
   InsightDTO,
@@ -236,7 +239,7 @@ export const FitnessApi = {
     request<LastPerformanceDTO | null>(`/fitness/exercises/${exerciseId}/last`),
   active: () => request<WorkoutDTO | null>('/fitness/workouts/active'),
   history: (limit = 20) => request<WorkoutDTO[]>(`/fitness/workouts?limit=${limit}`),
-  start: (input: { title?: string }) =>
+  start: (input: { title?: string; templateId?: string }) =>
     request<WorkoutDTO>('/fitness/workouts', { method: 'POST', body: JSON.stringify(input) }),
   logSet: (workoutId: string, input: LogSetInput) =>
     request<WorkoutDTO>(`/fitness/workouts/${workoutId}/sets`, {
@@ -245,6 +248,30 @@ export const FitnessApi = {
     }),
   deleteSet: (workoutId: string, setId: string) =>
     request<WorkoutDTO>(`/fitness/workouts/${workoutId}/sets/${setId}`, { method: 'DELETE' }),
+  templates: () => request<WorkoutTemplateDTO[]>('/fitness/templates'),
+  createTemplate: (input: { name: string; exerciseIds: string[] }) =>
+    request<WorkoutTemplateDTO>('/fitness/templates', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  updateTemplate: (id: string, patch: { name?: string; exerciseIds?: string[] }) =>
+    request<WorkoutTemplateDTO>(`/fitness/templates/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    }),
+  removeTemplate: (id: string) =>
+    request<{ ok: true }>(`/fitness/templates/${id}`, { method: 'DELETE' }),
+  /** Read a written split into proposals. Writes nothing. */
+  planSplit: (text: string) =>
+    request<PlanSplitResultDTO>('/fitness/templates/plan', {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    }),
+  applySplit: (templates: { name: string; exercises: { exerciseId: string | null; name: string }[] }[]) =>
+    request<WorkoutTemplateDTO[]>('/fitness/templates/apply', {
+      method: 'POST',
+      body: JSON.stringify({ templates }),
+    }),
   finish: (workoutId: string, input: { notes?: string }) =>
     request<WorkoutDTO | null>(`/fitness/workouts/${workoutId}/finish`, {
       method: 'POST',
@@ -371,7 +398,14 @@ export const FinanceApi = {
 export const SettingsApi = {
   get: () => request<SettingsDTO>('/settings'),
   update: (
-    patch: Partial<{ displayName: string; timezone: string; briefHour: number; proactiveEnabled: boolean }>,
+    // Mirrors UpdateSettingsInput; keep the two in step when adding a preference.
+    patch: Partial<{
+      displayName: string;
+      timezone: string;
+      briefHour: number;
+      proactiveEnabled: boolean;
+      weightUnit: WeightUnitPref;
+    }>,
   ) => request<SettingsDTO>('/settings', { method: 'PATCH', body: JSON.stringify(patch) }),
 };
 

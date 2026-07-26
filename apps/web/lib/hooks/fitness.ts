@@ -98,3 +98,57 @@ export function useFinishWorkout(workoutId: string | undefined) {
     { success: 'Workout saved', errorFallback: 'Failed to finish workout' },
   );
 }
+
+/** The user's saved days — "Push", "Pull", "Legs". */
+export function useWorkoutTemplates() {
+  return useQuery({ queryKey: qk.workoutTemplates, queryFn: FitnessApi.templates });
+}
+
+export function useCreateTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: FitnessApi.createTemplate,
+    meta: { success: 'Workout day saved', errorFallback: 'Failed to save workout day' },
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.workoutTemplates }),
+  });
+}
+
+export function useUpdateTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: { name?: string; exerciseIds?: string[] } }) =>
+      FitnessApi.updateTemplate(id, patch),
+    meta: { success: 'Workout day updated', errorFallback: 'Failed to update workout day' },
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.workoutTemplates }),
+  });
+}
+
+export function useDeleteTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: FitnessApi.removeTemplate,
+    meta: { success: 'Workout day removed', errorFallback: 'Failed to remove workout day' },
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.workoutTemplates }),
+  });
+}
+
+/** Read a written split into proposals. Deliberately no `meta.success` — the
+ *  result is a proposal to review, not a change worth announcing. */
+export function usePlanSplit() {
+  return useMutation({
+    mutationFn: FitnessApi.planSplit,
+    meta: { errorFallback: 'Could not read that split' },
+  });
+}
+
+export function useApplySplit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: FitnessApi.applySplit,
+    meta: { success: 'Your workout days are set up', errorFallback: 'Failed to save your split' },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: qk.workoutTemplates });
+      void qc.invalidateQueries({ queryKey: qk.exercises });
+    },
+  });
+}

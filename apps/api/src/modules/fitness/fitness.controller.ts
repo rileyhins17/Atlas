@@ -1,24 +1,96 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApplySplitInput,
   CreateExerciseInput,
+  CreateWorkoutTemplateInput,
   FinishWorkoutInput,
   LogSetInput,
   PaginationQuery,
+  PlanSplitInput,
   StartWorkoutInput,
+  UpdateWorkoutTemplateInput,
   type ExerciseDTO,
   type LastPerformanceDTO,
+  type PlanSplitResultDTO,
   type WorkoutDTO,
+  type WorkoutTemplateDTO,
 } from '@atlas/shared';
 import { ZodValidationPipe } from '../../common/zod.pipe.js';
 import { SessionGuard } from '../../auth/session.guard.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
 import type { AuthedUser } from '../../auth/auth.service.js';
 import { FitnessService } from './fitness.service.js';
+import { WorkoutTemplatesService } from './workout-templates.service.js';
 
 @Controller('fitness')
 @UseGuards(SessionGuard)
 export class FitnessController {
-  constructor(private readonly fitness: FitnessService) {}
+  constructor(
+    private readonly fitness: FitnessService,
+    private readonly templates: WorkoutTemplatesService,
+  ) {}
+
+  // ── Workout days (templates) ────────────────────────────────────────────
+  // Declared before `workouts/:id`-style routes so a literal path segment is
+  // never shadowed by a parameterised one.
+
+  @Get('templates')
+  listTemplates(@CurrentUser() user: AuthedUser): Promise<WorkoutTemplateDTO[]> {
+    return this.templates.list(user.id);
+  }
+
+  @Post('templates')
+  createTemplate(
+    @CurrentUser() user: AuthedUser,
+    @Body(new ZodValidationPipe(CreateWorkoutTemplateInput)) body: CreateWorkoutTemplateInput,
+  ): Promise<WorkoutTemplateDTO> {
+    return this.templates.create(user.id, body);
+  }
+
+  @Patch('templates/:id')
+  updateTemplate(
+    @CurrentUser() user: AuthedUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(UpdateWorkoutTemplateInput)) body: UpdateWorkoutTemplateInput,
+  ): Promise<WorkoutTemplateDTO> {
+    return this.templates.update(user.id, id, body);
+  }
+
+  @Delete('templates/:id')
+  removeTemplate(
+    @CurrentUser() user: AuthedUser,
+    @Param('id') id: string,
+  ): Promise<{ ok: true }> {
+    return this.templates.remove(user.id, id);
+  }
+
+  /** Read a written split into proposed days. Writes nothing. */
+  @Post('templates/plan')
+  planSplit(
+    @CurrentUser() user: AuthedUser,
+    @Body(new ZodValidationPipe(PlanSplitInput)) body: PlanSplitInput,
+  ): Promise<PlanSplitResultDTO> {
+    return this.templates.planSplit(user.id, body.text);
+  }
+
+  /** Accept a proposal — the only endpoint here that creates anything. */
+  @Post('templates/apply')
+  applySplit(
+    @CurrentUser() user: AuthedUser,
+    @Body(new ZodValidationPipe(ApplySplitInput)) body: ApplySplitInput,
+  ): Promise<WorkoutTemplateDTO[]> {
+    return this.templates.applyProposal(user.id, body.templates);
+  }
 
   @Get('exercises')
   exercises(@CurrentUser() user: AuthedUser): Promise<ExerciseDTO[]> {

@@ -36,6 +36,10 @@ model User {
   // brief / weekly review, interpreted in `timezone`.
   proactiveEnabled Boolean @default(true)
   briefHour        Int     @default(7)
+  // How weights are shown and typed: "lb" | "kg". Storage is always integer
+  // grams — this is a display preference only, so changing it never rewrites a
+  // single logged set. Defaults to lb.
+  weightUnit   String   @default("lb")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -52,6 +56,7 @@ model User {
   goals          Goal[]
   exercises      Exercise[]
   workouts       Workout[]
+  workoutTemplates WorkoutTemplate[]
   workoutSets    WorkoutSet[]
   accounts       Account[]
   transactions   Transaction[]
@@ -285,7 +290,8 @@ model Exercise {
   kind      String   @default("weight_reps")
   createdAt DateTime @default(now())
 
-  sets      WorkoutSet[]
+  sets         WorkoutSet[]
+  inTemplates  TemplateExercise[]
 
   // Two users may each add their own "Nordic Curl" without colliding, because
   // Postgres treats NULLs as distinct. Note the flip side: this constraint does
@@ -299,12 +305,58 @@ model Exercise {
 
 // One training session. `endedAt` null means it is STILL IN PROGRESS — that is
 // how the app finds the workout to resume, so there is at most one open per user.
+/**
+ * A named day in the user's split — "Push", "Pull", "Legs", "Upper A".
+ *
+ * The point is that mid-workout you should never scroll a 32-item catalog to
+ * find the movement you do every single week. A template is the ordered list
+ * of what you actually do on that day, and the picker floats it to the top.
+ */
+model WorkoutTemplate {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  // Ordering in the "start a workout" list — most-used days first.
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  exercises TemplateExercise[]
+  workouts  Workout[]
+
+  // One "Push" per person. Unlike the exercise catalog every row here has a
+  // real userId, so this constraint actually dedupes.
+  @@unique([userId, name])
+  @@index([userId, position])
+  @@map("workout_templates")
+}
+
+/** One movement in a template, in the order it is performed. */
+model TemplateExercise {
+  id         String          @id @default(cuid())
+  templateId String
+  template   WorkoutTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  exerciseId String
+  exercise   Exercise        @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  position   Int             @default(0)
+
+  @@unique([templateId, exerciseId])
+  @@index([templateId, position])
+  @@map("template_exercises")
+}
+
 model Workout {
   id        String    @id @default(cuid())
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   title     String    @default("Workout")
   notes     String?
+  // Which template this session came from, if any. Nullable and SetNull on
+  // delete: deleting a template must never delete the history of sessions that
+  // used it.
+  templateId String?
+  template   WorkoutTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   startedAt DateTime  @default(now())
   endedAt   DateTime?
   createdAt DateTime  @default(now())

@@ -1,11 +1,16 @@
 import { z } from 'zod';
 
 /** User preferences that drive the proactive engine (+ how Atlas addresses you). */
+/** How weights are shown and typed. Storage is always grams. */
+export const WeightUnitPref = z.enum(['lb', 'kg']);
+export type WeightUnitPref = z.infer<typeof WeightUnitPref>;
+
 export const SettingsDTO = z.object({
   displayName: z.string().nullable(),
   timezone: z.string(),
   briefHour: z.number().int(),
   proactiveEnabled: z.boolean(),
+  weightUnit: WeightUnitPref,
 });
 export type SettingsDTO = z.infer<typeof SettingsDTO>;
 
@@ -17,5 +22,6 @@ export const UpdateSettingsInput = z.object({
   // Local hour (0-23) at which to fire the daily brief / weekly review.
   briefHour: z.number().int().min(0).max(23).optional(),
   proactiveEnabled: z.boolean().optional(),
+  weightUnit: WeightUnitPref.optional(),
 });
 export type UpdateSettingsInput = z.infer<typeof UpdateSettingsInput>;

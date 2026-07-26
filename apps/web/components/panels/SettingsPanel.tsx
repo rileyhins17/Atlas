@@ -16,6 +16,7 @@ import { ProactiveSettingsCard } from './ProactiveSettingsCard';
 import { PlaidCard } from './PlaidCard';
 import { RoutineEditor } from './RoutineEditor';
 import { SettingsSection } from './SettingsSection';
+import { TrainingSettingsCard } from './TrainingSettingsCard';
 
 export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
   // Set by the OAuth callback redirect (?google=connected|denied).
@@ -66,6 +67,10 @@ export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
 
       <SettingsSection id="ai" title="Atlas AI" hint="model key and usage">
         <AiSettingsCard />
+      </SettingsSection>
+
+      <SettingsSection id="training" title="Training" hint="weight units">
+        <TrainingSettingsCard />
       </SettingsSection>
 
       <SettingsSection id="proactive" title="Briefs & notifications" hint="when Atlas checks in">

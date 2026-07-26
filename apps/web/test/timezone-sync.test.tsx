@@ -47,6 +47,7 @@ describe('useTimezoneSync', () => {
         timezone: 'America/Toronto',
         briefHour: 7,
         proactiveEnabled: true,
+      weightUnit: 'lb' as const,
       });
     const qc = new QueryClient();
 
@@ -96,6 +97,7 @@ describe('useTimezoneSync', () => {
       timezone: 'America/Toronto',
       briefHour: 7,
       proactiveEnabled: true,
+      weightUnit: 'lb' as const,
     });
     const qc = new QueryClient();
 

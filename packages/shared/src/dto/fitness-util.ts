@@ -73,16 +73,64 @@ export function kgToGrams(kg: number): number {
   return Math.round(kg * 1000);
 }
 
-/** "80 kg × 5", "45s", "5 km" — one set rendered for a summary line or the AI. */
-export function describeSet(set: WorkoutSetDTO, kind: ExerciseKind): string {
+/** Exactly one pound, by international definition. Not an approximation. */
+const GRAMS_PER_LB = 453.59237;
+
+/** Grams → lb, rounded to one decimal. */
+export function gramsToLb(grams: number): number {
+  return Math.round((grams / GRAMS_PER_LB) * 10) / 10;
+}
+
+/** lb → integer grams. The single conversion point on the way in. */
+export function lbToGrams(lb: number): number {
+  return Math.round(lb * GRAMS_PER_LB);
+}
+
+/**
+ * Display unit. Storage is always integer grams, so this only ever affects what
+ * is rendered and what the entry field means — switching it never rewrites a
+ * logged set, and a session logged in lb reads correctly in kg and back.
+ */
+export type WeightUnit = 'lb' | 'kg';
+
+/** Grams → the user's unit, as a number. */
+export function gramsToUnit(grams: number, unit: WeightUnit): number {
+  return unit === 'kg' ? gramsToKg(grams) : gramsToLb(grams);
+}
+
+/** The user's unit → integer grams. */
+export function unitToGrams(value: number, unit: WeightUnit): number {
+  return unit === 'kg' ? kgToGrams(value) : lbToGrams(value);
+}
+
+/** "185 lb" / "80 kg", with the trailing ".0" dropped. */
+export function formatWeight(grams: number, unit: WeightUnit): string {
+  const n = gramsToUnit(grams, unit);
+  return `${Number.isInteger(n) ? n : n.toFixed(1)} ${unit}`;
+}
+
+/**
+ * The smallest increment worth offering as a one-tap bump: 5 lb is the standard
+ * plate pair in an imperial gym, 2.5 kg in a metric one.
+ */
+export function stepFor(unit: WeightUnit): number {
+  return unit === 'kg' ? 2.5 : 5;
+}
+
+/** "185 lb × 5", "45s", "5 km" — one set rendered for a summary line or the AI. */
+export function describeSet(
+  set: WorkoutSetDTO,
+  kind: ExerciseKind,
+  unit: WeightUnit = 'lb',
+): string {
   if (kind === 'duration') return `${set.durationSec ?? 0}s`;
   if (kind === 'distance') {
     const m = set.distanceM ?? 0;
     return m >= 1000 ? `${Math.round(m / 100) / 10} km` : `${m} m`;
   }
   if (kind === 'reps') return `${set.reps ?? 0} reps`;
-  const kg = set.weightGrams == null ? null : gramsToKg(set.weightGrams);
-  return kg === null ? `${set.reps ?? 0} reps` : `${kg} kg × ${set.reps ?? 0}`;
+  if (set.weightGrams == null) return `${set.reps ?? 0} reps`;
+  return `${formatWeight(set.weightGrams, unit)} × ${set.reps ?? 0}`;
 }
 
 /**

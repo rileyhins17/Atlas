@@ -265,8 +265,9 @@ test('a recurring task rolls forward to its next occurrence when completed', asy
 test('a workout logs sets, badges a real PR, and lands in history when finished', async ({ page }) => {
   await go(page, '/fitness');
 
-  // Quick-start chips are the primary path now: naming the session is the only
-  // decision, so the usual answers are offered rather than an empty field.
+  // With no saved days yet, the quick-start chips are the path: naming the
+  // session is the only decision, so the usual answers are offered rather than
+  // an empty field.
   await expect(page.getByRole('button', { name: 'Push', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Push', exact: true }).click();
   await expect(page.locator('.fit-active')).toBeVisible();
@@ -277,19 +278,21 @@ test('a workout logs sets, badges a real PR, and lands in history when finished'
   await page.getByRole('option', { name: /Lateral Raise/ }).click();
   await expect(page.locator('.fit-block')).toBeVisible();
 
-  for (const [kg, reps] of [
-    ['10', '12'],
-    ['14', '10'],
-    ['12', '12'],
+  // Pounds by default now — the field, its label and the set lines all agree.
+  for (const [lb, reps] of [
+    ['20', '12'],
+    ['30', '10'],
+    ['25', '12'],
   ]) {
-    await page.getByLabel(/Weight in kg for Lateral Raise/i).fill(kg);
+    await page.getByLabel(/Weight in lb for Lateral Raise/i).fill(lb);
     await page.getByLabel(/Reps for Lateral Raise/i).fill(reps);
     await page.getByRole('button', { name: /Log set/i }).click();
   }
   await expect(page.locator('.fit-set')).toHaveCount(3);
+  await expect(page.locator('.fit-set').first()).toContainText('20 lb');
 
   // Exactly two records: the first-ever set, then the one that beats it. The
-  // third is heavier than nothing but lighter than 14 kg, so it is NOT a PR —
+  // third is heavier than nothing but lighter than 30 lb, so it is NOT a PR —
   // an app that celebrates every set teaches you to ignore the badge.
   await expect(page.locator('.fit-pr')).toHaveCount(2);
 
@@ -445,4 +448,40 @@ test('calendar: navigating weeks reaches the past and comes back', async ({ page
   await page.getByRole('button', { name: 'Today' }).click();
   await expect(strip.locator('.cal-day.is-today')).toHaveCount(1);
   await expect(strip.locator('.cal-day.on .cal-day-num')).toHaveText(selectedBefore ?? '');
+});
+
+test('fitness: set up a split, then train it', async ({ page }) => {
+  await go(page, '/fitness');
+
+  // Describe the split once. Matching is local, so this works with no API key.
+  await page.getByRole('button', { name: /Set up your workout days/ }).click();
+  await page.getByLabel('Describe your training split').fill(
+    'Push: bench press, incline dumbbell press, lateral raise\nPull: pull up, barbell row',
+  );
+  await page.getByRole('button', { name: 'Read my split' }).click();
+
+  // A proposal, not a write — nothing is saved until accepted.
+  await expect(page.getByText('Bench Press (Barbell)')).toBeVisible();
+  await page.getByRole('button', { name: /Save 2 days/ }).click();
+
+  const push = page.locator('.fit-day-chip', { hasText: 'Push' });
+  await expect(push).toBeVisible();
+  await expect(push).toContainText('3 moves');
+
+  // Starting the day loads its movements as blocks, ready to log.
+  await push.click();
+  await expect(page.locator('.fit-block-title', { hasText: 'Bench Press (Barbell)' })).toBeVisible();
+  await expect(
+    page.locator('.fit-block-title', { hasText: 'Incline Bench Press (Dumbbell)' }),
+  ).toBeVisible();
+
+  // Weights are in pounds by default, and volume reports in the same unit.
+  await expect(page.locator('.fit-active-sub')).toContainText('lb');
+  const bench = page.locator('.fit-block', { hasText: 'Bench Press (Barbell)' }).first();
+  await expect(bench.locator('.fit-field').first()).toContainText('lb');
+
+  await bench.getByLabel(/Weight in lb/).fill('185');
+  await bench.getByLabel(/Reps for/).fill('5');
+  await bench.getByRole('button', { name: 'Log set' }).click();
+  await expect(bench.locator('.fit-set-body')).toContainText('185 lb × 5');
 });

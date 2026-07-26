@@ -33,6 +33,7 @@ type WorkoutWithSets = Prisma.WorkoutGetPayload<{
 }>;
 
 const MAX_PAGE = 100;
+const MAX_SETS_PER_WORKOUT = 500;
 
 function toExerciseDto(e: Exercise): ExerciseDTO {
   return {
@@ -67,6 +68,7 @@ function toWorkoutDto(w: WorkoutWithSets): WorkoutDTO {
     sets,
     volumeGrams: workoutVolumeGrams(sets),
     workingSets: countWorkingSets(sets),
+    templateId: w.templateId,
   };
 }
 
@@ -157,11 +159,31 @@ export class FitnessService {
    * must not strand the first session's sets in an invisible second workout.
    */
   async start(userId: string, input: StartWorkoutInput): Promise<WorkoutDTO> {
+    // Validate BEFORE the resume shortcut below. Ordering it the other way
+    // means a bad template id is silently ignored whenever a session happens to
+    // be open, so the caller gets a 201 and no session from the day it asked
+    // for — a wrong answer dressed as success.
+    //
+    // A template id from the client is never trusted: it must be one of this
+    // user's own days.
+    let template: { id: string; name: string } | null = null;
+    if (input.templateId) {
+      template = await this.prisma.client.workoutTemplate.findFirst({
+        where: { id: input.templateId, userId },
+        select: { id: true, name: true },
+      });
+      if (!template) throw new NotFoundException('Workout day not found');
+    }
+
     const open = await this.active(userId);
     if (open) return open;
 
     const created = await this.prisma.client.workout.create({
-      data: { userId, title: input.title?.trim() || 'Workout' },
+      data: {
+        userId,
+        title: input.title?.trim() || template?.name || 'Workout',
+        ...(template ? { templateId: template.id } : {}),
+      },
       include: WITH_SETS,
     });
     await this.timeline.write({
@@ -188,6 +210,12 @@ export class FitnessService {
   async logSet(userId: string, workoutId: string, input: LogSetInput): Promise<WorkoutDTO> {
     const workout = await this.ownedWorkout(userId, workoutId);
     if (workout.endedAt) throw new BadRequestException('That workout is already finished');
+    // 500 sets is far beyond any real session. The cap exists so a stuck retry
+    // loop cannot grow one workout without bound — the logger re-renders every
+    // set, so an unbounded session degrades the page long before the database.
+    if (workout.sets.length >= MAX_SETS_PER_WORKOUT) {
+      throw new BadRequestException(`A workout can hold at most ${MAX_SETS_PER_WORKOUT} sets`);
+    }
 
     const exercise = await this.prisma.client.exercise.findFirst({
       where: { id: input.exerciseId, OR: [{ userId: null }, { userId }] },

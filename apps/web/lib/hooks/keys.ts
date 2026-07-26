@@ -24,6 +24,7 @@ export const qk = {
   timeline: (source?: string) => ['timeline', source ?? 'all'] as const,
   stats: (days: number) => ['stats', days] as const,
   dayEvents: (fromIso: string) => ['events', 'day', fromIso] as const,
+  workoutTemplates: ['fitness', 'templates'] as const,
   eventsRange: (fromIso: string, toIso: string) => ['events', 'range', fromIso, toIso] as const,
   dayActuals: (fromIso: string) => ['timeline', 'day', fromIso] as const,
   exercises: ['fitness', 'exercises'] as const,

@@ -4,14 +4,17 @@ import { useMemo, useState } from 'react';
 import {
   bestWeightGrams,
   describeSet,
-  gramsToKg,
+  formatWeight,
   groupSetsByExercise,
+  gramsToUnit,
   isPersonalRecord,
-  kgToGrams,
+  stepFor,
+  unitToGrams,
   type ExerciseDTO,
   type WorkoutDTO,
+  type WorkoutTemplateDTO,
 } from '@atlas/shared';
-import { Check, Dumbbell, Plus, Search, Trophy, X } from 'lucide-react';
+import { Check, Dumbbell, Plus, Search, Sparkles, Trophy, X } from 'lucide-react';
 import { errorMessage } from '@/lib/api';
 import {
   useActiveWorkout,
@@ -23,7 +26,11 @@ import {
   useLogSet,
   useStartWorkout,
   useWorkoutHistory,
+  useWorkoutTemplates,
 } from '@/lib/hooks/fitness';
+import { useWeightUnit } from '@/lib/hooks/settings';
+import { pickerSections, recentExerciseIds } from '@/lib/exercise-order';
+import { SplitSetup } from '@/components/fitness/SplitSetup';
 import {
   Button,
   Card,
@@ -36,6 +43,9 @@ import {
 import { PageHeader } from '@/components/PageHeader';
 import { formatDayHeading } from '@/lib/dates';
 import { RestTimer } from '@/components/fitness/RestTimer';
+
+/** Stable "no data yet" identity — see the note in CalendarPanel. */
+const NO_EXERCISES: ExerciseDTO[] = [];
 
 /** Minutes elapsed, rendered as the running clock a session needs. */
 function elapsed(startedAt: string): string {
@@ -51,19 +61,38 @@ function elapsed(startedAt: string): string {
 function ExercisePicker({
   onPick,
   onClose,
+  template,
+  alreadyInWorkout,
 }: {
   onPick: (exercise: ExerciseDTO) => void;
   onClose: () => void;
+  /** The saved day this session came from — its movements go to the top. */
+  template: WorkoutTemplateDTO | null;
+  alreadyInWorkout: string[];
 }) {
   const [query, setQuery] = useState('');
   const exercises = useExercises();
+  const history = useWorkoutHistory();
   const create = useCreateExercise();
 
   const q = query.trim().toLowerCase();
-  const list = (exercises.data ?? []).filter((e) => e.name.toLowerCase().includes(q));
+  // A fresh `[]` fallback would change identity on every render and re-run the
+  // section memo below, so keep it stable.
+  const all = useMemo(() => exercises.data ?? NO_EXERCISES, [exercises.data]);
+  const recent = useMemo(() => recentExerciseIds(history.data ?? []), [history.data]);
+  const sections = useMemo(
+    () =>
+      pickerSections({
+        exercises: all,
+        template,
+        recentExerciseIds: recent,
+        alreadyInWorkout,
+        query,
+      }),
+    [all, template, recent, alreadyInWorkout, query],
+  );
   // Offer to create only when the search genuinely matches nothing.
-  const canCreate =
-    q.length > 1 && !list.some((e) => e.name.toLowerCase() === q);
+  const canCreate = q.length > 1 && !all.some((e) => e.name.toLowerCase() === q);
 
   return (
     <div className="fit-picker">
@@ -90,18 +119,27 @@ function ExercisePicker({
         <ListSkeleton rows={4} circle={false} />
       ) : (
         <div className="fit-picker-list" role="listbox" aria-label="Exercises">
-          {list.slice(0, 40).map((e) => (
-            <button
-              key={e.id}
-              type="button"
-              role="option"
-              aria-selected={false}
-              className="fit-picker-row"
-              onClick={() => onPick(e)}
-            >
-              <span className="fit-picker-name">{e.name}</span>
-              <span className="fit-picker-muscle">{e.muscle}</span>
-            </button>
+          {sections.map((section) => (
+            <div key={section.title ?? '_'} className="fit-picker-section">
+              {section.title && (
+                <p className="fit-picker-heading" role="presentation">
+                  {section.title}
+                </p>
+              )}
+              {section.exercises.slice(0, 40).map((e) => (
+                <button
+                  key={e.id}
+                  type="button"
+                  role="option"
+                  aria-selected={false}
+                  className="fit-picker-row"
+                  onClick={() => onPick(e)}
+                >
+                  <span className="fit-picker-name">{e.name}</span>
+                  <span className="fit-picker-muscle">{e.muscle}</span>
+                </button>
+              ))}
+            </div>
           ))}
           {canCreate && (
             <button
@@ -119,7 +157,7 @@ function ExercisePicker({
               Add &ldquo;{query.trim()}&rdquo;
             </button>
           )}
-          {list.length === 0 && !canCreate && (
+          {sections.length === 0 && !canCreate && (
             <p className="prog-muted" style={{ padding: '10px 2px' }}>
               No exercises match that.
             </p>
@@ -143,6 +181,7 @@ function ExerciseBlock({
   kind,
   sets,
   onLogged,
+  onSkip,
 }: {
   workoutId: string;
   exerciseId: string;
@@ -150,15 +189,19 @@ function ExerciseBlock({
   kind: ExerciseDTO['kind'];
   sets: WorkoutDTO['sets'];
   onLogged: () => void;
+  /** Present only on a not-yet-started block — lets you drop a movement you
+   *  are not doing today without editing the saved day. */
+  onSkip?: () => void;
 }) {
   const last = useLastPerformance(exerciseId);
   const log = useLogSet(workoutId);
   const removeSet = useDeleteSet(workoutId);
+  const unit = useWeightUnit();
 
   // Seed from this session's most recent set, else last session's, else blank.
   const seed = sets.at(-1) ?? last.data?.sets.at(-1) ?? null;
   const [weight, setWeight] = useState(
-    seed?.weightGrams != null ? String(gramsToKg(seed.weightGrams)) : '',
+    seed?.weightGrams != null ? String(gramsToUnit(seed.weightGrams, unit)) : '',
   );
   const [reps, setReps] = useState(seed?.reps != null ? String(seed.reps) : '');
   const [warmup, setWarmup] = useState(false);
@@ -180,6 +223,7 @@ function ExerciseBlock({
                 completedAt: '',
               },
               kind,
+              unit,
             ),
           )
           .join(' · ')
@@ -200,7 +244,9 @@ function ExerciseBlock({
     log.mutate(
       {
         exerciseId,
-        ...(needsWeight && parsedWeight !== null ? { weightGrams: kgToGrams(parsedWeight) } : {}),
+        ...(needsWeight && parsedWeight !== null
+          ? { weightGrams: unitToGrams(parsedWeight, unit) }
+          : {}),
         reps: parsedReps!,
         warmup,
       },
@@ -213,6 +259,11 @@ function ExerciseBlock({
       <header className="fit-block-head">
         <h3 className="fit-block-title">{exerciseName}</h3>
         {lastLine && <span className="fit-last">Last: {lastLine}</span>}
+        {onSkip && sets.length === 0 && (
+          <IconButton label={`Skip ${exerciseName} today`} onClick={onSkip}>
+            <X size={14} aria-hidden />
+          </IconButton>
+        )}
       </header>
 
       {sets.length > 0 && (
@@ -228,7 +279,7 @@ function ExerciseBlock({
             return (
               <li key={s.id} className={`fit-set ${s.warmup ? 'warmup' : ''}`}>
                 <span className="fit-set-n">{s.warmup ? 'W' : i + 1}</span>
-                <span className="fit-set-body">{describeSet(s, kind)}</span>
+                <span className="fit-set-body">{describeSet(s, kind, unit)}</span>
                 {pr && (
                   <span className="fit-pr" title="Personal record">
                     <Trophy size={11} aria-hidden /> PR
@@ -250,13 +301,13 @@ function ExerciseBlock({
       <form className="fit-entry" onSubmit={submit}>
         {needsWeight && (
           <label className="fit-field">
-            <span>kg</span>
+            <span>{unit}</span>
             <Input
               type="number"
               inputMode="decimal"
-              step="0.5"
+              step={stepFor(unit) / 2}
               min="0"
-              aria-label={`Weight in kg for ${exerciseName}`}
+              aria-label={`Weight in ${unit} for ${exerciseName}`}
               value={weight}
               onChange={(e) => setWeight(e.target.value)}
             />
@@ -296,12 +347,37 @@ function ActiveWorkout({ workout }: { workout: WorkoutDTO }) {
   const [picking, setPicking] = useState(false);
   const [added, setAdded] = useState<ExerciseDTO[]>([]);
   const [restKey, setRestKey] = useState(0);
+  const [skipped, setSkipped] = useState<string[]>([]);
   const finish = useFinishWorkout(workout.id);
+  const unit = useWeightUnit();
+  const templates = useWorkoutTemplates();
+  const exercises = useExercises();
+
+  const template =
+    templates.data?.find((t) => t.id === workout.templateId) ?? null;
 
   const groups = useMemo(() => groupSetsByExercise(workout.sets), [workout.sets]);
-  // Exercises chosen this session but not yet logged into still need a block,
-  // otherwise picking one appears to do nothing.
-  const emptyBlocks = added.filter((e) => !groups.some((g) => g.exerciseId === e.id));
+
+  /**
+   * Blocks that need rendering but have no sets yet: the saved day's movements
+   * (so a templated session opens ready to log, not empty), plus anything
+   * picked manually. Without this, starting "Push" would show a blank screen
+   * and picking an exercise would appear to do nothing.
+   */
+  const emptyBlocks = useMemo(() => {
+    const byId = new Map((exercises.data ?? []).map((e) => [e.id, e]));
+    const fromTemplate = (template?.exercises ?? [])
+      .map((te) => byId.get(te.exerciseId))
+      .filter((e): e is ExerciseDTO => Boolean(e));
+    const merged = [...fromTemplate, ...added];
+    const seen = new Set<string>();
+    return merged.filter((e) => {
+      if (seen.has(e.id) || skipped.includes(e.id)) return false;
+      if (groups.some((g) => g.exerciseId === e.id)) return false;
+      seen.add(e.id);
+      return true;
+    });
+  }, [template, exercises.data, added, groups, skipped]);
 
   return (
     <>
@@ -311,7 +387,7 @@ function ActiveWorkout({ workout }: { workout: WorkoutDTO }) {
             <h2 className="fit-active-title">{workout.title}</h2>
             <p className="fit-active-sub">
               {elapsed(workout.startedAt)} · {workout.workingSets} sets ·{' '}
-              {gramsToKg(workout.volumeGrams)} kg volume
+              {formatWeight(workout.volumeGrams, unit)} volume
             </p>
           </div>
           <Button
@@ -345,14 +421,21 @@ function ActiveWorkout({ workout }: { workout: WorkoutDTO }) {
           kind={e.kind}
           sets={[]}
           onLogged={() => setRestKey((k) => k + 1)}
+          onSkip={() => setSkipped((prev) => [...prev, e.id])}
         />
       ))}
 
       {picking ? (
         <Card style={{ marginTop: 12 }}>
           <ExercisePicker
+            template={template}
+            alreadyInWorkout={[
+              ...groups.map((g) => g.exerciseId),
+              ...emptyBlocks.map((e) => e.id),
+            ]}
             onClose={() => setPicking(false)}
             onPick={(e) => {
+              setSkipped((prev) => prev.filter((id) => id !== e.id));
               setAdded((prev) => (prev.some((p) => p.id === e.id) ? prev : [...prev, e]));
               setPicking(false);
             }}
@@ -370,6 +453,7 @@ function ActiveWorkout({ workout }: { workout: WorkoutDTO }) {
 /** Finished sessions, newest first. */
 function WorkoutHistory() {
   const history = useWorkoutHistory();
+  const unit = useWeightUnit();
   const workouts = history.data ?? [];
 
   if (history.isPending) return <ListSkeleton rows={3} circle={false} />;
@@ -400,7 +484,7 @@ function WorkoutHistory() {
               <h3 className="fit-block-title">{w.title}</h3>
               <span className="fit-history-when">
                 {formatDayHeading(new Date(w.startedAt))} · {w.workingSets} sets ·{' '}
-                {gramsToKg(w.volumeGrams)} kg
+                {formatWeight(w.volumeGrams, unit)}
               </span>
             </header>
             <ul className="fit-history-list">
@@ -410,7 +494,7 @@ function WorkoutHistory() {
                   <span className="fit-history-sets">
                     {g.sets
                       .filter((s) => !s.warmup)
-                      .map((s) => describeSet(s, g.kind))
+                      .map((s) => describeSet(s, g.kind, unit))
                       .join(' · ')}
                   </span>
                 </li>
@@ -423,16 +507,41 @@ function WorkoutHistory() {
   );
 }
 
-/** The names people actually use. Tapping one starts the session immediately. */
+/** Fallback names, used only until the user has saved days of their own. */
 const QUICK_STARTS = ['Push', 'Pull', 'Legs', 'Upper', 'Full body'];
+
+/** "3 days ago" / "today" — how long since a saved day was last trained. */
+function sinceLabel(iso: string | null): string {
+  if (!iso) return 'not done yet';
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 7) return `${days} days ago`;
+  if (days < 14) return 'last week';
+  return `${Math.floor(days / 7)} weeks ago`;
+}
 
 export function FitnessPanel() {
   const active = useActiveWorkout();
   const start = useStartWorkout();
   const history = useWorkoutHistory();
+  const templates = useWorkoutTemplates();
+  // Warm the catalog while the start screen is on show. ActiveWorkout needs it
+  // to render a template's movements as blocks, and fetching only on mount
+  // meant a templated session appeared empty for a beat before filling in.
+  useExercises();
   const [title, setTitle] = useState('');
+  const [setup, setSetup] = useState(false);
 
   const workout = active.data ?? null;
+  const days = templates.data ?? [];
+  // Longest-since-trained first: the useful answer to "what should I do today"
+  // is the day you have left the longest, and one never done outranks all.
+  const suggested = [...days].sort((a, b) => {
+    const at = a.lastPerformedAt ? new Date(a.lastPerformedAt).getTime() : 0;
+    const bt = b.lastPerformedAt ? new Date(b.lastPerformedAt).getTime() : 0;
+    return at - bt;
+  });
 
   return (
     <>
@@ -475,22 +584,52 @@ export function FitnessPanel() {
             </Button>
           </form>
 
-          {/* Naming a session is the only decision here, so offer the usual
-              answers rather than an empty field and a blinking cursor. */}
-          <div className="fit-quick" role="group" aria-label="Quick start">
-            {QUICK_STARTS.map((name) => (
-              <button
-                key={name}
-                type="button"
-                className="fit-quick-chip"
-                disabled={start.isPending}
-                onClick={() => start.mutate({ title: name })}
-              >
-                {name}
-              </button>
-            ))}
-          </div>
+          {/* Saved days first: starting one loads its movements as blocks, so
+              the session opens ready to log instead of empty. */}
+          {suggested.length > 0 ? (
+            <div className="fit-quick" role="group" aria-label="Start a saved day">
+              {suggested.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className="fit-day-chip"
+                  disabled={start.isPending}
+                  onClick={() => start.mutate({ templateId: t.id })}
+                >
+                  <span className="fit-day-name">{t.name}</span>
+                  <span className="fit-day-meta">
+                    {t.exercises.length} moves · {sinceLabel(t.lastPerformedAt)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="fit-quick" role="group" aria-label="Quick start">
+              {QUICK_STARTS.map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  className="fit-quick-chip"
+                  disabled={start.isPending}
+                  onClick={() => start.mutate({ title: name })}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <button type="button" className="fit-setup-link" onClick={() => setSetup(true)}>
+            <Sparkles size={13} aria-hidden />
+            {days.length > 0 ? 'Edit your workout days' : 'Set up your workout days'}
+          </button>
         </Card>
+      )}
+
+      {!workout && setup && (
+        <div style={{ marginTop: 14 }}>
+          <SplitSetup onDone={() => setSetup(false)} onCancel={() => setSetup(false)} />
+        </div>
       )}
 
       {!workout && (history.data?.length ?? 0) === 0 && !history.isPending && (
@@ -505,15 +644,15 @@ export function FitnessPanel() {
             </li>
             <li>
               <strong>Sets pre-filled.</strong> The entry row starts from your last
-              set — repeating or adding 2.5&nbsp;kg is one tap, no typing.
+              set — repeating it or adding a plate is one tap, no typing.
             </li>
             <li>
               <strong>Records that mean something.</strong> A PR only counts when you
               actually beat your best, and warm-ups never inflate it.
             </li>
             <li>
-              <strong>Volume in your Progress.</strong> Sessions and kilograms lifted
-              join the rest of your life stats.
+              <strong>Volume in your Progress.</strong> Sessions and total weight
+              lifted join the rest of your life stats.
             </li>
           </ul>
         </section>

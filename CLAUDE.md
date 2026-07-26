@@ -58,6 +58,15 @@ docs/                architecture, data-model, roadmap, guides, ADRs, GOTCHAS.
 
 **Pure logic belongs in `packages/shared`, not in an app.** The fitness maths and the recurrence engine are shared so the UI and the API compute identically from one implementation.
 
+### Two rules that are easy to break
+- **Weight is stored as integer grams, always.** `lb`/`kg` is a display preference
+  (`User.weightUnit`, default `lb`) applied at the edge by `gramsToUnit`/`unitToGrams`. Never store
+  a float: summing volume over a session accumulates error, and switching units must never rewrite
+  a logged set.
+- **Reach for the AI last.** Fitness split setup matches free text against the catalog locally
+  (`packages/shared/src/dto/exercise-match.ts`) and only calls the model when that yields nothing.
+  A feature that needs an API key to work at all is broken for every new account.
+
 ---
 
 ## The surfaces
@@ -65,6 +74,8 @@ docs/                architecture, data-model, roadmap, guides, ADRs, GOTCHAS.
 - **`/` landing** — the only public page. Server-rendered, no client JS, ~750 indexable words. `robots.ts` disallows every app route, because they return the sign-in gate to a bot.
 - **`/today`** — the day as an overview: what is happening now, what is next, free-time windows, a checklist, then earlier items and the full hour-by-hour canvas on demand. Driven by `lib/canvas.ts` (`buildDayCanvas` → `buildDayOverview`), pure and unit-tested.
 - **`/tasks` `/calendar` `/habits` `/journal` `/notes` `/fitness` `/finance`** — domain views.
+- **`/privacy` `/terms`** — public, server-rendered, no client JS. Linked from the landing footer
+  and the sign-up form.
 - **`/progress`** — cross-domain statistics with deltas against the previous window.
 - **`/history`** — the raw timeline feed.
 - **`/settings`** — collapsible sections. **Your week** (the routine editor) is what makes Today's free-time calculation correct, so it opens by default.

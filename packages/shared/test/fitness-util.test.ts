@@ -140,7 +140,10 @@ describe('gram conversions', () => {
 
 describe('describeSet', () => {
   it('renders each measurement kind in its own units', () => {
-    expect(describeSet(set({ weightGrams: 80_000, reps: 5 }), 'weight_reps')).toBe('80 kg × 5');
+    // The unit is explicit now; it defaults to lb, matching the app default.
+    expect(describeSet(set({ weightGrams: 80_000, reps: 5 }), 'weight_reps', 'kg')).toBe('80 kg × 5');
+    expect(describeSet(set({ weightGrams: 45_359, reps: 5 }), 'weight_reps', 'lb')).toBe('100 lb × 5');
+    expect(describeSet(set({ weightGrams: 45_359, reps: 5 }), 'weight_reps')).toBe('100 lb × 5');
     expect(describeSet(set({ reps: 12 }), 'reps')).toBe('12 reps');
     expect(describeSet(set({ durationSec: 45 }), 'duration')).toBe('45s');
     expect(describeSet(set({ distanceM: 5_000 }), 'distance')).toBe('5 km');

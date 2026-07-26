@@ -3,6 +3,7 @@ import { AuthModule } from '../../auth/auth.module.js';
 import { FitnessService } from './fitness.service.js';
 import { FitnessController } from './fitness.controller.js';
 import { FitnessAiAdapter } from './fitness.ai.js';
+import { WorkoutTemplatesService } from './workout-templates.service.js';
 
 /**
  * Seeds the shared exercise catalog on boot. Idempotent (`skipDuplicates`), so
@@ -29,7 +30,7 @@ export class ExerciseCatalogSeeder implements OnApplicationBootstrap {
 @Module({
   imports: [AuthModule],
   controllers: [FitnessController],
-  providers: [FitnessService, FitnessAiAdapter, ExerciseCatalogSeeder],
+  providers: [FitnessService, WorkoutTemplatesService, FitnessAiAdapter, ExerciseCatalogSeeder],
   exports: [FitnessService],
 })
 export class FitnessModule {}
