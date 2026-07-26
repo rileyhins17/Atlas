@@ -135,13 +135,18 @@ test('History shows cross-domain moments and filters by domain', async ({ page }
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(page.getByText('Write the story view')).toBeVisible();
 
-  await page.getByRole('link', { name: 'Habits', exact: true }).click();
+  // Habits lives in Life, Tasks in Plan — crossing sections goes through the
+  // four-item nav, not a tab strip.
+  await page.locator('.app-nav').first().getByRole('link', { name: 'Life' }).click();
+  await page.locator('.section-tab', { hasText: 'Habits' }).click();
+  await expect(page).toHaveURL(/\/habits$/);
   await page.getByLabel('New habit name').fill('Meditate');
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(page.getByText('Meditate')).toBeVisible();
 
   // Both land in History — the reverse-chron log surface.
-  await page.getByRole('link', { name: 'History', exact: true }).click();
+  await page.locator('.app-nav').first().getByRole('link', { name: 'Today' }).click();
+  await page.locator('.section-tab', { hasText: 'History' }).click();
   await expect(page).toHaveURL(/\/history$/);
   const feed = page.getByRole('region', { name: 'Your story' });
   await expect(feed.getByText('Created task: Write the story view')).toBeVisible();
@@ -484,4 +489,58 @@ test('fitness: set up a split, then train it', async ({ page }) => {
   await bench.getByLabel(/Reps for/).fill('5');
   await bench.getByRole('button', { name: 'Log set' }).click();
   await expect(bench.locator('.fit-set-body')).toContainText('185 lb × 5');
+});
+
+test('the nav is four sections, and every old route still resolves', async ({ page }) => {
+  await go(page, '/today');
+
+  // Four, not eleven. The count IS the feature.
+  // The same nav renders twice (sidebar + bottom bar, shown by CSS), so scope
+  // to one of them.
+  const nav = page.locator('.app-nav').first();
+  await expect(nav.locator('.nav-label')).toHaveText(['Today', 'Plan', 'Life', 'Money']);
+
+  // Every legacy URL still works — nothing bookmarked broke.
+  for (const [path, tab] of [
+    ['/goals', 'Goals'],
+    ['/tasks', 'Tasks'],
+    ['/calendar', 'Calendar'],
+    ['/habits', 'Habits'],
+    ['/fitness', 'Training'],
+    ['/notes', 'Notes'],
+    ['/progress', 'Progress'],
+  ] as const) {
+    await page.goto(path);
+    await expect(page.locator('.section-tab.on')).toContainText(tab);
+  }
+
+  // A section URL lands on its first tab.
+  await page.goto('/plan');
+  await expect(page).toHaveURL(/\/goals$/);
+});
+
+test('goals split into short and long term', async ({ page }) => {
+  await go(page, '/goals');
+
+  await page.getByLabel('New goal').fill('Run a half marathon');
+  await page.getByRole('button', { name: /Add/ }).click();
+  await expect(page.locator('.goal-title', { hasText: 'Run a half marathon' })).toBeVisible();
+
+  // A goal with no linked tasks says so rather than showing 0%, which reads as
+  // failure when it actually means "not broken down yet".
+  await expect(page.locator('.goal-meta').first()).toContainText('nothing linked yet');
+
+  await page.getByRole('button', { name: 'Long term' }).click();
+  await page.getByLabel('New goal').fill('Financial independence');
+  await page.getByRole('button', { name: /Add/ }).click();
+
+  await expect(page.getByRole('region', { name: 'Short term' }).or(page.locator('section[aria-label="Short term"]'))).toBeVisible();
+  await expect(page.locator('section[aria-label="Long term"]')).toContainText('Financial independence');
+
+  // Moving between horizons is one tap.
+  await page
+    .locator('.goal-row', { hasText: 'Run a half marathon' })
+    .locator('.goal-move')
+    .click();
+  await expect(page.locator('section[aria-label="Long term"]')).toContainText('Run a half marathon');
 });

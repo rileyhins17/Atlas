@@ -55,12 +55,15 @@ test('a fresh account onboards through the form into a routine-backed canvas', a
   await expect(page.locator('.routine-summary')).toContainText('09:30–17:30');
 
   // The free-text answers are pinned notes.
-  await page.getByRole('link', { name: 'Notes', exact: true }).click();
+  // Notes is a tab inside Life now, not a top-level destination.
+  await page.locator('.app-nav').first().getByRole('link', { name: 'Life' }).click();
+  await page.locator('.section-tab', { hasText: 'Notes' }).click();
   await expect(page.getByText('E2E person building a life OS.')).toBeVisible();
   await expect(page.getByText('Short scannable plans work best.')).toBeVisible();
 
   // Habits exist (seed + custom).
-  await page.getByRole('link', { name: 'Habits', exact: true }).click();
+  await page.locator('.app-nav').first().getByRole('link', { name: 'Life' }).click();
+  await page.locator('.section-tab', { hasText: 'Habits' }).click();
   await expect(page.getByRole('button', { name: 'Check in "Gym"' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Check in "Stretch"' })).toBeVisible();
 });

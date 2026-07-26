@@ -9,6 +9,7 @@ import { IconButton, Kbd } from '@/components/ui';
 import { Logo } from '@/components/Logo';
 import { AuthGate } from '@/components/AuthGate';
 import { NavBar } from '@/components/NavBar';
+import { SectionTabs } from '@/components/SectionTabs';
 import { InstallPrompt } from '@/components/InstallPrompt';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { AtlasUiProvider, useAtlasUi } from '@/components/atlas/AtlasUiProvider';
@@ -152,6 +153,9 @@ function Frame({ name, children }: { name: string; children: ReactNode }) {
       <main className="main">
         <div className="main-inner">
           <InstallPrompt />
+          {/* Second-level nav lives in the shell so every section places it
+              identically, instead of each page inventing its own header. */}
+          <SectionTabs />
           {children}
         </div>
       </main>

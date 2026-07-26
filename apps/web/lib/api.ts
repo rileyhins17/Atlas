@@ -16,6 +16,7 @@ import type {
   ExerciseDTO,
   HabitDTO,
   LastPerformanceDTO,
+  GoalDTO,
   PlanSplitResultDTO,
   WeightUnitPref,
   WorkoutTemplateDTO,
@@ -446,4 +447,13 @@ export const AiApi = {
   insights: () => request<InsightDTO[]>('/ai/insights'),
   backfillEmbeddings: () =>
     request<{ processed: number; failed: number }>('/ai/embeddings/backfill', { method: 'POST', body: '{}' }),
+};
+
+export const GoalsApi = {
+  list: () => request<GoalDTO[]>('/goals'),
+  create: (input: { title: string; description?: string; horizon?: 'short' | 'long'; targetDate?: string }) =>
+    request<GoalDTO>('/goals', { method: 'POST', body: JSON.stringify(input) }),
+  update: (id: string, patch: Record<string, unknown>) =>
+    request<GoalDTO>(`/goals/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+  remove: (id: string) => request<{ ok: true }>(`/goals/${id}`, { method: 'DELETE' }),
 };

@@ -403,11 +403,18 @@ model Goal {
   description String?
   targetDate  DateTime?
   status      String    @default("active") // active | achieved | paused | dropped
+  // "short" | "long". Explicit rather than inferred from targetDate: whether
+  // something is a long-term goal is a judgement about ambition, not about how
+  // many weeks away it is, and a goal with no date still has a horizon.
+  horizon     String    @default("short")
+  // Ordering within its horizon column.
+  position    Int       @default(0)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   tasks       Task[]
 
   @@index([userId, status])
+  @@index([userId, horizon, position])
   @@map("goals")
 }
 

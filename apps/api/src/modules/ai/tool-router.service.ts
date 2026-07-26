@@ -4,11 +4,13 @@ import {
   CreateEventInput,
   CreateHabitInput,
   CreateJournalInput,
+  CreateGoalInput,
   CreateNoteInput,
   CreateTaskInput,
   LogHabitInput,
   RoutineBlockInput,
   StartWorkoutInput,
+  UpdateGoalInput,
   UpdateHabitInput,
   UpdateNoteInput,
   UpdateTaskInput,
@@ -21,6 +23,7 @@ import { NotesService } from '../notes/notes.service.js';
 import { CalendarService } from '../calendar/calendar.service.js';
 import { FitnessService } from '../fitness/fitness.service.js';
 import { RoutineService } from '../routine/routine.service.js';
+import { GoalsService } from '../goals/goals.service.js';
 import { MemoryService } from '../../core/memory.service.js';
 
 const ByIdInput = z.object({ id: z.string().min(1).max(64) });
@@ -79,6 +82,7 @@ const HabitLogInput = z.object({
 const AiTaskPatch = UpdateTaskInput.extend({ id: z.string().min(1).max(64) });
 const AiNotePatch = UpdateNoteInput.extend({ id: z.string().min(1).max(64) });
 const AiHabitPatch = UpdateHabitInput.extend({ id: z.string().min(1).max(64) });
+const AiGoalPatch = UpdateGoalInput.extend({ id: z.string().min(1).max(64) });
 const AskQuestionInput = z.object({
   question: z.string().min(1).max(2_000),
   rationale: z.string().max(2_000).optional(),
@@ -142,6 +146,7 @@ export class ToolRouterService {
     private readonly calendar: CalendarService,
     private readonly fitness: FitnessService,
     private readonly routine: RoutineService,
+    private readonly goals: GoalsService,
     private readonly memory: MemoryService,
   ) {}
 
@@ -353,6 +358,48 @@ export class ToolRouterService {
           result: block,
           summary: `Added "${block.label}" to your week`,
           undo: del(`/routine/blocks/${block.id}`, `Remove "${block.label}"`),
+        };
+      }
+
+      // ── Goals ────────────────────────────────────────────────────────────
+      case 'goals.create': {
+        const goal = await this.goals.create(userId, CreateGoalInput.parse(args));
+        return {
+          result: goal,
+          summary: `Added ${goal.horizon}-term goal "${goal.title}"`,
+          undo: del(`/goals/${goal.id}`, `Remove "${goal.title}"`),
+        };
+      }
+      case 'goals.update': {
+        const { id, ...patch } = AiGoalPatch.parse(args);
+        const before = await this.goals.owned(userId, id);
+        const goal = await this.goals.update(userId, id, patch);
+        return {
+          result: goal,
+          summary:
+            patch.status === 'achieved'
+              ? `Marked "${goal.title}" achieved`
+              : `Updated "${goal.title}"`,
+          undo: patchBack(
+            `/goals/${id}`,
+            `Undo the change to "${before.title}"`,
+            pick(before as unknown as Record<string, unknown>, Object.keys(patch)),
+          ),
+        };
+      }
+      case 'goals.delete': {
+        const { id } = ByIdInput.parse(args);
+        const before = await this.goals.owned(userId, id);
+        await this.goals.remove(userId, id);
+        return {
+          result: { ok: true },
+          summary: `Deleted goal "${before.title}"`,
+          undo: recreate('/goals', `Restore "${before.title}"`, {
+            title: before.title,
+            ...(before.description ? { description: before.description } : {}),
+            horizon: before.horizon,
+            ...(before.targetDate ? { targetDate: before.targetDate.toISOString() } : {}),
+          }),
         };
       }
 
