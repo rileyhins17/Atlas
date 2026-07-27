@@ -86,7 +86,7 @@ docs/                architecture, data-model, roadmap, guides, ADRs, GOTCHAS.
 
 ## Current state
 
-Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **480 unit tests** · **e2e 27/27** (Playwright + axe) · axe clean across phone-light, phone-dark and desktop-light.
+Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **494 unit tests** · **e2e 27/27** (Playwright + axe) · axe clean across phone-light, phone-dark and desktop-light.
 
 ### Known gaps — tracked, not hidden
 **`docs/production-readiness.md` is the authoritative list**, written from a 154-assertion API stress
