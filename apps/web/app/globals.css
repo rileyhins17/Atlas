@@ -3950,3 +3950,200 @@ input[type='checkbox']:checked::after {
 .strength-trend.down {
   color: var(--danger-role);
 }
+
+/* ─── Day builder + training progress ─────────────────────────────────────── */
+.fit-day-wrap {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+}
+.fit-day-edit {
+  flex-shrink: 0;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-left: none;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+.fit-day-edit:hover {
+  color: var(--text-primary);
+  background: var(--surface-inset);
+}
+.fit-day-wrap .fit-day-chip {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.day-chosen {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: move;
+}
+.day-chosen-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.day-chosen-row:last-child {
+  border-bottom: none;
+}
+.day-grip {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.day-chosen-name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.day-move,
+.day-remove {
+  flex-shrink: 0;
+  width: 32px;
+  min-height: 32px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.day-move:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.day-move:hover:not(:disabled),
+.day-remove:hover {
+  background: var(--surface-inset);
+  color: var(--text-primary);
+}
+.day-options {
+  max-height: 280px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+}
+.day-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2);
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+.day-option:hover {
+  background: var(--surface-raised);
+}
+.day-option-name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.tp-weeks {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.tp-muscles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.tp-muscle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+}
+.tp-muscle-name {
+  width: 70px;
+  flex-shrink: 0;
+  text-transform: capitalize;
+  color: var(--text-muted);
+}
+.tp-muscle-bar {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-inset);
+  overflow: hidden;
+}
+.tp-muscle-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--brand);
+}
+.tp-muscle-n {
+  flex-shrink: 0;
+  width: 58px;
+  text-align: right;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.tp-lifts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.tp-lift {
+  border-bottom: 1px solid var(--border-subtle);
+}
+.tp-lift:last-child {
+  border-bottom: none;
+}
+.tp-lift-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 48px;
+  padding: var(--space-2) 0;
+  border: none;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.tp-lift-name {
+  flex: 1;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.tp-best {
+  color: var(--brand);
+  flex-shrink: 0;
+}
+.tp-lift-now {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.tp-lift-detail {
+  padding: 0 0 var(--space-3);
+}

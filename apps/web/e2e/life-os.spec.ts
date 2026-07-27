@@ -464,7 +464,8 @@ test('fitness: set up a split, then train it', async ({ page }) => {
   await go(page, '/fitness');
 
   // Describe the split once. Matching is local, so this works with no API key.
-  await page.getByRole('button', { name: /Set up your workout days/ }).click();
+  // The prose path is secondary now; tapping exercises is the primary route.
+  await page.getByRole('button', { name: /Paste a whole split/ }).click();
   await page.getByLabel('Describe your training split').fill(
     'Push: bench press, incline dumbbell press, lateral raise\nPull: pull up, barbell row',
   );
@@ -566,3 +567,13 @@ test('connectors are offered on their own pages, not only in Settings', async ({
   await page.getByRole('button', { name: /Google Calendar/ }).first().click();
   await expect(page.getByRole('button', { name: 'Connect Google Calendar' })).toBeVisible();
 });
+
+// NOTE: two specs for the day builder and the training-progress view were
+// written and then removed. Both passed in isolation and failed inside the
+// suite: these fitness specs share one registered user, and an earlier one
+// leaves a session open, so the start card and its controls are conditionally
+// absent. Guarding for that was not enough — the tab strip also shifts while
+// the history and catalog queries resolve, so clicks land on a moving target.
+// The fix is per-spec isolation (its own user, or an API-level reset), not
+// more waiting. Until then the maths behind both is covered by 109 unit tests
+// in packages/shared, and neither surface has e2e coverage.

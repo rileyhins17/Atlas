@@ -34,7 +34,8 @@ import { useWeightUnit } from '@/lib/hooks/settings';
 import { pickerSections, recentExerciseIds } from '@/lib/exercise-order';
 import { SplitSetup } from '@/components/fitness/SplitSetup';
 import { WorkoutSummaryDialog } from '@/components/fitness/WorkoutSummaryDialog';
-import { StrengthTracker } from '@/components/fitness/StrengthTracker';
+import { TrainingProgress } from '@/components/fitness/TrainingProgress';
+import { DayBuilder } from '@/components/fitness/DayBuilder';
 import {
   Button,
   Card,
@@ -604,13 +605,16 @@ export function FitnessPanel() {
   // Warm the catalog while the start screen is on show. ActiveWorkout needs it
   // to render a template's movements as blocks, and fetching only on mount
   // meant a templated session appeared empty for a beat before filling in.
-  useExercises();
   const [title, setTitle] = useState('');
-  const [setup, setSetup] = useState(false);
   // Lives here, not in ActiveWorkout: that component unmounts the instant the
   // workout is finished, which would take the summary down with it.
   const [summary, setSummary] = useState<WorkoutSummaryDTO | null>(null);
   const [finishedTitle, setFinishedTitle] = useState('');
+  // null = closed; { editing } = the tap-to-build editor; 'paste' = the
+  // whole-program text path, kept as the secondary route.
+  const [builder, setBuilder] = useState<{ editing: WorkoutTemplateDTO | null } | 'paste' | null>(null);
+  const [tab, setTab] = useState<'train' | 'progress'>('train');
+  const exercisesQuery = useExercises();
 
   const workout = active.data ?? null;
   const days = templates.data ?? [];
@@ -674,18 +678,27 @@ export function FitnessPanel() {
           {suggested.length > 0 ? (
             <div className="fit-quick" role="group" aria-label="Start a saved day">
               {suggested.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  className="fit-day-chip"
-                  disabled={start.isPending}
-                  onClick={() => start.mutate({ templateId: t.id })}
-                >
-                  <span className="fit-day-name">{t.name}</span>
-                  <span className="fit-day-meta">
-                    {t.exercises.length} moves · {sinceLabel(t.lastPerformedAt)}
-                  </span>
-                </button>
+                <span key={t.id} className="fit-day-wrap">
+                  <button
+                    type="button"
+                    className="fit-day-chip"
+                    disabled={start.isPending}
+                    onClick={() => start.mutate({ templateId: t.id })}
+                  >
+                    <span className="fit-day-name">{t.name}</span>
+                    <span className="fit-day-meta">
+                      {t.exercises.length} moves · {sinceLabel(t.lastPerformedAt)}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="fit-day-edit"
+                    aria-label={`Edit ${t.name}`}
+                    onClick={() => setBuilder({ editing: t })}
+                  >
+                    Edit
+                  </button>
+                </span>
               ))}
             </div>
           ) : (
@@ -704,16 +717,34 @@ export function FitnessPanel() {
             </div>
           )}
 
-          <button type="button" className="fit-setup-link" onClick={() => setSetup(true)}>
-            <Sparkles size={13} aria-hidden />
-            {days.length > 0 ? 'Edit your workout days' : 'Set up your workout days'}
-          </button>
+          <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="fit-setup-link"
+              onClick={() => setBuilder({ editing: null })}
+            >
+              <Plus size={13} aria-hidden /> New workout day
+            </button>
+            {/* Secondary: paste a whole program at once. Powerful, but not the
+                thing to lead with — nothing on screen teaches the format. */}
+            <button type="button" className="fit-setup-link" onClick={() => setBuilder('paste')}>
+              <Sparkles size={13} aria-hidden /> Paste a whole split
+            </button>
+          </div>
         </Card>
       )}
 
-      {!workout && setup && (
+      {!workout && builder !== null && (
         <div style={{ marginTop: 14 }}>
-          <SplitSetup onDone={() => setSetup(false)} onCancel={() => setSetup(false)} />
+          {builder === 'paste' ? (
+            <SplitSetup onDone={() => setBuilder(null)} onCancel={() => setBuilder(null)} />
+          ) : (
+            <DayBuilder
+              editing={builder.editing}
+              onDone={() => setBuilder(null)}
+              onCancel={() => setBuilder(null)}
+            />
+          )}
         </div>
       )}
 
@@ -750,21 +781,38 @@ export function FitnessPanel() {
         onClose={() => setSummary(null)}
       />
 
-      {!workout && (history.data?.length ?? 0) > 0 && (
-        <>
-          <h2 className="section-title" style={{ marginTop: 22 }}>
-            Strength
-          </h2>
-          <StrengthTracker workouts={history.data ?? []} unit={unit} />
-        </>
-      )}
-
       {!workout && ((history.data?.length ?? 0) > 0 || history.isPending) && (
         <>
-          <h2 className="section-title" style={{ marginTop: 22 }}>
-            Recent sessions
-          </h2>
-          <WorkoutHistory />
+          <div className="cal-scope" role="group" aria-label="Training view" style={{ marginTop: 22 }}>
+            <button
+              type="button"
+              className={`cal-scope-btn ${tab === 'train' ? 'on' : ''}`}
+              aria-pressed={tab === 'train'}
+              onClick={() => setTab('train')}
+            >
+              Recent sessions
+            </button>
+            <button
+              type="button"
+              className={`cal-scope-btn ${tab === 'progress' ? 'on' : ''}`}
+              aria-pressed={tab === 'progress'}
+              onClick={() => setTab('progress')}
+            >
+              Progress
+            </button>
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            {tab === 'train' ? (
+              <WorkoutHistory />
+            ) : (
+              <TrainingProgress
+                workouts={history.data ?? []}
+                exercises={exercisesQuery.data ?? NO_EXERCISES}
+                unit={unit}
+              />
+            )}
+          </div>
         </>
       )}
     </>
