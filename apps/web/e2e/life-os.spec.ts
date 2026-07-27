@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { register } from './helpers';
+import { register, resetFitness, seedWorkoutHistory } from './helpers';
 
 /**
  * The Life-OS shell: command bar, chat rail, sidebar, the Today overview (v4
@@ -568,12 +568,61 @@ test('connectors are offered on their own pages, not only in Settings', async ({
   await expect(page.getByRole('button', { name: 'Connect Google Calendar' })).toBeVisible();
 });
 
-// NOTE: two specs for the day builder and the training-progress view were
-// written and then removed. Both passed in isolation and failed inside the
-// suite: these fitness specs share one registered user, and an earlier one
-// leaves a session open, so the start card and its controls are conditionally
-// absent. Guarding for that was not enough — the tab strip also shifts while
-// the history and catalog queries resolve, so clicks land on a moving target.
-// The fix is per-spec isolation (its own user, or an API-level reset), not
-// more waiting. Until then the maths behind both is covered by 109 unit tests
-// in packages/shared, and neither surface has e2e coverage.
+test('a workout day is built by tapping exercises', async ({ page }) => {
+  await go(page, '/fitness');
+  // Baseline: no open session, no saved days. Without this the start card is
+  // conditionally absent depending on what earlier specs left behind.
+  await resetFitness(page);
+
+  // Tapping a list is obvious; describing a split in prose is not.
+  await page.getByRole('button', { name: /New workout day/ }).click();
+  await page.getByLabel('Workout day name').fill('Arms Day');
+  await page.getByLabel('Search exercises to add').fill('bicep curl');
+  await page.locator('.day-option').first().click();
+  await expect(page.locator('.day-chosen-row')).toHaveCount(1);
+
+  // A chosen movement leaves the "to add" list — offering it twice is noise.
+  await expect(page.locator('.day-option').filter({ hasText: 'Bicep Curl' })).toHaveCount(0);
+
+  // Order is the order the session opens in, so it has to be changeable.
+  await page.getByLabel('Search exercises to add').fill('hammer curl');
+  await page.locator('.day-option').first().click();
+  await expect(page.locator('.day-chosen-row')).toHaveCount(2);
+  await page.locator('.day-chosen-row').last().getByLabel(/Move .* up/).click();
+  await expect(page.locator('.day-chosen-name').first()).toContainText('Hammer Curl');
+
+  await page.getByRole('button', { name: /^Save/ }).click();
+  const day = page.locator('.fit-day-chip', { hasText: 'Arms Day' });
+  await expect(day).toBeVisible();
+  await expect(day).toContainText('2 moves');
+
+  // Editing an existing day must not mean recreating it.
+  await page.getByRole('button', { name: 'Edit Arms Day' }).click();
+  await page.getByLabel('Workout day name').fill('Arms');
+  await page.getByRole('button', { name: /^Save/ }).click();
+  await expect(page.locator('.fit-day-chip', { hasText: 'Arms' })).toBeVisible();
+  await expect(page.locator('.fit-day-chip', { hasText: 'Arms Day' })).toHaveCount(0);
+});
+
+test('training progress reports volume, muscle balance and per-lift trend', async ({ page }) => {
+  await go(page, '/fitness');
+  await resetFitness(page);
+  // Seed its own history rather than relying on earlier specs having logged
+  // something: that coupling passes in a full run and fails alone, which is
+  // the worst way round because it hides in green.
+  await seedWorkoutHistory(page);
+
+  await page.getByRole('button', { name: 'Progress', exact: true }).click();
+
+  await expect(page.getByText('Weekly volume')).toBeVisible();
+  await expect(page.getByText('Muscles trained')).toBeVisible();
+  await expect(page.getByText('Every lift')).toBeVisible();
+
+  // Sets, not volume — volume would call one deadlift a full leg day.
+  await expect(page.locator('.tp-muscle-n').first()).toContainText('sets');
+
+  // Each lift expands to its own estimated-1RM trend.
+  await page.locator('.tp-lift-head').first().click();
+  await expect(page.locator('.tp-lift-detail')).toBeVisible();
+  await expect(page.locator('.tp-lift-detail')).toContainText(/estimated max|trend appears/);
+});

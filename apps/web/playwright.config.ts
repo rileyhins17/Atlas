@@ -28,7 +28,11 @@ const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:${WEB_PORT}`;
 
 export default defineConfig({
   testDir: './e2e',
-  timeout: 30_000,
+  // 90s, not 30s: sign-up is throttled 5/min/IP and the register helper waits
+  // the window out rather than retrying straight back into a 429. Normal specs
+  // finish in 2-6s, so this only ever costs time on a run that would otherwise
+  // have collapsed entirely.
+  timeout: 90_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
   workers: 1,
@@ -38,6 +42,12 @@ export default defineConfig({
   use: {
     baseURL,
     trace: 'on-first-retry',
+    // The app already honours prefers-reduced-motion with a global animation
+    // reset; opting into it here makes clicks deterministic. Content animates
+    // in on every route change and query resolution, and Playwright's
+    // actionability check refuses to click a moving target — which cost two
+    // specs that passed alone and flaked in the suite.
+    reducedMotion: 'reduce',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: process.env.E2E_NO_SERVER
