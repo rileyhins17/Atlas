@@ -21,4 +21,5 @@ export * from './dto/fitness-util.js';
 export * from './dto/exercise-match.js';
 export * from './dto/goal.js';
 export * from './dto/training-stats.js';
+export * from './dto/search.js';
 export * from './dto/duration.js';

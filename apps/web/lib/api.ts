@@ -1,6 +1,7 @@
 import type {
   AccountDTO,
   AiQuestionDTO,
+  AiUndoStepDTO,
   AuthConfigDTO,
   HabitHistoryDTO,
   TimelinePageDTO,
@@ -30,6 +31,7 @@ import type {
   RollForwardResultDTO,
   RoutineBlockDTO,
   RoutineBlockInput,
+  SearchResultDTO,
   SettingsDTO,
   StatsDTO,
   TaskDTO,
@@ -456,4 +458,38 @@ export const GoalsApi = {
   update: (id: string, patch: Record<string, unknown>) =>
     request<GoalDTO>(`/goals/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   remove: (id: string) => request<{ ok: true }>(`/goals/${id}`, { method: 'DELETE' }),
+};
+
+/**
+ * Replay one AI undo step.
+ *
+ * The method, path and body are built on the SERVER from the row that was
+ * actually written — the model never supplies them. This runs with the user's
+ * own session, so an undo can only ever reach data that session could already
+ * reach. See AiUndoStepDTO.
+ */
+export function applyUndoStep(step: AiUndoStepDTO): Promise<unknown> {
+  return request(step.path, {
+    method: step.method,
+    ...(step.body ? { body: JSON.stringify(step.body) } : {}),
+  });
+}
+
+/**
+ * Undo a whole batch, newest first.
+ *
+ * Order matters: one capture can create a task AND an event, and reversing in
+ * reverse-application order is the only sequence guaranteed not to hit a row
+ * another step already removed.
+ */
+export async function applyUndoBatch(steps: AiUndoStepDTO[]): Promise<void> {
+  for (const step of [...steps].reverse()) {
+    // One failed step must not strand the rest — a partially-undone batch is
+    // still better than none, and the user can see what remains.
+    await applyUndoStep(step).catch(() => undefined);
+  }
+}
+
+export const SearchApi = {
+  run: (q: string) => request<SearchResultDTO>(`/search?q=${encodeURIComponent(q)}`),
 };

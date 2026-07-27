@@ -3722,11 +3722,7 @@ input[type='checkbox']:checked::after {
 .goal-row:last-child {
   border-bottom: none;
 }
-.goal-row.done .goal-title {
-  text-decoration: line-through;
-  color: var(--text-muted);
-}
-.goal-check {
+.goal-row.done .goal-check {
   flex-shrink: 0;
   width: 22px;
   height: 22px;
@@ -3749,11 +3745,6 @@ input[type='checkbox']:checked::after {
   display: flex;
   flex-direction: column;
   gap: 3px;
-}
-.goal-title {
-  font-size: var(--text-base);
-  color: var(--text-primary);
-  overflow-wrap: anywhere;
 }
 .goal-meta {
   font-size: var(--text-xs);
@@ -4146,4 +4137,71 @@ input[type='checkbox']:checked::after {
 }
 .tp-lift-detail {
   padding: 0 0 var(--space-3);
+}
+
+/* Goal → its tasks. The link that turns a goal from a wish into progress. */
+.goal-open {
+  border: none;
+  background: none;
+  padding: 0;
+  text-align: left;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.goal-open:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.goal-row.done .goal-open {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+.goal-tasks {
+  flex-basis: 100%;
+  padding: var(--space-2) 0 var(--space-2) 34px;
+}
+.goal-task-list {
+  list-style: none;
+  margin: 0 0 var(--space-2);
+  padding: 0;
+}
+.goal-task {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 3px 0;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+.goal-task.done {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+.goal-task > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.goal-unlink {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.goal-unlink:hover {
+  background: var(--surface-inset);
+  color: var(--text-primary);
+}
+/* The row wraps so the task panel can take a full line beneath it. */
+.goal-row {
+  flex-wrap: wrap;
 }

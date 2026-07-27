@@ -530,7 +530,7 @@ test('goals split into short and long term', async ({ page }) => {
 
   await page.getByLabel('New goal').fill('Run a half marathon');
   await page.getByRole('button', { name: /Add/ }).click();
-  await expect(page.locator('.goal-title', { hasText: 'Run a half marathon' })).toBeVisible();
+  await expect(page.locator('.goal-open', { hasText: 'Run a half marathon' })).toBeVisible();
 
   // A goal with no linked tasks says so rather than showing 0%, which reads as
   // failure when it actually means "not broken down yet".
@@ -542,6 +542,19 @@ test('goals split into short and long term', async ({ page }) => {
 
   await expect(page.getByRole('region', { name: 'Short term' }).or(page.locator('section[aria-label="Short term"]'))).toBeVisible();
   await expect(page.locator('section[aria-label="Long term"]')).toContainText('Financial independence');
+
+  // Linking work to a goal is what makes it more than a wish. Task.goalId has
+  // existed since the first migration, but nothing ever set it — so a goal read
+  // "nothing linked yet" forever and its bar could not fill.
+  await expect(page.locator('.goal-meta').first()).toContainText('nothing linked yet');
+  await page.locator('.goal-open').first().click();
+  await page.getByLabel(/Add a task toward/).fill('Run 5k without stopping');
+  await page.locator('.goal-tasks button[type=submit]').click();
+  await expect(page.locator('.goal-task span').first()).toContainText('Run 5k');
+  // The count is computed server-side, so this also pins that a task mutation
+  // refetches goals — without that it stayed at "nothing linked yet".
+  await expect(page.locator('.goal-meta').first()).toContainText('0 of 1 done');
+  await page.locator('.goal-open').first().click();
 
   // Moving between horizons is one tap.
   await page
@@ -625,4 +638,22 @@ test('training progress reports volume, muscle balance and per-lift trend', asyn
   await page.locator('.tp-lift-head').first().click();
   await expect(page.locator('.tp-lift-detail')).toBeVisible();
   await expect(page.locator('.tp-lift-detail')).toContainText(/estimated max|trend appears/);
+});
+
+test('search finds your own data across domains', async ({ page }) => {
+  await go(page, '/tasks');
+  const marker = `Zephyr${Date.now()}`;
+  await page.getByLabel('New task title').fill(`Book ${marker} appointment`);
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await expect(page.getByText(`Book ${marker} appointment`)).toBeVisible();
+
+  // ⌘K used to jump to PAGES only. An app whose pitch is that it remembers
+  // everything has to let you ask what it remembers.
+  await page.keyboard.press('ControlOrMeta+k');
+  await page.getByPlaceholder(/Search|Type/i).first().fill(marker);
+
+  const hit = page.locator('.command-item', { hasText: marker });
+  await expect(hit.first()).toBeVisible();
+  await hit.first().click();
+  await expect(page).toHaveURL(/\/tasks$/);
 });

@@ -5,6 +5,7 @@ import { describeGoalProgress, goalProgress, type GoalDTO, type GoalHorizon } fr
 import { Check, Plus, Target, X } from 'lucide-react';
 import { errorMessage } from '@/lib/api';
 import { useCreateGoal, useDeleteGoal, useGoals, useUpdateGoal } from '@/lib/hooks/goals';
+import { useCreateTask, useTasks, useUpdateTask } from '@/lib/hooks/tasks';
 import { Button, Card, EmptyState, ErrorState, Input, ListSkeleton } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
 import { useSubmitLatch } from '@/lib/hooks/submit-latch';
@@ -25,8 +26,32 @@ const HORIZONS: { key: GoalHorizon; label: string; blurb: string }[] = [
 function GoalRow({ goal }: { goal: GoalDTO }) {
   const update = useUpdateGoal();
   const remove = useDeleteGoal();
+  const tasks = useTasks();
+  const createTask = useCreateTask();
+  const updateTask = useUpdateTask();
+  const latch = useSubmitLatch();
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState('');
   const pct = goalProgress(goal);
   const done = goal.status === 'achieved';
+
+  // The link that makes a goal more than a wish. `Task.goalId` has existed
+  // since the first migration and the API always accepted it, but nothing in
+  // the UI ever set it — so every goal read "nothing linked yet" forever and
+  // the progress bar was structurally unable to fill.
+  const linked = (tasks.data ?? []).filter((t) => t.goalId === goal.id);
+
+  function addTask(e: React.FormEvent) {
+    e.preventDefault();
+    const title = draft.trim();
+    if (!title || createTask.isPending) return;
+    latch((release) =>
+      createTask.mutate(
+        { title, goalId: goal.id },
+        { onSuccess: () => setDraft(''), onSettled: release },
+      ),
+    );
+  }
 
   return (
     <li className={`goal-row ${done ? 'done' : ''}`}>
@@ -43,7 +68,14 @@ function GoalRow({ goal }: { goal: GoalDTO }) {
       </button>
 
       <div className="goal-body">
-        <span className="goal-title">{goal.title}</span>
+        <button
+          type="button"
+          className="goal-open"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+        >
+          {goal.title}
+        </button>
         <span className="goal-meta">
           {/* Honest about an empty goal: "0%" reads as failure when it really
               means you have not broken it down yet. */}
@@ -78,6 +110,44 @@ function GoalRow({ goal }: { goal: GoalDTO }) {
       >
         <X size={14} aria-hidden />
       </button>
+
+      {open && (
+        <div className="goal-tasks">
+          {linked.length > 0 ? (
+            <ul className="goal-task-list">
+              {linked.map((t) => (
+                <li key={t.id} className={`goal-task ${t.status === 'DONE' ? 'done' : ''}`}>
+                  <span>{t.title}</span>
+                  <button
+                    type="button"
+                    className="goal-unlink"
+                    aria-label={`Unlink "${t.title}" from this goal`}
+                    onClick={() => updateTask.mutate({ id: t.id, patch: { goalId: null } })}
+                  >
+                    <X size={12} aria-hidden />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="prog-muted" style={{ margin: '0 0 6px', fontSize: 12 }}>
+              Break this into work you can actually do. Tasks added here count toward it.
+            </p>
+          )}
+
+          <form className="row" style={{ gap: 6 }} onSubmit={addTask} noValidate>
+            <Input
+              placeholder="Add a step toward this…"
+              aria-label={`Add a task toward "${goal.title}"`}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+            />
+            <Button type="submit" disabled={!draft.trim() || createTask.isPending}>
+              <Plus size={14} aria-hidden />
+            </Button>
+          </form>
+        </div>
+      )}
     </li>
   );
 }

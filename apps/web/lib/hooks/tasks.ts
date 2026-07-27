@@ -54,7 +54,12 @@ export function useCreateTask() {
   return useMutation({
     mutationFn: TasksApi.create,
     meta: { success: 'Task added', errorFallback: 'Failed to add task' },
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.tasks }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: qk.tasks });
+      // Task counts on a goal are computed server-side, so linking, completing
+      // or deleting a task changes them and the goals query must refetch.
+      void qc.invalidateQueries({ queryKey: qk.goals });
+    },
   });
 }
 
@@ -110,6 +115,11 @@ export function useDeleteTask() {
   return useMutation({
     mutationFn: TasksApi.remove,
     meta: { success: 'Task deleted', errorFallback: 'Failed to delete task' },
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.tasks }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: qk.tasks });
+      // Task counts on a goal are computed server-side, so linking, completing
+      // or deleting a task changes them and the goals query must refetch.
+      void qc.invalidateQueries({ queryKey: qk.goals });
+    },
   });
 }

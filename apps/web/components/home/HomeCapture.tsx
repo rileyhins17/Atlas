@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, Send, X } from 'lucide-react';
 import { useBrainDump } from '@/lib/hooks/ai';
-import { errorMessage } from '@/lib/api';
+import { applyUndoBatch, errorMessage } from '@/lib/api';
 import { detectCaptureIntent, stripAskPrefix } from '@/lib/capture-intent';
 import { useToast } from '@/components/ui';
 import { useAtlasUi } from '@/components/atlas/AtlasUiProvider';
@@ -83,10 +83,25 @@ export function HomeCapture({
         const said =
           changes.map((t) => t.summary).filter(Boolean).join(' · ') ||
           (ran.length > 0 ? `Filed: ${summarizeToolRuns(ran)}` : res.content.slice(0, 140));
-        toast(said, 'success', {
-          label: 'Ask instead',
-          onClick: () => openChat(trimmed),
-        });
+        // Undo beats "ask instead" when something was actually written: the
+        // steps are server-built inverses of the rows just created, and until
+        // now they were generated on every AI write and thrown away.
+        const undoable = changes.map((t) => t.undo).filter((u): u is NonNullable<typeof u> => Boolean(u));
+        toast(
+          said,
+          'success',
+          undoable.length > 0
+            ? {
+                label: 'Undo',
+                onClick: () => {
+                  void applyUndoBatch(undoable).then(() => {
+                    toast('Undone', 'info');
+                    void qc.invalidateQueries();
+                  });
+                },
+              }
+            : { label: 'Ask instead', onClick: () => openChat(trimmed) },
+        );
         setText('');
         onClearContext?.();
         // The filed items are new canvas/feed rows — refresh immediately.

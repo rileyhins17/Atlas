@@ -9,6 +9,7 @@ import { HabitsModule } from './modules/habits/habits.module.js';
 import { JournalModule } from './modules/journal/journal.module.js';
 import { NotesModule } from './modules/notes/notes.module.js';
 import { GoalsModule } from './modules/goals/goals.module.js';
+import { SearchModule } from './modules/search/search.module.js';
 import { CalendarModule } from './modules/calendar/calendar.module.js';
 import { FinanceModule } from './modules/finance/finance.module.js';
 import { FitnessModule } from './modules/fitness/fitness.module.js';
@@ -38,6 +39,7 @@ import { OriginCheckMiddleware } from './common/origin-check.middleware.js';
     JournalModule,
     NotesModule,
     GoalsModule,
+    SearchModule,
     CalendarModule,
     FinanceModule,
     FitnessModule,

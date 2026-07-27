@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import * as RadixDialog from '@radix-ui/react-dialog';
 import { detectCaptureIntent, stripAskPrefix } from '@/lib/capture-intent';
+import { useSearch } from '@/lib/hooks/search';
 import {
   BookOpen,
   Calendar,
@@ -17,6 +18,7 @@ import {
   Settings,
   Sparkles,
   StickyNote,
+  Target,
   TrendingUp,
 } from 'lucide-react';
 import { useBrainDump } from '@/lib/hooks/ai';
@@ -24,6 +26,15 @@ import { useToast } from '@/components/ui';
 import { errorMessage } from '@/lib/api';
 import { Kbd } from '@/components/ui/Kbd';
 import { useAtlasUi } from './AtlasUiProvider';
+
+/** A hit should read as what it is before you read the words. */
+const DOMAIN_ICONS = {
+  task: ListTodo,
+  event: Calendar,
+  goal: Target,
+  note: StickyNote,
+  journal: BookOpen,
+} as const;
 
 const DESTINATIONS = [
   { href: '/today', label: 'Today', icon: Home, keywords: 'home today canvas day now' },
@@ -96,6 +107,11 @@ export function CommandBar() {
   const isAsk = detectCaptureIntent(trimmed) === 'ask';
   const askText = stripAskPrefix(trimmed);
 
+  // Find things you already have. ⌘K used to jump to PAGES only — for an app
+  // whose pitch is that it remembers everything, being unable to ask it what
+  // it remembers was the biggest hole in the product.
+  const search = useSearch(isAsk ? '' : trimmed);
+
   const items = useMemo<Item[]>(() => {
     const list: Item[] = [];
     const go = (href: string) => () => {
@@ -120,6 +136,18 @@ export function CommandBar() {
     const navMatches = DESTINATIONS.filter(
       (d) => q.length > 0 && (d.label.toLowerCase().startsWith(q) || d.keywords.includes(q)),
     );
+
+    // Your own data first: when you type "dentist" you almost always mean the
+    // thing you already wrote down, not a new one.
+    for (const hit of search.data?.hits ?? []) {
+      list.push({
+        id: `hit-${hit.domain}-${hit.id}`,
+        icon: DOMAIN_ICONS[hit.domain],
+        title: hit.title,
+        hint: `${hit.domain} · ${hit.subtitle}`,
+        run: go(hit.href),
+      });
+    }
 
     if (trimmed.length > 0) {
       list.push({
@@ -160,7 +188,7 @@ export function CommandBar() {
       });
     }
     return list;
-  }, [trimmed, isAsk, askText, brainDump, openChat, router, setCommandOpen, toast]);
+  }, [trimmed, isAsk, askText, brainDump, openChat, router, setCommandOpen, toast, search.data]);
 
   // Clamp the active row when the list shrinks.
   useEffect(() => {
