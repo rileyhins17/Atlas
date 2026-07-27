@@ -289,8 +289,8 @@ test('a workout logs sets, badges a real PR, and lands in history when finished'
     ['30', '10'],
     ['25', '12'],
   ]) {
-    await page.getByLabel(/Weight in lb for Lateral Raise/i).fill(lb);
-    await page.getByLabel(/Reps for Lateral Raise/i).fill(reps);
+    await page.getByLabel(/^Weight in lb for Lateral Raise/i).fill(lb);
+    await page.getByLabel(/^Reps for Lateral Raise/i).fill(reps);
     await page.getByRole('button', { name: /Log set/i }).click();
   }
   await expect(page.locator('.fit-set')).toHaveCount(3);
@@ -303,8 +303,13 @@ test('a workout logs sets, badges a real PR, and lands in history when finished'
 
   // Finishing must clear the session, not leave the logger on screen.
   await page.getByRole('button', { name: /^Finish$/ }).click();
+
+  // Finishing now opens the summary, which covers the page until dismissed.
+  const summary = page.locator('.dialog-content');
+  await expect(summary).toBeVisible();
+  await summary.getByRole('button', { name: 'Done' }).click();
+
   await expect(page.locator('.fit-active')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Push', exact: true })).toBeVisible();
   await expect(page.locator('.fit-history-row').first()).toContainText('Lateral Raise');
 });
 
@@ -485,8 +490,8 @@ test('fitness: set up a split, then train it', async ({ page }) => {
   const bench = page.locator('.fit-block', { hasText: 'Bench Press (Barbell)' }).first();
   await expect(bench.locator('.fit-field').first()).toContainText('lb');
 
-  await bench.getByLabel(/Weight in lb/).fill('185');
-  await bench.getByLabel(/Reps for/).fill('5');
+  await bench.getByLabel(/^Weight in lb/).fill('185');
+  await bench.getByLabel(/^Reps for/).fill('5');
   await bench.getByRole('button', { name: 'Log set' }).click();
   await expect(bench.locator('.fit-set-body')).toContainText('185 lb × 5');
 });

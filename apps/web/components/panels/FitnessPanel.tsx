@@ -9,9 +9,11 @@ import {
   gramsToUnit,
   isPersonalRecord,
   stepFor,
+  summarizeWorkout,
   unitToGrams,
   type ExerciseDTO,
   type WorkoutDTO,
+  type WorkoutSummaryDTO,
   type WorkoutTemplateDTO,
 } from '@atlas/shared';
 import { Check, Dumbbell, Plus, Search, Sparkles, Trophy, X } from 'lucide-react';
@@ -31,6 +33,8 @@ import {
 import { useWeightUnit } from '@/lib/hooks/settings';
 import { pickerSections, recentExerciseIds } from '@/lib/exercise-order';
 import { SplitSetup } from '@/components/fitness/SplitSetup';
+import { WorkoutSummaryDialog } from '@/components/fitness/WorkoutSummaryDialog';
+import { StrengthTracker } from '@/components/fitness/StrengthTracker';
 import {
   Button,
   Card,
@@ -46,6 +50,17 @@ import { RestTimer } from '@/components/fitness/RestTimer';
 
 /** Stable "no data yet" identity — see the note in CalendarPanel. */
 const NO_EXERCISES: ExerciseDTO[] = [];
+
+/**
+ * Nudge a numeric field by `delta`, tolerating an empty or half-typed value.
+ * Returns a string because the input is controlled by one.
+ */
+function bump(value: string, delta: number, min = 0): string {
+  const n = Number(value);
+  const base = Number.isFinite(n) && value.trim() !== '' ? n : 0;
+  const next = Math.max(min, Math.round((base + delta) * 100) / 100);
+  return String(next);
+}
 
 /** Minutes elapsed, rendered as the running clock a session needs. */
 function elapsed(startedAt: string): string {
@@ -299,31 +314,66 @@ function ExerciseBlock({
       )}
 
       <form className="fit-entry" onSubmit={submit}>
+        {/* Steppers, not just a keypad. Logging mid-set with one thumb and
+            chalky hands is the real context: a plate-sized bump is one tap,
+            and the field is still there to type into when the jump is odd. */}
         {needsWeight && (
           <label className="fit-field">
             <span>{unit}</span>
-            <Input
-              type="number"
-              inputMode="decimal"
-              step={stepFor(unit) / 2}
-              min="0"
-              aria-label={`Weight in ${unit} for ${exerciseName}`}
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-            />
+            <div className="fit-stepper">
+              <button
+                type="button"
+                aria-label={`Less weight for ${exerciseName}`}
+                onClick={() => setWeight(bump(weight, -stepFor(unit)))}
+              >
+                −
+              </button>
+              <Input
+                type="number"
+                inputMode="decimal"
+                step={stepFor(unit) / 2}
+                min="0"
+                aria-label={`Weight in ${unit} for ${exerciseName}`}
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
+              />
+              <button
+                type="button"
+                aria-label={`More weight for ${exerciseName}`}
+                onClick={() => setWeight(bump(weight, stepFor(unit)))}
+              >
+                +
+              </button>
+            </div>
           </label>
         )}
         <label className="fit-field">
           <span>reps</span>
-          <Input
-            type="number"
-            inputMode="numeric"
-            step="1"
-            min="1"
-            aria-label={`Reps for ${exerciseName}`}
-            value={reps}
-            onChange={(e) => setReps(e.target.value)}
-          />
+          <div className="fit-stepper">
+            <button
+              type="button"
+              aria-label={`Fewer reps for ${exerciseName}`}
+              onClick={() => setReps(bump(reps, -1, 1))}
+            >
+              −
+            </button>
+            <Input
+              type="number"
+              inputMode="numeric"
+              step="1"
+              min="1"
+              aria-label={`Reps for ${exerciseName}`}
+              value={reps}
+              onChange={(e) => setReps(e.target.value)}
+            />
+            <button
+              type="button"
+              aria-label={`More reps for ${exerciseName}`}
+              onClick={() => setReps(bump(reps, 1, 1))}
+            >
+              +
+            </button>
+          </div>
         </label>
         <button
           type="button"
@@ -343,12 +393,21 @@ function ExerciseBlock({
 }
 
 /** The open session. */
-function ActiveWorkout({ workout }: { workout: WorkoutDTO }) {
+function ActiveWorkout({
+  workout,
+  onFinished,
+}: {
+  workout: WorkoutDTO;
+  /** Reported upward: this component unmounts the moment the session ends, so
+   *  it cannot be the one holding the summary dialog. */
+  onFinished: (summary: WorkoutSummaryDTO, title: string) => void;
+}) {
   const [picking, setPicking] = useState(false);
   const [added, setAdded] = useState<ExerciseDTO[]>([]);
   const [restKey, setRestKey] = useState(0);
   const [skipped, setSkipped] = useState<string[]>([]);
   const finish = useFinishWorkout(workout.id);
+  const history = useWorkoutHistory();
   const unit = useWeightUnit();
   const templates = useWorkoutTemplates();
   const exercises = useExercises();
@@ -393,7 +452,22 @@ function ActiveWorkout({ workout }: { workout: WorkoutDTO }) {
           <Button
             variant="ghost"
             disabled={finish.isPending}
-            onClick={() => finish.mutate({})}
+            onClick={() => {
+              // Snapshot BEFORE finishing: the mutation clears the active
+              // workout, and the summary needs the session that just ended.
+              const done = { ...workout };
+              const past = history.data ?? [];
+              finish.mutate(
+                {},
+                {
+                  onSuccess: () =>
+                    onFinished(
+                      summarizeWorkout({ ...done, endedAt: new Date().toISOString() }, past),
+                      done.title,
+                    ),
+                },
+              );
+            }}
           >
             Finish
           </Button>
@@ -526,12 +600,17 @@ export function FitnessPanel() {
   const start = useStartWorkout();
   const history = useWorkoutHistory();
   const templates = useWorkoutTemplates();
+  const unit = useWeightUnit();
   // Warm the catalog while the start screen is on show. ActiveWorkout needs it
   // to render a template's movements as blocks, and fetching only on mount
   // meant a templated session appeared empty for a beat before filling in.
   useExercises();
   const [title, setTitle] = useState('');
   const [setup, setSetup] = useState(false);
+  // Lives here, not in ActiveWorkout: that component unmounts the instant the
+  // workout is finished, which would take the summary down with it.
+  const [summary, setSummary] = useState<WorkoutSummaryDTO | null>(null);
+  const [finishedTitle, setFinishedTitle] = useState('');
 
   const workout = active.data ?? null;
   const days = templates.data ?? [];
@@ -562,7 +641,13 @@ export function FitnessPanel() {
           onRetry={() => void active.refetch()}
         />
       ) : workout ? (
-        <ActiveWorkout workout={workout} />
+        <ActiveWorkout
+          workout={workout}
+          onFinished={(s, t) => {
+            setFinishedTitle(t);
+            setSummary(s);
+          }}
+        />
       ) : (
         <Card stack className="fit-start">
           <form
@@ -656,6 +741,22 @@ export function FitnessPanel() {
             </li>
           </ul>
         </section>
+      )}
+
+      <WorkoutSummaryDialog
+        summary={summary}
+        title={finishedTitle}
+        unit={unit}
+        onClose={() => setSummary(null)}
+      />
+
+      {!workout && (history.data?.length ?? 0) > 0 && (
+        <>
+          <h2 className="section-title" style={{ marginTop: 22 }}>
+            Strength
+          </h2>
+          <StrengthTracker workouts={history.data ?? []} unit={unit} />
+        </>
       )}
 
       {!workout && ((history.data?.length ?? 0) > 0 || history.isPending) && (

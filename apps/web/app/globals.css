@@ -633,32 +633,12 @@ input[type='checkbox']:checked::after {
 .main-inner:has(> .stream) {
   max-width: 880px;
 }
-/* Content eases up on load / route change (stagger). */
-.main-inner > * {
-  animation: rise-in 0.42s var(--ease) both;
-}
-.main-inner > *:nth-child(1) {
-  animation-delay: 0.02s;
-}
-.main-inner > *:nth-child(2) {
-  animation-delay: 0.07s;
-}
-.main-inner > *:nth-child(3) {
-  animation-delay: 0.12s;
-}
-.main-inner > *:nth-child(4) {
-  animation-delay: 0.17s;
-}
-@keyframes rise-in {
-  from {
-    opacity: 0;
-    transform: translateY(9px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
+/* Content eases up on load / route change.
+   A staggered variant used to live here too, animating the same children for
+   0.42s with per-child delays. Two rules for one thing is one too many, and
+   the stagger meant the first taps after a route change landed on a moving
+   target. The single .main-inner > * rule further down is the one that wins. */
+/* (rise-in keyframes removed with the duplicate rule above.) */
 
 .page-title {
   font-size: 30px;
@@ -3813,4 +3793,160 @@ input[type='checkbox']:checked::after {
   .section-tab {
     transition: none;
   }
+}
+
+/* ─── Workout: steppers, finish summary, strength trend ───────────────────── */
+
+/* Logging mid-set is one-thumbed and often chalky: a plate-sized bump is a tap,
+   with the field still there for an odd jump. */
+.fit-stepper {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+.fit-stepper button {
+  flex-shrink: 0;
+  /* 44px square: the AA target size, and these get tapped with one thumb
+     between sets. */
+  width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: 19px;
+  line-height: 1;
+  cursor: pointer;
+}
+.fit-stepper button:active {
+  background: var(--surface-inset);
+}
+.fit-stepper .input {
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+}
+
+.wo-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+}
+.wo-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-3) var(--space-2);
+  background: var(--surface-inset);
+  border-radius: var(--radius-sm);
+}
+.wo-stat-n {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.wo-stat-l {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.wo-pr {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: rgba(232, 131, 106, 0.14);
+  color: var(--brand);
+  font-weight: 700;
+  font-size: var(--text-sm);
+}
+.wo-delta {
+  margin: 0;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.wo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.wo-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--text-sm);
+}
+.wo-row:last-child {
+  border-bottom: none;
+}
+.wo-row-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.wo-row-best {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.strength-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.strength-chip {
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+.strength-chip.on {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: var(--text-on-accent);
+}
+.strength-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.strength-now {
+  display: block;
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.strength-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.strength-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+.strength-trend.up {
+  color: var(--success-text);
+}
+.strength-trend.down {
+  color: var(--danger-role);
 }
