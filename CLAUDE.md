@@ -86,7 +86,7 @@ docs/                architecture, data-model, roadmap, guides, ADRs, GOTCHAS.
 
 ## Current state
 
-Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **371 unit tests** · **e2e 21/21** (Playwright + axe) · axe clean across phone-light, phone-dark and desktop-light.
+Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **480 unit tests** · **e2e 27/27** (Playwright + axe) · axe clean across phone-light, phone-dark and desktop-light.
 
 ### Known gaps — tracked, not hidden
 **`docs/production-readiness.md` is the authoritative list**, written from a 154-assertion API stress
@@ -131,7 +131,15 @@ unclickable. The full scale is documented above `.dialog-overlay` in `globals.cs
 - **Never run `prisma migrate dev`** — Neon drift makes it offer only a destructive reset. Use `migrate diff` → inspect that it is additive → hand-write the migration → `migrate deploy` → `generate`.
 - **Never write JS/TS containing escape sequences through a python heredoc.** `\n` inside single quotes becomes a real newline and breaks the file. This has cost a debug cycle in five separate sessions. Use the Edit tool, or a template literal.
 - **e2e: append to `apps/web/e2e/life-os.spec.ts`.** A new spec file means another registration, and sign-up is throttled 5/min/IP.
-- **No e2e assertion may depend on which day it runs.**
+- **No e2e assertion may depend on which day it runs**, or on what another spec left behind. Specs
+  share one user by necessity (the throttle), so anything stateful must set up its OWN baseline:
+  `resetFitness(page)` clears an open session and saved days, `seedWorkoutHistory(page)` creates
+  data to assert on. A spec that passes in a full run but fails alone is the dangerous shape — it
+  hides in green.
+- **Verify a new spec BOTH ways**: alone and in a full run. They disagree exactly when the spec is
+  coupled to another one.
+- Playwright runs with `reducedMotion: 'reduce'` so content-entry animations cannot make a click
+  land on a moving target. Without it, "element is not stable" timeouts look like overlay bugs.
 - Clean codebase before every commit: no dead exports, no orphaned CSS.
 
 **`docs/GOTCHAS.md` holds the full list of solved traps. Read it before debugging anything** — it exists so none of them get rediscovered.
