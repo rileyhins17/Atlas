@@ -679,3 +679,12 @@ test('capture updates the page it was typed on, without a reload', async ({ page
   await page.keyboard.press('Enter');
   await expect(page.locator('.toast')).toBeVisible({ timeout: 20_000 });
 });
+
+test('the weekly review can be asked for, not only waited for', async ({ page }) => {
+  await go(page, '/progress');
+
+  // The proactive engine writes one on a schedule and Progress has always
+  // displayed it — but nothing could REQUEST one, so a new account (or one
+  // with proactive off) saw an empty card with nothing to press.
+  await expect(page.getByRole('button', { name: /Write my weekly review/ })).toBeVisible();
+});

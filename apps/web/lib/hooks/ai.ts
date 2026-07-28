@@ -48,6 +48,22 @@ export function useInsights() {
   return useQuery({ queryKey: qk.insights, queryFn: AiApi.insights });
 }
 
+/**
+ * Ask for a weekly review now.
+ *
+ * The proactive engine writes one on a schedule, but until this existed there
+ * was no way to REQUEST one — a new account, or one with proactive turned off,
+ * saw an empty Progress page with nothing to press.
+ */
+export function useGenerateWeeklyReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: AiApi.weeklyReview,
+    meta: { errorFallback: 'Could not write your review' },
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.insights }),
+  });
+}
+
 export function useGenerateDailyBrief() {
   const qc = useQueryClient();
   return useMutation({

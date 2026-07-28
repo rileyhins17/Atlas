@@ -5,7 +5,7 @@ import type { StatsDayDTO } from '@atlas/shared';
 import { ArrowDownRight, ArrowUpRight, Minus, Sparkles } from 'lucide-react';
 import { useStats } from '@/lib/hooks/stats';
 import { useHabits, useHabitHistory } from '@/lib/hooks/habits';
-import { useInsights } from '@/lib/hooks/ai';
+import { useGenerateWeeklyReview, useInsights } from '@/lib/hooks/ai';
 import {
   bestDay,
   delta,
@@ -18,6 +18,7 @@ import {
   type Delta,
 } from '@/lib/progress';
 import {
+  Button,
   EmptyState,
   ErrorState,
   Heatmap,
@@ -172,6 +173,7 @@ export function ProgressPanel() {
   const [days, setDays] = useState<number>(30);
   const stats = useStats(days);
   const insights = useInsights();
+  const writeReview = useGenerateWeeklyReview();
 
   const data = stats.data;
   const derived = useMemo(() => {
@@ -358,16 +360,38 @@ export function ProgressPanel() {
               </Card>
             )}
 
-            {/* The weekly review has been getting written all along and never shown. */}
-            {review && (
-              <Card title="Atlas's weekly review" hint={formatDayHeading(new Date(review.createdAt))} wide>
+            {/* Written on a schedule by the proactive engine — but until there
+                was a button, a new account (or one with proactive off) had no
+                way to ask for one and just saw nothing here. */}
+            <Card
+              title="Atlas's weekly review"
+              hint={review ? formatDayHeading(new Date(review.createdAt)) : undefined}
+              wide
+            >
+              {review ? (
                 <ul className="prog-review-list">
                   {reviewBullets(review.body).map((line, i) => (
                     <li key={i}>{renderBold(line)}</li>
                   ))}
                 </ul>
-              </Card>
-            )}
+              ) : (
+                <p className="prog-muted" style={{ margin: '0 0 10px', fontSize: 13 }}>
+                  Atlas writes one every week. Ask for one now to see where the last seven days
+                  actually went.
+                </p>
+              )}
+              <Button
+                variant="ghost"
+                disabled={writeReview.isPending}
+                onClick={() => writeReview.mutate()}
+              >
+                {writeReview.isPending
+                  ? 'Reading your week…'
+                  : review
+                    ? 'Write a fresh one'
+                    : 'Write my weekly review'}
+              </Button>
+            </Card>
           </div>
         </>
       )}

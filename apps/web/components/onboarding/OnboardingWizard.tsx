@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Check, Plus } from 'lucide-react';
 import { HabitsApi, NotesApi, SettingsApi } from '@/lib/api';
+import { errorMessage } from '@/lib/api';
+import { useConnectDeepSeek } from '@/lib/hooks/ai';
 import { useReplaceRoutine } from '@/lib/hooks/routine';
 import { useGoogleConnectStart, useGoogleStatus } from '@/lib/hooks/google';
 import { qk } from '@/lib/hooks/keys';
@@ -26,9 +28,11 @@ import {
  * still skippable.
  */
 
-type StepId = 'welcome' | 'sleep' | 'week' | 'about' | 'goals' | 'context' | 'habits';
+type StepId = 'welcome' | 'sleep' | 'week' | 'about' | 'goals' | 'context' | 'habits' | 'ai';
 
-const STEPS: StepId[] = ['welcome', 'sleep', 'week', 'about', 'goals', 'context', 'habits'];
+// 'ai' is last on purpose: it is the only optional step, and asking for an
+// API key before the user has seen anything work reads like a paywall.
+const STEPS: StepId[] = ['welcome', 'sleep', 'week', 'about', 'goals', 'context', 'habits', 'ai'];
 
 const BUILD_MESSAGES = [
   'Mapping your week…',
@@ -60,6 +64,9 @@ export function OnboardingWizard() {
   const [context, setContext] = useState('');
   const [habitPicks, setHabitPicks] = useState<Set<string>>(new Set());
   const [customHabit, setCustomHabit] = useState('');
+  const [aiKey, setAiKey] = useState('');
+  const [aiSaved, setAiSaved] = useState(false);
+  const connectAi = useConnectDeepSeek();
 
   const id: StepId = STEPS[step]!;
   const last = step === STEPS.length - 1;
@@ -369,6 +376,51 @@ export function OnboardingWizard() {
               onChange={(e) => setContext(e.target.value)}
             />
           </OnbForm>
+        )}
+
+        {id === 'ai' && (
+          <>
+            <h1 className="onb-q">Want Atlas to think, not just store?</h1>
+            <p className="onb-sub">
+              Briefs, planning your day and filing what you type all run on your own DeepSeek key —
+              a few cents a month, and Atlas never bills you for it. Skip this and everything else
+              still works; the AI parts just stay quiet until you add one in Settings.
+            </p>
+            <form
+              className="onb-name-row"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const key = aiKey.trim();
+                if (!key || connectAi.isPending) return;
+                connectAi.mutate(key, { onSuccess: () => setAiSaved(true) });
+              }}
+            >
+              <Input
+                type="password"
+                placeholder="sk-…"
+                aria-label="DeepSeek API key"
+                autoComplete="off"
+                value={aiKey}
+                onChange={(e) => setAiKey(e.target.value)}
+              />
+              <Button type="submit" variant="secondary" disabled={!aiKey.trim() || connectAi.isPending}>
+                {connectAi.isPending ? 'Checking…' : 'Save'}
+              </Button>
+            </form>
+            {aiSaved && (
+              <p className="onb-sub" style={{ color: 'var(--success-text)' }}>
+                Connected. Atlas will brief you from tomorrow morning.
+              </p>
+            )}
+            {connectAi.isError && (
+              <p className="onb-sub" style={{ color: 'var(--danger-role)' }}>
+                {errorMessage(connectAi.error, 'That key was not accepted.')}
+              </p>
+            )}
+            <p className="onb-sub" style={{ fontSize: 12 }}>
+              Get one at platform.deepseek.com. It is stored encrypted and never leaves your Atlas.
+            </p>
+          </>
         )}
 
         {id === 'habits' && (
