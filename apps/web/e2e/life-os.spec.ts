@@ -657,3 +657,25 @@ test('search finds your own data across domains', async ({ page }) => {
   await hit.first().click();
   await expect(page).toHaveURL(/\/tasks$/);
 });
+
+test('capture updates the page it was typed on, without a reload', async ({ page }) => {
+  await go(page, '/calendar');
+
+  // Capture can write to any domain, so every cached view is potentially
+  // stale afterwards. This path used to invalidate only ['timeline'] (the
+  // dock) or nothing at all (the command bar) — so telling Atlas "I should be
+  // studying 8-9:30" wrote the event, showed a success toast, and left the
+  // page insisting nothing was scheduled until you reloaded by hand.
+  const title = `Study ${Date.now()}`;
+  await page.getByRole('button', { name: /New/ }).click();
+  await page.getByPlaceholder('Dentist, standup, gym…').fill(title);
+  await page.getByRole('button', { name: 'Add event' }).click();
+  await expect(page.locator('.cal-event', { hasText: title })).toBeVisible();
+
+  // The dock writes through a different mutation than the page's own form, so
+  // pin that its result lands too.
+  const marker = `Dock${Date.now()}`;
+  await page.getByLabel('Capture anything').fill(`Remember that ${marker} is my exam code`);
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.toast')).toBeVisible({ timeout: 20_000 });
+});

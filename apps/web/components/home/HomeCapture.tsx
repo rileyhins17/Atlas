@@ -104,8 +104,14 @@ export function HomeCapture({
         );
         setText('');
         onClearContext?.();
-        // The filed items are new canvas/feed rows — refresh immediately.
-        void qc.invalidateQueries({ queryKey: ['timeline'] });
+        // Invalidate EVERYTHING, not just the timeline.
+        //
+        // Capture can write to any domain — one sentence can create an event,
+        // a task and a habit check-in. Scoping this to ['timeline'] meant
+        // telling Atlas "I should be studying 8-9:30" wrote the event, showed
+        // a success toast, and left Today still saying "Nothing scheduled"
+        // until a manual reload. The write is cheap; the wrong cache is not.
+        void qc.invalidateQueries();
       },
       onError: (err) => toast(errorMessage(err, 'Atlas could not file that'), 'error'),
     });

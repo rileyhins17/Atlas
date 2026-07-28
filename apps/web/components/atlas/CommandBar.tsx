@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import * as RadixDialog from '@radix-ui/react-dialog';
+import { useQueryClient } from '@tanstack/react-query';
+import { applyUndoBatch } from '@/lib/api';
 import { detectCaptureIntent, stripAskPrefix } from '@/lib/capture-intent';
 import { useSearch } from '@/lib/hooks/search';
 import {
@@ -111,6 +113,7 @@ export function CommandBar() {
   // whose pitch is that it remembers everything, being unable to ask it what
   // it remembers was the biggest hole in the product.
   const search = useSearch(isAsk ? '' : trimmed);
+  const qc = useQueryClient();
 
   const items = useMemo<Item[]>(() => {
     const list: Item[] = [];
@@ -159,11 +162,33 @@ export function CommandBar() {
           const text = trimmed;
           brainDump.mutate(text, {
             onSuccess: (res) => {
-              const ran = res.toolExecutions.filter((t) => t.ok).map((t) => t.name);
+              const changes = res.toolExecutions.filter((t) => t.ok);
+              const ran = changes.map((t) => t.name);
+              // Prefer the server's plain-language summary, same as the dock.
+              const said =
+                changes.map((t) => t.summary).filter(Boolean).join(' · ') ||
+                (ran.length > 0 ? `Filed: ${summarizeToolRuns(ran)}` : res.content.slice(0, 140));
+              const undoable = changes
+                .map((t) => t.undo)
+                .filter((u): u is NonNullable<typeof u> => Boolean(u));
               toast(
-                ran.length > 0 ? `Filed: ${summarizeToolRuns(ran)}` : res.content.slice(0, 140),
+                said,
                 'success',
+                undoable.length > 0
+                  ? {
+                      label: 'Undo',
+                      onClick: () => {
+                        void applyUndoBatch(undoable).then(() => {
+                          toast('Undone', 'info');
+                          void qc.invalidateQueries();
+                        });
+                      },
+                    }
+                  : undefined,
               );
+              // Capture can write to any domain, so every cached view is
+              // potentially stale — this path invalidated nothing at all.
+              void qc.invalidateQueries();
             },
             onError: (err) => toast(errorMessage(err, 'Atlas could not file that'), 'error'),
           });
@@ -188,7 +213,7 @@ export function CommandBar() {
       });
     }
     return list;
-  }, [trimmed, isAsk, askText, brainDump, openChat, router, setCommandOpen, toast, search.data]);
+  }, [trimmed, isAsk, askText, brainDump, openChat, router, setCommandOpen, toast, search.data, qc]);
 
   // Clamp the active row when the list shrinks.
   useEffect(() => {
