@@ -24,6 +24,13 @@ A personal **Life OS** that Riley intends to sell. One data layer for tasks, cal
 
 Cloudflare terminates TLS → tunnel → local Caddy (`infra/Caddyfile.tunnel`) → `/api/*` to the API on :4000, everything else to Next on :3000. **One origin**, which is what makes the session cookie work. `infra/start-atlas.cmd` lives in the Windows Startup folder and is idempotent — it kills existing processes first, because cloudflared has no port to collide on and re-running used to stack up tunnels.
 
+**`infra/atlas-health.ps1` runs every 2 minutes** as the "Atlas health" scheduled task and restarts
+whatever is missing. It exists because the public origin depends on FOUR local processes and the app
+gives no sign when one dies: restarting node leaves the tunnel dead, localhost keeps serving happily,
+and atlaslife.app 530s until a human happens to load it. Verified: killing cloudflared takes the site
+to 502, and the next sweep returns it to 200. If you are ever debugging "the site is down", check
+`infra/health.log` first.
+
 - Sign-up is **closed** via `INVITE_CODE` in `.env`. `GET /auth/config` exposes only the boolean, never the code.
 - **The PC must be awake and logged in.** Fine for one person testing; not somewhere anyone else's data should live. Moving to a VPS is `docker compose --profile full up -d` plus one DNS change — see `docs/ship-to-iphone.md`.
 - The database is **Neon** (cloud Postgres + pgvector), not the compose `db` service.

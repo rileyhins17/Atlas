@@ -89,7 +89,12 @@ export function NotesPanel() {
           />
           <div className="row" style={{ justifyContent: 'space-between' }}>
             <label className="row muted" style={{ gap: 6, fontSize: 13 }}>
-              <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} />
+              <input
+                type="checkbox"
+                aria-label="Pin this note so it stays in Atlas context"
+                checked={pinned}
+                onChange={(e) => setPinned(e.target.checked)}
+              />
               Pin (always in Atlas&apos;s context)
             </label>
             <Button type="submit" disabled={create.isPending}>

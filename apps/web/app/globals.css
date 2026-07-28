@@ -2404,6 +2404,10 @@ input[type='checkbox']:checked::after {
 .task-search-input {
   flex: 1; border: none; background: transparent; outline: none;
   font: inherit; font-size: 13.5px; color: var(--text-primary); min-width: 0;
+  /* The input itself was 19px tall — under the 24px AA minimum and a genuinely
+     awkward thumb target, even though its bordered wrapper looked big enough.
+     The hit area is the input, not the box around it. */
+  min-height: 44px;
 }
 .task-search-input::placeholder { color: var(--text-muted); }
 .task-search-input::-webkit-search-cancel-button { filter: grayscale(1) opacity(0.6); }
@@ -4204,4 +4208,24 @@ input[type='checkbox']:checked::after {
 /* The row wraps so the task panel can take a full line beneath it. */
 .goal-row {
   flex-wrap: wrap;
+}
+
+
+/* Native checkboxes render ~13px, well under the 24px AA target, and they are
+   the smallest thing anyone is asked to tap in Atlas. Sized here rather than
+   per-component so a new one cannot ship undersized. */
+input[type='checkbox'] {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  accent-color: var(--accent-strong);
+  cursor: pointer;
+}
+/* The label around it carries the rest of the target. */
+label:has(> input[type='checkbox']) {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
 }
