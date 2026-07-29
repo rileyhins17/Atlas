@@ -125,12 +125,21 @@ A's rows by any route tried.
 unclickable. The full scale is documented above `.dialog-overlay` in `globals.css`.
 
 ### What to build next
-`docs/atlas-next-ideas.md` is the prioritised roadmap and also lists what **not** to build. Tier 1 remaining: **energy-aware placement** and **one-tap "running 30 minutes late"**. (Duration learning and batched roll-forward have shipped.)
+**`docs/master-plan.md` is the commercial plan** — four phases, ordered so each makes the next worth
+doing, with an explicit "do not build" list. Read it before proposing features.
+`docs/atlas-next-ideas.md` is the older feature-level roadmap. Tier 1 remaining: **energy-aware placement** and **one-tap "running 30 minutes late"**. (Duration learning and batched roll-forward have shipped.)
 
 ---
 
 ## Working rules
 
+- **Audit by RUNNING it, not by grepping for names.** Three "missing" features reported in this
+  project turned out to exist — the weekly review renders on Progress, search is a full module wired
+  into ⌘K, and a "bug" in its results was a probe reading the wrong field. A wrong audit wastes more
+  time than a missing one.
+- **`pnpm typecheck` can report green from turbo cache.** Use `--force` before claiming green on
+  anything CI re-checks from scratch, and remember CI runs `tsc && tsc -p tsconfig.test.json` —
+  a bare `tsc --noEmit` does not cover `playwright.config.ts`.
 - **Verify live, not just green.** Every serious bug in this project was invisible to unit tests: wrong raw-SQL column names, timezone bucketing, a cache slot that stranded finished workouts on screen, a 404ing manifest, a client bundle pointing at localhost, a session cookie missing `Secure`. After building, drive it in a real browser with a throwaway Playwright script.
 - Throwaway scripts live **inside `apps/web/`** (pnpm strict linking) and import from `@playwright/test`, not `playwright`. Delete them afterwards.
 - **Kill stale node processes before `pnpm build`** — they hold the Prisma query-engine DLL (`EPERM … query_engine-windows.dll.node`).
