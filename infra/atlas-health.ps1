@@ -28,12 +28,12 @@ function Up($url) {
 # The API and web servers: check the port, not the process list — a hung node
 # process is worse than a dead one and only a real request tells them apart.
 if (-not (Up 'http://localhost:4000/health')) {
-  Note 'API down — restarting'
+  Note 'API down - restarting'
   Start-Process -FilePath 'cmd' -ArgumentList '/c','pnpm --filter @atlas/api start' -WorkingDirectory $atlas -WindowStyle Hidden
   Start-Sleep -Seconds 15
 }
 if (-not (Up 'http://localhost:3000/')) {
-  Note 'Web down — restarting'
+  Note 'Web down - restarting'
   Start-Process -FilePath 'cmd' -ArgumentList '/c','pnpm --filter @atlas/web start' -WorkingDirectory $atlas -WindowStyle Hidden
   Start-Sleep -Seconds 15
 }
@@ -41,15 +41,56 @@ if (-not (Up 'http://localhost:3000/')) {
 # Caddy and cloudflared have no health endpoint of their own; presence is the
 # only signal, and it is enough because neither hangs the way node can.
 if (-not (Get-Process caddy -ErrorAction SilentlyContinue)) {
-  Note 'Caddy missing — starting'
+  Note 'Caddy missing - starting'
   Start-Process -FilePath $caddy -ArgumentList 'run','--config',"$atlas\infra\Caddyfile.tunnel" -WindowStyle Hidden
   Start-Sleep -Seconds 4
 }
-if (-not (Get-Process cloudflared -ErrorAction SilentlyContinue)) {
-  Note 'Tunnel missing — starting'
+# Exactly one tunnel, not "at least one". Each instance opens four edge
+# connections, and two of them racing for the same hostname makes the site
+# flap — up for one request, 502 for the next. Starting-if-none never noticed
+# duplicates, so a watchdog start on top of a startup-script start left two
+# running for a day.
+$tunnels = @(Get-Process cloudflared -ErrorAction SilentlyContinue)
+if ($tunnels.Count -eq 0) {
+  Note 'Tunnel missing - starting'
   Start-Process -FilePath $cfd -ArgumentList 'tunnel','run','atlas' -WindowStyle Hidden
   Start-Sleep -Seconds 8
 }
+elseif ($tunnels.Count -gt 1) {
+  # Kill by explicit Id. Piping process objects into Stop-Process failed
+  # silently here (the file-wide SilentlyContinue swallowed whatever it
+  # objected to), so the duplicate was logged every sweep and never removed —
+  # a watchdog that reports a fault it is not fixing is worse than none.
+  Note "$($tunnels.Count) tunnels running - killing all but the newest"
+  $sorted = @($tunnels | Sort-Object StartTime)
+  foreach ($p in $sorted[0..($sorted.Count - 2)]) {
+    Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+    Note "  stopped tunnel $($p.Id)"
+  }
+}
+
+# Same for Caddy: two of them cannot both hold :80/:443, so the loser dies
+# silently and leaves a process that proxies nothing.
+$proxies = @(Get-Process caddy -ErrorAction SilentlyContinue)
+if ($proxies.Count -gt 1) {
+  Note "$($proxies.Count) Caddy processes - killing all but the newest"
+  $sortedProxies = @($proxies | Sort-Object StartTime)
+  foreach ($p in $sortedProxies[0..($sortedProxies.Count - 2)]) {
+    Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+  }
+}
 
 # The only check that matters: can the public actually reach it?
-if (-not (Up 'https://atlaslife.app/today')) { Note 'STILL DOWN from the outside after repair' }
+#
+# Give the edge time to settle first. Killing a duplicate tunnel drops its
+# four connections, and Cloudflare needs a moment to route to the survivor —
+# checking immediately reported STILL DOWN on a repair that had just worked,
+# which would have sent the next person chasing a fault that no longer existed.
+Start-Sleep -Seconds 10
+if (-not (Up 'https://atlaslife.app/today')) {
+  Note 'STILL DOWN from the outside after repair'
+} else {
+  # Only worth a line when something was actually repaired this sweep.
+  if ((Get-Item $log -ErrorAction SilentlyContinue) -and
+      ((Get-Content $log -Tail 1) -notmatch 'healthy')) { Note 'healthy' }
+}
