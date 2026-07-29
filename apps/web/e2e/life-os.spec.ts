@@ -581,8 +581,20 @@ test('connectors are offered on their own pages, not only in Settings', async ({
   else await expect(googleButton).toHaveCount(0);
 
   await go(page, '/finance');
-  await expect(page.getByRole('button', { name: 'Connect a bank' })).toBeVisible();
-  // The empty state should point at the button above it, not somewhere else.
+  // Same story as Google: no Plaid credentials on the server means the card
+  // says so instead of offering a button that cannot work. CI has none.
+  const plaidConfigured = await page.evaluate(async () => {
+    const base = window.location.hostname === 'localhost' ? 'http://localhost:4000' : '/api';
+    const res = await fetch(`${base}/connectors/plaid/status`, { credentials: 'include' });
+    return res.ok ? ((await res.json()) as { configured?: boolean }).configured === true : false;
+  });
+  await expect(
+    plaidConfigured
+      ? page.getByRole('button', { name: 'Connect a bank' })
+      : page.getByText(/no Plaid credentials configured/i),
+  ).toBeVisible();
+  // Either way the empty state must point at this page, not send you to
+  // Settings — that copy is what the whole change was about.
   await expect(page.getByText(/Connect a bank above/)).toBeVisible();
 
   // Settings still offers both — one component, rendered twice. Settings shows
