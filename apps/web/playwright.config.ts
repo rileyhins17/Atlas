@@ -47,7 +47,9 @@ export default defineConfig({
     // in on every route change and query resolution, and Playwright's
     // actionability check refuses to click a moving target — which cost two
     // specs that passed alone and flaked in the suite.
-    reducedMotion: 'reduce',
+    // Under contextOptions, not directly on `use` — it is a browser-context
+    // option, and putting it at the top level typechecks nowhere.
+    contextOptions: { reducedMotion: 'reduce' },
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: process.env.E2E_NO_SERVER

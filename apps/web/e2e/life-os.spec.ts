@@ -568,17 +568,33 @@ test('connectors are offered on their own pages, not only in Settings', async ({
   // Connecting your calendar is something you think of while looking at your
   // calendar — hiding it in Settings made it undiscoverable.
   await go(page, '/calendar');
-  await expect(page.getByRole('button', { name: 'Connect Google Calendar' })).toBeVisible();
+  // Google is only offered when the SERVER has an OAuth client — CI has none,
+  // and the card deliberately renders nothing rather than a button that cannot
+  // work. Assert whichever of those two contracts actually applies here.
+  const googleConfigured = await page.evaluate(async () => {
+    const base = window.location.hostname === 'localhost' ? 'http://localhost:4000' : '/api';
+    const res = await fetch(`${base}/connectors/google/status`, { credentials: 'include' });
+    return res.ok ? ((await res.json()) as { configured?: boolean }).configured === true : false;
+  });
+  const googleButton = page.getByRole('button', { name: 'Connect Google Calendar' });
+  if (googleConfigured) await expect(googleButton).toBeVisible();
+  else await expect(googleButton).toHaveCount(0);
 
   await go(page, '/finance');
   await expect(page.getByRole('button', { name: 'Connect a bank' })).toBeVisible();
   // The empty state should point at the button above it, not somewhere else.
   await expect(page.getByText(/Connect a bank above/)).toBeVisible();
 
-  // Settings still offers both — one component, rendered twice.
+  // Settings still offers both — one component, rendered twice. Settings shows
+  // the card unconditionally, so an unconfigured server explains itself there
+  // rather than silently omitting the section.
   await go(page, '/settings');
   await page.getByRole('button', { name: /Google Calendar/ }).first().click();
-  await expect(page.getByRole('button', { name: 'Connect Google Calendar' })).toBeVisible();
+  await expect(
+    googleConfigured
+      ? page.getByRole('button', { name: 'Connect Google Calendar' })
+      : page.getByText(/no Google OAuth client configured/i),
+  ).toBeVisible();
 });
 
 test('a workout day is built by tapping exercises', async ({ page }) => {
