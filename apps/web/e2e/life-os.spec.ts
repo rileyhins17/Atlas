@@ -716,3 +716,76 @@ test('the weekly review can be asked for, not only waited for', async ({ page })
   // with proactive off) saw an empty card with nothing to press.
   await expect(page.getByRole('button', { name: /Write my weekly review/ })).toBeVisible();
 });
+
+test('an existing task can be attached to a goal, and completing it fills the bar', async ({
+  page,
+}) => {
+  // A goal could only ever gain tasks created from inside the goal, so the
+  // ordinary case — the task already exists, and only later do you realise
+  // what it is for — had no path at all. This walks that path end to end.
+  const marker = `Atlas${Date.now()}`;
+  const goalTitle = `Ship ${marker}`;
+  const taskTitle = `Write ${marker} release notes`;
+
+  await go(page, '/goals');
+  await page.getByLabel('New goal').fill(goalTitle);
+  await page.getByRole('button', { name: /Add/ }).click();
+  await expect(page.locator('.goal-open', { hasText: goalTitle })).toBeVisible();
+
+  await go(page, '/tasks');
+  await page.getByLabel('New task title').fill(taskTitle);
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+
+  const row = page.locator('.task', { hasText: taskTitle });
+  await expect(row).toBeVisible();
+
+  // Both the link and the completion are optimistic, so the row is already
+  // showing the new state while the write is still in flight — and navigating
+  // aborts it. Wait for the server to actually answer before leaving the page.
+  const wrote = (method: string) =>
+    page.waitForResponse((r) => /\/tasks\//.test(r.url()) && r.request().method() === method);
+
+  // The link control is quiet until the row is hovered, so that a list of
+  // unlinked tasks does not read as a column of unanswered prompts.
+  await row.hover();
+  await row.getByRole('button', { name: 'Link this task to a goal' }).click();
+  const linked = wrote('PATCH');
+  await page.locator('.task-goal-menu button', { hasText: goalTitle }).click();
+  await linked;
+
+  // Linked reads as a chip on the row itself — the point of the link is to see
+  // it while you work, not only from the goals page.
+  await expect(row.locator('.task-goal-name')).toHaveText(goalTitle);
+
+  await go(page, '/goals');
+  const goalRow = page.locator('.goal-row', { hasText: goalTitle });
+  await expect(goalRow.locator('.goal-meta')).toContainText('0 of 1 done');
+
+  // Completing is the one action that moves the bar, and the goals query was
+  // not invalidated on complete — so the bar sat still at exactly the moment
+  // the movement was earned.
+  await go(page, '/tasks');
+  const completed = wrote('POST');
+  await row.locator('.check').click();
+  await completed;
+  await go(page, '/goals');
+  await expect(goalRow.locator('.goal-meta')).toContainText('1 of 1 done');
+
+  // Unlinking has to walk the count back down, which is the same invalidation
+  // in the other direction. Completed work is collapsed behind its own toggle,
+  // and the chip is deliberately still there on a finished row — seeing the
+  // goal a completed task fed is the whole payoff for having linked it.
+  await go(page, '/tasks');
+  await page.locator('.done-toggle').click();
+  await expect(row.locator('.task-goal-name')).toHaveText(goalTitle);
+
+  await row.hover();
+  await row.getByRole('button', { name: `Goal: ${goalTitle} — change` }).click();
+  const unlinked = wrote('PATCH');
+  await page.getByRole('button', { name: 'Remove from goal' }).click();
+  await unlinked;
+  await expect(row.locator('.task-goal-name')).toHaveCount(0);
+
+  await go(page, '/goals');
+  await expect(goalRow.locator('.goal-meta')).toContainText('nothing linked yet');
+});

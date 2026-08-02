@@ -10,6 +10,7 @@ import {
   useUpdateTask,
 } from '@/lib/hooks/tasks';
 import { IconButton, Badge } from '@/components/ui';
+import { TaskGoalChip } from '@/components/TaskGoalChip';
 import { formatDue } from '@/lib/dates';
 
 const PRIORITY_ORDER: TaskDTO['priority'][] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
@@ -108,6 +109,10 @@ export function TaskRow({ task, compact = false }: { task: TaskDTO; compact?: bo
             {tag}
           </Badge>
         ))}
+
+      {/* What this task is FOR. Shown on a done row too — seeing the goal a
+          finished task fed is the payoff for having linked it. */}
+      <TaskGoalChip taskId={task.id} goalId={task.goalId} compact={compact} />
 
       {repeat && !done && (
         <span className="repeat-chip-label" title={`Repeats: ${repeat}`}>

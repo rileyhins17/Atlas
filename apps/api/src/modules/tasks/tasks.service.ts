@@ -45,7 +45,30 @@ export class TasksService {
     return task;
   }
 
+  /**
+   * A task may only point at a goal its own owner holds.
+   *
+   * `goalId` arrives from the client on both create and update, and it is the
+   * one foreign key on Task that a user supplies directly. Without this check a
+   * task could be attached to a stranger's goal, which is not a data leak —
+   * goals are only ever read back scoped by user — but it would silently pad
+   * that stranger's linked-task count and permanently skew their progress bar
+   * with work they never planned.
+   *
+   * `undefined` means "leave it alone" and `null` means "unlink", so only a
+   * string is worth a lookup.
+   */
+  private async assertGoalOwned(userId: string, goalId: string | null | undefined): Promise<void> {
+    if (typeof goalId !== 'string') return;
+    const goal = await this.prisma.client.goal.findFirst({
+      where: { id: goalId, userId },
+      select: { id: true },
+    });
+    if (!goal) throw new NotFoundException('Goal not found');
+  }
+
   async create(userId: string, input: CreateTaskInput): Promise<TaskDTO> {
+    await this.assertGoalOwned(userId, input.goalId);
     const task = await this.prisma.client.task.create({
       data: {
         userId,
@@ -163,6 +186,7 @@ export class TasksService {
 
   async update(userId: string, id: string, input: UpdateTaskInput): Promise<TaskDTO> {
     await this.owned(userId, id);
+    await this.assertGoalOwned(userId, input.goalId);
     const task = await this.prisma.client.task.update({
       where: { id },
       data: {

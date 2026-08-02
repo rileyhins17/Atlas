@@ -84,11 +84,17 @@ export function useCompleteTask() {
     onError: (_err, _id, ctx) => {
       if (ctx?.previous) qc.setQueryData(qk.tasks, ctx.previous);
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: qk.tasks }),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: qk.tasks });
+      // Completing is the only thing that moves a goal's progress bar, so this
+      // is the invalidation that matters most — without it the bar sits still
+      // at the exact moment the user earned the movement.
+      void qc.invalidateQueries({ queryKey: qk.goals });
+    },
   });
 }
 
-/** Inline edits (title, priority, due). Optimistically patches the row. */
+/** Inline edits (title, priority, due, and the goal link). Optimistic. */
 export function useUpdateTask() {
   const qc = useQueryClient();
   return useMutation({
@@ -106,7 +112,12 @@ export function useUpdateTask() {
     onError: (_err, _vars, ctx) => {
       if (ctx?.previous) qc.setQueryData(qk.tasks, ctx.previous);
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: qk.tasks }),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: qk.tasks });
+      // A patch can carry `goalId`, which links or unlinks — both change the
+      // counts the goals list computes server-side.
+      void qc.invalidateQueries({ queryKey: qk.goals });
+    },
   });
 }
 
