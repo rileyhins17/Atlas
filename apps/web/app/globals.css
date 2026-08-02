@@ -2696,7 +2696,11 @@ input[type='checkbox']:checked::after {
 }
 
 .fit-entry { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-top: 12px; }
-.fit-field { display: flex; flex-direction: column; gap: 3px; width: 84px; }
+/* 84px could not hold what it contained: two 44px steppers and a field is
+   152px, so the buttons were squeezed under the AA target size they are
+   commented as meeting and the input collapsed to 32px — about two digits,
+   for a box that takes three. */
+.fit-field { display: flex; flex-direction: column; gap: 3px; flex: 1 1 152px; min-width: 152px; max-width: 200px; }
 .fit-field > span { font-size: 11px; font-weight: 600; color: var(--text-muted); }
 .fit-warmup {
   border: 1px solid var(--border-subtle); background: transparent; color: var(--text-muted);
@@ -3963,8 +3967,11 @@ input[type='checkbox']:checked::after {
   background: var(--surface-inset);
 }
 .fit-stepper .input {
-  width: 100%;
-  min-width: 0;
+  /* Grow into what the buttons leave, but never shrink below three digits —
+     `width: 100%` with `min-width: 0` let flex collapse it to nothing. */
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 56px;
   text-align: center;
 }
 

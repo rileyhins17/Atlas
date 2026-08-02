@@ -491,8 +491,31 @@ test('fitness: set up a split, then train it', async ({ page }) => {
   const bench = page.locator('.fit-block', { hasText: 'Bench Press (Barbell)' }).first();
   await expect(bench.locator('.fit-field').first()).toContainText('lb');
 
-  await bench.getByLabel(/^Weight in lb/).fill('185');
-  await bench.getByLabel(/^Reps for/).fill('5');
+  // Typed key by key, NOT with fill(). `fill()` sets the value in one shot and
+  // fires a single input event, so it cannot see a field that rejects real
+  // keystrokes — which is exactly the failure a person hits first.
+  const weightField = bench.getByLabel(/^Weight in lb/);
+  const repsField = bench.getByLabel(/^Reps for/);
+  // Tapping the field must not change its value. It used to: the fields were
+  // wrapped in a <label>, which forwards a click anywhere inside it to its
+  // first labelable descendant — the "−" button — so a tap wrote "0" (or "1"
+  // for reps) and every typed digit landed after it.
+  await weightField.click();
+  await expect(weightField).toHaveValue('');
+  await weightField.pressSequentially('185');
+  await expect(weightField).toHaveValue('185');
+
+  await repsField.click();
+  await expect(repsField).toHaveValue('');
+  await repsField.pressSequentially('5');
+  await expect(repsField).toHaveValue('5');
+
+  // The steppers still work, and are still the one-tap path they exist to be.
+  await bench.getByRole('button', { name: /More weight/ }).click();
+  await expect(weightField).toHaveValue('190');
+  await bench.getByRole('button', { name: /Less weight/ }).click();
+  await expect(weightField).toHaveValue('185');
+
   await bench.getByRole('button', { name: 'Log set' }).click();
   await expect(bench.locator('.fit-set-body')).toContainText('185 lb × 5');
 });

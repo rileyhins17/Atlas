@@ -318,9 +318,15 @@ function ExerciseBlock({
         {/* Steppers, not just a keypad. Logging mid-set with one thumb and
             chalky hands is the real context: a plate-sized bump is one tap,
             and the field is still there to type into when the jump is odd. */}
+        {/* Deliberately a div, NOT a label. A <label> forwards a click anywhere
+            inside it to its first labelable descendant — which here was the
+            "−" button, not the input. So tapping the weight field to type in it
+            fired a decrement instead: the box filled with "0" and your digits
+            landed after it, giving 0185 for 185. The inputs carry their own
+            aria-label, so nothing is lost by dropping the wrapper. */}
         {needsWeight && (
-          <label className="fit-field">
-            <span>{unit}</span>
+          <div className="fit-field">
+            <span aria-hidden>{unit}</span>
             <div className="fit-stepper">
               <button
                 type="button"
@@ -346,10 +352,10 @@ function ExerciseBlock({
                 +
               </button>
             </div>
-          </label>
+          </div>
         )}
-        <label className="fit-field">
-          <span>reps</span>
+        <div className="fit-field">
+          <span aria-hidden>reps</span>
           <div className="fit-stepper">
             <button
               type="button"
@@ -375,7 +381,7 @@ function ExerciseBlock({
               +
             </button>
           </div>
-        </label>
+        </div>
         <button
           type="button"
           className={`fit-warmup ${warmup ? 'on' : ''}`}
