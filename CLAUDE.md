@@ -70,7 +70,9 @@ docs/                architecture, data-model, roadmap, guides, ADRs, GOTCHAS.
   (`User.weightUnit`, default `lb`) applied at the edge by `gramsToUnit`/`unitToGrams`. Never store
   a float: summing volume over a session accumulates error, and switching units must never rewrite
   a logged set.
-- **Reach for the AI last.** Fitness split setup matches free text against the catalog locally
+- **Reach for the AI last.** Capture falls back to a local parser when there is no API key
+  (`packages/shared/src/dto/local-capture.ts`), so a brand-new account's first capture lands
+  instead of erroring. Fitness split setup matches free text against the catalog locally
   (`packages/shared/src/dto/exercise-match.ts`) and only calls the model when that yields nothing.
   A feature that needs an API key to work at all is broken for every new account.
 
@@ -93,7 +95,7 @@ docs/                architecture, data-model, roadmap, guides, ADRs, GOTCHAS.
 
 ## Current state
 
-Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **529 unit tests** · **e2e 35/35** (Playwright + axe) · axe clean across phone-light, phone-dark and desktop-light.
+Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **546 unit tests** · **e2e 36/36** (Playwright + axe) · axe clean across phone-light, phone-dark and desktop-light.
 
 **"axe clean" now means zero violations, not zero serious ones.** Both scans used to filter to
 `serious`/`critical`, which silently discarded `meta-viewport` — a real WCAG 1.4.4 failure that had
