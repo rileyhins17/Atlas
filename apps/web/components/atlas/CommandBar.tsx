@@ -87,7 +87,7 @@ export function summarizeToolRuns(names: string[]): string {
  * section jumps.
  */
 export function CommandBar() {
-  const { commandOpen, setCommandOpen, openChat } = useAtlasUi();
+  const { commandOpen, setCommandOpen, openChat, recordChanges } = useAtlasUi();
   const router = useRouter();
   const brainDump = useBrainDump();
   const { toast } = useToast();
@@ -171,6 +171,12 @@ export function CommandBar() {
               const undoable = changes
                 .map((t) => t.undo)
                 .filter((u): u is NonNullable<typeof u> => Boolean(u));
+              recordChanges(
+                changes.map((t) => ({
+                  summary: t.summary || t.name,
+                  undo: t.undo ? [t.undo] : [],
+                })),
+              );
               toast(
                 said,
                 'success',
@@ -213,7 +219,7 @@ export function CommandBar() {
       });
     }
     return list;
-  }, [trimmed, isAsk, askText, brainDump, openChat, router, setCommandOpen, toast, search.data, qc]);
+  }, [trimmed, isAsk, askText, brainDump, openChat, router, setCommandOpen, toast, search.data, qc, recordChanges]);
 
   // Clamp the active row when the list shrinks.
   useEffect(() => {

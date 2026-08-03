@@ -46,7 +46,7 @@ export function HomeCapture({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const brainDump = useBrainDump();
   const { toast } = useToast();
-  const { openChat } = useAtlasUi();
+  const { openChat, recordChanges } = useAtlasUi();
   const qc = useQueryClient();
 
   // A gap tap bumps focusToken → pull the cursor into the box.
@@ -87,6 +87,14 @@ export function HomeCapture({
         // steps are server-built inverses of the rows just created, and until
         // now they were generated on every AI write and thrown away.
         const undoable = changes.map((t) => t.undo).filter((u): u is NonNullable<typeof u> => Boolean(u));
+        // The toast is the immediate offer; the strip is the record. A toast
+        // you miss is a change you never knew about.
+        recordChanges(
+          changes.map((t) => ({
+            summary: t.summary || t.name,
+            undo: t.undo ? [t.undo] : [],
+          })),
+        );
         toast(
           said,
           'success',

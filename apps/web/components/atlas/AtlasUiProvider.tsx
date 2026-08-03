@@ -9,10 +9,25 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { ChatMessageDTO } from '@atlas/shared';
+import type { AiUndoStepDTO, ChatMessageDTO } from '@atlas/shared';
 import type { CaptureContext } from '@/components/home/HomeCapture';
+import { applyUndoBatch } from '@/lib/api';
 
 const SIDEBAR_KEY = 'atlas.sidebar.collapsed';
+
+/** One thing Atlas changed, and how to put it back. */
+export interface AtlasChange {
+  id: string;
+  /** The server's plain-language sentence, e.g. "Added task: book flights". */
+  summary: string;
+  at: number;
+  /** Server-built inverses. Empty means the write cannot be reversed. */
+  undo: AiUndoStepDTO[];
+  undone: boolean;
+}
+
+/** Enough to be a record, few enough to stay readable at a glance. */
+const MAX_CHANGES = 12;
 
 export interface AtlasUi {
   commandOpen: boolean;
@@ -40,6 +55,17 @@ export interface AtlasUi {
   clearCaptureContext: () => void;
   /** Bumped by planWindow so the dock knows to focus its input. */
   captureFocusToken: number;
+  /**
+   * What Atlas has changed this session, newest first.
+   *
+   * Every AI write already returned a server-built inverse, but it was only
+   * ever offered inside a toast — so the record of what an AI did to your data
+   * lasted about four seconds. Giving delete permission to a model is only
+   * reasonable if you can see what it used it for.
+   */
+  changes: AtlasChange[];
+  recordChanges: (entries: { summary: string; undo: AiUndoStepDTO[] }[]) => void;
+  undoChange: (id: string) => Promise<void>;
 }
 
 const AtlasUiContext = createContext<AtlasUi | null>(null);
@@ -63,6 +89,7 @@ export function AtlasUiProvider({ children }: { children: ReactNode }) {
   const [pendingAsk, setPendingAsk] = useState<string | null>(null);
   const [captureContext, setCaptureContext] = useState<CaptureContext | null>(null);
   const [captureFocusToken, setCaptureFocusToken] = useState(0);
+  const [changes, setChanges] = useState<AtlasChange[]>([]);
 
   // Restore the sidebar preference after mount (SSR-safe).
   useEffect(() => {
@@ -102,6 +129,40 @@ export function AtlasUiProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const clearCaptureContext = useCallback(() => setCaptureContext(null), []);
+
+  const recordChanges = useCallback(
+    (entries: { summary: string; undo: AiUndoStepDTO[] }[]) => {
+      if (entries.length === 0) return;
+      const now = Date.now();
+      setChanges((prev) =>
+        [
+          ...entries.map((e, i) => ({
+            id: `${now}-${i}`,
+            summary: e.summary,
+            at: now,
+            undo: e.undo,
+            undone: false,
+          })),
+          ...prev,
+        ].slice(0, MAX_CHANGES),
+      );
+    },
+    [],
+  );
+
+  const undoChange = useCallback(async (id: string) => {
+    let steps: AiUndoStepDTO[] = [];
+    setChanges((prev) => {
+      const hit = prev.find((c) => c.id === id);
+      if (hit && !hit.undone) steps = hit.undo;
+      return prev;
+    });
+    if (steps.length === 0) return;
+    await applyUndoBatch(steps);
+    // Marked rather than removed: a row that vanishes the moment you undo it
+    // leaves you unsure whether anything happened.
+    setChanges((prev) => prev.map((c) => (c.id === id ? { ...c, undone: true } : c)));
+  }, []);
 
   const setMessages = useCallback(
     (update: (m: ChatMessageDTO[]) => ChatMessageDTO[]) => setMessagesState(update),
@@ -145,6 +206,9 @@ export function AtlasUiProvider({ children }: { children: ReactNode }) {
       planWindow,
       clearCaptureContext,
       captureFocusToken,
+      changes,
+      recordChanges,
+      undoChange,
     }),
     [
       commandOpen,
@@ -160,6 +224,9 @@ export function AtlasUiProvider({ children }: { children: ReactNode }) {
       planWindow,
       clearCaptureContext,
       captureFocusToken,
+      changes,
+      recordChanges,
+      undoChange,
     ],
   );
 

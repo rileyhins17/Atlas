@@ -8,6 +8,7 @@ import { useRoutine } from '@/lib/hooks/routine';
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
 import { BriefBlock } from '@/components/stream/TodayHeader';
 import { ConnectionCard } from '@/components/stream/ConnectionCard';
+import { ChangeStrip } from '@/components/stream/ChangeStrip';
 import { useAtlasUi } from '@/components/atlas/AtlasUiProvider';
 import { formatClock, localDayKey, startOfDay } from '@/lib/dates';
 import type { CanvasSection } from '@/lib/canvas';
@@ -94,6 +95,9 @@ export function TodayView() {
                     describes a window ending now rather than the day you paged
                     to. It renders nothing when the data cannot support it. */}
                 <ConnectionCard />
+                {/* Renders nothing until Atlas has actually changed something
+                    this session. */}
+                <ChangeStrip />
               </>
             ) : undefined
           }

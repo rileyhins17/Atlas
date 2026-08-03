@@ -13,7 +13,8 @@ import { useAtlasUi } from './AtlasUiProvider';
  * conversation; the command bar's "Ask Atlas" lands here as a pendingAsk.
  */
 export function ChatRail() {
-  const { chatOpen, setChatOpen, messages, setMessages, consumePendingAsk } = useAtlasUi();
+  const { chatOpen, setChatOpen, messages, setMessages, consumePendingAsk, recordChanges } =
+    useAtlasUi();
   const chat = useChat();
   const [draft, setDraft] = useState('');
   const [lastTools, setLastTools] = useState<string[]>([]);
@@ -29,7 +30,14 @@ export function ChatRail() {
         {
           onSuccess: (res) => {
             setMessages((m) => [...m, { role: 'assistant', content: res.content }]);
-            setLastTools(res.toolExecutions.filter((t) => t.ok).map((t) => t.name));
+            const ok = res.toolExecutions.filter((t) => t.ok);
+            setLastTools(ok.map((t) => t.name));
+            // The rail could create and DELETE across every domain and offered
+            // no way back — it recorded the tool names and dropped the
+            // server-built inverse on the floor.
+            recordChanges(
+              ok.map((t) => ({ summary: t.summary || t.name, undo: t.undo ? [t.undo] : [] })),
+            );
           },
           onError: (err) => {
             setMessages((m) => [
@@ -40,7 +48,7 @@ export function ChatRail() {
         },
       );
     },
-    [chat, messages, setMessages],
+    [chat, messages, setMessages, recordChanges],
   );
 
   // A question queued from the command bar sends itself when the rail opens.

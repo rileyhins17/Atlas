@@ -895,3 +895,36 @@ test('every route renders clean at phone width, with no console errors', async (
 
   expect(problems, problems.join('\n')).toEqual([]);
 });
+
+test('Atlas keeps a visible record of what it changed, and it is reversible', async ({ page }) => {
+  await go(page, '/today');
+
+  // Capture writes through the AI, which returns a server-built inverse for
+  // every write. Until now that inverse was offered ONLY inside a toast, so
+  // the record of what an AI did to your data lasted about four seconds.
+  const marker = `Ledger${Date.now()}`;
+  await page.getByLabel('Capture anything').fill(`Remind me to ${marker} tomorrow`);
+  await page.keyboard.press('Enter');
+  // More than one toast can be on screen; the newest is the one that answers.
+  await expect(page.locator('.toast').first()).toBeVisible({ timeout: 25_000 });
+
+  const strip = page.locator('.chg-strip');
+  // With no API key configured the write cannot happen at all, and the strip
+  // correctly stays empty — assert the honest branch rather than forcing one.
+  if ((await strip.count()) === 0) {
+    await expect(page.locator('.toast').first()).toContainText(/could not|key|unavailable|error/i);
+    return;
+  }
+
+  await expect(strip).toContainText('What Atlas changed');
+  const first = strip.locator('.chg-item').first();
+  await expect(first).toBeVisible();
+
+  const undo = first.locator('.chg-undo');
+  if (await undo.count()) {
+    await undo.click();
+    // Marked, not removed: a row that vanishes leaves you unsure it worked.
+    await expect(first).toHaveClass(/undone/);
+    await expect(first.locator('.chg-state')).toHaveText('undone');
+  }
+});
