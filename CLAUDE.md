@@ -93,7 +93,7 @@ docs/                architecture, data-model, roadmap, guides, ADRs, GOTCHAS.
 
 ## Current state
 
-Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **518 unit tests** · **e2e 34/34** (Playwright + axe) · axe clean across phone-light, phone-dark and desktop-light.
+Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **529 unit tests** · **e2e 35/35** (Playwright + axe) · axe clean across phone-light, phone-dark and desktop-light.
 
 **"axe clean" now means zero violations, not zero serious ones.** Both scans used to filter to
 `serious`/`critical`, which silently discarded `meta-viewport` — a real WCAG 1.4.4 failure that had
@@ -108,7 +108,11 @@ The short version of what is STILL open:
 - **Rotate the Plaid production secret** — it was pasted into a chat transcript. Needs Riley's Plaid
   login; nobody else can do it.
 - **`SENTRY_DSN` is unset**, so the error reporting that is now wired in reports nothing.
-- **Unverified live:** Google Calendar token refresh and delete propagation; Plaid production.
+- **Google's refresh token dies every 7 days while the OAuth consent screen is in "Testing".**
+  Verified live: the grant made 19 July stopped working, and Google answers `invalid_grant` —
+  "Token has been expired or revoked". Reconnecting works; publishing the consent screen is what
+  stops it recurring. The API now returns 424 with a reconnect message instead of a 500.
+- **Unverified live:** Google Calendar delete propagation; Plaid production.
 - **Offline renders a blank page**, on a PWA meant for an iPhone home screen.
 - The Plaid webhook does not verify Plaid's signature (harmless while it is a no-op).
 
