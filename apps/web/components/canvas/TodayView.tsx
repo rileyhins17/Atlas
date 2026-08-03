@@ -7,6 +7,7 @@ import { useTasks } from '@/lib/hooks/tasks';
 import { useRoutine } from '@/lib/hooks/routine';
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
 import { BriefBlock } from '@/components/stream/TodayHeader';
+import { ConnectionCard } from '@/components/stream/ConnectionCard';
 import { useAtlasUi } from '@/components/atlas/AtlasUiProvider';
 import { formatClock, localDayKey, startOfDay } from '@/lib/dates';
 import type { CanvasSection } from '@/lib/canvas';
@@ -84,7 +85,18 @@ export function TodayView() {
         <DayOverviewView
           dayStart={dayStart}
           onPlanGap={planGap}
-          contextSlot={isToday ? <BriefBlock /> : undefined}
+          contextSlot={
+            isToday ? (
+              <>
+                <BriefBlock />
+                {/* The cross-domain observation sits with the brief because it
+                    is context, not an action — and only on today, since it
+                    describes a window ending now rather than the day you paged
+                    to. It renders nothing when the data cannot support it. */}
+                <ConnectionCard />
+              </>
+            ) : undefined
+          }
         />
       </div>
     </div>

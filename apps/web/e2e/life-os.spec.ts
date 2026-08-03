@@ -812,3 +812,27 @@ test('an existing task can be attached to a goal, and completing it fills the ba
   await go(page, '/goals');
   await expect(goalRow.locator('.goal-meta')).toContainText('nothing linked yet');
 });
+
+test('Today connects two domains, and stays quiet when it cannot', async ({ page }) => {
+  // Own baseline: with nothing recorded at all, Today is the onboarding wizard
+  // and there is no day view to put a card on. Depending on an earlier spec to
+  // have left data behind is the failure that passes in a full run and fails
+  // alone — green, and hiding.
+  await go(page, '/tasks');
+  await page.getByLabel('New task title').fill(`Connection baseline ${Date.now()}`);
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+
+  await go(page, '/today');
+
+  // The differentiator: everything else on Today reports one domain, this
+  // compares two. On a fresh account there is nothing honest to compare, and
+  // the card says exactly what is missing rather than inventing a pattern —
+  // that restraint is the property worth pinning, because a correlation drawn
+  // from four days is indistinguishable from a real one to the person reading.
+  const card = page.locator('.conn-card');
+  await expect(card).toBeVisible();
+  await expect(card).toContainText(/two weeks of history|journal on a few more days/);
+
+  // Whatever it says, it must never be a headline claim on this much data.
+  await expect(card.locator('.conn-headline')).toHaveCount(0);
+});

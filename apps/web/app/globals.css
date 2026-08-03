@@ -1950,6 +1950,66 @@ input[type='checkbox']:checked::after {
   color: var(--brand);
 }
 
+/* ── The connection card ─────────────────────────────────────────────────
+   One observation that joins two domains. Styled as a quiet aside rather
+   than an alert: it is something to notice, not something to answer, and
+   an insight that demands attention every day stops being read. */
+.conn-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 11px 13px;
+  border: 1px solid var(--border-subtle);
+  border-left: 2px solid var(--brand);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+.conn-icons {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  padding-top: 2px;
+  color: var(--brand);
+}
+.conn-join {
+  color: var(--text-muted);
+}
+.conn-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.conn-headline {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.4;
+  color: var(--text-primary);
+  text-wrap: pretty;
+}
+.conn-detail {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+.conn-window {
+  opacity: 0.75;
+}
+.conn-card.thin {
+  align-items: center;
+  border-left-color: var(--border-subtle);
+}
+.conn-missing {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
 /* Compact brief: a single line with an inline spark, expandable in place. */
 .hero-brief.compact { gap: 6px; }
 .hero-brief.compact .hero-brief-text { font-size: 13.5px; line-height: 1.5; margin: 0; }
