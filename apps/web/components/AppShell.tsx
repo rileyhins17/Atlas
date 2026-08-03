@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { LogOut, MessageCircle, PanelLeft, Search, Settings as SettingsIcon } from 'lucide-react';
+import { LayoutGrid, LogOut, MessageCircle, PanelLeft, Search, Settings as SettingsIcon } from 'lucide-react';
 import { useMe, useLogout } from '@/lib/hooks/auth';
 import { useTimezoneSync } from '@/lib/hooks/timezone';
 import { IconButton, Kbd } from '@/components/ui';
@@ -67,6 +68,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 }
 
 function Frame({ name, children }: { name: string; children: ReactNode }) {
+  const pathname = usePathname();
   const logout = useLogout();
   const { sidebarCollapsed, toggleSidebar, setCommandOpen, setChatOpen, chatOpen } = useAtlasUi();
   const initial = name.trim().charAt(0).toUpperCase() || 'A';
@@ -96,6 +98,17 @@ function Frame({ name, children }: { name: string; children: ReactNode }) {
 
         <div className="sidebar-nav">
           <NavBar collapsed={sidebarCollapsed} />
+          {/* The domain pages, one level down. They are complete and unchanged
+              — they simply stopped competing with the question you opened the
+              app to answer. */}
+          <Link
+            href="/everything"
+            className={`sidebar-everything ${pathname === '/everything' ? 'on' : ''}`}
+            title="Every part of Atlas"
+          >
+            <LayoutGrid size={17} aria-hidden />
+            {!sidebarCollapsed && <span>Everything</span>}
+          </Link>
         </div>
 
         <div className="sidebar-footer">

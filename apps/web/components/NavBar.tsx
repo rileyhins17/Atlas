@@ -2,21 +2,21 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Flame, Home, Target, Wallet } from 'lucide-react';
+import { CalendarDays, Home, Rewind } from 'lucide-react';
 import { SECTIONS, sectionFor, type Section } from '@/lib/sections';
 
-const ICONS = { home: Home, target: Target, flame: Flame, wallet: Wallet } as const;
+const ICONS = { home: Home, calendar: CalendarDays, rewind: Rewind } as const;
 
 /**
- * Four destinations, identical on phone and desktop.
+ * Three destinations, identical on phone and desktop.
  *
- * This replaced eleven peers in a list plus a collapsible "Manage" group. The
- * group was the tell: needing to hide half your navigation means there is too
- * much of it. Everything still exists — it lives one tab inside a section now,
- * so the choice is "which part of my life", not "which of eleven pages".
+ * Eleven peers became four sections, and four sections still hid a tab strip
+ * that put the eleven back. Now the axis is time — now, soon, and how it went —
+ * and the domains stop being places you navigate to at all.
  *
- * Settings is deliberately absent: it is a gear in the account row, because
- * configuring the app is not one of the four things you came here to do.
+ * Settings and the domain pages are deliberately absent: they live behind
+ * "Everything", because configuring the app and browsing one silo are not the
+ * things you opened it to do.
  */
 export function NavBar({ collapsed = false }: { collapsed?: boolean }) {
   const pathname = usePathname();

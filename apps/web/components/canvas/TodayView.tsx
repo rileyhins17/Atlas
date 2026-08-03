@@ -67,6 +67,15 @@ export function TodayView() {
 
   return (
     <div className="stream">
+      {/* The premise, said out loud. It was on the landing page and nowhere
+          inside the product, so between signing up and the first connection
+          card — which needs a fortnight of data — Atlas presented as seven
+          ordinary tools sharing a login. One quiet line is the cheapest
+          possible fix for "the point isn't obvious". */}
+      <p className="promise">
+        Tell Atlas anything, in your own words. It files it, and connects it to the rest of your life.
+      </p>
+
       <DayPager
         day={dayStart}
         isToday={isToday}

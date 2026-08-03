@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation';
 
-/** A section is its first tab. The bare section URL exists so the nav has a
- *  stable href and so /plan is a valid thing to type or bookmark. */
+/** Plan became Week. Kept so an old bookmark still lands somewhere sensible. */
 export default function Page() {
-  redirect('/goals');
+  redirect('/week');
 }

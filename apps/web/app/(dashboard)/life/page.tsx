@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation';
 
-/** A section is its first tab. The bare section URL exists so the nav has a
- *  stable href and so /life is a valid thing to type or bookmark. */
+/** Life is no longer a section; its pages live under Everything. */
 export default function Page() {
-  redirect('/habits');
+  redirect('/everything');
 }

@@ -1,5 +1,6 @@
-import { HistoryPanel } from '@/components/panels/HistoryPanel';
+import { redirect } from 'next/navigation';
 
-export default function HistoryPage() {
-  return <HistoryPanel />;
+/** History is the bottom half of Looking back now. */
+export default function Page() {
+  redirect('/looking-back');
 }

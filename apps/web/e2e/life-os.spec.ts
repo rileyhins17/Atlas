@@ -118,7 +118,7 @@ test('Today overview: capture, pager, now/next, habit check-in', async ({ page }
 });
 
 test('the capture dock and the asks bell are on every page', async ({ page }) => {
-  await go(page, '/progress');
+  await go(page, '/looking-back');
   // Capture is docked app-wide now, not just on Today.
   await expect(page.locator('.capture-dock').getByLabel('Capture anything')).toBeVisible();
 
@@ -135,19 +135,16 @@ test('History shows cross-domain moments and filters by domain', async ({ page }
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(page.getByText('Write the story view')).toBeVisible();
 
-  // Habits lives in Life, Tasks in Plan — crossing sections goes through the
-  // four-item nav, not a tab strip.
-  await page.locator('.app-nav').first().getByRole('link', { name: 'Life' }).click();
-  await page.locator('.section-tab', { hasText: 'Habits' }).click();
+  // Habits lives under Everything now, not in the primary nav.
+  await page.goto('/habits');
   await expect(page).toHaveURL(/\/habits$/);
   await page.getByLabel('New habit name').fill('Meditate');
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(page.getByText('Meditate')).toBeVisible();
 
-  // Both land in History — the reverse-chron log surface.
-  await page.locator('.app-nav').first().getByRole('link', { name: 'Today' }).click();
-  await page.locator('.section-tab', { hasText: 'History' }).click();
-  await expect(page).toHaveURL(/\/history$/);
+  // Both land in the feed — the folded-away half of Looking back.
+  await page.goto('/looking-back');
+  await page.getByRole('button', { name: /Everything that happened/ }).click();
   const feed = page.getByRole('region', { name: 'Your story' });
   await expect(feed.getByText('Created task: Write the story view')).toBeVisible();
   await expect(feed.getByText('New habit: Meditate')).toBeVisible();
@@ -189,7 +186,7 @@ test('Tasks filters, searches, and quick-adds into a group', async ({ page }) =>
 test('Progress charts the long arc and passes the axe scan', async ({ page }) => {
   // The shared account completed a task in an earlier test, so the tiles have
   // something real to render.
-  await go(page, '/progress');
+  await go(page, '/looking-back');
   await expect(page.getByRole('heading', { name: 'Progress' })).toBeVisible();
 
   // Range chips drive the window.
@@ -532,32 +529,42 @@ test('fitness: set up a split, then train it', async ({ page }) => {
   await expect(bench.locator('.fit-set-body')).toContainText('185 lb × 5');
 });
 
-test('the nav is four sections, and every old route still resolves', async ({ page }) => {
+test('the nav is three destinations, and every old route still resolves', async ({ page }) => {
   await go(page, '/today');
 
-  // Four, not eleven. The count IS the feature.
+  // Three, along one axis: now, soon, and how it went. The count IS the
+  // feature — eleven peers became four sections, and four sections still hid a
+  // tab strip that put the eleven back.
   // The same nav renders twice (sidebar + bottom bar, shown by CSS), so scope
   // to one of them.
   const nav = page.locator('.app-nav').first();
-  await expect(nav.locator('.nav-label')).toHaveText(['Today', 'Plan', 'Life', 'Money']);
+  await expect(nav.locator('.nav-label')).toHaveText(['Today', 'Week', 'Looking back']);
 
-  // Every legacy URL still works — nothing bookmarked broke.
-  for (const [path, tab] of [
-    ['/goals', 'Goals'],
-    ['/tasks', 'Tasks'],
-    ['/calendar', 'Calendar'],
-    ['/habits', 'Habits'],
-    ['/fitness', 'Training'],
-    ['/notes', 'Notes'],
-    ['/progress', 'Progress'],
-  ] as const) {
-    await page.goto(path);
-    await expect(page.locator('.section-tab.on')).toContainText(tab);
+  // The domain pages are demoted, not deleted. Every one is still reachable.
+  await page.goto('/everything');
+  for (const label of ['Calendar', 'Tasks', 'Goals', 'Habits', 'Training', 'Journal', 'Notes', 'Money']) {
+    await expect(page.getByRole('link', { name: new RegExp(`^${label}`) })).toBeVisible();
   }
 
-  // A section URL lands on its first tab.
+  // Nothing bookmarked broke: every legacy URL still resolves.
+  for (const path of ['/goals', '/tasks', '/calendar', '/habits', '/fitness', '/notes', '/journal', '/finance']) {
+    const res = await page.goto(path);
+    expect(res?.status(), `${path} should still load`).toBeLessThan(400);
+  }
+
+  // The retired section URLs redirect to their nearest new home rather than 404.
   await page.goto('/plan');
-  await expect(page).toHaveURL(/\/goals$/);
+  await expect(page).toHaveURL(/\/week$/);
+  await page.goto('/life');
+  await expect(page).toHaveURL(/\/everything$/);
+  await page.goto('/money');
+  await expect(page).toHaveURL(/\/finance$/);
+
+  // Progress and History merged: both land on one "how did it go" screen.
+  await page.goto('/progress');
+  await expect(page).toHaveURL(/\/looking-back$/);
+  await page.goto('/history');
+  await expect(page).toHaveURL(/\/looking-back$/);
 });
 
 test('goals split into short and long term', async ({ page }) => {
@@ -744,7 +751,7 @@ test('capture updates the page it was typed on, without a reload', async ({ page
 });
 
 test('the weekly review can be asked for, not only waited for', async ({ page }) => {
-  await go(page, '/progress');
+  await go(page, '/looking-back');
 
   // The proactive engine writes one on a schedule and Progress has always
   // displayed it — but nothing could REQUEST one, so a new account (or one
@@ -856,7 +863,7 @@ test('every route renders clean at phone width, with no console errors', async (
   // it was written, which is the point: it is a tripwire, not a diagnosis.
   const ROUTES = [
     '/today', '/tasks', '/calendar', '/goals', '/habits', '/journal', '/notes',
-    '/fitness', '/finance', '/progress', '/history', '/settings',
+    '/fitness', '/finance', '/looking-back', '/everything', '/week', '/settings',
   ];
 
   const problems: string[] = [];
@@ -939,7 +946,7 @@ test('the weekly review ends in a decision, not just a paragraph', async ({ page
   await page.getByRole('button', { name: /Add/ }).click();
   await expect(page.locator('.goal-open', { hasText: marker })).toBeVisible();
 
-  await go(page, '/progress');
+  await go(page, '/looking-back');
   const decide = page.locator('.wk-decide');
   await expect(decide).toBeVisible();
   await expect(decide).toContainText('Worth deciding');

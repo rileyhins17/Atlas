@@ -99,11 +99,11 @@ function blankDraft(dayKey: string, now: Date): Draft {
   };
 }
 
-export function CalendarPanel() {
+export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' | 'week' } = {}) {
   const [now, setNow] = useState(() => new Date());
   const [anchor, setAnchor] = useState<Date>(() => new Date());
   const [selectedDay, setSelectedDay] = useState<string>(() => localDayKey(new Date()));
-  const [scope, setScope] = useState<'day' | 'week'>('day');
+  const [scope, setScope] = useState<'day' | 'week'>(initialScope);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [clientError, setClientError] = useState<string | null>(null);
   const { toast } = useToast();
