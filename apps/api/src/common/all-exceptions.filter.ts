@@ -5,7 +5,7 @@ import {
   HttpStatus,
   type ExceptionFilter,
 } from '@nestjs/common';
-import { ConnectorNotConfiguredError } from '@atlas/connectors';
+import { ConnectorAuthExpiredError, ConnectorNotConfiguredError } from '@atlas/connectors';
 import type { Response } from 'express';
 import type { RequestWithId } from './request-id.middleware.js';
 import { reportServerError } from './observability.js';
@@ -28,7 +28,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
     // not a server fault. 424 keeps it out of the 5xx logs and — unlike 400,
     // which the web client treats as inline form validation — still surfaces
     // the message to the user.
-    const notConfigured = exception instanceof ConnectorNotConfiguredError;
+    // An expired grant lands in the same band: the integration cannot be used
+    // right now and the user is the only one who can fix it. Same status as
+    // "not connected" because the client handles both the same way — show the
+    // message, offer the connect button — and the message says which it is.
+    const notConfigured =
+      exception instanceof ConnectorNotConfiguredError ||
+      exception instanceof ConnectorAuthExpiredError;
     const status = isHttp
       ? exception.getStatus()
       : notConfigured
@@ -62,7 +68,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const body = isHttp
       ? exception.getResponse()
       : notConfigured
-        ? { statusCode: status, message: (exception as ConnectorNotConfiguredError).message }
+        ? { statusCode: status, message: (exception as Error).message }
         : { statusCode: status, message: 'Internal server error' };
 
     res.status(status).json(

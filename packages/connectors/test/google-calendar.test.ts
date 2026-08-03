@@ -5,7 +5,7 @@ import {
   parseGoogleDate,
   type GoogleCredential,
 } from '../src/google-calendar.js';
-import type { ConnectorContext } from '../src/connector.js';
+import { ConnectorAuthExpiredError, type ConnectorContext } from '../src/connector.js';
 
 const CONFIG = {
   clientId: 'client-id',
@@ -115,6 +115,39 @@ describe('GoogleCalendarConnector token handling', () => {
       .mockResolvedValueOnce(jsonResponse({ items: [] }));
     await new GoogleCalendarConnector(CONFIG).listEvents(ctx, { timeMin: new Date(), timeMax: new Date() });
     expect(saved).toHaveLength(1);
+  });
+
+  it('reports a revoked refresh token as the user’s to fix, not a server fault', async () => {
+    // Found live: Riley's grant had been expired by Google (which it does after
+    // seven days while the consent screen is in "Testing"), and the plain Error
+    // this used to throw surfaced as HTTP 500 "Internal server error" — the
+    // least actionable possible answer to "your sign-in expired".
+    const { ctx } = ctxWith({ accessToken: 'stale', refreshToken: 'rt', expiresAt: Date.now() - 1 });
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      text: async () => '{"error":"invalid_grant","error_description":"Token has been expired or revoked."}',
+      json: async () => ({ error: 'invalid_grant' }),
+    });
+
+    await expect(
+      new GoogleCalendarConnector(CONFIG).listEvents(ctx, { timeMin: new Date(), timeMax: new Date() }),
+    ).rejects.toBeInstanceOf(ConnectorAuthExpiredError);
+  });
+
+  it('still treats an unexplained refresh failure as a real error', async () => {
+    // A 500 from Google is not something reconnecting fixes, so it must not be
+    // dressed up as an expired grant.
+    const { ctx } = ctxWith({ accessToken: 'stale', refreshToken: 'rt', expiresAt: Date.now() - 1 });
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      text: async () => 'backend unavailable',
+      json: async () => ({}),
+    });
+    await expect(
+      new GoogleCalendarConnector(CONFIG).listEvents(ctx, { timeMin: new Date(), timeMax: new Date() }),
+    ).rejects.not.toBeInstanceOf(ConnectorAuthExpiredError);
   });
 
   it('fails clearly when expired with no refresh token', async () => {

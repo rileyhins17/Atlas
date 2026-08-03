@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { ConnectorNotConfiguredError, type Connector, type ConnectorContext } from './connector.js';
+import {
+  ConnectorAuthExpiredError,
+  ConnectorNotConfiguredError,
+  type Connector,
+  type ConnectorContext,
+} from './connector.js';
 
 /**
  * OAuth tokens for one Google account. Stored AES-GCM encrypted in the
@@ -156,7 +161,10 @@ export class GoogleCalendarConnector implements Connector {
     if (cred.expiresAt - EXPIRY_SKEW_MS > Date.now()) return cred.accessToken;
 
     if (!cred.refreshToken) {
-      throw new Error('Google access token expired and no refresh token is stored. Reconnect Google Calendar.');
+      throw new ConnectorAuthExpiredError(
+        'google-calendar',
+        'Your Google Calendar sign-in has expired. Reconnect it to sync again.',
+      );
     }
     const res = await fetch(TOKEN_URL, {
       method: 'POST',
@@ -170,6 +178,16 @@ export class GoogleCalendarConnector implements Connector {
     });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
+      // `invalid_grant` means the refresh token itself is dead — revoked by the
+      // user, or expired by Google (which it does after seven days while the
+      // OAuth consent screen is still in "Testing"). That is the user's to fix
+      // by reconnecting, so it must not be reported as a server fault.
+      if (res.status === 400 && text.includes('invalid_grant')) {
+        throw new ConnectorAuthExpiredError(
+          'google-calendar',
+          'Your Google Calendar sign-in has expired or been revoked. Reconnect it to sync again.',
+        );
+      }
       throw new Error(`Google token refresh failed (${res.status}): ${text.slice(0, 300)}`);
     }
     const data = (await res.json()) as { access_token: string; expires_in?: number; scope?: string };

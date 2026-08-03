@@ -928,3 +928,40 @@ test('Atlas keeps a visible record of what it changed, and it is reversible', as
     await expect(first.locator('.chg-state')).toHaveText('undone');
   }
 });
+
+test('the weekly review ends in a decision, not just a paragraph', async ({ page }) => {
+  // A goal with no work attached can never move its own progress bar — that is
+  // a decision, and the review is where it belongs. Atlas's prose is
+  // commentary; this is the half you can act on.
+  const marker = `Decide${Date.now()}`;
+  await go(page, '/goals');
+  await page.getByLabel('New goal').fill(`Ship ${marker}`);
+  await page.getByRole('button', { name: /Add/ }).click();
+  await expect(page.locator('.goal-open', { hasText: marker })).toBeVisible();
+
+  await go(page, '/progress');
+  const decide = page.locator('.wk-decide');
+  await expect(decide).toBeVisible();
+  await expect(decide).toContainText('Worth deciding');
+
+  // The list is capped at three, and work that slipped always outranks a goal
+  // — leaving anything else in the way is how a review becomes a chore. Settle
+  // it, which is also the point: these buttons act.
+  const moveToToday = decide.getByRole('button', { name: /Move to today/ });
+  if (await moveToToday.count()) {
+    await moveToToday.click();
+    await expect(page.locator('.toast').first()).toBeVisible();
+    await expect(decide.getByRole('button', { name: /Move to today/ })).toHaveCount(0);
+  }
+
+  await expect(decide).toContainText(`Ship ${marker}`);
+  await expect(decide).toContainText('no work attached');
+
+  // Every row carries the button that resolves it.
+  const breakDown = decide
+    .locator('.wk-decide-item', { hasText: marker })
+    .getByRole('link', { name: /Break it down/ });
+  await expect(breakDown).toBeVisible();
+  await breakDown.click();
+  await expect(page).toHaveURL(/\/goals$/);
+});

@@ -87,3 +87,23 @@ export class ConnectorNotConfiguredError extends Error {
     this.connectorId = connectorId;
   }
 }
+
+/**
+ * The integration IS connected, but the stored grant no longer works — the
+ * user revoked it, or the provider expired it.
+ *
+ * Distinct from ConnectorNotConfiguredError because the remedy is different:
+ * one needs a first connection, this one needs a re-connection. Both are the
+ * user's to fix, and neither is a server fault — throwing a plain Error here
+ * produced a 500 and told the user only "Internal server error", which is the
+ * least actionable possible answer to "your Google token expired".
+ */
+export class ConnectorAuthExpiredError extends Error {
+  readonly connectorId: string;
+
+  constructor(connectorId: string, message: string) {
+    super(message);
+    this.name = 'ConnectorAuthExpiredError';
+    this.connectorId = connectorId;
+  }
+}
