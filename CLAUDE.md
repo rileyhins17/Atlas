@@ -93,7 +93,7 @@ docs/                architecture, data-model, roadmap, guides, ADRs, GOTCHAS.
 
 ## Current state
 
-Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **503 unit tests** · **e2e 31/31** (Playwright + axe) · axe clean across phone-light, phone-dark and desktop-light.
+Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **518 unit tests** · **e2e 32/32** (Playwright + axe) · axe clean across phone-light, phone-dark and desktop-light.
 
 ### Known gaps — tracked, not hidden
 **`docs/production-readiness.md` is the authoritative list**, written from a 154-assertion API stress
@@ -115,6 +115,11 @@ validation, and the account purge (440 → 3).
 person with their own DeepSeek key. Do not purge by email pattern: `phase2-test@example.com` looked
 like junk and held the only live Google Calendar credential (since moved to
 `rileyhinsperger16@gmail.com`). Always dry-run a destructive query and read the output.
+
+**A full e2e run leaves ~30 accounts behind**, so this climbs fast — it was back to 230 after one
+session. Purge with an **exact-address allow-list**, never a pattern, and list the credentials the
+doomed rows hold before deleting: the dry run is what catches a real account that happens to look
+like junk.
 
 Cross-user isolation was stress-tested across every module and is clean — user B cannot reach user
 A's rows by any route tried.
