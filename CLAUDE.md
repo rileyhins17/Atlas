@@ -93,7 +93,11 @@ docs/                architecture, data-model, roadmap, guides, ADRs, GOTCHAS.
 
 ## Current state
 
-Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **518 unit tests** · **e2e 32/32** (Playwright + axe) · axe clean across phone-light, phone-dark and desktop-light.
+Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **518 unit tests** · **e2e 34/34** (Playwright + axe) · axe clean across phone-light, phone-dark and desktop-light.
+
+**"axe clean" now means zero violations, not zero serious ones.** Both scans used to filter to
+`serious`/`critical`, which silently discarded `meta-viewport` — a real WCAG 1.4.4 failure that had
+pinch-zoom disabled on every page. If you add an axe scan, assert on the whole violation list.
 
 ### Known gaps — tracked, not hidden
 **`docs/production-readiness.md` is the authoritative list**, written from a 154-assertion API stress
@@ -149,6 +153,8 @@ doing, with an explicit "do not build" list. Read it before proposing features.
   no click and no keystrokes, so the fitness spec passed for weeks against a weight box that turned
   185 into `0185` for anyone who actually tapped it. Use `click()` + `pressSequentially()`, and
   assert the click alone changes nothing.
+- **A number input under 16px forces iOS to auto-zoom on focus.** The usual fix — pinning
+  `maximumScale` — disables pinch-zoom for everyone and fails WCAG 1.4.4. Size the field instead.
 - **Verify live, not just green.** Every serious bug in this project was invisible to unit tests: wrong raw-SQL column names, timezone bucketing, a cache slot that stranded finished workouts on screen, a 404ing manifest, a client bundle pointing at localhost, a session cookie missing `Secure`. After building, drive it in a real browser with a throwaway Playwright script.
 - Throwaway scripts live **inside `apps/web/`** (pnpm strict linking) and import from `@playwright/test`, not `playwright`. Delete them afterwards.
 - **Kill stale node processes before `pnpm build`** — they hold the Prisma query-engine DLL (`EPERM … query_engine-windows.dll.node`).
