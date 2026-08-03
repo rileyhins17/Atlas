@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RoutineBlockDTO } from '@atlas/shared';
 import { routineAt } from '@/lib/stream';
-import { answersToNotes, buildRoutine, DAILY, minToTime, timeToMin, WEEKDAYS } from '@/lib/onboarding';
+import { buildRoutine, DAILY, minToTime, timeToMin, WEEKDAYS } from '@/lib/onboarding';
 
 const block = (over: Partial<RoutineBlockDTO>): RoutineBlockDTO => ({
   id: over.id ?? `b${Math.random()}`,
@@ -113,17 +113,3 @@ describe('time input helpers', () => {
   });
 });
 
-describe('answersToNotes', () => {
-  it('creates pinned onboarding notes only for non-empty answers', () => {
-    const notes = answersToNotes({ about: '  I build apps  ', goals: '', context: '\n' });
-    expect(notes).toEqual([
-      { title: 'About me', body: 'I build apps', tags: ['onboarding'], pinned: true },
-    ]);
-  });
-
-  it('maps all three answers with their titles', () => {
-    const notes = answersToNotes({ about: 'a', goals: 'g', context: 'c' });
-    expect(notes.map((n) => n.title)).toEqual(['About me', 'My goals', 'Things to know']);
-    expect(notes.every((n) => n.pinned)).toBe(true);
-  });
-});

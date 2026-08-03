@@ -2,23 +2,15 @@
 
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Check, Plus } from 'lucide-react';
-import { HabitsApi, NotesApi, SettingsApi } from '@/lib/api';
+import { ArrowLeft } from 'lucide-react';
 import { errorMessage } from '@/lib/api';
 import { useConnectDeepSeek } from '@/lib/hooks/ai';
 import { useReplaceRoutine } from '@/lib/hooks/routine';
 import { useGoogleConnectStart, useGoogleStatus } from '@/lib/hooks/google';
 import { qk } from '@/lib/hooks/keys';
-import { Button, Input, Textarea, useToast } from '@/components/ui';
-import { Constellation } from '@/components/atlas/Constellation';
+import { Button, Input, useToast } from '@/components/ui';
 import { AtlasLoadingScreen } from '@/components/atlas/AtlasLoadingScreen';
-import {
-  answersToNotes,
-  buildRoutine,
-  HABIT_SEEDS,
-  timeToMin,
-  type OnboardingAnswers,
-} from '@/lib/onboarding';
+import { buildRoutine, timeToMin, type OnboardingAnswers } from '@/lib/onboarding';
 
 /**
  * First-run onboarding v2: a warm, conversational form — one screen at a time,
@@ -28,11 +20,22 @@ import {
  * still skippable.
  */
 
-type StepId = 'welcome' | 'sleep' | 'week' | 'about' | 'goals' | 'context' | 'habits' | 'ai';
+type StepId = 'sleep' | 'week' | 'ai';
 
-// 'ai' is last on purpose: it is the only optional step, and asking for an
-// API key before the user has seen anything work reads like a paywall.
-const STEPS: StepId[] = ['welcome', 'sleep', 'week', 'about', 'goals', 'context', 'habits', 'ai'];
+/**
+ * Three questions, not eight.
+ *
+ * The wizard used to ask for a name, free-text about-you, goals, context and a
+ * habit list before the product had demonstrated anything — eight chances to
+ * leave, in exchange for data Atlas can just as easily ask for later, when it
+ * has earned the right to. Everything dropped here is still collected: the asks
+ * bell raises it at the moment it becomes relevant.
+ *
+ * What survives is the set that cannot wait. Sleep and work hours are what make
+ * Today's free-time calculation correct rather than confidently wrong, and the
+ * API key is what makes the AI exist at all.
+ */
+const STEPS: StepId[] = ['sleep', 'week', 'ai'];
 
 const BUILD_MESSAGES = [
   'Mapping your week…',
@@ -51,7 +54,6 @@ export function OnboardingWizard() {
   const googleStatus = useGoogleStatus();
   const [building, setBuilding] = useState(false);
 
-  const [name, setName] = useState('');
   const [bedtime, setBedtime] = useState('23:00');
   const [wake, setWake] = useState('07:00');
   const [weekday, setWeekday] = useState<OnboardingAnswers['weekday']>('flexible');
@@ -59,11 +61,6 @@ export function OnboardingWizard() {
   const [workEnd, setWorkEnd] = useState('17:00');
   const [exercise, setExercise] = useState<OnboardingAnswers['exercise']>('none');
   const [meals, setMeals] = useState<OnboardingAnswers['meals']>('regular');
-  const [about, setAbout] = useState('');
-  const [goals, setGoals] = useState('');
-  const [context, setContext] = useState('');
-  const [habitPicks, setHabitPicks] = useState<Set<string>>(new Set());
-  const [customHabit, setCustomHabit] = useState('');
   const [aiKey, setAiKey] = useState('');
   const [aiSaved, setAiSaved] = useState(false);
   const connectAi = useConnectDeepSeek();
@@ -73,21 +70,7 @@ export function OnboardingWizard() {
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
   const back = () => setStep((s) => Math.max(s - 1, 0));
 
-  function toggleHabit(h: string) {
-    setHabitPicks((prev) => {
-      const nextSet = new Set(prev);
-      if (nextSet.has(h)) nextSet.delete(h);
-      else nextSet.add(h);
-      return nextSet;
-    });
-  }
 
-  function addCustomHabit() {
-    const h = customHabit.trim();
-    if (!h) return;
-    setHabitPicks((prev) => new Set(prev).add(h));
-    setCustomHabit('');
-  }
 
   async function finish() {
     setBuilding(true);
@@ -102,9 +85,6 @@ export function OnboardingWizard() {
         meals,
       };
       const work: Promise<unknown>[] = [replaceRoutine.mutateAsync(buildRoutine(answers))];
-      if (name.trim()) work.push(SettingsApi.update({ displayName: name.trim() }));
-      for (const note of answersToNotes({ about, goals, context })) work.push(NotesApi.create(note));
-      for (const h of habitPicks) work.push(HabitsApi.create({ name: h }));
       await Promise.all(work);
       await Promise.all([
         qc.invalidateQueries({ queryKey: qk.habits }),
@@ -112,7 +92,7 @@ export function OnboardingWizard() {
         qc.invalidateQueries({ queryKey: qk.settings }),
         qc.invalidateQueries({ queryKey: qk.me }),
       ]);
-      toast(`Your week is mapped${name.trim() ? `, ${name.trim()}` : ''}. Welcome to Atlas.`, 'success');
+      toast('Your week is mapped. Welcome to Atlas.', 'success');
       // Offer the calendar only AFTER everything is saved. Connecting Google is
       // a full-page redirect, so asking mid-wizard would throw away every
       // answer the user had just typed.
@@ -197,32 +177,6 @@ export function OnboardingWizard() {
       </header>
 
       <div className="onb-step" key={id}>
-        {id === 'welcome' && (
-          <>
-            <Constellation size={72} animated />
-            <h1 className="onb-q">Welcome. Atlas runs on what it knows about you.</h1>
-            <p className="onb-hint">
-              A few minutes now and Atlas can plan your days, watch your patterns, and actually
-              help. Everything stays yours, and every step is skippable.
-            </p>
-            <form
-              className="onb-name-row"
-              onSubmit={(e) => {
-                e.preventDefault();
-                next();
-              }}
-            >
-              <Input
-                autoFocus
-                placeholder="What should Atlas call you?"
-                aria-label="Your name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-              <Button type="submit">Continue</Button>
-            </form>
-          </>
-        )}
 
         {id === 'sleep' && (
           <OnbForm onNext={next}>
@@ -321,70 +275,25 @@ export function OnboardingWizard() {
           </OnbForm>
         )}
 
-        {id === 'about' && (
-          <OnbForm onNext={next}>
-            <h1 className="onb-q">Tell Atlas about yourself.</h1>
-            <p className="onb-hint">
-              Work, school, family, what a normal week feels like — write it like you&apos;d tell a
-              friend. Atlas remembers all of it.
-            </p>
-            <Textarea
-              autoFocus
-              rows={5}
-              className="onb-textarea"
-              placeholder="I'm a student juggling co-op applications, I live with…"
-              aria-label="About you"
-              value={about}
-              onChange={(e) => setAbout(e.target.value)}
-            />
-          </OnbForm>
-        )}
 
-        {id === 'goals' && (
-          <OnbForm onNext={next}>
-            <h1 className="onb-q">What are you working toward right now?</h1>
-            <p className="onb-hint">
-              Big or small — shipping a project, getting stronger, sleeping better. Atlas keeps
-              these in view when it plans and nudges.
-            </p>
-            <Textarea
-              autoFocus
-              rows={5}
-              className="onb-textarea"
-              placeholder="Finish the app I'm building, work out 3× a week…"
-              aria-label="Your goals"
-              value={goals}
-              onChange={(e) => setGoals(e.target.value)}
-            />
-          </OnbForm>
-        )}
 
-        {id === 'context' && (
-          <OnbForm onNext={next}>
-            <h1 className="onb-q">Anything else Atlas should know?</h1>
-            <p className="onb-hint">
-              Health stuff, commitments, how you like to be reminded — anything that helps Atlas
-              fit your life instead of fighting it. Optional, always editable later.
-            </p>
-            <Textarea
-              autoFocus
-              rows={5}
-              className="onb-textarea"
-              placeholder="I have ADHD so short scannable plans work best…"
-              aria-label="Anything else"
-              value={context}
-              onChange={(e) => setContext(e.target.value)}
-            />
-          </OnbForm>
-        )}
 
         {id === 'ai' && (
           <>
-            <h1 className="onb-q">Want Atlas to think, not just store?</h1>
+            {/* Named plainly. "Want Atlas to think?" was clever and told a
+                newcomer nothing about what they were being asked for, or that
+                without it the intelligence in the product does not exist. */}
+            <h1 className="onb-q">Add your DeepSeek API key</h1>
             <p className="onb-sub">
-              Briefs, planning your day and filing what you type all run on your own DeepSeek key —
-              a few cents a month, and Atlas never bills you for it. Skip this and everything else
-              still works; the AI parts just stay quiet until you add one in Settings.
+              <strong>This key is what powers everything intelligent in Atlas.</strong> Understanding
+              what you type and filing it in the right place, your morning brief, planning your day
+              around the hours you actually have, the weekly review, and every pattern it notices
+              across your training, sleep and work — all of it runs on this key.
+            </p>
+            <p className="onb-sub">
+              It is <strong>yours, not ours</strong>. You get it from DeepSeek, you pay DeepSeek
+              directly — a few cents a month for normal use — and Atlas never bills you or marks it
+              up. That is also why your data never goes through our account.
             </p>
             <form
               className="onb-name-row"
@@ -418,56 +327,26 @@ export function OnboardingWizard() {
               </p>
             )}
             <p className="onb-sub" style={{ fontSize: 12 }}>
-              Get one at platform.deepseek.com. It is stored encrypted and never leaves your Atlas.
+              Get one free at <strong>platform.deepseek.com</strong> — sign up, open API keys,
+              create one, paste it here. Stored encrypted; it never leaves your Atlas.
             </p>
-          </>
-        )}
-
-        {id === 'habits' && (
-          <>
-            <h1 className="onb-q">Anything you want to track daily?</h1>
-            <div className="onb-chips">
-              {[...HABIT_SEEDS, ...[...habitPicks].filter((h) => !HABIT_SEEDS.includes(h as never))].map(
-                (h) => {
-                  const on = habitPicks.has(h);
-                  return (
-                    <button
-                      key={h}
-                      type="button"
-                      className={`onb-chip ${on ? 'picked' : ''}`}
-                      aria-pressed={on}
-                      onClick={() => toggleHabit(h)}
-                    >
-                      <span className="onb-chip-label">
-                        {on && <Check size={14} aria-hidden />} {h}
-                      </span>
-                    </button>
-                  );
-                },
-              )}
-            </div>
-            <form
-              className="onb-name-row"
-              onSubmit={(e) => {
-                e.preventDefault();
-                addCustomHabit();
-              }}
-            >
-              <Input
-                placeholder="Or add your own…"
-                aria-label="Custom habit"
-                value={customHabit}
-                onChange={(e) => setCustomHabit(e.target.value)}
-              />
-              <Button type="submit" variant="secondary" aria-label="Add habit">
-                <Plus size={15} aria-hidden />
-              </Button>
-            </form>
-            <Button onClick={finish} style={{ marginTop: 14 }}>
-              Build my week
+            {/* Skipping has to be honest about the cost. Saying "everything
+                still works" was not true — capture, the brief, planning and the
+                weekly review are the product. */}
+            <p className="onb-sub" style={{ fontSize: 12 }}>
+              You can skip and add it later in Settings. Atlas still records and organises
+              everything you enter, and typing “gym at 6” still lands on your calendar — but it
+              will not brief you, plan for you, or notice anything until a key is in place.
+            </p>
+            {/* The last step needs its own way forward. Leaving "Skip" in the
+                header as the only exit means someone who has just pasted a key
+                has to press Skip to continue, which reads like discarding it. */}
+            <Button style={{ marginTop: 14 }} onClick={() => void finish()}>
+              {aiSaved ? 'Build my week' : 'Build my week — I’ll add a key later'}
             </Button>
           </>
         )}
+
       </div>
     </section>
   );

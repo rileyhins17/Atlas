@@ -24,5 +24,6 @@ export * from './dto/training-stats.js';
 export * from './dto/connections.js';
 export * from './dto/weekly-decisions.js';
 export * from './dto/adoption.js';
+export * from './dto/local-capture.js';
 export * from './dto/search.js';
 export * from './dto/duration.js';

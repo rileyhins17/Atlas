@@ -965,3 +965,31 @@ test('the weekly review ends in a decision, not just a paragraph', async ({ page
   await breakDown.click();
   await expect(page).toHaveURL(/\/goals$/);
 });
+
+test('capture works on day one, before any AI key exists', async ({ page }) => {
+  // The cold-start gate. Capture is the one interaction Atlas asks everyone to
+  // learn, and it used to route entirely through the model — so a brand-new
+  // account, which has no DeepSeek key, met an error at the exact moment the
+  // product was meant to prove itself. This account has no key either.
+  const marker = `Coldstart${Date.now()}`;
+  await go(page, '/today');
+
+  await page.getByLabel('Capture anything').fill(`${marker} at 6`);
+  await page.keyboard.press('Enter');
+  // Whatever happens, it must not be a failure the user has to interpret.
+  await expect(page.locator('.toast').first()).toBeVisible({ timeout: 25_000 });
+  await expect(page.locator('.toast').first()).not.toContainText(/could not file/i);
+
+  // "at 6" is an evening event, not a task — the bare-hour rule.
+  await go(page, '/calendar');
+  await expect(page.getByText(marker).first()).toBeVisible({ timeout: 15_000 });
+
+  // A sentence with no time still lands, as a plain task.
+  await go(page, '/today');
+  await page.getByLabel('Capture anything').fill(`${marker} groceries`);
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.toast').first()).toBeVisible({ timeout: 25_000 });
+
+  await go(page, '/tasks');
+  await expect(page.getByText(`${marker} groceries`).first()).toBeVisible({ timeout: 15_000 });
+});

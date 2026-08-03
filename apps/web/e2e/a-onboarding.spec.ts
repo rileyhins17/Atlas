@@ -2,68 +2,51 @@ import { expect, test } from '@playwright/test';
 import { register } from './helpers';
 
 /**
- * Onboarding v2: a brand-new account walks the warm form end-to-end and lands
- * on a Day Canvas built from its answers, with the free-text answers stored as
- * pinned notes. Named `a-…` so this file's registration runs FIRST — the
- * register endpoint is throttled to 5/min/IP and this suite sits at the limit.
+ * Onboarding v3: three questions, not eight.
+ *
+ * The wizard used to collect a name, free-text about-you, goals, context and a
+ * habit list before the product had shown anything — eight chances to leave in
+ * exchange for data Atlas can ask for later, once it has earned the right to.
+ * What survives is the set that cannot wait: sleep and work hours, which are
+ * what make Today's free-time calculation correct rather than confidently
+ * wrong, and the API key, which is what makes the AI exist at all.
+ *
+ * Named `a-…` so this file's registration runs FIRST — the register endpoint is
+ * throttled to 5/min/IP and this suite sits at the limit.
  */
 
-test('a fresh account onboards through the form into a routine-backed canvas', async ({ page }) => {
+test('a fresh account onboards in three steps into a routine-backed canvas', async ({ page }) => {
   test.setTimeout(90_000);
   await register(page);
 
-  // Step 1 — welcome + name.
-  await expect(page.getByRole('heading', { name: /Atlas runs on what it knows/ })).toBeVisible();
-  await page.getByLabel('Your name').fill('Riley');
-  await page.getByRole('button', { name: 'Continue' }).click();
-
-  // Step 2 — sleep times (real time inputs).
+  // Step 1 — sleep. No welcome screen: it asked for a name and gave nothing back.
+  await expect(page.getByRole('heading', { name: /When does your day start and end/ })).toBeVisible();
   await page.getByLabel('Bedtime').fill('23:00');
   await page.getByLabel('Wake time').fill('07:00');
   await page.getByRole('button', { name: 'Continue' }).click();
 
-  // Step 3 — the week: fixed job reveals exact hours.
+  // Step 2 — the week: a fixed job reveals exact hours.
   await page.getByLabel('Weekday shape').selectOption('office');
   await page.getByLabel('Workday start').fill('09:30');
   await page.getByLabel('Workday end').fill('17:30');
   await page.getByLabel('Exercise time').selectOption('evening');
   await page.getByRole('button', { name: 'Continue' }).click();
 
-  // Steps 4–6 — free text becomes pinned notes; one filled, one skipped, one filled.
-  await page.getByLabel('About you').fill('E2E person building a life OS.');
-  await page.getByRole('button', { name: 'Continue' }).click();
-  await page.getByRole('button', { name: 'Skip' }).click(); // goals
-  await page.getByLabel('Anything else').fill('Short scannable plans work best.');
-  await page.getByRole('button', { name: 'Continue' }).click();
-
-  // Step 7 — habits: one seed + one custom, then build.
-  await page.getByRole('button', { name: /^Gym$/ }).click();
-  await page.getByLabel('Custom habit').fill('Stretch');
-  await page.getByRole('button', { name: 'Add habit' }).click();
+  // Step 3 — the API key, named plainly and explained as what powers the AI.
+  // No key is entered: skipping must remain a first-class path, because most
+  // people will not have one to hand on their first evening.
+  await expect(page.getByRole('heading', { name: 'Add your DeepSeek API key' })).toBeVisible();
+  await expect(page.getByText(/powers everything intelligent in Atlas/)).toBeVisible();
+  // Honest about what skipping costs, rather than "everything still works".
+  await expect(page.getByText(/will not brief you, plan for you, or notice anything/)).toBeVisible();
   await page.getByRole('button', { name: 'Build my week' }).click();
 
   // Lands on the Today overview.
   await expect(page.getByRole('button', { name: /^Today · / })).toBeVisible({ timeout: 20_000 });
-  await page.getByRole('button', { name: /Full day, hour by hour/i }).click();
 
-  // The work block itself is asserted through the routine editor, NOT the
-  // canvas: onboarding writes Work on weekdays only, so a canvas assertion
-  // silently depends on which day the suite happens to run. This test passed at
-  // 21:56 Friday local and failed at 04:44 Saturday for exactly that reason —
-  // the same class of time-bomb as the old after-9pm grouping flake.
+  // The work block is asserted through the routine editor, NOT the canvas:
+  // onboarding writes Work on weekdays only, so a canvas assertion silently
+  // depends on which day the suite happens to run.
   await page.goto('/settings');
   await expect(page.locator('.routine-summary')).toContainText('09:30–17:30');
-
-  // The free-text answers are pinned notes.
-  // Notes is a tab inside Life now, not a top-level destination.
-  await page.locator('.app-nav').first().getByRole('link', { name: 'Life' }).click();
-  await page.locator('.section-tab', { hasText: 'Notes' }).click();
-  await expect(page.getByText('E2E person building a life OS.')).toBeVisible();
-  await expect(page.getByText('Short scannable plans work best.')).toBeVisible();
-
-  // Habits exist (seed + custom).
-  await page.locator('.app-nav').first().getByRole('link', { name: 'Life' }).click();
-  await page.locator('.section-tab', { hasText: 'Habits' }).click();
-  await expect(page.getByRole('button', { name: 'Check in "Gym"' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Check in "Stretch"' })).toBeVisible();
 });

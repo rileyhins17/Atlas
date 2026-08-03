@@ -1,4 +1,4 @@
-import type { CreateNoteInput, RoutineBlockInput } from '@atlas/shared';
+import type { RoutineBlockInput } from '@atlas/shared';
 
 /**
  * Answer → schedule + knowledge mapping for the onboarding wizard. Pure and
@@ -81,28 +81,3 @@ export function buildRoutine(a: OnboardingAnswers): RoutineBlockInput[] {
   return blocks;
 }
 
-export interface OnboardingFreeText {
-  about: string;
-  goals: string;
-  context: string;
-}
-
-/**
- * The free-text answers become PINNED notes: always in the AI's context via the
- * notes summary, and auto-queued for embedding → semantically recallable.
- * Empty answers write nothing — never create hollow notes.
- */
-export function answersToNotes(text: OnboardingFreeText): CreateNoteInput[] {
-  const notes: CreateNoteInput[] = [];
-  const add = (title: string, body: string) => {
-    const trimmed = body.trim();
-    if (trimmed) notes.push({ title, body: trimmed, tags: ['onboarding'], pinned: true });
-  };
-  add('About me', text.about);
-  add('My goals', text.goals);
-  add('Things to know', text.context);
-  return notes;
-}
-
-/** Habit seeds the wizard offers alongside free entry. */
-export const HABIT_SEEDS = ['Gym', 'Read', 'Water', 'Meditate', 'Journal', 'Walk'] as const;
