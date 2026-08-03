@@ -24,6 +24,9 @@ const EnvSchema = z.object({
   // real product work, and this is the control that actually needs to exist the
   // moment the app has a public hostname.
   INVITE_CODE: z.string().min(6).optional(),
+  // The one account allowed to read /admin/adoption. Unset means nobody, so
+  // forgetting to configure it locks the door rather than opening it.
+  ADMIN_EMAIL: z.string().email().optional(),
   // Direct DeepSeek API model id (api.deepseek.com). Use a concrete id, not the
   // "deepseek-chat" alias — the alias resolves server-side (currently to
   // deepseek-v4-flash) and the resolved name is what lands in the ai_usage

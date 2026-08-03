@@ -37,6 +37,7 @@ import type {
   TaskDTO,
   TransactionDTO,
   UserDTO,
+  AdoptionDTO,
 } from '@atlas/shared';
 
 /**
@@ -489,6 +490,11 @@ export async function applyUndoBatch(steps: AiUndoStepDTO[]): Promise<void> {
     await applyUndoStep(step).catch(() => undefined);
   }
 }
+
+export const AdminApi = {
+  /** Owner-only; 403 for everyone else, including a signed-in stranger. */
+  adoption: () => request<AdoptionDTO>('/admin/adoption'),
+};
 
 export const SearchApi = {
   run: (q: string) => request<SearchResultDTO>(`/search?q=${encodeURIComponent(q)}`),

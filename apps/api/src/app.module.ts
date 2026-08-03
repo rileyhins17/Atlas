@@ -18,6 +18,7 @@ import { AccountModule } from './modules/account/account.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
 import { RoutineModule } from './modules/routine/routine.module.js';
 import { StatsModule } from './modules/stats/stats.module.js';
+import { AdminModule } from './modules/admin/admin.module.js';
 import { PushModule } from './modules/push/push.module.js';
 import { TimelineModule } from './modules/timeline/timeline.module.js';
 import { AllExceptionsFilter } from './common/all-exceptions.filter.js';
@@ -48,6 +49,7 @@ import { OriginCheckMiddleware } from './common/origin-check.middleware.js';
     SettingsModule,
     RoutineModule,
     StatsModule,
+    AdminModule,
     PushModule,
     TimelineModule,
   ],
