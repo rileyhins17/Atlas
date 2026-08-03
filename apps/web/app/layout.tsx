@@ -40,7 +40,10 @@ export const viewport: Viewport = {
   themeColor: '#0e1116',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
+  // No maximumScale. Pinning it to 1 disables pinch-zoom, which fails WCAG
+  // 1.4.4 for anyone who needs to magnify — on a PWA that is meant to live on
+  // a phone home screen. It was there to stop iOS auto-zooming when a small
+  // input takes focus; the fields are 16px now, which fixes that at the source.
   // Lets content extend into notch/home-bar areas so the safe-area env()
   // paddings in globals.css can manage them (PWA standalone mode).
   viewportFit: 'cover',

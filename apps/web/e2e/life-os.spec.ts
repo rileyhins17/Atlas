@@ -207,11 +207,17 @@ test('Progress charts the long arc and passes the axe scan', async ({ page }) =>
   await page.addStyleTag({
     content: '*, *::before, *::after { animation: none !important; transition: none !important; }',
   });
-  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
-  const serious = results.violations.filter(
-    (v) => v.impact === 'serious' || v.impact === 'critical',
-  );
-  expect(serious, JSON.stringify(serious.map((v) => v.id), null, 2)).toEqual([]);
+  // Every violation, not only serious and critical. Filtering by impact meant
+  // the suite reported "axe clean" for months while discarding meta-viewport —
+  // a moderate finding, and a real WCAG 1.4.4 failure that disabled pinch-zoom
+  // on every page of a PWA meant to live on a phone.
+  const results = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+    .analyze();
+  expect(
+    results.violations,
+    JSON.stringify(results.violations.map((v) => `${v.id} (${v.impact})`), null, 2),
+  ).toEqual([]);
 });
 
 test('Today and the open command bar pass the axe scan', async ({ page }) => {
@@ -225,11 +231,17 @@ test('Today and the open command bar pass the axe scan', async ({ page }) => {
   await page.keyboard.press('ControlOrMeta+k');
   await expect(page.getByRole('combobox', { name: 'Command input' })).toBeVisible();
 
-  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
-  const serious = results.violations.filter(
-    (v) => v.impact === 'serious' || v.impact === 'critical',
-  );
-  expect(serious, JSON.stringify(serious.map((v) => v.id), null, 2)).toEqual([]);
+  // Every violation, not only serious and critical. Filtering by impact meant
+  // the suite reported "axe clean" for months while discarding meta-viewport —
+  // a moderate finding, and a real WCAG 1.4.4 failure that disabled pinch-zoom
+  // on every page of a PWA meant to live on a phone.
+  const results = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+    .analyze();
+  expect(
+    results.violations,
+    JSON.stringify(results.violations.map((v) => `${v.id} (${v.impact})`), null, 2),
+  ).toEqual([]);
 });
 
 test('a recurring task rolls forward to its next occurrence when completed', async ({ page }) => {
@@ -835,4 +847,51 @@ test('Today connects two domains, and stays quiet when it cannot', async ({ page
 
   // Whatever it says, it must never be a headline claim on this much data.
   await expect(card.locator('.conn-headline')).toHaveCount(0);
+});
+
+test('every route renders clean at phone width, with no console errors', async ({ page }) => {
+  // A whole-app sweep in one spec. The suite tests behaviour surface by
+  // surface; this asks the blunter question — does anything throw, 404, or
+  // burst the viewport — across every route at once. It found nothing the day
+  // it was written, which is the point: it is a tripwire, not a diagnosis.
+  const ROUTES = [
+    '/today', '/tasks', '/calendar', '/goals', '/habits', '/journal', '/notes',
+    '/fitness', '/finance', '/progress', '/history', '/settings',
+  ];
+
+  const problems: string[] = [];
+  page.on('console', (m) => {
+    // Cloudflare's RUM beacon is blocked locally and is not ours.
+    if (m.type() === 'error' && !m.text().includes('cdn-cgi/rum')) {
+      problems.push(`console on ${page.url()}: ${m.text().slice(0, 120)}`);
+    }
+  });
+  page.on('pageerror', (e) => problems.push(`uncaught on ${page.url()}: ${e.message}`));
+  page.on('response', (r) => {
+    if (r.status() >= 500) problems.push(`${r.status()} ${r.request().method()} ${r.url()}`);
+  });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  for (const route of ROUTES) {
+    // Not go(): that helper asserts the sidebar user name is VISIBLE, and the
+    // sidebar is deliberately hidden at phone width. The capture dock is the
+    // right signed-in signal here — it is on every page by design.
+    await page.goto(route);
+    await expect(page.getByLabel('Capture anything')).toBeAttached();
+    await page.waitForLoadState('networkidle');
+
+    // Horizontal overflow at phone width is the single most common way a
+    // surface breaks here — two date inputs side by side already did it once.
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow, `${route} overflows by ${overflow}px`).toBeLessThanOrEqual(1);
+
+    const body = (await page.locator('body').innerText()).trim();
+    expect(body.length, `${route} rendered almost nothing`).toBeGreaterThan(40);
+    expect(body, `${route} shows an error state`).not.toMatch(/something went wrong|application error/i);
+  }
+
+  expect(problems, problems.join('\n')).toEqual([]);
 });

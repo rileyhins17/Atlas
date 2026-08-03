@@ -236,7 +236,11 @@ button {
   color: var(--text-primary);
   border-radius: 12px;
   padding: 13px 15px;
-  font-size: 15px;
+  /* 16px is not a style choice. iOS Safari auto-zooms the page when you focus
+     an input smaller than this, and the usual "fix" for that — pinning
+     maximum-scale — takes pinch-zoom away from everyone, including the people
+     who need it. Sizing the field correctly lets zoom stay enabled. */
+  font-size: 16px;
   outline: none;
   transition:
     border-color var(--dur-fast) var(--ease),
@@ -1243,8 +1247,10 @@ input[type='checkbox']:checked::after {
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
+  /* 24px is the WCAG 2.2 AA floor, and this is a small discrete control
+     rather than an inline link, so the exception does not apply. */
+  width: 24px;
+  height: 24px;
   border: none;
   border-radius: 50%;
   background: transparent;
@@ -1271,7 +1277,13 @@ input[type='checkbox']:checked::after {
 }
 .task-title-btn {
   flex: 1;
-  min-width: 0;
+  /* A floor, not zero. Flex will happily collapse the title to nothing to keep
+     a repeat chip at full width, which sacrifices the only part of the row
+     that identifies the task. */
+  min-width: 4.5rem;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
   text-align: left;
   background: none;
   border: none;
@@ -1891,7 +1903,7 @@ input[type='checkbox']:checked::after {
 .feed-check:hover { color: var(--brand); border-color: var(--brand); }
 .feed-check:active { background: var(--brand); color: #fff; }
 .feed-body {
-  flex: 1; min-width: 0; text-align: left; border: none; background: none; padding: 2px 0 0;
+  flex: 1; min-width: 0; min-height: 24px; text-align: left; border: none; background: none; padding: 2px 0 0;
   font: inherit; color: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 1px;
   border-radius: 8px;
 }
@@ -2326,7 +2338,7 @@ input[type='checkbox']:checked::after {
   border: 1.5px dashed color-mix(in srgb, var(--border-subtle) 85%, transparent);
 }
 .ov-disclose {
-  display: flex; align-items: center; gap: 7px; width: fit-content;
+  display: flex; align-items: center; gap: 7px; width: fit-content; min-height: 24px;
   border: none; background: none; cursor: pointer; font: inherit; padding: 4px 8px 4px 0;
   font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--text-muted); border-radius: 8px;
@@ -2519,6 +2531,17 @@ input[type='checkbox']:checked::after {
 .repeat-chip-label {
   display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
   font-size: 11.5px; font-weight: 600; color: var(--text-muted);
+}
+.repeat-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* The task row ran out of room before it ran out of chips: with a repeat rule
+   and a due date on a 390px screen the TITLE was squeezed to zero width and
+   the delete button still spilled 13px past the viewport. The title is the one
+   thing in the row that must survive, so it gets a floor and the secondary
+   chips give up their words instead. */
+@media (max-width: 620px) {
+  .task { gap: 8px; }
+  .repeat-chip-text { display: none; }
 }
 
 /* ── The goal a task serves ──────────────────────────────────────────────

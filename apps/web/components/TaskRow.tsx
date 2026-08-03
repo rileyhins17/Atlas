@@ -117,7 +117,10 @@ export function TaskRow({ task, compact = false }: { task: TaskDTO; compact?: bo
       {repeat && !done && (
         <span className="repeat-chip-label" title={`Repeats: ${repeat}`}>
           <Repeat size={11} aria-hidden />
-          {repeat}
+          {/* The words are dropped on a phone, where "Every weekday" is a
+              quarter of the row. The glyph and the title attribute keep the
+              meaning; the row keeps its title. */}
+          <span className="repeat-chip-text">{repeat}</span>
         </span>
       )}
 
