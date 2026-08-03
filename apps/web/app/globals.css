@@ -2022,6 +2022,35 @@ input[type='checkbox']:checked::after {
   color: var(--text-muted);
 }
 
+/* ── Worth deciding ──────────────────────────────────────────────────────
+   The actionable half of the weekly review. Sits inside the review card,
+   above the prose, and disappears entirely when nothing needs deciding. */
+.wk-decide { margin: 0 0 14px; }
+.wk-decide-head {
+  display: flex; align-items: center; gap: 6px; margin: 0 0 8px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.wk-decide-list { display: flex; flex-direction: column; gap: 9px; margin: 0; padding: 0; list-style: none; }
+.wk-decide-item {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 8px; padding-bottom: 9px; border-bottom: 1px solid var(--border-subtle);
+}
+.wk-decide-item:last-child { border-bottom: none; padding-bottom: 0; }
+.wk-decide-what { min-width: 0; font-size: 13.5px; line-height: 1.45; color: var(--text-primary); overflow-wrap: anywhere; }
+.wk-decide-acts { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.wk-act {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 32px;
+  padding: 6px 11px; border: 1px solid var(--border-subtle); border-radius: 999px;
+  background: transparent; font: inherit; font-size: 12.5px; font-weight: 600;
+  color: var(--text-primary); text-decoration: none; cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.wk-act:hover { border-color: var(--brand); color: var(--brand); }
+.wk-act.quiet { color: var(--text-muted); }
+.wk-act.quiet:hover { border-color: var(--danger); color: var(--danger); }
+.wk-act:disabled { opacity: 0.5; cursor: default; }
+
 /* ── What Atlas changed ──────────────────────────────────────────────────
    A running record of the AI's writes, each reversible. Quiet by default:
    it is a receipt, not an alert, and it disappears entirely when Atlas has

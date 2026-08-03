@@ -27,6 +27,7 @@ import {
   Sparkline,
 } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
+import { WeeklyDecisions } from '@/components/panels/WeeklyDecisions';
 import { formatDayHeading } from '@/lib/dates';
 
 const RANGES = [
@@ -368,6 +369,10 @@ export function ProgressPanel() {
               hint={review ? formatDayHeading(new Date(review.createdAt)) : undefined}
               wide
             >
+              {/* The half you can act on comes FIRST. Atlas's prose is the
+                  commentary; these are the decisions, and a review you only
+                  read changes nothing. */}
+              <WeeklyDecisions />
               {review ? (
                 <ul className="prog-review-list">
                   {reviewBullets(review.body).map((line, i) => (
