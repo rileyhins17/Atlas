@@ -183,3 +183,49 @@ Stated because an audit that only lists faults gives a false picture:
 - The **connection card** premise.
 - **Free-time awareness from a declared routine** rather than an empty calendar.
 - Export, delete-for-real, BYO key. The privacy story is coherent and true.
+
+---
+
+## 6. Decisions (Riley, 3 August 2026)
+
+| # | Question | Decision |
+|---|---|---|
+| 1 | Organising idea | **Time** — Today / Week / Looking back |
+| 2 | Primary AI surface | **Capture dock**; ⌘K becomes a shortcut to the same thing |
+| 3 | Audience | **Anyone overwhelmed** (broadest — see the caveat below) |
+| 4 | First run | **Two steps** (sleep, work hours), everything else asked later |
+| 5 | Domain pages | **Stay, demoted** behind one "Everything" entry |
+| 6 | Journal + Notes | **Merge** into one writing surface |
+| 7 | Money | **Hidden from nav, fully intact** — route, data, Plaid link and sync all keep working |
+| 8 | Progress + History | **One "Looking back" screen** |
+| 9 | Primary nav | **Three: Today · Week · Looking back**, "Everything" in the sidebar |
+| 10 | Cold start | **Guided first capture** — walk the user through one real entry |
+| 11 | Stating the point | **One permanent line on Today**, near the capture dock |
+
+### The caveat on #3
+
+"Anyone overwhelmed" is the widest audience available, and breadth is what
+produced the density this audit measured. It does not change the plan, but it
+raises the bar: with no assumed expertise, **the first screen has to teach the
+product by itself**, and every one of the decisions above has to survive being
+met by someone who has never used a tool like this.
+
+### The conflict in #10
+
+A guided first capture routes through the AI, and the AI needs the user's own
+DeepSeek key. A new account has no key, so the guided first capture would fail
+at exactly the moment it is meant to prove the product works — the worst
+possible place for an error.
+
+Resolvable, and it must be resolved before building #10. Options, in order of
+preference:
+
+1. **Make the first capture work without a key.** A local parse good enough for
+   "gym at 6" or "call mum tomorrow" — the same reach-for-the-AI-last rule the
+   fitness split setup already follows.
+2. **Ask for the key as step two of onboarding**, which contradicts #4's "two
+   steps" unless it replaces one.
+3. **Ship a shared trial key** with a hard cap, which costs real money per
+   signup and undermines the BYO-key privacy story.
+
+Option 1 keeps every other decision intact and is the only one that does.
