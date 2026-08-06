@@ -2241,34 +2241,132 @@ input[type='checkbox']:checked::after {
   border-radius: 999px; padding: 3px 11px; color: var(--text-primary); font-size: 12.5px;
 }
 
-/* — sections: content-sized blocks, kind-tinted washes — */
+/* — the day as a shape, not a list ——————————————————————————————————————
+   A stack of identical grey slabs made Sleep, Work and a free hour look the
+   same, so a day read as rows rather than as a rhythm. A time spine down the
+   left, a hue per kind, and a heavier accent on longer blocks fix that without
+   scaling to wall-clock height — a nine-hour sleep would push the rest of the
+   day off the screen. */
+.day-canvas {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* The continuous line the nodes sit on. */
+.day-canvas::before {
+  content: '';
+  position: absolute;
+  left: 57px;
+  top: 14px;
+  bottom: 14px;
+  width: 1.5px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--border-subtle) 8%,
+    var(--border-subtle) 92%,
+    transparent
+  );
+  pointer-events: none;
+}
+
 .canvas-sec {
-  border-radius: 14px; padding: 10px 14px 12px;
-  border: 1px solid transparent;
-  animation: canvas-sec-in 0.3s var(--ease) both;
+  position: relative;
+  display: grid;
+  grid-template-columns: 66px 1fr;
+  align-items: start;
+  gap: 10px;
+  animation: canvas-sec-in 0.34s var(--ease) both;
 }
 .canvas-sec:nth-child(2) { animation-delay: 0.03s; }
 .canvas-sec:nth-child(3) { animation-delay: 0.06s; }
 .canvas-sec:nth-child(4) { animation-delay: 0.09s; }
 .canvas-sec:nth-child(5) { animation-delay: 0.12s; }
 .canvas-sec:nth-child(n + 6) { animation-delay: 0.15s; }
-@keyframes canvas-sec-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes canvas-sec-in { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .canvas-sec { animation: none; } }
 
-.canvas-kind-sleep { background: color-mix(in srgb, var(--surface-inset) 55%, transparent); color: var(--text-muted); }
-.canvas-kind-work, .canvas-kind-school { background: color-mix(in srgb, var(--surface-raised) 80%, transparent); border-color: var(--border-subtle); }
-.canvas-kind-meal { background: color-mix(in srgb, var(--pill-warm-border) 26%, transparent); }
-.canvas-kind-exercise { background: color-mix(in srgb, var(--brand) 9%, transparent); }
-.canvas-kind-winddown { background: color-mix(in srgb, var(--surface-inset) 40%, transparent); }
-.canvas-kind-custom { background: var(--surface-raised); border-color: var(--border-subtle); }
-.canvas-kind-open { background: transparent; border: 1.5px dashed color-mix(in srgb, var(--border-subtle) 80%, transparent); }
-.canvas-sec.is-now { border-color: color-mix(in srgb, var(--brand) 55%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 10%, transparent); }
-.canvas-sec.is-past { opacity: 0.82; }
+/* The rail: start time, then the node on the line. */
+.canvas-rail {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+  padding-top: 13px;
+}
+.canvas-rail-time {
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.canvas-rail-node {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--surface-raised);
+  border: 2px solid var(--accent, var(--border-subtle));
+  flex-shrink: 0;
+  z-index: 1;
+}
 
-.canvas-sec-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-.canvas-sec-label { font-size: 13.5px; font-weight: 700; letter-spacing: 0.01em; }
+/* The block itself. --accent is set per kind and drives the node, the left
+   edge and the wash, so a kind is one variable rather than four rules. */
+.canvas-body {
+  position: relative;
+  min-width: 0;
+  padding: 11px 14px 12px;
+  border-radius: 13px;
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--accent, var(--border-subtle));
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--accent, var(--surface-raised)) 13%, var(--surface-raised)),
+    var(--surface-raised) 62%
+  );
+  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.canvas-sec.w-mid .canvas-body { border-left-width: 4px; padding-block: 14px 15px; }
+.canvas-sec.w-long .canvas-body { border-left-width: 6px; padding-block: 18px 19px; }
+
+.canvas-kind-sleep { --accent: #7c6bd6; }
+.canvas-kind-work, .canvas-kind-school { --accent: #4f8ecc; }
+.canvas-kind-meal { --accent: #d9a44a; }
+.canvas-kind-exercise { --accent: var(--brand); }
+.canvas-kind-winddown { --accent: #8a6fb0; }
+.canvas-kind-custom { --accent: #6f8f7d; }
+
+/* Open time is an invitation, not an event: no fill, dashed, quiet. */
+.canvas-kind-open .canvas-body {
+  background: none;
+  border: 1.5px dashed color-mix(in srgb, var(--border-subtle) 85%, transparent);
+  border-left: 1.5px dashed color-mix(in srgb, var(--border-subtle) 85%, transparent);
+  padding-block: 9px 10px;
+}
+.canvas-kind-open .canvas-rail-node { border-color: var(--border-subtle); background: transparent; }
 .canvas-kind-open .canvas-sec-label { color: var(--text-muted); font-weight: 600; }
-.canvas-sec-span { font-size: 11.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+.canvas-sec.is-now .canvas-body {
+  border-color: color-mix(in srgb, var(--brand) 55%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 12%, transparent);
+}
+.canvas-sec.is-now .canvas-rail-node {
+  background: var(--brand);
+  border-color: var(--brand);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 18%, transparent);
+}
+.canvas-sec.is-past { opacity: 0.6; }
+
+.canvas-sec-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.canvas-sec-label { font-size: 14.5px; font-weight: 700; letter-spacing: -0.01em; }
+.canvas-sec-len {
+  font-size: 11px; font-weight: 650; color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, var(--surface-inset) 70%, transparent);
+  border-radius: 999px; padding: 2px 8px;
+}
 .canvas-sec-nowchip {
   font-size: 11px; font-weight: 650; color: var(--brand);
   background: color-mix(in srgb, var(--brand) 12%, transparent);
@@ -2276,11 +2374,19 @@ input[type='checkbox']:checked::after {
 }
 .canvas-plan-btn {
   margin-left: auto; display: inline-flex; align-items: center; gap: 4px;
-  border: none; background: none; color: var(--text-muted); font: inherit; font-size: 12.5px;
-  font-weight: 600; cursor: pointer; padding: 3px 9px; border-radius: 8px;
-  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+  border: 1px solid var(--border-subtle); background: none; color: var(--text-muted);
+  font: inherit; font-size: 12.5px; font-weight: 650; cursor: pointer;
+  padding: 5px 11px; border-radius: 999px; min-height: 28px;
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
-.canvas-plan-btn:hover { color: var(--brand); background: color-mix(in srgb, var(--brand) 9%, transparent); }
+.canvas-plan-btn:hover { color: var(--brand); border-color: var(--brand); }
+
+@media (max-width: 620px) {
+  .day-canvas::before { left: 45px; }
+  .canvas-sec { grid-template-columns: 54px 1fr; gap: 8px; }
+  .canvas-rail-time { font-size: 11px; }
+}
+
 .canvas-sec-empty { margin: 6px 0 2px; font-size: 12.5px; color: color-mix(in srgb, var(--text-muted) 70%, transparent); }
 
 /* — cards — */

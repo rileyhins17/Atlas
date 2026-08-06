@@ -11,7 +11,7 @@ import type { SyncResult } from '@atlas/connectors';
 import { SessionGuard } from '../../auth/session.guard.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
 import type { AuthedUser } from '../../auth/auth.service.js';
-import { loadEnv } from '../../config/env.js';
+import { appOrigin, loadEnv } from '../../config/env.js';
 import { GoogleSyncService } from './google-sync.service.js';
 import { createOAuthState, verifyOAuthState } from './oauth-state.js';
 
@@ -61,7 +61,7 @@ export class GoogleController {
     @Query('code') code?: string,
     @Query('error') error?: string,
   ): Promise<void> {
-    const webOrigin = loadEnv().WEB_ORIGIN;
+    const webOrigin = appOrigin();
 
     // The user declined consent, or Google refused.
     if (error) {

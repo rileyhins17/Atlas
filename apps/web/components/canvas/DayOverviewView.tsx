@@ -42,7 +42,16 @@ export function DayOverviewView({
 
   const [now, setNow] = useState(() => new Date());
   const [showEarlier, setShowEarlier] = useState(false);
-  const [showFullDay, setShowFullDay] = useState(false);
+  // Open by default on any day that is NOT today.
+  //
+  // Today has a now/next card, a checklist, free-time windows and the brief, so
+  // folding the hour-by-hour away leaves plenty on screen. Every other day has
+  // none of those — paging to tomorrow gave "Nothing scheduled yet" and a
+  // closed disclosure over an otherwise black screen, when the routine
+  // underneath it is exactly what you paged over to look at.
+  const [showFullDay, setShowFullDay] = useState(
+    () => dayStart.toDateString() !== new Date().toDateString(),
+  );
   const [proposals, setProposals] = useState<PlanProposalDTO[] | null>(null);
   const [planNote, setPlanNote] = useState<string | null>(null);
   const plan = usePlanDay();

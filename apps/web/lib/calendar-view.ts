@@ -9,7 +9,15 @@ import { localDayKey, startOfDay } from './dates';
 const DAY_MS = 86_400_000;
 
 /** Duration chips offered in the composer, in minutes. */
-export const DURATION_PRESETS = [15, 30, 45, 60, 90, 120] as const;
+/**
+ * Durations offered when creating an event.
+ *
+ * This used to stop at two hours, which quietly made a whole class of real
+ * event — a shift, a flight, a match, an exam, a day of teaching — impossible
+ * to enter without editing it afterwards. The chips exist so an end cannot
+ * precede a start; that guarantee does not require them to be short.
+ */
+export const DURATION_PRESETS = [15, 30, 45, 60, 90, 120, 180, 240, 360, 480, 720] as const;
 
 export function addDays(d: Date, n: number): Date {
   const out = new Date(d);

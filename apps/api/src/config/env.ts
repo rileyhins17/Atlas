@@ -61,6 +61,35 @@ export type Env = z.infer<typeof EnvSchema>;
 
 let cached: Env | undefined;
 
+/**
+ * Pick the ONE origin to send a browser back to, out of the allow-list.
+ *
+ * `WEB_ORIGIN` is comma-separated — CORS and the origin check both split it,
+ * and correctly so. A redirect cannot: using the raw value produced
+ *   Location: http://localhost:3000,https://atlaslife.app/settings?google=connected
+ * which is not a URL. Chrome answered ERR_INVALID_REDIRECT, the service worker
+ * turned that into the offline page, and Google Calendar appeared broken for
+ * reasons that had nothing to do with Google.
+ *
+ * Prefer an https entry, because that is the deployed one; fall back to the
+ * first so local development works with a single plain-http origin.
+ *
+ * Pure and exported separately from `appOrigin` so it can be tested without
+ * fighting the env cache.
+ */
+export function pickOrigin(raw: string): string {
+  const list = raw
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+  return list.find((o) => o.startsWith('https://')) ?? list[0] ?? 'http://localhost:3000';
+}
+
+/** The configured origin to redirect a browser back to. */
+export function appOrigin(): string {
+  return pickOrigin(loadEnv().WEB_ORIGIN);
+}
+
 export function loadEnv(): Env {
   if (cached) return cached;
   const parsed = EnvSchema.safeParse(process.env);

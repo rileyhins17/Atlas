@@ -1,12 +1,23 @@
 /*
  * Atlas service worker — offline app shell + runtime caching.
  *
- * Same-origin GETs only. The API is a different origin (:4000), so it is never
- * touched here: auth and user data always hit the network and are never cached
- * by the SW. Navigations are network-first with an offline fallback; static
- * assets are stale-while-revalidate.
+ * Same-origin GETs only, and NEVER /api/*. The header comment used to say the
+ * API is a different origin — it is not. In production Caddy serves the API at
+ * /api/* on the SAME origin, which is the whole reason the session cookie
+ * works, so the origin check below skipped nothing and every API call went
+ * through here.
+ *
+ * That broke the Google OAuth callback in a way that looked nothing like the
+ * cause: Google redirects the browser to /api/connectors/google/callback, which
+ * is a NAVIGATION, and the API answers it with a 302 on to /settings. The SW's
+ * fetch() follows that redirect, and the browser refuses a redirected response
+ * for a navigation request — so the promise rejected, the catch ran, and the
+ * user was shown the offline page while perfectly online.
+ *
+ * Navigations are network-first with an offline fallback; static assets are
+ * stale-while-revalidate.
  */
-const CACHE = 'atlas-v1';
+const CACHE = 'atlas-v2';
 const PRECACHE = ['/offline.html', '/icon.svg'];
 
 self.addEventListener('install', (event) => {
@@ -68,7 +79,10 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
 
   const url = new URL(request.url);
-  if (url.origin !== self.location.origin) return; // never intercept the API / cross-origin
+  if (url.origin !== self.location.origin) return; // cross-origin is not ours
+  // The API is same-origin in production. It must never be cached, and its
+  // redirects must reach the browser untouched.
+  if (url.pathname.startsWith('/api/')) return;
 
   // Page navigations: fresh HTML when online, the offline shell when not.
   if (request.mode === 'navigate') {
