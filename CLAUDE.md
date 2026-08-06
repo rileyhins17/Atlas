@@ -95,7 +95,7 @@ docs/                architecture, data-model, roadmap, guides, ADRs, GOTCHAS.
 
 ## Current state
 
-Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **546 unit tests** · **e2e 36/36** (Playwright + axe) · axe clean across phone-light, phone-dark and desktop-light.
+Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **548 unit tests** · **e2e 37/37** (Playwright + axe) · axe clean across phone-light, phone-dark and desktop-light.
 
 **"axe clean" now means zero violations, not zero serious ones.** Both scans used to filter to
 `serious`/`critical`, which silently discarded `meta-viewport` — a real WCAG 1.4.4 failure that had
@@ -159,6 +159,11 @@ doing, with an explicit "do not build" list. Read it before proposing features.
   no click and no keystrokes, so the fitness spec passed for weeks against a weight box that turned
   185 into `0185` for anyone who actually tapped it. Use `click()` + `pressSequentially()`, and
   assert the click alone changes nothing.
+  **It fails a second way on a React controlled input:** `fill()` dispatches one input event that a
+  commit can miss, leaving state empty so the submit handler returns early and NO request is sent —
+  and `getByText` then matches the textarea's own value, so the row renders on screen and never
+  exists. `toHaveValue` does not catch it either; it reads the DOM. Type, and assert against the
+  saved list.
 - **A number input under 16px forces iOS to auto-zoom on focus.** The usual fix — pinning
   `maximumScale` — disables pinch-zoom for everyone and fails WCAG 1.4.4. Size the field instead.
 - **Verify live, not just green.** Every serious bug in this project was invisible to unit tests: wrong raw-SQL column names, timezone bucketing, a cache slot that stranded finished workouts on screen, a 404ing manifest, a client bundle pointing at localhost, a session cookie missing `Secure`. After building, drive it in a real browser with a throwaway Playwright script.
