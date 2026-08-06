@@ -9,6 +9,7 @@ import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
 import { BriefBlock } from '@/components/stream/TodayHeader';
 import { ConnectionCard } from '@/components/stream/ConnectionCard';
 import { ChangeStrip } from '@/components/stream/ChangeStrip';
+import { FirstCapture } from '@/components/stream/FirstCapture';
 import { useAtlasUi } from '@/components/atlas/AtlasUiProvider';
 import { formatClock, localDayKey, startOfDay } from '@/lib/dates';
 import type { CanvasSection } from '@/lib/canvas';
@@ -75,6 +76,11 @@ export function TodayView() {
       <p className="promise">
         Tell Atlas anything, in your own words. It files it, and connects it to the rest of your life.
       </p>
+
+      {/* Above the day, because on a brand-new account there is no day yet and
+          this is the only thing on screen worth doing. It removes itself the
+          moment anything has actually been written. */}
+      <FirstCapture />
 
       <DayPager
         day={dayStart}

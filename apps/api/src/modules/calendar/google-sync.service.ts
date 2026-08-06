@@ -10,6 +10,7 @@ import type { Event } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
 import { ConnectorsService } from '../../core/connectors.service.js';
+import { loadEnv } from '../../config/env.js';
 
 const CONNECTOR_ID = 'google-calendar';
 /** How far back/forward to sync. Past events matter little; a year ahead covers planning. */
@@ -61,6 +62,11 @@ export class GoogleSyncService {
       where: { userId_connector_label: { userId, connector: CONNECTOR_ID, label: 'default' } },
     });
     return cred !== null;
+  }
+
+  /** The exact callback Atlas sends to Google, so it can be copied verbatim. */
+  redirectUri(): string {
+    return loadEnv().GOOGLE_REDIRECT_URI;
   }
 
   authUrl(state: string): string {

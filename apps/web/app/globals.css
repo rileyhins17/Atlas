@@ -4614,3 +4614,45 @@ label:has(> input[type='checkbox']) {
   color: var(--text-muted);
   text-wrap: pretty;
 }
+
+/* Google's redirect_uri_mismatch is unfixable from inside the app; showing the
+   exact string Atlas sends is the most useful thing it can do about it. */
+.gc-redirect { font-size: 12.5px; color: var(--text-muted); }
+.gc-redirect summary { cursor: pointer; min-height: 24px; padding: 3px 0; }
+.gc-redirect p { margin: 6px 0; line-height: 1.5; }
+.gc-redirect code {
+  display: block; padding: 8px 10px; border-radius: var(--radius-sm);
+  background: var(--surface-inset); color: var(--text-primary);
+  font-size: 12px; overflow-wrap: anywhere; user-select: all;
+}
+
+/* Writing: one box for a dated entry or a durable fact. */
+.wr-moods { gap: 6px; flex-wrap: wrap; align-items: center; }
+.wr-mood {
+  min-width: 36px; min-height: 36px; padding: 6px 10px;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
+  background: transparent; color: var(--text-muted);
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.wr-mood.on { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
+
+/* The guided first capture: the only thing worth doing on an empty account. */
+.fc-card {
+  margin: 0 0 12px; padding: 14px 16px;
+  border: 1px solid var(--brand); border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+.fc-head { margin: 0 0 6px; font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: var(--text-primary); }
+.fc-body { margin: 0 0 9px; font-size: 13.5px; line-height: 1.5; color: var(--text-primary); text-wrap: pretty; }
+.fc-examples { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 9px; padding: 0; list-style: none; }
+.fc-examples li {
+  padding: 5px 10px; border-radius: var(--radius-pill); background: var(--surface-inset);
+  font-size: 12.5px; color: var(--text-muted); font-family: var(--font-mono, inherit);
+}
+.fc-point { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12.5px; color: var(--text-muted); }
+.fc-card.done {
+  display: flex; align-items: flex-start; gap: 9px;
+  border-color: var(--border-subtle);
+}
+.fc-card.done p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+.fc-card.done svg { flex-shrink: 0; margin-top: 2px; color: var(--success-text, var(--brand)); }

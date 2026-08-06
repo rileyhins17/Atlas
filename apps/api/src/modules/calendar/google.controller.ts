@@ -1,11 +1,9 @@
 import {
-  BadRequestException,
   Controller,
   Get,
   Post,
   Query,
   Res,
-  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
@@ -27,6 +25,13 @@ export class GoogleController {
     return {
       configured: this.google.isConfigured(),
       connected: await this.google.isConnected(user.id),
+      // Surfaced so the person configuring Google can copy it exactly.
+      // `redirect_uri_mismatch` is Google refusing before Atlas is involved,
+      // and it is unfixable from inside the app — but it is trivially fixable
+      // by someone who can see the string Atlas actually sends. Not a secret:
+      // it is a public callback path that appears in the browser's URL bar
+      // during consent.
+      redirectUri: this.google.redirectUri(),
     };
   }
 
@@ -63,11 +68,22 @@ export class GoogleController {
       res.redirect(`${webOrigin}/settings?google=denied`);
       return;
     }
-    if (!state || !code) throw new BadRequestException('Missing OAuth state or code');
+    if (!state || !code) {
+      res.redirect(`${webOrigin}/settings?google=state`);
+      return;
+    }
 
+    // An expired or mismatched state is EXPECTED — the window is bounded and a
+    // person can easily exceed it. Throwing rendered a raw JSON 401 on a black
+    // page, which is an unrecoverable-looking answer to a recoverable problem;
+    // the browser is a browser here, not a fetch(), so it gets a page.
+    //
+    // Expired and forged are handled identically on purpose: telling a caller
+    // which one it was is exactly the hint an attacker would want.
     const stateUserId = verifyOAuthState(state, loadEnv().SESSION_SECRET);
     if (!stateUserId || stateUserId !== user.id) {
-      throw new UnauthorizedException('Invalid OAuth state');
+      res.redirect(`${webOrigin}/settings?google=state`);
+      return;
     }
 
     await this.google.completeOAuth(user.id, code);

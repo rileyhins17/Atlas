@@ -328,6 +328,8 @@ export interface GoogleStatus {
   configured: boolean;
   /** This user has authorized Google. */
   connected: boolean;
+  /** The exact callback Atlas sends, so it can be copied into Google Console. */
+  redirectUri?: string;
 }
 
 export interface SyncResult {

@@ -1,6 +1,15 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
-const STATE_TTL_MS = 10 * 60_000;
+/**
+ * 30 minutes, not 10.
+ *
+ * This is a CSRF nonce, so it must expire — but the flow it guards has a human
+ * in the middle who may have to leave and configure a third-party console
+ * before Google will even redirect back. Found live: ten minutes was not
+ * enough to add a redirect URI in Google Cloud Console and return, and the
+ * reward for doing the right thing was an "Invalid OAuth state" error.
+ */
+const STATE_TTL_MS = 30 * 60_000;
 
 interface StatePayload {
   userId: string;

@@ -33,6 +33,8 @@ export function GoogleCalendarCard({ compact = false }: { compact?: boolean }) {
     const param = new URLSearchParams(window.location.search).get('google');
     if (param === 'connected') setFlash('Google Calendar connected. Run a sync to pull your events in.');
     if (param === 'denied') setFlash('Google Calendar connection was cancelled.');
+    if (param === 'state')
+      setFlash('That took too long, so the sign-in link expired. Press Connect and it will work.');
     if (param) window.history.replaceState({}, '', window.location.pathname);
   }, []);
 
@@ -127,6 +129,22 @@ export function GoogleCalendarCard({ compact = false }: { compact?: boolean }) {
             )}
           </div>
         </>
+      )}
+
+      {/* `redirect_uri_mismatch` is Google refusing before Atlas is involved,
+          and nothing in the app can fix it — but it is trivially fixed by
+          whoever can paste this exact string into the OAuth client's authorized
+          redirect URIs. Showing it beats a dead end on Google's error page.
+          Not a secret: it appears in the browser's URL bar during consent. */}
+      {status && status.configured && !status.connected && status.redirectUri && (
+        <details className="gc-redirect">
+          <summary>Connect button sends you to a Google error?</summary>
+          <p>
+            Google must have this exact address in your OAuth client&apos;s{' '}
+            <strong>Authorized redirect URIs</strong>:
+          </p>
+          <code>{status.redirectUri}</code>
+        </details>
       )}
 
       {result && (

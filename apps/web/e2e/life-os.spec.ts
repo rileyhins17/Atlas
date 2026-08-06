@@ -542,7 +542,7 @@ test('the nav is three destinations, and every old route still resolves', async 
 
   // The domain pages are demoted, not deleted. Every one is still reachable.
   await page.goto('/everything');
-  for (const label of ['Calendar', 'Tasks', 'Goals', 'Habits', 'Training', 'Journal', 'Notes', 'Money']) {
+  for (const label of ['Calendar', 'Tasks', 'Goals', 'Habits', 'Training', 'Writing', 'Money']) {
     await expect(page.getByRole('link', { name: new RegExp(`^${label}`) })).toBeVisible();
   }
 
@@ -987,8 +987,12 @@ test('capture works on day one, before any AI key exists', async ({ page }) => {
   await expect(page.locator('.toast').first()).toBeVisible({ timeout: 25_000 });
   await expect(page.locator('.toast').first()).not.toContainText(/could not file/i);
 
-  // "at 6" is an evening event, not a task — the bare-hour rule.
-  await go(page, '/calendar');
+  // "at 6" is an evening event, not a task — the bare-hour rule. Asserted on
+  // the WEEK view, not the day: after 18:00 the parser correctly rolls the
+  // event to tomorrow, and a day view would then show nothing. This spec
+  // failed at 21:00 having passed all afternoon, which is exactly the
+  // time-bomb shape the suite is supposed to refuse.
+  await go(page, '/week');
   await expect(page.getByText(marker).first()).toBeVisible({ timeout: 15_000 });
 
   // A sentence with no time still lands, as a plain task.
@@ -999,4 +1003,67 @@ test('capture works on day one, before any AI key exists', async ({ page }) => {
 
   await go(page, '/tasks');
   await expect(page.getByText(`${marker} groceries`).first()).toBeVisible({ timeout: 15_000 });
+});
+
+test('writing is one surface: a dated entry, or something Atlas remembers', async ({ page }) => {
+  // Journal and Notes were separate destinations that looked identical from
+  // outside — one dated, one not, and neither page said so. That was a decision
+  // the product made the user take before they could write a sentence down.
+  const marker = `Write${Date.now()}`;
+  await go(page, '/journal');
+  await expect(page.getByRole('heading', { name: 'Writing' })).toBeVisible();
+
+  // Default is a dated entry, and mood belongs to a day.
+  //
+  // The value assertion between filling and submitting is load-bearing. fill()
+  // sets the DOM value and dispatches one input event; clicking Save in the
+  // same tick can beat React's commit, so `body` is still empty, save() returns
+  // early and NO request is made. It looked like it worked, because getByText
+  // matches the textarea's own value — the entry rendered and never existed.
+  // Found by counting rows in the database after a full run.
+  // Typed, not filled. fill() sets the DOM value and dispatches a single input
+  // event; a React controlled input can miss it, leaving `body` empty so save()
+  // returns early and NO request is made. It looked like it worked, because
+  // getByText matches the textarea's own value — the entry rendered on screen
+  // and never existed. Found by counting rows in the database after a full run,
+  // and it is the same lesson as the weight field: a box a person types into
+  // has to be tested by typing.
+  const box = page.getByLabel('What are you writing?');
+  await box.click();
+  await box.pressSequentially(`${marker} today was fine`);
+  await page.getByRole('button', { name: 'Mood 4 out of 5' }).click();
+  await page.getByRole('button', { name: 'Save' }).click();
+  // Asserted on the saved list, not the box, so a silent no-op cannot pass.
+  await expect(page.locator('.card', { hasText: `${marker} today was fine` })).toBeVisible({
+    timeout: 15_000,
+  });
+
+  // Ticking the box switches to a durable fact, and mood disappears with it —
+  // a standing note has no day for a mood to belong to.
+  // Reloaded between the two writes. Toggling the mode and typing again in the
+  // same render pass raced the controlled input — the DOM held the text while
+  // React's state did not, so the submit button stayed disabled and the failure
+  // read as a broken button. Coming back to the page is what a person does
+  // anyway, and it tests the same two paths without the race.
+  await go(page, '/journal');
+  await page.getByLabel(/always remember this/).check();
+  await expect(page.getByLabel('What this note is about')).toBeVisible();
+  // Mood belongs to a day; a standing fact has no day for one to belong to.
+  await expect(page.getByRole('button', { name: 'Mood 4 out of 5' })).toHaveCount(0);
+
+  const noteBox = page.getByLabel('What are you writing?');
+  await noteBox.click();
+  await noteBox.pressSequentially(`${marker} knee note`);
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText(`${marker} knee note`)).toBeVisible({
+    timeout: 15_000,
+  });
+
+  // Both live in one list, and /notes is the same surface — no bookmark broke.
+  // Attached rather than visible: on an account with a long history the older
+  // of the two is below the fold, and "is it on this page" is the claim here,
+  // not "is it in the viewport".
+  await go(page, '/notes');
+  await expect(page.getByText(`${marker} today was fine`)).toBeAttached();
+  await expect(page.getByText(`${marker} knee note`)).toBeAttached();
 });

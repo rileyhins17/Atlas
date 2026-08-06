@@ -85,8 +85,7 @@ export const EVERYTHING: DomainLink[] = [
   { label: 'Goals', href: '/goals', blurb: 'What the work is for.' },
   { label: 'Habits', href: '/habits', blurb: 'The things you are trying to keep up.' },
   { label: 'Training', href: '/fitness', blurb: 'Sessions, lifts and progress.' },
-  { label: 'Journal', href: '/journal', blurb: 'How the day went, dated.' },
-  { label: 'Notes', href: '/notes', blurb: 'Durable facts Atlas should remember.' },
+  { label: 'Writing', href: '/journal', blurb: 'How the day went, and what Atlas should remember.' },
   { label: 'Money', href: '/finance', blurb: 'Accounts and spending.' },
   { label: 'Settings', href: '/settings', blurb: 'Your week, connections and your data.' },
 ];

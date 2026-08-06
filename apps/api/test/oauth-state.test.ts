@@ -32,7 +32,10 @@ describe('OAuth state', () => {
     vi.useFakeTimers();
     try {
       const state = createOAuthState('user-1', SECRET);
-      vi.advanceTimersByTime(11 * 60_000);
+      // Past the 30-minute window: the flow has a human in the middle who
+      // may have to configure a third-party console before Google redirects
+      // back, and ten minutes was not enough for that.
+      vi.advanceTimersByTime(31 * 60_000);
       expect(verifyOAuthState(state, SECRET)).toBeNull();
     } finally {
       vi.useRealTimers();

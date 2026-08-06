@@ -67,7 +67,11 @@ export class JournalService {
   async list(userId: string, page: { limit: number; offset: number }): Promise<JournalDTO[]> {
     const entries = await this.prisma.client.journalEntry.findMany({
       where: { userId },
-      orderBy: { entryDate: 'desc' },
+      // entryDate alone is not a total order: every entry written today shares
+      // one date, so Postgres was free to return same-day entries in any order
+      // and they shuffled between reloads. createdAt breaks the tie, which is
+      // also the order a person expects — the one you just wrote, first.
+      orderBy: [{ entryDate: 'desc' }, { createdAt: 'desc' }],
       take: page.limit,
       skip: page.offset,
     });

@@ -27,9 +27,11 @@ describe('sections', () => {
     // Every one still has a route and an entry in Everything. Demoted is not
     // removed — a page nobody can reach is a page that has been deleted badly.
     const hrefs = EVERYTHING.map((d) => d.href);
+    // /notes is not listed separately any more — Journal and Notes merged into
+    // one Writing surface at /journal. Both routes still resolve to it.
     for (const path of [
       '/calendar', '/tasks', '/goals', '/habits',
-      '/fitness', '/journal', '/notes', '/finance', '/settings',
+      '/fitness', '/journal', '/finance', '/settings',
     ]) {
       expect(hrefs, path).toContain(path);
     }
