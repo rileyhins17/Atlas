@@ -231,7 +231,12 @@ export function WeekGrid({
                     <button
                       key={p.event.id}
                       type="button"
-                      className="wk-event"
+                      // A short block cannot hold two lines. At 46px an hour, a
+                      // half-hour event is 23px tall — six of that is padding —
+                      // so the title and the time both rendered and the time was
+                      // sliced through the middle. Below 45 minutes the title
+                      // wins and the time moves to the tooltip.
+                      className={`wk-event ${p.height * winSpan < 45 ? 'compact' : ''}`}
                       onClick={(e) => {
                         // Otherwise the column's create handler fires too and
                         // the composer opens on a blank event over the one you

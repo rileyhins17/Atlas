@@ -82,7 +82,11 @@ docs/                architecture, data-model, roadmap, guides, ADRs, GOTCHAS.
 
 - **`/` landing** — the only public page. Server-rendered, no client JS, ~750 indexable words. `robots.ts` disallows every app route, because they return the sign-in gate to a bot.
 - **`/today`** — the day as an overview: what is happening now, what is next, free-time windows, a checklist, then earlier items and the full hour-by-hour canvas on demand. Driven by `lib/canvas.ts` (`buildDayCanvas` → `buildDayOverview`), pure and unit-tested.
-- **`/week`** — the calendar, with Tasks and Goals as its other two tabs.
+- **`/week`** — the calendar as a **grid**: a time gutter and seven day columns, events positioned
+  by time with clashes side by side, click an empty slot to create there. The layout maths is pure
+  and unit-tested in `lib/calendar-view.ts` (`visibleHourRange`, `placeDayEvents`) — the visible
+  hour window comes from the week's own events, so the grid is never mostly empty small hours.
+  Tasks and Goals are its other two tabs; `/calendar` is the same panel in day scope, still a list.
 - **`/looking-back`** — Progress (charts) and History (the raw feed, folded away) as one screen.
   `/progress` and `/history` redirect here. `lib/sections.ts` is the authority on the nav.
 - **`/everything`** — the domain pages, demoted: `/tasks` `/calendar` `/habits` `/journal`
@@ -107,11 +111,18 @@ of the design work in v10 came from reading those PNGs, not the source.
 
 ## Current state
 
-Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **553 unit tests** · **e2e 37/37** (Playwright + axe) · axe clean across phone-light, phone-dark and desktop-light.
+Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **568 unit tests** · **e2e 39/39** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop.
 
-**"axe clean" now means zero violations, not zero serious ones.** Both scans used to filter to
-`serious`/`critical`, which silently discarded `meta-viewport` — a real WCAG 1.4.4 failure that had
-pinch-zoom disabled on every page. If you add an axe scan, assert on the whole violation list.
+**"axe clean" means zero violations, not zero serious ones, and it means every route.** The scans
+used to filter to `serious`/`critical`, which silently discarded `meta-viewport` — a real WCAG 1.4.4
+failure that had pinch-zoom disabled on every page. They also only covered three surfaces: the
+moment the sweep was widened to all thirteen it found a serious contrast failure that had shipped.
+If you add an axe scan, assert on the whole violation list.
+
+**Brand-coloured text on a brand tint needs `--brand-on-tint`, not `--brand`.** Measured: `--brand`
+on a 12% tint of itself is 4.29:1 in light and drops to 3.74:1 on the 22% hover tint — an AA failure
+in exactly the state you are looking at it. `--brand` is tuned to sit on a surface; `--brand-on-tint`
+is tuned to sit on a tint of itself, and clears 4.5:1 on every pairing the app uses.
 
 ### Known gaps — tracked, not hidden
 **`docs/production-readiness.md` is the authoritative list**, written from a 154-assertion API stress

@@ -4100,6 +4100,11 @@ input[type='checkbox']:checked::after {
   font-size: 10px; color: var(--text-muted); font-variant-numeric: tabular-nums;
   overflow: hidden; white-space: nowrap;
 }
+/* Too short for a second line — the title alone, vertically centred, and the
+   time stays available in the tooltip and in the composer. */
+.wk-event.compact { justify-content: center; padding-block: 1px; }
+.wk-event.compact .wk-event-time { display: none; }
+.wk-event.compact .wk-event-title { font-size: 11px; }
 
 /* Composer */
 .cal-field {
