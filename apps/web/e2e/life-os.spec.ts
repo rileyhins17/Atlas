@@ -924,6 +924,23 @@ test('every route renders clean at phone width, with no console errors', async (
     const body = (await page.locator('body').innerText()).trim();
     expect(body.length, `${route} rendered almost nothing`).toBeGreaterThan(40);
     expect(body, `${route} shows an error state`).not.toMatch(/something went wrong|application error/i);
+
+    // Axe, on every route, at the width most people use.
+    //
+    // Three surfaces were scanned before this — Today, Looking back, and the
+    // week grid — and the moment the grid was added to that list it turned up
+    // eight serious violations that had shipped. Scanning three of thirteen
+    // routes is how the other ten stay broken quietly. The whole violation list
+    // again, not just the serious ones: filtering by impact is exactly how
+    // meta-viewport hid for months.
+    const scan = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .analyze();
+    for (const v of scan.violations) {
+      problems.push(
+        `a11y on ${route}: ${v.id} (${v.impact}) × ${v.nodes.length} — ${v.nodes[0]?.target.join(' ')}`,
+      );
+    }
   }
 
   expect(problems, problems.join('\n')).toEqual([]);
