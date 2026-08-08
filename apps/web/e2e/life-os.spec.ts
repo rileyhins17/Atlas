@@ -27,7 +27,16 @@ const STATE = 'test-results/.life-os-state.json';
 async function go(page: import('@playwright/test').Page, path: string) {
   await page.goto(path);
   await expect(page.locator('.sidebar-user-name')).toBeVisible();
-  await expect(page.getByLabel('Capture anything')).toBeAttached();
+  // The dock OR the first-run wizard.
+  //
+  // Waiting on the dock alone raced: on the first paint the data queries are
+  // still pending, so the app is not yet "first run" and the dock renders —
+  // then the queries resolve, the wizard takes over, and the wizard hides the
+  // dock (it owns the screen). An assertion landing either side of that flip
+  // gave an intermittent failure on whichever spec happened to run against an
+  // account with no data yet. Both are proof of hydration, which is all this
+  // helper is actually asking about.
+  await expect(page.locator('.capture-dock, .onb').first()).toBeAttached();
 }
 
 test.beforeAll(async ({ browser }) => {
@@ -161,6 +170,28 @@ test('History shows cross-domain moments and filters by domain', async ({ page }
 
 test('Tasks filters, searches, and quick-adds into a group', async ({ page }) => {
   await go(page, '/tasks');
+
+  // Its OWN baseline, twice over. The per-group "Add to today" affordance only
+  // exists once the list has groups, and the search box only appears once there
+  // are enough tasks for searching to beat reading — so this spec used to pass
+  // or fail on whatever earlier specs happened to leave behind.
+  // Typed, not filled: fill() sets the DOM value and dispatches one input
+  // event, which a React controlled input can miss — `title` stays empty, the
+  // Add button stays disabled, and the click retries until the test times out.
+  // Measured here, in exactly that shape.
+  const stamp = Date.now();
+  const box = page.getByPlaceholder('Add a task…');
+  for (let i = 0; i < 8; i++) {
+    await box.click();
+    await box.pressSequentially(`Seed ${stamp}-${i}`);
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    // Wait for the write to land before typing the next one: the composer is
+    // latched while a create is in flight.
+    await expect(page.locator('.task', { hasText: `Seed ${stamp}-${i}` })).toBeVisible({
+      timeout: 15_000,
+    });
+  }
+  await expect(page.getByLabel('Search tasks')).toBeVisible({ timeout: 15_000 });
 
   // Quick-add drops a task straight into Today with its due date pre-set.
   await page.getByRole('button', { name: /Add to today/i }).first().click();

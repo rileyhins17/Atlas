@@ -154,6 +154,9 @@ function QuickAdd({ groupKey, groupLabel }: { groupKey: string; groupLabel: stri
 /** Stable "no data yet" identity — see the note in CalendarPanel. */
 const NO_TASKS: TaskDTO[] = [];
 
+/** How many tasks it takes before a search box beats just reading the list. */
+const SEARCH_THRESHOLD = 8;
+
 export function TasksPanel() {
   const [filter, setFilter] = useState<TaskFilter>('all');
   const [query, setQuery] = useState('');
@@ -230,17 +233,24 @@ export function TasksPanel() {
             </button>
           ))}
         </div>
-        <div className="task-search">
-          <Search size={14} aria-hidden />
-          <input
-            className="task-search-input"
-            type="search"
-            placeholder="Search tasks…"
-            aria-label="Search tasks"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </div>
+        {/* Search appears once there is something to search.
+            Below the threshold it took a whole row on a phone — a third
+            control above a list you can already see all of — and searching
+            five tasks is slower than reading them. It uses `all`, including
+            done, so completing things cannot make the box vanish mid-use. */}
+        {all.length >= SEARCH_THRESHOLD && (
+          <div className="task-search">
+            <Search size={14} aria-hidden />
+            <input
+              className="task-search-input"
+              type="search"
+              placeholder="Search tasks…"
+              aria-label="Search tasks"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+        )}
       </div>
 
       <Card style={{ marginTop: 14 }} aria-busy={tasksQuery.isPending}>
