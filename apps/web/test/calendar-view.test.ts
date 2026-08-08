@@ -11,9 +11,11 @@ import {
   isLive,
   minutesBetween,
   nextSlot,
+  placeDayEvents,
   rangeLabel,
   startOfWeek,
   toTimeValue,
+  visibleHourRange,
   weekDays,
 } from '../lib/calendar-view';
 
@@ -241,5 +243,130 @@ describe('addDays', () => {
   it('crosses month and year boundaries', () => {
     expect(addDays(new Date(2026, 11, 31), 1).getFullYear()).toBe(2027);
     expect(addDays(new Date(2026, 6, 31), 1).getMonth()).toBe(7);
+  });
+});
+
+/** An event on the fixed test day, from local hh:mm to hh:mm. */
+function at(startH: number, startM: number, endH: number, endM: number, title = 'e'): EventDTO {
+  return event({
+    title,
+    startAt: new Date(2026, 6, 18, startH, startM).toISOString(),
+    endAt: new Date(2026, 6, 18, endH, endM).toISOString(),
+  });
+}
+
+describe('visibleHourRange', () => {
+  it('uses the working-hours default when there is nothing to show', () => {
+    expect(visibleHourRange([])).toEqual({ startHour: 7, endHour: 23 });
+  });
+
+  it('opens early for an early event and late for a late one', () => {
+    expect(visibleHourRange([at(5, 30, 6, 30)]).startHour).toBe(5);
+    expect(visibleHourRange([at(23, 0, 23, 59)]).endHour).toBe(24);
+  });
+
+  it('does not add a dead row for an event ending exactly on the hour', () => {
+    // 17:00–18:00 needs the 18:00 line and nothing beyond it.
+    expect(visibleHourRange([at(17, 0, 18, 0)]).endHour).toBe(23);
+    expect(visibleHourRange([at(17, 0, 23, 0)]).endHour).toBe(23);
+    expect(visibleHourRange([at(17, 0, 23, 1)]).endHour).toBe(24);
+  });
+
+  it('never returns a window too short to read as a day', () => {
+    const w = visibleHourRange([]);
+    expect(w.endHour - w.startHour).toBeGreaterThanOrEqual(8);
+  });
+
+  it('ignores all-day events, which have no place on the grid', () => {
+    const allDay = event({
+      allDay: true,
+      startAt: new Date(2026, 6, 18, 0, 0).toISOString(),
+      endAt: new Date(2026, 6, 18, 23, 59).toISOString(),
+    });
+    expect(visibleHourRange([allDay])).toEqual({ startHour: 7, endHour: 23 });
+  });
+});
+
+describe('placeDayEvents', () => {
+  const day = new Date(2026, 6, 18);
+  const window = { startHour: 8, endHour: 20 } as const;
+
+  it('positions an event as a fraction of the window', () => {
+    // 12:00–14:00 in an 8:00–20:00 window: a third down, a sixth tall.
+    const [p] = placeDayEvents([at(12, 0, 14, 0)], day, window);
+    expect(p!.top).toBeCloseTo(1 / 3, 5);
+    expect(p!.height).toBeCloseTo(1 / 6, 5);
+    expect(p!.cols).toBe(1);
+  });
+
+  it('splits two clashing events into side-by-side columns', () => {
+    const placed = placeDayEvents([at(9, 0, 11, 0, 'a'), at(10, 0, 12, 0, 'b')], day, window);
+    expect(placed.map((p) => p.cols)).toEqual([2, 2]);
+    expect(placed.map((p) => p.col).sort()).toEqual([0, 1]);
+  });
+
+  it('leaves a later, unrelated event at full width', () => {
+    const placed = placeDayEvents(
+      [at(9, 0, 11, 0, 'a'), at(10, 0, 12, 0, 'b'), at(15, 0, 16, 0, 'solo')],
+      day,
+      window,
+    );
+    expect(placed.find((p) => p.event.title === 'solo')!.cols).toBe(1);
+  });
+
+  it('clusters transitively, but still recycles a freed column', () => {
+    // A 9–10, B 9:30–11, C 10:30–11:30. A and C never touch, but B bridges
+    // them, so all three belong to one cluster and share a single width.
+    // That width is TWO, not three: by the time C starts, A has finished and
+    // its column is free — widening to a third would waste a third of the day
+    // on nothing, and C never collides with A on screen.
+    const placed = placeDayEvents(
+      [at(9, 0, 10, 0, 'a'), at(9, 30, 11, 0, 'b'), at(10, 30, 11, 30, 'c')],
+      day,
+      window,
+    );
+    expect(placed.every((p) => p.cols === 2)).toBe(true);
+    const col = (t: string) => placed.find((p) => p.event.title === t)!.col;
+    expect(col('a')).toBe(0);
+    expect(col('b')).toBe(1);
+    expect(col('c')).toBe(0);
+  });
+
+  it('reuses a column once its event has finished', () => {
+    // Back-to-back in the same slot is not a clash.
+    const placed = placeDayEvents([at(9, 0, 10, 0, 'a'), at(10, 0, 11, 0, 'b')], day, window);
+    expect(placed.every((p) => p.cols === 1)).toBe(true);
+  });
+
+  it('gives a zero-length event a readable minimum height', () => {
+    const [p] = placeDayEvents([at(12, 0, 12, 0)], day, window);
+    expect(p!.height).toBeGreaterThan(0);
+  });
+
+  it('clamps an event that starts before the window instead of dropping it', () => {
+    const [p] = placeDayEvents([at(6, 0, 9, 0)], day, window);
+    expect(p!.top).toBe(0);
+    expect(p!.height).toBeGreaterThan(0);
+  });
+
+  it('omits an event that lies entirely outside the window', () => {
+    expect(placeDayEvents([at(5, 0, 6, 0)], day, window)).toEqual([]);
+  });
+
+  it('only places events belonging to the day asked for', () => {
+    const other = event({
+      startAt: new Date(2026, 6, 19, 12, 0).toISOString(),
+      endAt: new Date(2026, 6, 19, 13, 0).toISOString(),
+    });
+    expect(placeDayEvents([other], day, window)).toEqual([]);
+  });
+
+  it('clips an event running past midnight to the end of its own day', () => {
+    const overnight = event({
+      startAt: new Date(2026, 6, 18, 22, 0).toISOString(),
+      endAt: new Date(2026, 6, 19, 2, 0).toISOString(),
+    });
+    const [p] = placeDayEvents([overnight], day, { startHour: 0, endHour: 24 });
+    expect(p!.top + p!.height).toBeCloseTo(1, 5);
   });
 });

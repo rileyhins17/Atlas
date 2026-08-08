@@ -186,3 +186,151 @@ export function rangeLabel(days: Date[]): string {
   const b = last.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
   return `${a} – ${b}`;
 }
+
+/* ── The week grid ──────────────────────────────────────────────────────────
+   "Week" showed a flat agenda list grouped by day, which answers "what is next"
+   — the question Today already answers — and not "what shape is my week", which
+   is the only reason to look at seven days at once. A grid answers it: where
+   the day is packed, where it is empty, what collides.
+
+   All of the maths is here rather than in the component so the overlap
+   columns and the window clamping are unit-tested instead of eyeballed.        */
+
+/** Minutes past local midnight, for an instant on a given day. */
+function minuteOfDay(d: Date): number {
+  return d.getHours() * 60 + d.getMinutes();
+}
+
+export interface HourWindow {
+  /** Whole hours, 0–24. `end` is exclusive and always > start. */
+  startHour: number;
+  endHour: number;
+}
+
+const DEFAULT_WINDOW: HourWindow = { startHour: 7, endHour: 23 };
+/** Below this the grid stops reading as a day at all. */
+const MIN_SPAN_HOURS = 8;
+
+/**
+ * The hours worth drawing.
+ *
+ * A fixed midnight-to-midnight grid spends most of its height on hours nobody
+ * has anything in, which pushes the part you care about off the screen. So the
+ * window starts from a sensible default and only widens to whatever the week
+ * actually contains — a 6am gym session or a 1am flight pulls it open, and an
+ * ordinary week never pays for them.
+ */
+export function visibleHourRange(events: EventDTO[]): HourWindow {
+  let { startHour, endHour } = DEFAULT_WINDOW;
+  for (const e of events) {
+    if (e.allDay) continue;
+    const s = new Date(e.startAt);
+    const end = new Date(e.endAt);
+    startHour = Math.min(startHour, Math.floor(minuteOfDay(s) / 60));
+    // An event ending at 18:01 needs the 19:00 line. One ending exactly on the
+    // hour does not, or every 5–6pm meeting would add a dead row.
+    const endMin = end.getTime() > s.getTime() ? minuteOfDay(end) : minuteOfDay(s) + 30;
+    endHour = Math.max(endHour, Math.ceil(endMin / 60));
+  }
+  startHour = Math.max(0, Math.min(startHour, 23));
+  endHour = Math.min(24, Math.max(endHour, startHour + 1));
+  if (endHour - startHour < MIN_SPAN_HOURS) {
+    endHour = Math.min(24, startHour + MIN_SPAN_HOURS);
+    startHour = Math.max(0, endHour - MIN_SPAN_HOURS);
+  }
+  return { startHour, endHour };
+}
+
+export interface PlacedEvent {
+  event: EventDTO;
+  /** Fractions of the window's height, 0–1. */
+  top: number;
+  height: number;
+  /** Which of `cols` side-by-side columns this event takes. */
+  col: number;
+  cols: number;
+}
+
+/** Shortest block that stays readable and tappable, as a fraction of an hour. */
+const MIN_BLOCK_MINUTES = 24;
+
+/**
+ * Place one day's timed events into the window, side by side where they clash.
+ *
+ * Events are grouped into clusters of transitively overlapping events, and each
+ * cluster is split into as many columns as it needs — so two meetings at 2pm
+ * each take half the width, and an unrelated 5pm one still takes all of it.
+ * Clustering transitively matters: A–B overlapping and B–C overlapping means
+ * all three share a width even when A and C do not touch.
+ */
+export function placeDayEvents(
+  events: EventDTO[],
+  day: Date,
+  window: HourWindow,
+): PlacedEvent[] {
+  const key = localDayKey(day);
+  const winStart = window.startHour * 60;
+  const winSpan = (window.endHour - window.startHour) * 60;
+  if (winSpan <= 0) return [];
+
+  const timed = events
+    .filter((e) => !e.allDay && localDayKey(new Date(e.startAt)) === key)
+    .map((event) => {
+      const s = new Date(event.startAt);
+      const e = new Date(event.endAt);
+      const startMin = minuteOfDay(s);
+      // An event running past midnight is clipped to this day rather than
+      // wrapping to a negative height.
+      const rawEnd = e.getTime() > s.getTime() && localDayKey(e) === key ? minuteOfDay(e) : 1440;
+      return { event, startMin, endMin: Math.max(startMin + MIN_BLOCK_MINUTES, rawEnd) };
+    })
+    .sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+
+  const out: PlacedEvent[] = [];
+  let i = 0;
+  while (i < timed.length) {
+    // One cluster: extend while the next event starts before the cluster ends.
+    let clusterEnd = timed[i]!.endMin;
+    let j = i + 1;
+    while (j < timed.length && timed[j]!.startMin < clusterEnd) {
+      clusterEnd = Math.max(clusterEnd, timed[j]!.endMin);
+      j += 1;
+    }
+
+    // First column whose last event has already finished.
+    const colEnds: number[] = [];
+    const assigned: number[] = [];
+    for (let k = i; k < j; k++) {
+      const item = timed[k]!;
+      let col = colEnds.findIndex((end) => end <= item.startMin);
+      if (col === -1) {
+        col = colEnds.length;
+        colEnds.push(item.endMin);
+      } else {
+        colEnds[col] = item.endMin;
+      }
+      assigned.push(col);
+    }
+
+    const cols = colEnds.length;
+    for (let k = i; k < j; k++) {
+      const item = timed[k]!;
+      const top = (item.startMin - winStart) / winSpan;
+      const bottom = (item.endMin - winStart) / winSpan;
+      // Clamped, not dropped: an event partly outside the window still has to
+      // appear, or the grid quietly lies about the day.
+      const clampedTop = Math.max(0, Math.min(1, top));
+      const clampedBottom = Math.max(0, Math.min(1, bottom));
+      if (clampedBottom <= clampedTop) continue;
+      out.push({
+        event: item.event,
+        top: clampedTop,
+        height: clampedBottom - clampedTop,
+        col: assigned[k - i]!,
+        cols,
+      });
+    }
+    i = j;
+  }
+  return out;
+}

@@ -3906,6 +3906,157 @@ input[type='checkbox']:checked::after {
   letter-spacing: 0.05em;
 }
 
+/* ── The week grid ──────────────────────────────────────────────────────────
+   One CSS grid: a time gutter plus seven equal day columns, shared by the
+   header, the all-day band and the body so the three can never drift out of
+   alignment. Events are absolutely positioned inside their column as a
+   percentage of the visible window, which is what lets two clashing events sit
+   side by side instead of one hiding the other.
+
+   The visible hour window is computed from the week's own events, so the grid
+   is never mostly empty small hours — see `visibleHourRange`.               */
+.wk-card { padding: 0; overflow: hidden; }
+/* Below ~700px seven readable columns do not exist, so the grid scrolls
+   sideways rather than crushing a day to 40px. It scrolls vertically too: the
+   hour window widens to whatever the week contains, and a single 2am event
+   would otherwise make the whole card a thousand pixels tall. */
+.wk-scroll {
+  overflow: auto;
+  overscroll-behavior: contain;
+  max-height: min(62vh, 620px);
+}
+.wk-inner { min-width: 660px; }
+
+.wk-head,
+.wk-allday,
+.wk-body {
+  display: grid;
+  grid-template-columns: 52px repeat(7, minmax(0, 1fr));
+}
+
+/* Two axes of stickiness, one z-scale so they cannot fight:
+   event 1 · now-line 2 · hour gutter (sticky left) 3 · header (sticky top) 4 ·
+   the corner cell, which is both, 5. Without the horizontal pin the hour labels
+   scroll off a phone and the grid becomes seven unlabelled columns. */
+.wk-head {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.wk-gutter-cell {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--surface-raised);
+  border-right: 1px solid var(--border-subtle);
+}
+.wk-head .wk-gutter-cell { z-index: 5; }
+.wk-day {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 9px 2px 8px; min-height: 52px;
+  border: 0; border-right: 1px solid var(--border-subtle);
+  background: none; color: var(--text-muted); font: inherit; cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+.wk-day:last-child { border-right: 0; }
+.wk-day:hover { background: var(--surface-inset); }
+.wk-day-name { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; }
+.wk-day-num {
+  font-size: 15px; font-weight: 650; color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+/* Today is a ring on the number, so it survives another day being selected. */
+.wk-day.is-today .wk-day-num {
+  color: var(--brand);
+}
+.wk-day.on { background: color-mix(in srgb, var(--brand) 10%, transparent); }
+.wk-day.on .wk-day-name { color: var(--text-primary); }
+
+.wk-allday {
+  border-bottom: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--surface-inset) 45%, transparent);
+}
+.wk-allday-cell {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 4px; min-height: 26px;
+  border-right: 1px solid var(--border-subtle);
+}
+.wk-allday-cell:last-child { border-right: 0; }
+.wk-chip {
+  border: 0; border-radius: 5px; padding: 3px 6px; cursor: pointer;
+  background: color-mix(in srgb, var(--brand) 16%, var(--surface-raised));
+  color: var(--text-primary); font: inherit; font-size: 11px; font-weight: 600;
+  text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* One row per hour, sized here so the gutter labels and the column lines are
+   guaranteed to agree — a magic number in two places is how a grid ends up
+   half a line out. */
+.wk-body { --wk-hour: 46px; }
+.wk-gutter {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--surface-raised);
+  border-right: 1px solid var(--border-subtle);
+}
+.wk-hour-label {
+  height: var(--wk-hour);
+  display: flex; justify-content: flex-end;
+  padding-right: 7px;
+  font-size: 10.5px; color: var(--text-muted); font-variant-numeric: tabular-nums;
+}
+/* Sat ON the line rather than inside the row, which is where the hour is. */
+.wk-hour-label span { transform: translateY(-6px); }
+.wk-hour-label:first-child span { visibility: hidden; }
+
+.wk-col {
+  position: relative;
+  border-right: 1px solid var(--border-subtle);
+}
+.wk-col:last-child { border-right: 0; }
+.wk-col.is-today { background: color-mix(in srgb, var(--brand) 4%, transparent); }
+.wk-hour {
+  height: var(--wk-hour);
+  border-top: 1px solid color-mix(in srgb, var(--border-subtle) 60%, transparent);
+}
+.wk-hour:first-child { border-top: 0; }
+
+.wk-now {
+  position: absolute; left: 0; right: 0; height: 2px; z-index: 2;
+  background: var(--brand);
+  pointer-events: none;
+}
+.wk-now::before {
+  content: ''; position: absolute; left: -3px; top: -3px;
+  width: 8px; height: 8px; border-radius: 50%; background: var(--brand);
+}
+
+.wk-event {
+  position: absolute; z-index: 1;
+  display: flex; flex-direction: column; gap: 0;
+  overflow: hidden;
+  padding: 3px 5px;
+  border: 0; border-left: 3px solid var(--accent-strong);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--brand) 15%, var(--surface-raised));
+  color: var(--text-primary); font: inherit; text-align: left; cursor: pointer;
+  /* A hair of inset so two side-by-side events read as two, not one split. */
+  margin-right: 2px;
+  transition: background var(--dur-fast) var(--ease);
+}
+.wk-event:hover { background: color-mix(in srgb, var(--brand) 26%, var(--surface-raised)); }
+.wk-event-title {
+  font-size: 11.5px; font-weight: 650; line-height: 1.25;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.wk-event-time {
+  font-size: 10px; color: var(--text-muted); font-variant-numeric: tabular-nums;
+  overflow: hidden; white-space: nowrap;
+}
+
 /* Composer */
 .cal-field {
   display: flex;

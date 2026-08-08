@@ -30,6 +30,7 @@ import {
   useToast,
 } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
+import { WeekGrid } from '@/components/calendar/WeekGrid';
 import { GoogleCalendarCard } from '@/components/connectors/GoogleCalendarCard';
 import { useSubmitLatch } from '@/lib/hooks/submit-latch';
 import { formatClock, localDayKey } from '@/lib/dates';
@@ -304,6 +305,10 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
           </div>
         </div>
 
+        {/* Day scope only. In week scope the grid's own header IS this strip —
+            the same seven days, the same numbers, the same selection — and two
+            of them stacked is just two of them stacked. */}
+        {scope === 'day' && (
         <div className="cal-strip" role="group" aria-label="Pick a day">
           {days.map((d) => {
             const key = localDayKey(d);
@@ -340,7 +345,7 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
             );
           })}
         </div>
-
+        )}
       </div>
 
       {/* Connecting Google is something you think of while looking at your
@@ -348,6 +353,26 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
           gets one line under the strip rather than a card above the events. */}
       <GoogleCalendarCard inline />
 
+      {/* Week is a GRID, not a list.
+          Grouped by day in reverse-chronological order, "week" answered "what
+          is next" — which is Today's job — and never answered the only question
+          worth opening seven days for: where the week is packed, where it is
+          empty, and what collides. Day scope stays a list, because one day in a
+          column is just a list with worse density. */}
+      {scope === 'week' && !eventsQuery.isPending && !listError ? (
+        <Card style={{ marginTop: 12 }} className="wk-card">
+          <WeekGrid
+            days={days}
+            events={events}
+            selectedDay={selectedDay}
+            onPickDay={(key) => {
+              setSelectedDay(key);
+              setScope('day');
+            }}
+            onOpenEvent={openEdit}
+          />
+        </Card>
+      ) : (
       <Card style={{ marginTop: 12 }}>
         {eventsQuery.isPending ? (
           <ListSkeleton rows={3} circle={false} />
@@ -421,6 +446,7 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
           </div>
         )}
       </Card>
+      )}
 
       {/* One field per row. The old form put two datetime-local inputs side by
           side, which cannot shrink below ~260px each and pushed the page to

@@ -1090,3 +1090,44 @@ test('writing is one surface: a dated entry, or something Atlas remembers', asyn
   await expect(page.locator('.wr-list', { hasText: `${marker} today was fine` })).toBeAttached();
   await expect(page.locator('.wr-list', { hasText: `${marker} knee note` })).toBeAttached();
 });
+
+test('the week is a grid: seven columns, positioned events, and a way into a day', async ({
+  page,
+}) => {
+  // "Week" used to be an agenda grouped by day — which answers "what is next",
+  // the question Today already answers, and never answers the one worth opening
+  // seven days for: where the week is packed, where it is empty, what collides.
+
+  // Its own baseline. The grid renders whatever the week holds, so this spec
+  // creates the event it asserts on rather than hoping one is there.
+  await go(page, '/calendar');
+  const title = `Grid ${Date.now()}`;
+  await page.getByRole('button', { name: /New/ }).click();
+  await page.getByPlaceholder('Dentist, standup, gym…').fill(title);
+  await page.getByRole('button', { name: '1h', exact: true }).click();
+  await page.getByRole('button', { name: 'Add event' }).click();
+  await expect(page.locator('.cal-event', { hasText: title })).toBeVisible();
+
+  await go(page, '/week');
+
+  // Seven day columns and seven headers — the shape of the week, not a list.
+  await expect(page.locator('.wk-col')).toHaveCount(7);
+  await expect(page.locator('.wk-day')).toHaveCount(7);
+
+  // The event is placed IN the grid, with a real height. A block with no height
+  // is the failure mode that matters: it renders, it is findable, and it tells
+  // you nothing about when the thing happens.
+  const block = page.locator('.wk-event', { hasText: title });
+  await expect(block).toBeVisible();
+  const box = await block.boundingBox();
+  expect(box?.height ?? 0).toBeGreaterThan(8);
+
+  // The strip above is gone in week scope: the grid's own header is the strip,
+  // and two identical seven-day pickers stacked is just two of them stacked.
+  await expect(page.locator('.cal-strip')).toHaveCount(0);
+
+  // A day header is the way down into one day, and that brings the strip back.
+  await page.locator('.wk-day').first().click();
+  await expect(page.locator('.wk-col')).toHaveCount(0);
+  await expect(page.locator('.cal-strip')).toHaveCount(1);
+});
