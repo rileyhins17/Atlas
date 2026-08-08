@@ -120,10 +120,15 @@ test('capture the Life-OS screens', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/13-chat-rail.png` });
   await page.keyboard.press('Escape');
 
-  // The other theme's Today — whichever theme the environment started in.
+  // The other theme — whichever the environment started in. More than Today,
+  // because the surfaces most likely to drift are the ones built out of
+  // color-mix() against the brand: the week grid and the charts.
   await page.getByRole('button', { name: /Switch to (light|dark) theme/i }).click();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/14-today-alt-theme.png`, fullPage: true });
+  await shoot('/week', '16-week-alt-theme');
+  await shoot('/looking-back', '17-looking-back-alt-theme');
+  await page.goto('/today');
   await page.getByRole('button', { name: /Switch to (light|dark) theme/i }).click();
 
   // …and every screen again at phone width, which is the primary target.

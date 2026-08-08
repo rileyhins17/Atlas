@@ -156,6 +156,16 @@ unclickable. The full scale is documented above `.dialog-overlay` in `globals.cs
 doing, with an explicit "do not build" list. Read it before proposing features.
 `docs/atlas-next-ideas.md` is the older feature-level roadmap. Tier 1 remaining: **energy-aware placement** and **one-tap "running 30 minutes late"**. (Duration learning and batched roll-forward have shipped.)
 
+**The "Atlas v6" plan is DONE — do not re-derive it.** All of it shipped: RRULE
+storage with a preset picker (`describeRrule`, `RecurrencePicker`), the `## Now`
+block that anchors the model in the user's local date, time and timezone
+(`OrchestratorService.nowBlock`, first in every snapshot), the brain-dump
+scheduling rules including `durationMinutes` and `calendar.block`, the
+anti-hallucination honesty rules in the brief and weekly-review prompts, and the
+Progress changes (three tiles, habit rings, a 1–5 mood axis, bolded review
+bullets). A plan file describing it as outstanding is stale; check
+`orchestrator.service.ts` before believing otherwise.
+
 ---
 
 ## Working rules

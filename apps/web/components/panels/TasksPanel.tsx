@@ -252,10 +252,18 @@ export function TasksPanel() {
             onRetry={() => void tasksQuery.refetch()}
           />
         ) : all.length === 0 ? (
-          <EmptyState
-            title="No tasks yet"
-            hint="Add one above — or just describe it in the capture box; Atlas files it for you."
-          />
+          <>
+            <EmptyState
+              title="No tasks yet"
+              hint="Add one above — or just describe it in the capture box; Atlas files it for you."
+            />
+            {/* The quick-add too, not only the plain field at the top. With no
+                tasks there are no groups, so the ONE composer that can set a due
+                date and a repeat did not exist — the emptiest list, where a
+                first task is most likely to want a date, was the only place you
+                could not give it one. */}
+            <QuickAdd groupKey="today" groupLabel="Today" />
+          </>
         ) : visible.length === 0 && !showDone ? (
           <EmptyState
             title={searching ? 'Nothing matches that' : 'Nothing here'}
