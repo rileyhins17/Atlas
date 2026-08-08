@@ -4050,6 +4050,10 @@ input[type='checkbox']:checked::after {
 }
 .wk-col:last-child { border-right: 0; }
 .wk-col.is-today { background: color-mix(in srgb, var(--brand) 4%, transparent); }
+/* An empty slot is clickable: say so on hover, quietly. */
+.wk-col.clickable { cursor: pointer; }
+.wk-col.clickable:hover { background: color-mix(in srgb, var(--brand) 6%, transparent); }
+.wk-col.clickable.is-today:hover { background: color-mix(in srgb, var(--brand) 9%, transparent); }
 .wk-hour {
   height: var(--wk-hour);
   border-top: 1px solid color-mix(in srgb, var(--border-subtle) 60%, transparent);

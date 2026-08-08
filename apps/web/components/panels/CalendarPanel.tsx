@@ -150,6 +150,15 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
     setDraft(blankDraft(dayKey, now));
   }
 
+  /** Clicked an empty slot in the week grid: start there, not at "next slot". */
+  function openCreateAt(day: Date, minuteOfDay: number) {
+    setClientError(null);
+    const dayKey = localDayKey(day);
+    const hh = String(Math.floor(minuteOfDay / 60)).padStart(2, '0');
+    const mm = String(minuteOfDay % 60).padStart(2, '0');
+    setDraft({ ...blankDraft(dayKey, now), startTime: `${hh}:${mm}` });
+  }
+
   function openEdit(event: EventDTO) {
     // Expanded occurrences carry a synthetic id the API will not accept.
     if (event.isOccurrence) {
@@ -371,6 +380,7 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
             }}
             onOpenEvent={openEdit}
             onCreate={() => openCreate()}
+            onCreateAt={openCreateAt}
           />
         </Card>
       ) : (

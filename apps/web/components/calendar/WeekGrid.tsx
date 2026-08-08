@@ -34,6 +34,7 @@ export function WeekGrid({
   onPickDay,
   onOpenEvent,
   onCreate,
+  onCreateAt,
 }: {
   days: Date[];
   events: EventDTO[];
@@ -42,6 +43,8 @@ export function WeekGrid({
   onOpenEvent: (event: EventDTO) => void;
   /** Offered over an empty week, where the grid alone says nothing. */
   onCreate?: () => void;
+  /** Click an empty slot to start an event there, at the quarter hour. */
+  onCreateAt?: (day: Date, minuteOfDay: number) => void;
 }) {
   const [now, setNow] = useState(() => new Date());
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -181,12 +184,27 @@ export function WeekGrid({
               return (
                 <div
                   key={key}
-                  className={`wk-col ${key === todayKey ? 'is-today' : ''}`}
+                  className={`wk-col ${key === todayKey ? 'is-today' : ''} ${onCreateAt ? 'clickable' : ''}`}
                   aria-label={d.toLocaleDateString(undefined, {
                     weekday: 'long',
                     month: 'long',
                     day: 'numeric',
                   })}
+                  // Pointer affordance only, and deliberately so. Turning every
+                  // hour cell into a button would put ~110 stops in the tab
+                  // order for keyboard users; they have "New" and the day
+                  // header, which reach the same composer.
+                  onClick={
+                    onCreateAt
+                      ? (e) => {
+                          const box = e.currentTarget.getBoundingClientRect();
+                          const frac = (e.clientY - box.top) / box.height;
+                          const raw = winStart + frac * winSpan;
+                          // Snapped, because nobody means 9:07.
+                          onCreateAt(d, Math.max(0, Math.min(1439, Math.round(raw / 15) * 15)));
+                        }
+                      : undefined
+                  }
                 >
                   {hours.map((h) => (
                     <div className="wk-hour" key={h} />
@@ -205,7 +223,13 @@ export function WeekGrid({
                       key={p.event.id}
                       type="button"
                       className="wk-event"
-                      onClick={() => onOpenEvent(p.event)}
+                      onClick={(e) => {
+                        // Otherwise the column's create handler fires too and
+                        // the composer opens on a blank event over the one you
+                        // were trying to open.
+                        e.stopPropagation();
+                        onOpenEvent(p.event);
+                      }}
                       style={{
                         top: `${p.top * 100}%`,
                         height: `${p.height * 100}%`,

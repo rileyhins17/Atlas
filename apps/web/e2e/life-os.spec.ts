@@ -1131,3 +1131,39 @@ test('the week is a grid: seven columns, positioned events, and a way into a day
   await expect(page.locator('.wk-col')).toHaveCount(0);
   await expect(page.locator('.cal-strip')).toHaveCount(1);
 });
+
+test('clicking an empty slot in the week grid starts an event at that time', async ({ page }) => {
+  // The composer used to open at "the next half hour", wherever you clicked —
+  // so putting something on Thursday afternoon meant retyping the day and the
+  // time you had just pointed at.
+  await go(page, '/week');
+
+  const column = page.locator('.wk-col').nth(2);
+  const box = await column.boundingBox();
+  if (!box) throw new Error('week grid did not render a third column');
+
+  // A quarter of the way down the visible window, whatever that window is —
+  // the range adapts to the week's own events, so an absolute hour would make
+  // this assertion depend on what other specs left behind.
+  await column.click({ position: { x: box.width / 2, y: box.height / 4 } });
+
+  const time = page.getByLabel('Starts');
+  await expect(time).toBeVisible();
+  // Snapped to the quarter hour: nobody means 9:07.
+  expect(await time.inputValue()).toMatch(/^\d{2}:(00|15|30|45)$/);
+
+  // And it is the day that was clicked — the third column — not whichever day
+  // happened to be selected.
+  const wanted = await page.evaluate(() => {
+    const d = new Date();
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    const target = new Date(monday);
+    target.setDate(monday.getDate() + 2);
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${target.getFullYear()}-${p(target.getMonth() + 1)}-${p(target.getDate())}`;
+  });
+  await expect(page.getByLabel('Date')).toHaveValue(wanted);
+
+  await page.keyboard.press('Escape');
+});
