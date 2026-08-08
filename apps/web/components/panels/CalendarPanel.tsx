@@ -370,6 +370,7 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
               setScope('day');
             }}
             onOpenEvent={openEdit}
+            onCreate={() => openCreate()}
           />
         </Card>
       ) : (

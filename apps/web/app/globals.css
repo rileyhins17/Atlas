@@ -1737,6 +1737,20 @@ input[type='checkbox']:checked::after {
     opacity: 1;
   }
 }
+/* On a wide screen the rail makes ROOM rather than covering the page.
+   As a pure overlay it sliced 400px off the canvas — text cut mid-word, the
+   week grid losing three days — while you were asking Atlas a question ABOUT
+   what was underneath it. 1280px is where giving up 400px still leaves a
+   readable column next to the sidebar; below that it stays a drawer, which is
+   the right behaviour on a narrow screen anyway. */
+@media (min-width: 1280px) {
+  .app-layout.chat-open .main {
+    padding-right: min(400px, 100vw);
+  }
+  .app-layout.chat-open .capture-dock {
+    right: min(400px, 100vw);
+  }
+}
 .chat-rail-head {
   display: flex;
   align-items: center;
@@ -3916,6 +3930,24 @@ input[type='checkbox']:checked::after {
    The visible hour window is computed from the week's own events, so the grid
    is never mostly empty small hours — see `visibleHourRange`.               */
 .wk-card { padding: 0; overflow: hidden; }
+.wk { position: relative; }
+/* Floats over the grid rather than replacing it: the hour lines are what make
+   an empty week read as a week rather than as a page that failed to load. */
+.wk-empty {
+  position: absolute; inset: 52px 0 0; z-index: 6;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; pointer-events: none;
+  background: color-mix(in srgb, var(--surface-raised) 76%, transparent);
+}
+.wk-empty-line { margin: 0; font-size: 14px; font-weight: 600; color: var(--text-muted); }
+.wk-empty-act {
+  pointer-events: auto;
+  border: 1px solid var(--border-subtle); background: var(--surface-raised);
+  color: var(--brand); font: inherit; font-size: 13px; font-weight: 650;
+  padding: 8px 16px; border-radius: var(--radius-pill); min-height: 36px; cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease);
+}
+.wk-empty-act:hover { border-color: var(--brand); }
 /* Below ~700px seven readable columns do not exist, so the grid scrolls
    sideways rather than crushing a day to 40px. It scrolls vertically too: the
    hour window widens to whatever the week contains, and a single 2am event

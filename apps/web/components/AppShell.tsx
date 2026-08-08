@@ -74,7 +74,9 @@ function Frame({ name, children }: { name: string; children: ReactNode }) {
   const initial = name.trim().charAt(0).toUpperCase() || 'A';
 
   return (
-    <div className="app-layout">
+    // `chat-open` lets a wide screen make ROOM for the rail instead of being
+    // covered by it — see the rule in globals.css.
+    <div className={`app-layout ${chatOpen ? 'chat-open' : ''}`}>
       <aside className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-top">
           <Link href="/today" className="brand sidebar-brand" aria-label="Atlas home">

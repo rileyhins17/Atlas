@@ -33,12 +33,15 @@ export function WeekGrid({
   selectedDay,
   onPickDay,
   onOpenEvent,
+  onCreate,
 }: {
   days: Date[];
   events: EventDTO[];
   selectedDay: string;
   onPickDay: (key: string) => void;
   onOpenEvent: (event: EventDTO) => void;
+  /** Offered over an empty week, where the grid alone says nothing. */
+  onCreate?: () => void;
 }) {
   const [now, setNow] = useState(() => new Date());
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -102,8 +105,24 @@ export function WeekGrid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [window.startHour, window.endHour, days[0]?.getTime(), selectedDay]);
 
+  const weekKeys = useMemo(() => new Set(days.map(localDayKey)), [days]);
+  const isEmpty = !events.some((e) => weekKeys.has(localDayKey(new Date(e.startAt))));
+
   return (
     <div className="wk" role="group" aria-label="Week grid">
+      {/* An empty grid is a wall of blank cells that never says what it is or
+          what to do about it. The lines stay — they are what makes it read as a
+          week rather than a broken page — and one line floats over them. */}
+      {isEmpty && (
+        <div className="wk-empty">
+          <p className="wk-empty-line">Nothing this week yet.</p>
+          {onCreate && (
+            <button type="button" className="wk-empty-act" onClick={onCreate}>
+              Add something
+            </button>
+          )}
+        </div>
+      )}
       <div className="wk-scroll" ref={scrollRef}>
         <div className="wk-inner">
           <div className="wk-head">
