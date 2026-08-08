@@ -36,6 +36,16 @@ test('capture the Life-OS screens', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await register(page);
 
+  // FIRST, before any data exists: the first-run wizard. It is the only screen
+  // every paying user is guaranteed to see, and it is the one the rig could
+  // never reach — seeding a believable day is exactly what dismisses it.
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: `${OUT}/00-onboarding.png`, fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/p-00-onboarding.png`, fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 900 });
+
   // Seed a believable day straight through the API (cookie-authed). A routine
   // is part of that: without one the day canvas is a single Open block, which
   // is exactly the screen that tells you nothing about the design.

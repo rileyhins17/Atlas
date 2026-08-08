@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import { errorMessage } from '@/lib/api';
@@ -9,6 +9,7 @@ import { useReplaceRoutine } from '@/lib/hooks/routine';
 import { useGoogleConnectStart, useGoogleStatus } from '@/lib/hooks/google';
 import { qk } from '@/lib/hooks/keys';
 import { Button, Input, useToast } from '@/components/ui';
+import { useAtlasUi } from '@/components/atlas/AtlasUiProvider';
 import { AtlasLoadingScreen } from '@/components/atlas/AtlasLoadingScreen';
 import { buildRoutine, timeToMin, type OnboardingAnswers } from '@/lib/onboarding';
 
@@ -47,6 +48,16 @@ export function OnboardingWizard() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const replaceRoutine = useReplaceRoutine();
+  const { setFocusMode } = useAtlasUi();
+
+  // The wizard owns the screen while it is up. It used to render underneath the
+  // capture dock and the bottom nav, so a brand-new account was asked when it
+  // sleeps while being offered a box to type anything into and four ways to
+  // leave a three-step flow. Cleared on unmount, including on Skip.
+  useEffect(() => {
+    setFocusMode(true);
+    return () => setFocusMode(false);
+  }, [setFocusMode]);
 
   const [step, setStep] = useState(0);
   const [offerCalendar, setOfferCalendar] = useState(false);

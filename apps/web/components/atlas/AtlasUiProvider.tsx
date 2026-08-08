@@ -38,6 +38,17 @@ export interface AtlasUi {
   openChat: (ask?: string) => void;
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
+  /**
+   * A flow that owns the screen — right now, only first-run onboarding.
+   *
+   * The wizard rendered with the capture dock and the bottom nav still on top
+   * of it, so a brand-new account was asked when it sleeps while being offered
+   * a box to type anything into and four destinations to leave through. Set by
+   * the flow itself on mount, cleared on unmount, so nothing else has to know
+   * when onboarding is happening.
+   */
+  focusMode: boolean;
+  setFocusMode: (on: boolean) => void;
   /** Chat transcript lives here so it survives the rail closing. */
   messages: ChatMessageDTO[];
   setMessages: (update: (m: ChatMessageDTO[]) => ChatMessageDTO[]) => void;
@@ -85,6 +96,7 @@ export function AtlasUiProvider({ children }: { children: ReactNode }) {
   const [commandOpen, setCommandOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
   const [messages, setMessagesState] = useState<ChatMessageDTO[]>([]);
   const [pendingAsk, setPendingAsk] = useState<string | null>(null);
   const [captureContext, setCaptureContext] = useState<CaptureContext | null>(null);
@@ -198,6 +210,8 @@ export function AtlasUiProvider({ children }: { children: ReactNode }) {
       openChat,
       sidebarCollapsed,
       toggleSidebar,
+      focusMode,
+      setFocusMode,
       messages,
       setMessages,
       pendingAsk,
@@ -216,6 +230,7 @@ export function AtlasUiProvider({ children }: { children: ReactNode }) {
       openChat,
       sidebarCollapsed,
       toggleSidebar,
+      focusMode,
       messages,
       setMessages,
       pendingAsk,

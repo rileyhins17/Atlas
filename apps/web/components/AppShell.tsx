@@ -70,7 +70,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 function Frame({ name, children }: { name: string; children: ReactNode }) {
   const pathname = usePathname();
   const logout = useLogout();
-  const { sidebarCollapsed, toggleSidebar, setCommandOpen, setChatOpen, chatOpen } = useAtlasUi();
+  const { sidebarCollapsed, toggleSidebar, setCommandOpen, setChatOpen, chatOpen, focusMode } =
+    useAtlasUi();
   const initial = name.trim().charAt(0).toUpperCase() || 'A';
 
   return (
@@ -177,12 +178,17 @@ function Frame({ name, children }: { name: string; children: ReactNode }) {
       </main>
 
       {/* The phone's only navigation, so it carries "Everything" too — the
-          sidebar that holds it is hidden below 901px. */}
-      <div className="bottom-nav">
-        <NavBar withEverything />
-      </div>
+          sidebar that holds it is hidden below 901px. Both it and the capture
+          dock stand down while a flow owns the screen (first-run onboarding):
+          neither can do anything useful for an account with no data yet, and
+          the nav is four ways out of a three-step wizard. */}
+      {!focusMode && (
+        <div className="bottom-nav">
+          <NavBar withEverything />
+        </div>
+      )}
 
-      <CaptureDock />
+      {!focusMode && <CaptureDock />}
       <CommandBar />
       <ChatRail />
     </div>

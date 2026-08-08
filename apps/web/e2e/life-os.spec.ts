@@ -1121,9 +1121,17 @@ test('the week is a grid: seven columns, positioned events, and a way into a day
   const title = `Grid ${Date.now()}`;
   await page.getByRole('button', { name: /New/ }).click();
   await page.getByPlaceholder('Dentist, standup, gym…').fill(title);
+  // Midday, explicitly. The composer defaults to "the next half hour", which
+  // rolls into TOMORROW when the suite runs near midnight — the event would
+  // then be created on a day this page is not showing, and the spec would fail
+  // for an hour a day. Fixed at noon it lands on the selected day whenever the
+  // suite runs, which is the rule for every assertion in this file.
+  await page.getByLabel('Starts').fill('12:00');
   await page.getByRole('button', { name: '1h', exact: true }).click();
   await page.getByRole('button', { name: 'Add event' }).click();
-  await expect(page.locator('.cal-event', { hasText: title })).toBeVisible();
+  // 15s: the axe sweep runs just before this and the machine is loaded, so the
+  // default 5s has flaked once here.
+  await expect(page.locator('.cal-event', { hasText: title })).toBeVisible({ timeout: 15_000 });
 
   await go(page, '/week');
 
