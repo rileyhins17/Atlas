@@ -191,11 +191,14 @@ export function TasksPanel() {
 
   return (
     <>
+      {/* A subtitle is not a manual. It used to read "click a title to edit,
+          the flag to change priority" — instructions for controls that are
+          already visible, taking the one line that should say where you stand. */}
       <PageHeader
         title="Tasks"
         subtitle={
           openCount > 0
-            ? `${openCount} open · click a title to edit, the flag to change priority.`
+            ? `${openCount} open, grouped by when they are due.`
             : 'Everything you have to do, in one grouped list.'
         }
       />

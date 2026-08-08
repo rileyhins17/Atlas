@@ -169,12 +169,18 @@ function HabitCard({
           <X size={16} aria-hidden />
         </IconButton>
       </div>
+      {/* Half a year, not twelve weeks.
+          The cells share the width they are given, so twelve columns drew a
+          250px grid in a 600px card and left the rest blank — three habits and
+          most of the screen was empty. Twenty-six columns fill the card at the
+          same cell size, and the extra history is the part of a habit tracker
+          worth looking at. */}
       <div className="habit-heatmap">
         <Heatmap
           counts={counts ?? new Map()}
-          weeks={12}
+          weeks={26}
           target={habit.target}
-          label={`${habit.name} check-ins, last 12 weeks`}
+          label={`${habit.name} check-ins, last 26 weeks`}
         />
       </div>
     </Card>
