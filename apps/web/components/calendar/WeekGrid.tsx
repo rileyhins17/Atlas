@@ -185,6 +185,11 @@ export function WeekGrid({
                 <div
                   key={key}
                   className={`wk-col ${key === todayKey ? 'is-today' : ''} ${onCreateAt ? 'clickable' : ''}`}
+                  // role="group" so the day name is actually permitted here. A
+                  // bare div is role=generic, which cannot carry an accessible
+                  // name at all — axe calls that aria-prohibited-attr, and the
+                  // label was silently doing nothing.
+                  role="group"
                   aria-label={d.toLocaleDateString(undefined, {
                     weekday: 'long',
                     month: 'long',
@@ -214,6 +219,10 @@ export function WeekGrid({
                     <div
                       className="wk-now"
                       style={{ top: `${nowFraction * 100}%` }}
+                      // Same rule as the column: a div cannot be named. The
+                      // line does carry real information — where "now" sits in
+                      // the day — so it becomes an img rather than losing it.
+                      role="img"
                       aria-label={`Now, ${formatClock(now)}`}
                     />
                   )}

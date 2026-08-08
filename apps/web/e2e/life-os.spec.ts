@@ -1126,6 +1126,17 @@ test('the week is a grid: seven columns, positioned events, and a way into a day
   // and two identical seven-day pickers stacked is just two of them stacked.
   await expect(page.locator('.cal-strip')).toHaveCount(0);
 
+  // The whole violation list, not just the serious ones — filtering to
+  // serious/critical is how meta-viewport hid for months. The grid is the
+  // largest new surface in the app and was going unscanned.
+  const results = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+    .analyze();
+  expect(
+    results.violations,
+    JSON.stringify(results.violations.map((v) => `${v.id} (${v.impact})`), null, 2),
+  ).toEqual([]);
+
   // A day header is the way down into one day, and that brings the strip back.
   await page.locator('.wk-day').first().click();
   await expect(page.locator('.wk-col')).toHaveCount(0);
