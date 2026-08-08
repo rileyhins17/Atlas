@@ -183,11 +183,14 @@ test('Tasks filters, searches, and quick-adds into a group', async ({ page }) =>
   );
 });
 
-test('Progress charts the long arc and passes the axe scan', async ({ page }) => {
+test('Looking back charts the long arc and passes the axe scan', async ({ page }) => {
   // The shared account completed a task in an earlier test, so the tiles have
   // something real to render.
   await go(page, '/looking-back');
-  await expect(page.getByRole('heading', { name: 'Progress' })).toBeVisible();
+  // The heading has to match the nav item that got you here — it used to say
+  // "Progress", which reads as having landed somewhere other than where you
+  // clicked.
+  await expect(page.getByRole('heading', { name: 'Looking back' })).toBeVisible();
 
   // Range chips drive the window.
   await page.getByRole('button', { name: '90 days' }).click();
@@ -245,6 +248,16 @@ test('a recurring task rolls forward to its next occurrence when completed', asy
   await go(page, '/tasks');
 
   const title = `Recurring ${Date.now()}`;
+
+  // Its OWN baseline. The per-group "Add to today" affordance only exists once
+  // the list has rendered its groups — with no tasks at all the panel shows an
+  // empty state instead, so this spec passed or failed purely on whether an
+  // earlier spec happened to have left a task behind. The top-of-page add field
+  // is unconditional, so seeding through it makes the groups appear.
+  await page.getByPlaceholder('Add a task…').fill(`Seed ${Date.now()}`);
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await expect(page.locator('.task')).not.toHaveCount(0);
+
   await page.getByRole('button', { name: /Add to today/i }).first().click();
   // Repeat is a tap, not a typed RRULE.
   await page.getByRole('button', { name: 'Every weekday', exact: true }).click();
@@ -610,8 +623,13 @@ test('connectors are offered on their own pages, not only in Settings', async ({
   // Connecting your calendar is something you think of while looking at your
   // calendar — hiding it in Settings made it undiscoverable.
   await go(page, '/calendar');
+  // On the calendar it is a one-line status row, not a card: setup must not be
+  // the loudest thing on the page you opened to read your week. The accessible
+  // name is unchanged, which is the contract that matters — the button is still
+  // findable by the same query on both surfaces.
+  //
   // Google is only offered when the SERVER has an OAuth client — CI has none,
-  // and the card deliberately renders nothing rather than a button that cannot
+  // and the row deliberately renders nothing rather than a button that cannot
   // work. Assert whichever of those two contracts actually applies here.
   const googleConfigured = await page.evaluate(async () => {
     const base = window.location.hostname === 'localhost' ? 'http://localhost:4000' : '/api';
@@ -1015,28 +1033,24 @@ test('writing is one surface: a dated entry, or something Atlas remembers', asyn
 
   // Default is a dated entry, and mood belongs to a day.
   //
-  // The value assertion between filling and submitting is load-bearing. fill()
-  // sets the DOM value and dispatches one input event; clicking Save in the
-  // same tick can beat React's commit, so `body` is still empty, save() returns
-  // early and NO request is made. It looked like it worked, because getByText
-  // matches the textarea's own value — the entry rendered and never existed.
-  // Found by counting rows in the database after a full run.
   // Typed, not filled. fill() sets the DOM value and dispatches a single input
   // event; a React controlled input can miss it, leaving `body` empty so save()
-  // returns early and NO request is made. It looked like it worked, because
-  // getByText matches the textarea's own value — the entry rendered on screen
-  // and never existed. Found by counting rows in the database after a full run,
-  // and it is the same lesson as the weight field: a box a person types into
-  // has to be tested by typing.
+  // returns early and NO request is made. It is the same lesson as the weight
+  // field: a box a person types into has to be tested by typing.
+  //
+  // And the assertion is scoped to `.wr-list`, not to any `.card`. React mirrors
+  // a controlled textarea's value into the element's text content, so a bare
+  // `.card` + hasText matched the COMPOSER — it went green the instant the text
+  // was typed, the test navigated on, and the navigation cancelled the in-flight
+  // POST. Measured: zero journal rows in the database after a "passing" run.
   const box = page.getByLabel('What are you writing?');
   await box.click();
   await box.pressSequentially(`${marker} today was fine`);
   await page.getByRole('button', { name: 'Mood 4 out of 5' }).click();
   await page.getByRole('button', { name: 'Save' }).click();
-  // Asserted on the saved list, not the box, so a silent no-op cannot pass.
-  await expect(page.locator('.card', { hasText: `${marker} today was fine` })).toBeVisible({
-    timeout: 15_000,
-  });
+  await expect(
+    page.locator('.wr-list .card', { hasText: `${marker} today was fine` }),
+  ).toBeVisible({ timeout: 15_000 });
 
   // Ticking the box switches to a durable fact, and mood disappears with it —
   // a standing note has no day for a mood to belong to.
@@ -1055,7 +1069,8 @@ test('writing is one surface: a dated entry, or something Atlas remembers', asyn
   await noteBox.click();
   await noteBox.pressSequentially(`${marker} knee note`);
   await page.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByText(`${marker} knee note`)).toBeVisible({
+  // Same scoping, same reason.
+  await expect(page.locator('.wr-list .card', { hasText: `${marker} knee note` })).toBeVisible({
     timeout: 15_000,
   });
 
@@ -1064,6 +1079,6 @@ test('writing is one surface: a dated entry, or something Atlas remembers', asyn
   // of the two is below the fold, and "is it on this page" is the claim here,
   // not "is it in the viewport".
   await go(page, '/notes');
-  await expect(page.getByText(`${marker} today was fine`)).toBeAttached();
-  await expect(page.getByText(`${marker} knee note`)).toBeAttached();
+  await expect(page.locator('.wr-list', { hasText: `${marker} today was fine` })).toBeAttached();
+  await expect(page.locator('.wr-list', { hasText: `${marker} knee note` })).toBeAttached();
 });

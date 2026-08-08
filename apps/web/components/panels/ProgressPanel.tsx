@@ -198,7 +198,10 @@ export function ProgressPanel() {
 
   return (
     <div className="stream">
-      <PageHeader title="Progress" subtitle="How your life is trending, across everything." />
+      {/* The nav says "Looking back" and /progress redirects here, so the page
+          must say it too — a destination whose heading disagrees with the item
+          you clicked reads as having navigated somewhere else. */}
+      <PageHeader title="Looking back" subtitle="How your life is actually trending." />
 
       <div className="filter-chips" role="group" aria-label="Range">
         {RANGES.map((r) => (
@@ -273,21 +276,37 @@ export function ProgressPanel() {
           </div>
 
           <div className="prog-grid">
-            <Card title="Everything, at a glance" hint={`last ${days} days`} wide>
+            {/* Full width only when there is enough history to fill it. Thirty
+                days is five columns, and a five-column grid stranded in a
+                700px card looked like a chart that had failed to render. */}
+            <Card title="Everything, at a glance" hint={`last ${days} days`} wide={days >= 90}>
               <Heatmap
                 counts={derived.counts}
                 weeks={Math.min(Math.ceil(days / 7), 52)}
                 target={5}
                 label={`Life activity per day, last ${days} days`}
               />
+              <div className="heatmap-key" aria-hidden>
+                <span>Quieter</span>
+                <i data-level="0" />
+                <i data-level="1" />
+                <i data-level="2" />
+                <i data-level="3" />
+                <span>Busier</span>
+              </div>
             </Card>
 
+            {/* min={0} because the domain defaults to the series' own minimum:
+                a week of zeros drew a straight line through the MIDDLE of the
+                card, which reads as a steady nonzero rate. Anchored at zero, a
+                flat line sits on the floor and says what it means. */}
             <Card title="Task rhythm" hint="completed per week">
               <Sparkline
                 points={derived.tasksWeekly}
                 label="Tasks completed per week"
                 width={320}
-                height={64}
+                height={88}
+                min={0}
                 fill
               />
             </Card>
@@ -297,15 +316,15 @@ export function ProgressPanel() {
                 points={derived.habitsWeekly}
                 label="Habit check-ins per week"
                 width={320}
-                height={64}
+                height={88}
+                min={0}
                 fill
               />
             </Card>
 
-            <Card title="Habit consistency" hint={`last ${days} days`} wide>
-              <HabitConsistency days={days} />
-            </Card>
-
+            {/* Mood pairs with Habit rhythm rather than trailing the wide
+                consistency card. The half-width cards have to come in twos or
+                one of them ends a row alone next to a hole. */}
             <Card title="Mood" hint="over time">
               {derived.mood.length >= 2 ? (
                 // The axis is what makes the line readable: without it a flat
@@ -330,6 +349,10 @@ export function ProgressPanel() {
               ) : (
                 <p className="prog-muted">Journal a couple of times to see your mood trend.</p>
               )}
+            </Card>
+
+            <Card title="Habit consistency" hint={`last ${days} days`} wide>
+              <HabitConsistency days={days} />
             </Card>
 
             {/* Training, like money, only earns a card once it has real data. */}

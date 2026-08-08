@@ -77,17 +77,29 @@ export interface DomainLink {
   href: string;
   /** One line each, because "Journal" and "Notes" were indistinguishable. */
   blurb: string;
+  /** Lucide icon name, resolved in the panel so this file stays React-free. */
+  icon: 'calendar' | 'check' | 'target' | 'repeat' | 'dumbbell' | 'pen' | 'wallet' | 'settings';
 }
 
 export const EVERYTHING: DomainLink[] = [
-  { label: 'Calendar', href: '/calendar', blurb: 'Every event, day by day.' },
-  { label: 'Tasks', href: '/tasks', blurb: 'Everything open, in one list.' },
-  { label: 'Goals', href: '/goals', blurb: 'What the work is for.' },
-  { label: 'Habits', href: '/habits', blurb: 'The things you are trying to keep up.' },
-  { label: 'Training', href: '/fitness', blurb: 'Sessions, lifts and progress.' },
-  { label: 'Writing', href: '/journal', blurb: 'How the day went, and what Atlas should remember.' },
-  { label: 'Money', href: '/finance', blurb: 'Accounts and spending.' },
-  { label: 'Settings', href: '/settings', blurb: 'Your week, connections and your data.' },
+  { label: 'Calendar', href: '/calendar', blurb: 'Every event, day by day.', icon: 'calendar' },
+  { label: 'Tasks', href: '/tasks', blurb: 'Everything open, in one list.', icon: 'check' },
+  { label: 'Goals', href: '/goals', blurb: 'What the work is for.', icon: 'target' },
+  { label: 'Habits', href: '/habits', blurb: 'The things you are trying to keep up.', icon: 'repeat' },
+  { label: 'Training', href: '/fitness', blurb: 'Sessions, lifts and progress.', icon: 'dumbbell' },
+  {
+    label: 'Writing',
+    href: '/journal',
+    blurb: 'How the day went, and what Atlas should remember.',
+    icon: 'pen',
+  },
+  { label: 'Money', href: '/finance', blurb: 'Accounts and spending.', icon: 'wallet' },
+  {
+    label: 'Settings',
+    href: '/settings',
+    blurb: 'Your week, connections and your data.',
+    icon: 'settings',
+  },
 ];
 
 /** Which section a path belongs to, for highlighting the nav. */

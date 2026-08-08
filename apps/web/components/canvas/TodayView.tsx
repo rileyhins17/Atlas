@@ -74,7 +74,8 @@ export function TodayView() {
           ordinary tools sharing a login. One quiet line is the cheapest
           possible fix for "the point isn't obvious". */}
       <p className="promise">
-        Tell Atlas anything, in your own words. It files it, and connects it to the rest of your life.
+        <strong>Tell Atlas anything, in your own words.</strong> It files it, and connects it to the
+        rest of your life.
       </p>
 
       {/* Above the day, because on a brand-new account there is no day yet and

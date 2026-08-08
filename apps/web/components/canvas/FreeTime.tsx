@@ -63,23 +63,21 @@ export function FreeTime({
         ))}
       </div>
 
-      {/* If this block is wrong, the routine is wrong — so send people straight
+      {/* One footer row: the action and the escape hatch, rather than a filled
+          button and a bare underlined link stacked as two separate afterthoughts.
+          If this block is wrong, the routine is wrong — so send people straight
           to the fix instead of leaving them to work out where it lives. */}
-      <Link href="/settings#routine" className="freetime-fix">
-        Wrong? Fix your work &amp; sleep hours
-      </Link>
-
-      {onPlanDay && (
-        <button
-          type="button"
-          className="freetime-plan"
-          onClick={onPlanDay}
-          disabled={planning}
-        >
-          <Sparkles size={14} aria-hidden />
-          {planning ? 'Working out your day…' : 'Plan my day'}
-        </button>
-      )}
+      <div className="freetime-foot">
+        {onPlanDay && (
+          <button type="button" className="freetime-plan" onClick={onPlanDay} disabled={planning}>
+            <Sparkles size={14} aria-hidden />
+            {planning ? 'Working out your day…' : 'Plan my day'}
+          </button>
+        )}
+        <Link href="/settings#routine" className="freetime-fix">
+          Wrong? Fix your work &amp; sleep hours
+        </Link>
+      </div>
     </section>
   );
 }

@@ -580,8 +580,13 @@ input[type='checkbox']:checked::after {
 .sidebar.collapsed .sidebar-actions {
   flex-direction: column;
 }
+/* A COLUMN. Without the direction this is a row, so "Everything" rendered as a
+   second column beside the three destinations — a stray link floating next to
+   the nav rather than under it. */
 .sidebar-nav {
   display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 .sidebar-footer {
   margin-top: auto;
@@ -1561,18 +1566,26 @@ input[type='checkbox']:checked::after {
 }
 
 /* GitHub-style heatmap: columns = weeks, rows = Mon..Sun. */
+/* The columns SHARE the width they are given rather than each taking a fixed
+   11px. A 30-day range is five columns; at a fixed size that drew a 70px stamp
+   in the corner of a 700px card, which reads as a chart that failed to load.
+   Capped so a 52-week year does not turn into a wall of tiles. */
 .heatmap {
   display: flex;
   gap: 3px;
+  width: 100%;
 }
 .heatmap-col {
   display: flex;
   flex-direction: column;
   gap: 3px;
+  flex: 1 1 0;
+  min-width: 7px;
+  max-width: 18px;
 }
 .heatmap-cell {
-  width: 11px;
-  height: 11px;
+  width: 100%;
+  aspect-ratio: 1;
   border-radius: 3px;
   background: var(--surface-inset);
 }
@@ -1588,6 +1601,17 @@ input[type='checkbox']:checked::after {
 .heatmap-cell[data-level='future'] {
   opacity: 0.28;
 }
+/* The scale, said out loud. Without it the shading is decoration. */
+.heatmap-key {
+  display: flex; align-items: center; gap: 4px; margin-top: 10px;
+  font-size: 11px; color: var(--text-muted);
+}
+.heatmap-key i { width: 11px; height: 11px; border-radius: 3px; background: var(--surface-inset); }
+.heatmap-key i[data-level='1'] { background: color-mix(in srgb, var(--brand) 30%, var(--surface-inset)); }
+.heatmap-key i[data-level='2'] { background: color-mix(in srgb, var(--brand) 60%, var(--surface-inset)); }
+.heatmap-key i[data-level='3'] { background: var(--accent-strong); }
+.heatmap-key span:first-child { margin-right: 2px; }
+.heatmap-key span:last-child { margin-left: 2px; }
 
 /* — command bar (⌘K) — */
 .command-bar {
@@ -2529,7 +2553,20 @@ input[type='checkbox']:checked::after {
   font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums;
 }
 
-/* — overview blocks — */
+/* — overview blocks —
+   `.ov-title` had NO rule, so the three blocks that used it fell through to the
+   browser's default h2 — 1.5em bold. "1 thing didn't happen" was rendering
+   larger than anything else on Today: a nag as the loudest voice on the screen.
+   It is the missing middle rung of the type scale, between the 12px caps
+   section labels and the 30px page title. */
+.ov-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
 .ov-block { display: flex; flex-direction: column; gap: 8px; }
 .ov-head {
   display: flex; align-items: center; gap: 8px; margin: 0;
@@ -2573,14 +2610,27 @@ input[type='checkbox']:checked::after {
   letter-spacing: -0.01em;
 }
 
-/* ── Today's checklist: one list you tick off ────────────────────────────── */
-.check-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+/* ── Today's checklist: one list you tick off ──────────────────────────────
+   A GROUPED list, with an edge. As borderless rows floating under a small caps
+   label, a title on the far left and its meta 600px away on the right read as
+   two unrelated fragments rather than one line — and the block had no boundary
+   at all, so Today was a column of loose text. One surface, hairline
+   separators: the rows become a list, and the meta becomes a column. */
+.check-list {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  overflow: hidden;
+}
 .check-row {
   display: flex; align-items: center; gap: 11px;
-  padding: 10px 12px; border-radius: 11px;
+  padding: 11px 14px;
   transition: background var(--dur-fast) var(--ease);
 }
-.check-row:hover { background: var(--surface-raised); }
+.check-row + .check-row { border-top: 1px solid var(--border-subtle); }
+.check-row:hover { background: var(--surface-inset); }
 .check-row.is-done .check-title { color: var(--text-muted); text-decoration: line-through; }
 .check-box {
   flex: none; width: 22px; height: 22px; border-radius: 7px; cursor: pointer;
@@ -2601,7 +2651,7 @@ input[type='checkbox']:checked::after {
 }
 .check-add-link { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; font-size: 13px; }
 @media (max-width: 620px) {
-  .check-row { padding: 12px; }
+  .check-row { padding: 13px 14px; }
   .check-box { width: 26px; height: 26px; }
 }
 
@@ -2926,6 +2976,12 @@ input[type='checkbox']:checked::after {
   background: var(--surface-raised); border: 1px solid var(--border-subtle);
   min-width: 0;
 }
+/* Grid rows stretch every card to the tallest in the row, so a 64px sparkline
+   next to a 200px heatmap sat pinned to the top with a third of the card empty
+   below it. Centring the chart in whatever height it is given makes the row
+   read as two charts rather than one chart and one gap. */
+.prog-card > .sparkline,
+.prog-card > .prog-mood-chart { margin-block: auto; }
 .prog-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .prog-card-title { margin: 0; font-size: 13.5px; font-weight: 700; letter-spacing: -0.01em; }
 .prog-card-hint { font-size: 11.5px; color: var(--text-muted); white-space: nowrap; }
@@ -3065,14 +3121,25 @@ input[type='checkbox']:checked::after {
 }
 
 /* ── Free time + the proposed plan ───────────────────────────────────────── */
-.freetime { display: flex; flex-direction: column; gap: 9px; }
+/* Bounded like the slipped card next to it. Unbounded, a heading, four chips,
+   a raw underlined link and a filled brand button floated loose between two
+   carded blocks — four weights of emphasis with nothing holding them together. */
+.freetime {
+  display: flex; flex-direction: column; gap: 9px;
+  padding: 14px 16px 15px;
+  border-radius: 15px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+}
 .freetime-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .freetime-total { font-size: 11.5px; color: var(--text-muted); font-weight: 600; }
 .freetime-gaps { display: flex; flex-wrap: wrap; gap: 7px; }
+/* Inset, not raised: the block itself is now a raised card, so a raised chip on
+   top of it had no edge at all. */
 .freetime-gap {
   display: flex; flex-direction: column; gap: 1px; align-items: flex-start;
   padding: 7px 12px; border-radius: 12px; cursor: pointer;
-  border: 1px solid var(--border-subtle); background: var(--surface-raised); color: inherit;
+  border: 1px solid var(--border-subtle); background: var(--surface-inset); color: inherit;
   font: inherit; transition: border-color var(--dur-fast) var(--ease);
 }
 .freetime-gap:hover { border-color: var(--accent-strong); }
@@ -3103,8 +3170,17 @@ input[type='checkbox']:checked::after {
   font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
 }
 
-/* ── Slipped work: the batched decision ──────────────────────────────────── */
-.slipped { display: flex; flex-direction: column; gap: 9px; }
+/* ── Slipped work: the batched decision ────────────────────────────────────
+   Bounded, because it IS one unit — a question, the things it is about, and the
+   two answers. Unbounded it bled into the checklist below it and read as the
+   top of the page rather than one card on it. */
+.slipped {
+  display: flex; flex-direction: column; gap: 9px;
+  padding: 14px 16px 15px;
+  border-radius: 15px;
+  background: var(--surface-raised);
+  border: 1px solid color-mix(in srgb, var(--accent-strong) 24%, var(--border-subtle));
+}
 .slipped-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .slipped-later {
   border: 0; background: none; padding: 0; cursor: pointer;
@@ -3174,8 +3250,12 @@ input[type='checkbox']:checked::after {
 .routine-dated { margin-top: 4px; }
 .routine-summary { margin: 0; font-size: 11.5px; color: var(--text-muted); line-height: 1.6; }
 
+.freetime-foot {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  margin-top: 2px;
+}
 .freetime-fix {
-  align-self: flex-start; font-size: 11.5px; font-weight: 600;
+  font-size: 11.5px; font-weight: 600; min-height: 24px; display: inline-flex; align-items: center;
   color: var(--text-muted); text-decoration: underline; text-underline-offset: 2px;
 }
 .freetime-fix:hover { color: var(--text-primary); }
@@ -3288,6 +3368,22 @@ input[type='checkbox']:checked::after {
   .canvas-card-meta,
   .prog-hero-label {
     font-size: 12px;
+  }
+}
+
+/* ── The task title outranks its chips ──────────────────────────────────────
+   `.due-chip` never shrinks, and the title's floor is 4.5rem — so on a phone
+   "Finish quarterly report" wrapped to THREE lines in 90px while an 80px "2d
+   overdue" pill sat beside it at full width. The chip is metadata about a row
+   you can no longer read.
+   Wrapping plus a real floor puts the chip on its own line instead. */
+@media (max-width: 620px) {
+  .task {
+    flex-wrap: wrap;
+    row-gap: 5px;
+  }
+  .task-title-btn {
+    min-width: 11rem;
   }
 }
 
@@ -3603,10 +3699,19 @@ input[type='checkbox']:checked::after {
    390px phone.
    ───────────────────────────────────────────────────────────────────────── */
 
+/* The pager, the strip and the scope switch are ONE control surface attached to
+   the page header, not a card. Boxing navigation made the calendar open on three
+   stacked panels of chrome, and at phone width the first event fell below the
+   fold — the page answered "connect your Google account" to the question "what
+   is on this week". */
+.cal-head {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
 .cal-nav {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-2);
 }
 .cal-nav-btn,
@@ -3623,12 +3728,17 @@ input[type='checkbox']:checked::after {
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
+/* Sized to its label. Stretched across the row it was the loudest control on
+   the page — a bigger target than "New" for a jump you make once a session. */
 .cal-today-btn {
-  flex: 1;
+  flex: 0 1 auto;
+  padding: 0 20px;
   font-size: var(--text-sm);
   font-weight: 600;
   letter-spacing: 0.01em;
 }
+/* The scope switch takes the far end, so the pager stays a tight cluster. */
+.cal-nav .cal-scope { margin-left: auto; }
 .cal-nav-btn:hover,
 .cal-today-btn:hover {
   background: var(--surface-inset);
@@ -3702,16 +3812,19 @@ input[type='checkbox']:checked::after {
   background: var(--text-on-accent);
 }
 
+/* Sits on the pager row, sized to its content — as a full-width third row it
+   read as a primary choice, which it is not. */
 .cal-scope {
   display: flex;
-  gap: var(--space-1);
-  margin-top: var(--space-3);
+  gap: 2px;
   padding: 3px;
-  background: var(--surface-raised);
+  background: var(--surface-inset);
   border-radius: var(--radius-sm);
+  flex: 0 0 auto;
 }
 .cal-scope-btn {
-  flex: 1;
+  min-width: 58px;
+  padding: 0 12px;
   min-height: 38px;
   border: none;
   background: transparent;
@@ -3723,8 +3836,9 @@ input[type='checkbox']:checked::after {
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .cal-scope-btn.on {
-  background: var(--surface-inset);
+  background: var(--surface-raised);
   color: var(--text-primary);
+  box-shadow: var(--shadow-1);
 }
 
 /* An event row is a button: the whole row opens the editor, so there is no
@@ -4688,38 +4802,66 @@ label:has(> input[type='checkbox']) {
 .adm-domains li { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
 
 /* ── Everything (the demoted domain pages) ───────────────────────────────── */
-.evy-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.evy-item {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 14px 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg);
-  background: var(--surface-raised); color: var(--text-primary); text-decoration: none;
-  transition: border-color var(--dur-fast) var(--ease);
+/* Two columns, so the eight parts of Atlas can be taken in at once instead of
+   scrolled through as identical full-width bars. Collapses to one on a phone,
+   where a 2-up card is narrower than its own blurb. */
+.evy-list {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;
+  margin: 0; padding: 0; list-style: none;
 }
-.evy-item:hover { border-color: var(--brand); }
-.evy-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.evy-item {
+  display: flex; align-items: flex-start; gap: 12px; height: 100%;
+  padding: 15px 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg);
+  background: var(--surface-raised); color: var(--text-primary); text-decoration: none;
+  transition: border-color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+.evy-item:hover { border-color: var(--brand); transform: translateY(-1px); box-shadow: var(--shadow-1); }
+.evy-icon {
+  flex: 0 0 auto; display: grid; place-items: center;
+  width: 34px; height: 34px; border-radius: 10px;
+  background: var(--surface-inset); color: var(--brand);
+}
+.evy-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .evy-label { font-size: 15px; font-weight: 650; letter-spacing: -0.01em; }
-.evy-blurb { font-size: 12.5px; color: var(--text-muted); }
-.evy-item svg { flex-shrink: 0; color: var(--text-muted); }
+.evy-blurb { font-size: 12.5px; color: var(--text-muted); line-height: 1.45; text-wrap: pretty; }
+@media (max-width: 620px) {
+  .evy-list { grid-template-columns: 1fr; gap: 8px; }
+}
 
 /* Looking back: the raw feed, folded away under the summary. */
 .lb-feed { margin-top: 20px; padding-top: 4px; border-top: 1px solid var(--border-subtle); }
+/* One level down from the three destinations, and it has to LOOK it — same
+   icon column and text size so the left edge stays a single line, but sitting
+   under a rule rather than in the list. */
 .sidebar-everything {
-  display: flex; align-items: center; gap: 11px; margin-top: 6px; padding: 10px 12px;
-  border-radius: var(--radius-md); color: var(--text-muted); text-decoration: none;
-  font-size: 14px; font-weight: 600; min-height: 44px;
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 10px; padding: 9px 10px;
+  border-top: 1px solid var(--border-subtle); padding-top: 13px;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  color: var(--text-muted); text-decoration: none;
+  font-size: var(--text-sm); font-weight: 550; min-height: 40px;
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
+.sidebar-everything svg { width: 18px; height: 18px; flex: 0 0 auto; }
 .sidebar-everything:hover { background: var(--surface-inset); color: var(--text-primary); }
 .sidebar-everything.on { background: var(--surface-inset); color: var(--text-primary); }
 
 /* The one line that says what Atlas is, on the only screen everyone opens. */
+/* The one sentence that says what Atlas IS. At 12.5px muted it was the
+   smallest, quietest text on the screen — quieter than the tip card under it,
+   which is a hint about a hint. It is the premise; it gets to be legible. */
 .promise {
-  margin: 0 2px 10px;
-  font-size: 12.5px;
+  margin: 0 2px 14px;
+  font-size: 14.5px;
   line-height: 1.5;
-  color: var(--text-muted);
+  font-weight: 500;
+  color: var(--text-primary);
+  max-width: 46ch;
   text-wrap: pretty;
 }
+/* The lead-in — "Tell Atlas anything" — carries the weight; the rest explains. */
+.promise strong { font-weight: 700; letter-spacing: -0.01em; }
 
 /* Google's redirect_uri_mismatch is unfixable from inside the app; showing the
    exact string Atlas sends is the most useful thing it can do about it. */
@@ -4731,6 +4873,35 @@ label:has(> input[type='checkbox']) {
   background: var(--surface-inset); color: var(--text-primary);
   font-size: 12px; overflow-wrap: anywhere; user-select: all;
 }
+
+/* The connector as a status line, not a setup card. A live dot, the name, the
+   state, and the one verb that applies — everything else appears only after you
+   have acted on it. */
+.gc-inline { margin-bottom: 12px; }
+.gc-inline-row {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  font-size: 13px; color: var(--text-muted);
+}
+.gc-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto;
+  background: var(--border-strong, var(--border-subtle));
+  border: 1px solid var(--border-subtle);
+}
+.gc-dot.on { background: #3f9d6b; border-color: #3f9d6b; }
+.gc-inline-label { color: var(--text-primary); font-weight: 600; }
+.gc-inline-state { color: var(--text-muted); font-weight: 500; }
+.gc-inline-act {
+  margin-left: auto; border: 1px solid var(--border-subtle); background: none;
+  color: var(--brand); font: inherit; font-size: 12.5px; font-weight: 650;
+  cursor: pointer; padding: 5px 12px; border-radius: var(--radius-pill); min-height: 30px;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.gc-inline-act:hover:not(:disabled) { background: var(--surface-inset); border-color: var(--brand); }
+.gc-inline-act:disabled { opacity: 0.55; cursor: default; }
+/* Only the first action pushes right; the rest sit beside it. */
+.gc-inline-act ~ .gc-inline-act { margin-left: 0; }
+.gc-inline-act.quiet { color: var(--text-muted); }
+.gc-inline-note { margin: 7px 0 0; font-size: 12.5px; color: var(--text-muted); line-height: 1.5; }
 
 /* Writing: one box for a dated entry or a durable fact. */
 .wr-moods { gap: 6px; flex-wrap: wrap; align-items: center; }

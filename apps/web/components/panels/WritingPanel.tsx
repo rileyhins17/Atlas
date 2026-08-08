@@ -174,7 +174,13 @@ export function WritingPanel() {
         </form>
       </Card>
 
-      <div className="stack" style={{ marginTop: 14 }}>
+      {/* Named, so "did this actually save" can be asked of the LIST rather than
+          of any `.card` on the page. React mirrors a controlled textarea's value
+          into the element's text content, so `.card` + hasText matched the
+          composer itself — the assertion meant to prove a write happened passed
+          the instant the text was typed, and the test then navigated away and
+          cancelled the request it was supposed to be waiting for. */}
+      <div className="stack wr-list" style={{ marginTop: 14 }}>
         {loading && <CardListSkeleton cards={2} lines={2} />}
         {failed && (
           <ErrorState

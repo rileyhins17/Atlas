@@ -247,16 +247,12 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
         }
       />
 
-      {/* Connecting Google is something you think of while looking at your
-          calendar, not while hunting through Settings. Same component both
-          places, so the two can never drift. */}
-      <div style={{ marginBottom: 14 }}>
-        <GoogleCalendarCard compact />
-      </div>
-
       {/* Week navigation. The strip is the whole control: swipeable by nature,
-          one tap per day, and it shows where the busy days are before you go. */}
-      <Card stack>
+          one tap per day, and it shows where the busy days are before you go.
+          It is navigation, so it is attached to the header rather than boxed in
+          a card of its own — three stacked cards before the first event was the
+          reason this page opened on chrome instead of a week. */}
+      <div className="cal-head">
         <div className="cal-nav">
           <button
             type="button"
@@ -285,6 +281,27 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
           >
             <ChevronRight size={18} aria-hidden />
           </button>
+
+          {/* On the same row as the pager: it is one question — which slice of
+              time am I looking at — and it used to cost a third row on its own. */}
+          <div className="cal-scope" role="group" aria-label="How much to show">
+            <button
+              type="button"
+              className={`cal-scope-btn ${scope === 'day' ? 'on' : ''}`}
+              aria-pressed={scope === 'day'}
+              onClick={() => setScope('day')}
+            >
+              Day
+            </button>
+            <button
+              type="button"
+              className={`cal-scope-btn ${scope === 'week' ? 'on' : ''}`}
+              aria-pressed={scope === 'week'}
+              onClick={() => setScope('week')}
+            >
+              Week
+            </button>
+          </div>
         </div>
 
         <div className="cal-strip" role="group" aria-label="Pick a day">
@@ -324,27 +341,14 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
           })}
         </div>
 
-        <div className="cal-scope" role="group" aria-label="How much to show">
-          <button
-            type="button"
-            className={`cal-scope-btn ${scope === 'day' ? 'on' : ''}`}
-            aria-pressed={scope === 'day'}
-            onClick={() => setScope('day')}
-          >
-            Day
-          </button>
-          <button
-            type="button"
-            className={`cal-scope-btn ${scope === 'week' ? 'on' : ''}`}
-            aria-pressed={scope === 'week'}
-            onClick={() => setScope('week')}
-          >
-            Week
-          </button>
-        </div>
-      </Card>
+      </div>
 
-      <Card style={{ marginTop: 14 }}>
+      {/* Connecting Google is something you think of while looking at your
+          calendar, not while hunting through Settings — but it is setup, so it
+          gets one line under the strip rather than a card above the events. */}
+      <GoogleCalendarCard inline />
+
+      <Card style={{ marginTop: 12 }}>
         {eventsQuery.isPending ? (
           <ListSkeleton rows={3} circle={false} />
         ) : listError ? (

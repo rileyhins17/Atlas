@@ -19,8 +19,22 @@ import { Button, Card, ErrorState, Skeleton } from '@/components/ui';
  *
  * `compact` trims the explanation for the domain page, where the surrounding
  * context already makes it obvious what a calendar connection is for.
+ *
+ * `inline` goes further and drops the card entirely for a single row. On the
+ * calendar page the full card was the loudest thing on the screen — a 170px
+ * setup prompt with the page's only filled button, sitting above the events.
+ * At phone width it pushed every event below the fold, so the answer to "what
+ * is on this week" was "connect your Google account". Setup is not content.
+ * The row keeps the same accessible names, so the same button is still there
+ * for anyone looking for it.
  */
-export function GoogleCalendarCard({ compact = false }: { compact?: boolean }) {
+export function GoogleCalendarCard({
+  compact = false,
+  inline = false,
+}: {
+  compact?: boolean;
+  inline?: boolean;
+}) {
   const [flash, setFlash] = useState<string | null>(null);
   const statusQuery = useGoogleStatus();
   const connectStart = useGoogleConnectStart();
@@ -61,7 +75,75 @@ export function GoogleCalendarCard({ compact = false }: { compact?: boolean }) {
 
   // A server with no Google OAuth client cannot connect anything, so on a domain
   // page it shows nothing at all rather than a button that cannot work.
-  if (compact && status && !status.configured) return null;
+  if ((compact || inline) && status && !status.configured) return null;
+
+  if (inline) {
+    // Nothing at all until the status is known: a row that appears a beat late
+    // is far better than one that shifts the events down as it resolves.
+    if (!status?.configured) return null;
+    return (
+      <div className="gc-inline">
+        <div className="gc-inline-row">
+          <span className={`gc-dot ${status.connected ? 'on' : ''}`} aria-hidden />
+          <span className="gc-inline-label">
+            Google Calendar{' '}
+            <span className="gc-inline-state">{status.connected ? 'connected' : 'not connected'}</span>
+          </span>
+          {status.connected ? (
+            <>
+              <button
+                type="button"
+                className="gc-inline-act"
+                onClick={() => sync.mutate()}
+                disabled={busy}
+              >
+                {sync.isPending ? 'Syncing…' : 'Sync now'}
+              </button>
+              <button
+                type="button"
+                className="gc-inline-act quiet"
+                onClick={() => disconnect.mutate(undefined, { onSuccess: () => sync.reset() })}
+                disabled={busy}
+              >
+                Disconnect
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="gc-inline-act"
+              aria-label="Connect Google Calendar"
+              onClick={connect}
+              disabled={busy}
+            >
+              {connectStart.isPending ? '…' : 'Connect'}
+            </button>
+          )}
+        </div>
+        {/* Everything below only exists once you have acted, so it costs no
+            space on the screen you actually came to read. */}
+        {flash && <p className="gc-inline-note">{flash}</p>}
+        {result && (
+          <p className="gc-inline-note">
+            Synced: {result.imported} imported, {result.updated} updated, {result.pushed} pushed,{' '}
+            {result.deleted} removed.
+            {result.errors.length > 0 && ` ${result.errors.length} error(s).`}
+          </p>
+        )}
+        {error && <p className="error gc-inline-note">{error}</p>}
+        {!status.connected && status.redirectUri && (
+          <details className="gc-redirect">
+            <summary>Connect button sends you to a Google error?</summary>
+            <p>
+              Google must have this exact address in your OAuth client&apos;s{' '}
+              <strong>Authorized redirect URIs</strong>:
+            </p>
+            <code>{status.redirectUri}</code>
+          </details>
+        )}
+      </div>
+    );
+  }
 
   return (
     <Card stack>
