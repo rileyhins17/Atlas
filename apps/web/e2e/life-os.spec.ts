@@ -549,9 +549,17 @@ test('the nav is three destinations, and every old route still resolves', async 
   // feature — eleven peers became four sections, and four sections still hid a
   // tab strip that put the eleven back.
   // The same nav renders twice (sidebar + bottom bar, shown by CSS), so scope
-  // to one of them.
+  // to one of them. The sidebar's is first and carries the three; the phone bar
+  // carries "Everything" as well, because the sidebar that holds it is hidden
+  // below 901px and half the app was otherwise reachable only through search.
   const nav = page.locator('.app-nav').first();
   await expect(nav.locator('.nav-label')).toHaveText(['Today', 'Week', 'Looking back']);
+  await expect(page.locator('.bottom-nav .nav-label')).toHaveText([
+    'Today',
+    'Week',
+    'Looking back',
+    'Everything',
+  ]);
 
   // The domain pages are demoted, not deleted. Every one is still reachable.
   await page.goto('/everything');

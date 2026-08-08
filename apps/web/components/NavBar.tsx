@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CalendarDays, Home, Rewind } from 'lucide-react';
+import { CalendarDays, Home, LayoutGrid, Rewind } from 'lucide-react';
 import { SECTIONS, sectionFor, type Section } from '@/lib/sections';
 
 const ICONS = { home: Home, calendar: CalendarDays, rewind: Rewind } as const;
@@ -17,8 +17,21 @@ const ICONS = { home: Home, calendar: CalendarDays, rewind: Rewind } as const;
  * Settings and the domain pages are deliberately absent: they live behind
  * "Everything", because configuring the app and browsing one silo are not the
  * things you opened it to do.
+ *
+ * `withEverything` puts that entry in the bar itself, for the phone. The
+ * sidebar renders its own copy under a rule, but the sidebar is hidden below
+ * 901px — so on the primary platform "Everything" was reachable from nowhere,
+ * and with it Habits, Training, Writing, Money and Settings. The one route in
+ * was the command bar, which is a search box: half the app was behind a text
+ * query you had to already know to type.
  */
-export function NavBar({ collapsed = false }: { collapsed?: boolean }) {
+export function NavBar({
+  collapsed = false,
+  withEverything = false,
+}: {
+  collapsed?: boolean;
+  withEverything?: boolean;
+}) {
   const pathname = usePathname();
   const active = sectionFor(pathname);
 
@@ -42,6 +55,17 @@ export function NavBar({ collapsed = false }: { collapsed?: boolean }) {
           </Link>
         );
       })}
+
+      {withEverything && (
+        <Link
+          href="/everything"
+          className={`nav-link ${pathname === '/everything' ? 'active' : ''}`}
+          aria-current={pathname === '/everything' ? 'page' : undefined}
+        >
+          <LayoutGrid className="nav-icon" size={20} aria-hidden />
+          <span className="nav-label">Everything</span>
+        </Link>
+      )}
     </nav>
   );
 }

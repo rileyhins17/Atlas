@@ -185,13 +185,13 @@ export function RoutineEditor() {
 
   return (
     <Card stack>
-      <div>
-        <h2 className="card-title">Your week</h2>
-        <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 0' }}>
-          Atlas uses this to know when you&rsquo;re actually free. Anything not covered here
-          counts as open time.
-        </p>
-      </div>
+      {/* No heading of its own: the settings section it opens inside is already
+          titled "Your week", and a card repeating its own container's name reads
+          as two nested things rather than one. */}
+      <p className="muted" style={{ fontSize: 12.5, margin: 0 }}>
+        Atlas uses this to know when you&rsquo;re actually free. Anything not covered here counts
+        as open time.
+      </p>
 
       {weekly.length === 0 ? (
         <p className="prog-muted">

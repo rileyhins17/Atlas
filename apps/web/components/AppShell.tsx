@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { LayoutGrid, LogOut, MessageCircle, PanelLeft, Search, Settings as SettingsIcon } from 'lucide-react';
+import { LayoutGrid, LogOut, MessageCircle, PanelLeft, Search } from 'lucide-react';
 import { useMe, useLogout } from '@/lib/hooks/auth';
 import { useTimezoneSync } from '@/lib/hooks/timezone';
 import { IconButton, Kbd } from '@/components/ui';
@@ -136,6 +136,14 @@ function Frame({ name, children }: { name: string; children: ReactNode }) {
         </div>
       </aside>
 
+      {/* Three, not six.
+          The phone bar carried search, asks, chat, theme, settings AND sign-out
+          on every screen — six controls above the content before you had done
+          anything, two of which (theme, sign out) are touched about twice a
+          year. Both moved into Settings, which is one tap away and is where
+          people look for them; settings itself is reachable from Everything and
+          from ⌘K. What is left is the three ambient things you actually use
+          from any screen. */}
       <header className="mobile-topbar">
         <Link href="/today" className="brand" aria-label="Atlas home">
           <Logo size={24} />
@@ -153,13 +161,6 @@ function Frame({ name, children }: { name: string; children: ReactNode }) {
           >
             <MessageCircle size={18} aria-hidden />
           </IconButton>
-          <ThemeToggle />
-          <Link href="/settings" className="icon-btn" aria-label="Settings">
-            <SettingsIcon size={18} aria-hidden />
-          </Link>
-          <IconButton label="Sign out" onClick={() => logout.mutate()}>
-            <LogOut size={18} aria-hidden />
-          </IconButton>
         </div>
       </header>
 
@@ -173,8 +174,10 @@ function Frame({ name, children }: { name: string; children: ReactNode }) {
         </div>
       </main>
 
+      {/* The phone's only navigation, so it carries "Everything" too — the
+          sidebar that holds it is hidden below 901px. */}
       <div className="bottom-nav">
-        <NavBar />
+        <NavBar withEverything />
       </div>
 
       <CaptureDock />

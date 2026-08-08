@@ -838,10 +838,6 @@ input[type='checkbox']:checked::after {
     width: 20px;
     height: 20px;
   }
-  /* Only five tabs fit a phone; the rest live in ⌘K + the top bar. */
-  .bottom-nav .nav-link.nav-desktop-only {
-    display: none;
-  }
   .bottom-nav .nav-label {
     /* 10px failed both readability and, in the active state, WCAG AA. */
     font-size: 11px;

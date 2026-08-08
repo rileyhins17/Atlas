@@ -50,7 +50,7 @@ export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
         <PlaidCard />
       </SettingsSection>
 
-      <SettingsSection id="data" title="Your data & account" hint="export, sign out, delete">
+      <SettingsSection id="data" title="Your data & account" hint="appearance, sign out, export, delete">
         <DataPrivacyPanel onSignOut={onSignOut} />
       </SettingsSection>
     </>
