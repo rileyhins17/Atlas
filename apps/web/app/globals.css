@@ -2199,6 +2199,13 @@ input[type='checkbox']:checked::after {
   display: flex; flex-direction: column;
 }
 .onb-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4vh; }
+/* Underlined, because a coloured word inside a paragraph of the same size is
+   not a discoverable link — and this one is the way out of the only step that
+   needs a second device. */
+.onb-link {
+  color: var(--link); font-weight: 650;
+  text-decoration: underline; text-underline-offset: 2px;
+}
 .onb-back {
   border: none; background: none; color: var(--text-muted); cursor: pointer;
   width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center;

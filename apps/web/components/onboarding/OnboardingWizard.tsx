@@ -338,8 +338,21 @@ export function OnboardingWizard() {
               </p>
             )}
             <p className="onb-sub" style={{ fontSize: 12 }}>
-              Get one free at <strong>platform.deepseek.com</strong> — sign up, open API keys,
-              create one, paste it here. Stored encrypted; it never leaves your Atlas.
+              {/* A link, not bold text to retype. This is the single highest-
+                  friction step in onboarding and it was asking someone to copy
+                  a domain by hand onto a second device. Opens in a new tab so a
+                  half-finished wizard is not lost. */}
+              Get one free at{' '}
+              <a
+                href="https://platform.deepseek.com"
+                target="_blank"
+                rel="noreferrer noopener"
+                className="onb-link"
+              >
+                platform.deepseek.com
+              </a>{' '}
+              — sign up, open API keys, create one, paste it here. Stored encrypted; it never
+              leaves your Atlas.
             </p>
             {/* Skipping has to be honest about the cost. Saying "everything
                 still works" was not true — capture, the brief, planning and the
