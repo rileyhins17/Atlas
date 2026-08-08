@@ -156,5 +156,20 @@ Append every new setup/build snag here (root cause + fix) so no future thread wa
 - **`fill()` cannot see this class of bug.** Playwright's `fill()` sets `value` in one shot and dispatches a single input event — no click, no keystrokes. The fitness spec had passed for weeks against a field that a real person could not type into. **For any field a user types into rather than picks, drive it with `click()` + `pressSequentially()` at least once**, and assert that the click ALONE leaves the value unchanged.
 - **A hard pixel width on a flex field will silently starve its children.** `.fit-field` was `width: 84px` around two 44px tap targets and an input: the buttons were squeezed below the AA size their own comment claims, and `width: 100%; min-width: 0` let the input collapse to 32px. Size the container from what it contains, and give a number input a `min-width` that fits its realistic digit count.
 
+## A className with no CSS rule is not "unstyled" — it is browser-default (v10)
+- **`.ov-title` and `.card-title` had no rule anywhere in `globals.css`.** They did not render plainly; they rendered as the browser's default `h2` — 1.5em, bold. On Today that made *"1 thing didn't happen"* larger than every other piece of text on the screen, so a nag was the loudest voice in the product. Nothing errors, nothing warns, and it looks deliberate.
+- **Grep the stylesheet for any class you introduce, and grep the components for any class you delete.** Both directions rot silently. `.nav-desktop-only` was live CSS for a class no component had emitted in months.
+
+## The sidebar is hidden below 901px (v10)
+- **`.sidebar { display: none }` at `max-width: 900px`.** Anything reachable *only* from the sidebar does not exist on a phone, which is the primary target. "Everything" lived there alone, so Habits, Training, Writing, Money, Calendar and Settings had no navigation path at all on mobile — the only route in was the command bar, i.e. a search box you had to already know what to type into.
+- **Whenever you add a destination, decide where it lives in BOTH navs.** The bottom bar now carries "Everything" as a fourth item.
+
+## A controlled textarea's value IS its text content (v10)
+- **React mirrors a controlled `<textarea>`'s value into the element's text, so `locator('.card', { hasText: typedText })` matches the COMPOSER**, not the saved row. The writing spec went green the instant the text was typed, then navigated on — and the navigation cancelled the in-flight POST. Measured: **zero journal rows in the database after a "passing" run**, exactly like the `fill()` trap above but with a correct-looking assertion.
+- **Assert against a container that can only hold saved data.** The written list now has its own `.wr-list` hook, and the spec is scoped to it. If an assertion could conceivably match the input you just typed into, it is not testing persistence.
+
+## Audit by looking, at both widths (v10)
+- **`e2e/screenshots.spec.ts` (run with `SHOTS=1`) shoots every route at 1440px AND 390px**, plus the hour-by-hour canvas that no route reaches. It had drifted to five routes at desktop only, under names that no longer existed. Most of the design faults fixed in v10 were invisible in code review and obvious in a screenshot: a nav rendering as two columns because `.sidebar-nav` was `display: flex` with no direction; a 30-day heatmap drawing a 70px stamp in a 700px card; a sparkline whose domain defaulted to the series minimum, so a week of zeros drew a flat line through the middle of the chart and read as a steady nonzero rate.
+
 ## Verifying against a stale bundle (v9)
 - **`playwright.config.ts` starts `pnpm --filter @atlas/web start` with `reuseExistingServer: !CI`** — the BUILT app, and locally that is usually the live deployment already running. A source edit is invisible to the suite until `pnpm build` runs, so a fix "not working" may just be untested. Rebuild before concluding anything about a UI change, and remember `pnpm build` needs node stopped (it holds the Prisma DLL) — pause the "Atlas health" task first or the watchdog restarts node mid-build.

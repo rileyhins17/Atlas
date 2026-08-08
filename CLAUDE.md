@@ -82,20 +82,32 @@ docs/                architecture, data-model, roadmap, guides, ADRs, GOTCHAS.
 
 - **`/` landing** — the only public page. Server-rendered, no client JS, ~750 indexable words. `robots.ts` disallows every app route, because they return the sign-in gate to a bot.
 - **`/today`** — the day as an overview: what is happening now, what is next, free-time windows, a checklist, then earlier items and the full hour-by-hour canvas on demand. Driven by `lib/canvas.ts` (`buildDayCanvas` → `buildDayOverview`), pure and unit-tested.
-- **`/tasks` `/calendar` `/habits` `/journal` `/notes` `/fitness` `/finance`** — domain views.
+- **`/week`** — the calendar, with Tasks and Goals as its other two tabs.
+- **`/looking-back`** — Progress (charts) and History (the raw feed, folded away) as one screen.
+  `/progress` and `/history` redirect here. `lib/sections.ts` is the authority on the nav.
+- **`/everything`** — the domain pages, demoted: `/tasks` `/calendar` `/habits` `/journal`
+  `/notes` `/fitness` `/finance` `/goals` all still exist and still work, they simply stopped
+  competing with the question you opened the app to answer.
 - **`/privacy` `/terms`** — public, server-rendered, no client JS. Linked from the landing footer
   and the sign-up form.
-- **`/progress`** — cross-domain statistics with deltas against the previous window.
-- **`/history`** — the raw timeline feed.
-- **`/settings`** — collapsible sections. **Your week** (the routine editor) is what makes Today's free-time calculation correct, so it opens by default.
+- **`/settings`** — collapsible sections. **Your week** (the routine editor) is what makes Today's free-time calculation correct, so it opens by default. Appearance and sign-out live in "Your data & account".
+
+**Navigation is three destinations along one axis — time.** Today · Week · Looking back, with
+"Everything" one level down. **Both navs must agree**: the sidebar is `display: none` below 901px,
+so the phone's bottom bar carries "Everything" as a fourth item — without it, half the app has no
+route in on the primary platform.
 
 **Ambient AI, not a tab:** ⌘K command bar (capture / ask / jump), ⌘J chat rail, and a capture dock on every page.
+
+**To look at the UI, run the screenshot rig** — `SHOTS=1 pnpm --filter @atlas/web exec playwright
+test e2e/screenshots.spec.ts`. It shoots every route at 1440px and 390px plus the day canvas. Most
+of the design work in v10 came from reading those PNGs, not the source.
 
 ---
 
 ## Current state
 
-Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **548 unit tests** · **e2e 37/37** (Playwright + axe) · axe clean across phone-light, phone-dark and desktop-light.
+Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **553 unit tests** · **e2e 37/37** (Playwright + axe) · axe clean across phone-light, phone-dark and desktop-light.
 
 **"axe clean" now means zero violations, not zero serious ones.** Both scans used to filter to
 `serious`/`critical`, which silently discarded `meta-viewport` — a real WCAG 1.4.4 failure that had
@@ -182,6 +194,14 @@ doing, with an explicit "do not build" list. Read it before proposing features.
   coupled to another one.
 - Playwright runs with `reducedMotion: 'reduce'` so content-entry animations cannot make a click
   land on a moving target. Without it, "element is not stable" timeouts look like overlay bugs.
+- **An assertion that could match the input you just typed into is not testing persistence.** React
+  mirrors a controlled textarea's value into the element's text content, so `.card` + `hasText` matched
+  the composer: the writing spec went green the instant the text was typed, navigated on, and the
+  navigation cancelled the in-flight POST. Zero rows in the database after a passing run. Scope to a
+  container that can only hold saved data (`.wr-list`).
+- **A className with no CSS rule renders as the browser default, not as nothing.** `.ov-title` and
+  `.card-title` both fell through to a default `h2`, which is how a nag ended up being the largest
+  text on Today. Grep the stylesheet for every class you add.
 - Clean codebase before every commit: no dead exports, no orphaned CSS.
 
 **`docs/GOTCHAS.md` holds the full list of solved traps. Read it before debugging anything** — it exists so none of them get rediscovered.
