@@ -25,7 +25,10 @@ const ROUTES: [path: string, name: string][] = [
   ['/fitness', '08-fitness'],
   ['/journal', '09-writing'],
   ['/calendar', '10-calendar'],
-  ['/settings', '11-settings'],
+  // Money is hidden from the nav but fully intact by decision, and a screen
+  // nobody looks at is where a regression sits unnoticed.
+  ['/finance', '11-money'],
+  ['/settings', '12-settings'],
 ];
 
 test('capture the Life-OS screens', async ({ page }) => {
@@ -111,7 +114,7 @@ test('capture the Life-OS screens', async ({ page }) => {
   await page.goto('/today');
   await page.getByRole('button', { name: /next day/i }).click();
   await page.waitForTimeout(1100);
-  await page.screenshot({ path: `${OUT}/15-day-canvas.png`, fullPage: true });
+  await page.screenshot({ path: `${OUT}/13-day-canvas.png`, fullPage: true });
 
   // Command bar open over Today.
   await page.goto('/today');
@@ -120,14 +123,14 @@ test('capture the Life-OS screens', async ({ page }) => {
   await expect(page.getByRole('combobox', { name: 'Command input' })).toBeVisible();
   await page.getByRole('combobox', { name: 'Command input' }).fill('call mom friday 3pm');
   await page.waitForTimeout(400);
-  await page.screenshot({ path: `${OUT}/12-command-bar.png` });
+  await page.screenshot({ path: `${OUT}/14-command-bar.png` });
 
   // Chat rail open.
   await page.keyboard.press('Escape');
   await page.keyboard.press('ControlOrMeta+j');
   await expect(page.getByRole('complementary', { name: 'Atlas chat' })).toBeVisible();
   await page.waitForTimeout(400);
-  await page.screenshot({ path: `${OUT}/13-chat-rail.png` });
+  await page.screenshot({ path: `${OUT}/15-chat-rail.png` });
   await page.keyboard.press('Escape');
 
   // The other theme — whichever the environment started in. More than Today,
@@ -135,9 +138,9 @@ test('capture the Life-OS screens', async ({ page }) => {
   // color-mix() against the brand: the week grid and the charts.
   await page.getByRole('button', { name: /Switch to (light|dark) theme/i }).click();
   await page.waitForTimeout(400);
-  await page.screenshot({ path: `${OUT}/14-today-alt-theme.png`, fullPage: true });
-  await shoot('/week', '16-week-alt-theme');
-  await shoot('/looking-back', '17-looking-back-alt-theme');
+  await page.screenshot({ path: `${OUT}/16-today-alt-theme.png`, fullPage: true });
+  await shoot('/week', '17-week-alt-theme');
+  await shoot('/looking-back', '18-looking-back-alt-theme');
   await page.goto('/today');
   await page.getByRole('button', { name: /Switch to (light|dark) theme/i }).click();
 
@@ -148,5 +151,5 @@ test('capture the Life-OS screens', async ({ page }) => {
   await page.goto('/today');
   await page.getByRole('button', { name: /next day/i }).click();
   await page.waitForTimeout(1100);
-  await page.screenshot({ path: `${OUT}/p-15-day-canvas.png`, fullPage: true });
+  await page.screenshot({ path: `${OUT}/p-13-day-canvas.png`, fullPage: true });
 });

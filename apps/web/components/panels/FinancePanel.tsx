@@ -61,7 +61,11 @@ export function FinancePanel() {
 
   return (
     <>
-      <PageHeader title="Finance" subtitle="Accounts and spending." />
+      {/* "Money", not "Finance". Everything that points here — the Everything
+          list, the search results, the decision that took it out of the nav —
+          calls it Money; only the page itself said Finance, so following the
+          link appeared to land somewhere else. The route stays /finance. */}
+      <PageHeader title="Money" subtitle="Accounts and spending." />
 
       {/* The connect flow belongs here, not behind a Settings hunt. */}
       <div style={{ marginBottom: 14 }}>

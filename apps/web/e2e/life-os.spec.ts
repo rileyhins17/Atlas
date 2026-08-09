@@ -1234,3 +1234,39 @@ test('clicking an empty slot in the week grid starts an event at that time', asy
 
   await page.keyboard.press('Escape');
 });
+
+test('⌘K reaches the destinations the app actually has', async ({ page }) => {
+  await go(page, '/today');
+
+  // The command bar kept its own copy of the nav and never got the restructure,
+  // so the app's three primary destinations were unreachable from its own
+  // command bar while two folded-away screens were still offered.
+  const open = async (term: string) => {
+    await page.keyboard.press('ControlOrMeta+k');
+    const input = page.getByRole('combobox', { name: 'Command input' });
+    await expect(input).toBeVisible();
+    await input.fill(term);
+    return input;
+  };
+
+  await open('week');
+  await page.getByRole('option', { name: 'Go to Week' }).click();
+  await expect(page).toHaveURL(/\/week$/);
+
+  await open('money');
+  await page.getByRole('option', { name: 'Go to Money' }).click();
+  await expect(page).toHaveURL(/\/finance$/);
+
+  await open('training');
+  await page.getByRole('option', { name: 'Go to Training' }).click();
+  await expect(page).toHaveURL(/\/fitness$/);
+
+  // And the old vocabulary still lands on whatever replaced it.
+  await open('progress');
+  await page.getByRole('option', { name: 'Go to Looking back' }).click();
+  await expect(page).toHaveURL(/\/looking-back$/);
+
+  await open('notes');
+  await page.getByRole('option', { name: 'Go to Writing' }).click();
+  await expect(page).toHaveURL(/\/journal$/);
+});

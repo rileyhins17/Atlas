@@ -11,8 +11,8 @@ import {
   BookOpen,
   Calendar,
   CircleHelp,
+  Dumbbell,
   Flame,
-  History,
   Home,
   ListTodo,
   Loader2,
@@ -22,7 +22,9 @@ import {
   StickyNote,
   Target,
   TrendingUp,
+  Wallet,
 } from 'lucide-react';
+import { DESTINATIONS as NAV_DESTINATIONS } from '@/lib/sections';
 import { useBrainDump } from '@/lib/hooks/ai';
 import { useToast } from '@/components/ui';
 import { errorMessage } from '@/lib/api';
@@ -38,17 +40,28 @@ const DOMAIN_ICONS = {
   journal: BookOpen,
 } as const;
 
-const DESTINATIONS = [
-  { href: '/today', label: 'Today', icon: Home, keywords: 'home today canvas day now' },
-  { href: '/tasks', label: 'Tasks', icon: ListTodo, keywords: 'tasks todo' },
-  { href: '/calendar', label: 'Calendar', icon: Calendar, keywords: 'calendar events schedule' },
-  { href: '/habits', label: 'Habits', icon: Flame, keywords: 'habits streaks' },
-  { href: '/journal', label: 'Journal', icon: BookOpen, keywords: 'journal mood diary' },
-  { href: '/notes', label: 'Notes', icon: StickyNote, keywords: 'notes memory facts' },
-  { href: '/history', label: 'History', icon: History, keywords: 'timeline story history log feed' },
-  { href: '/progress', label: 'Progress', icon: TrendingUp, keywords: 'progress stats statistics trends' },
-  { href: '/settings', label: 'Settings', icon: Settings, keywords: 'settings account google' },
-] as const;
+/**
+ * Icon per destination, resolved here so `lib/sections.ts` stays React-free.
+ * The destinations themselves come from there — this file used to keep its own
+ * copy, which kept the pre-restructure eleven long after the nav had moved on.
+ */
+const NAV_ICONS: Record<string, typeof Home> = {
+  home: Home,
+  calendar: Calendar,
+  rewind: TrendingUp,
+  check: ListTodo,
+  target: Target,
+  repeat: Flame,
+  dumbbell: Dumbbell,
+  pen: BookOpen,
+  wallet: Wallet,
+  settings: Settings,
+};
+
+const DESTINATIONS = NAV_DESTINATIONS.map((d) => ({
+  ...d,
+  icon: NAV_ICONS[d.icon] ?? Home,
+}));
 
 interface Item {
   id: string;

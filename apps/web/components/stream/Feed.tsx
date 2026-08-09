@@ -16,7 +16,8 @@ const FILTERS = [
   { source: 'habits', label: 'Habits' },
   { source: 'journal', label: 'Journal' },
   { source: 'notes', label: 'Notes' },
-  { source: 'finance', label: 'Finance' },
+  // "Money" everywhere it is shown; `source` is the wire value and stays.
+  { source: 'finance', label: 'Money' },
   { source: 'ai', label: 'Atlas' },
 ] as const;
 

@@ -102,6 +102,61 @@ export const EVERYTHING: DomainLink[] = [
   },
 ];
 
+/**
+ * Everywhere ⌘K can send you, derived from the two lists above.
+ *
+ * The command bar used to carry its OWN hand-written copy of the destinations,
+ * and it silently kept the pre-restructure eleven: typing "week", "money",
+ * "goals" or "training" matched nothing at all, while "Notes" and "Progress"
+ * still offered screens that had been folded into other places. A second list
+ * of the app's structure will always drift from the first, so there is now one.
+ *
+ * `keywords` carries the OLD names on purpose. Someone who learnt this app as
+ * Journal/Notes/Progress/History should still find the screen those became,
+ * and every one of those routes still resolves.
+ */
+export interface Destination {
+  href: string;
+  label: string;
+  /** Lucide icon name, resolved by the command bar — this file stays React-free. */
+  icon: string;
+  /** Lower-case search terms, including superseded names. */
+  keywords: string;
+}
+
+const EXTRA_KEYWORDS: Record<string, string> = {
+  '/today': 'home now day canvas',
+  '/week': 'week calendar schedule upcoming soon',
+  '/looking-back': 'progress stats statistics trends history timeline story review past',
+  '/calendar': 'events schedule',
+  '/tasks': 'todo to-do',
+  '/goals': 'objectives ambitions',
+  '/habits': 'streaks routines',
+  '/fitness': 'training workout gym lifts exercise',
+  '/journal': 'writing journal notes diary mood memory facts remember',
+  '/finance': 'money finance bank spending accounts transactions',
+  '/settings': 'account google connections export data api key',
+};
+
+export const DESTINATIONS: Destination[] = [
+  ...SECTIONS.map((s) => ({
+    href: s.tabs[0]!.href,
+    label: s.label,
+    icon: s.icon,
+    keywords: `${s.label.toLowerCase()} ${EXTRA_KEYWORDS[s.tabs[0]!.href] ?? ''}`.trim(),
+  })),
+  ...EVERYTHING.map((d) => ({
+    href: d.href,
+    label: d.label,
+    icon: d.icon,
+    keywords: `${d.label.toLowerCase()} ${EXTRA_KEYWORDS[d.href] ?? ''}`.trim(),
+  })),
+].filter(
+  // Week's first tab IS /week, and Everything lists /calendar separately; keep
+  // the first occurrence of each route so nothing is offered twice.
+  (d, i, all) => all.findIndex((x) => x.href === d.href) === i,
+);
+
 /** Which section a path belongs to, for highlighting the nav. */
 export function sectionFor(pathname: string): Section | null {
   for (const s of SECTIONS) {
