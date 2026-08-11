@@ -1270,3 +1270,117 @@ test('⌘K reaches the destinations the app actually has', async ({ page }) => {
   await page.getByRole('option', { name: 'Go to Writing' }).click();
   await expect(page).toHaveURL(/\/journal$/);
 });
+
+test('losing the network shows the offline shell, and regaining it gives the app back', async ({
+  browser,
+}) => {
+  // Its OWN context, deliberately. Every other spec in this file shares one
+  // signed-in context, and a service worker registered into that would outlive
+  // this test and sit in front of every request the rest of the suite makes.
+  // Same session (so the app renders rather than the gate), separate lifetime.
+  // browser.newContext() does not inherit the config's `use`, so baseURL is
+  // resolved the same way playwright.config.ts resolves it.
+  const context = await browser.newContext({
+    baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3000',
+    storageState: STATE,
+    reducedMotion: 'reduce',
+  });
+  const page = await context.newPage();
+
+  try {
+    await page.goto('/');
+    // Registered here rather than waiting for ServiceWorkerRegistrar, which is
+    // a deliberate no-op outside production — this way the spec tests sw.js
+    // itself and passes against a dev server and a built one alike.
+    await page.evaluate(async () => {
+      await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
+    });
+
+    // The fallback is only a fallback if install actually precached it.
+    const shells = await page.evaluate(async () => {
+      const names = await caches.keys();
+      const found: string[] = [];
+      for (const n of names) {
+        const c = await caches.open(n);
+        for (const r of await c.keys()) found.push(new URL(r.url).pathname);
+      }
+      return found;
+    });
+    expect(shells).toContain('/offline.html');
+
+    await context.setOffline(true);
+    await page.goto('/today');
+    // A PWA that lives on a home screen must say something when the signal goes.
+    // Measured before this existed: an empty body, on a white page.
+    await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible();
+    await expect(page.locator('body')).toContainText("You're offline");
+
+    // And it must let go again. The offline page getting STUCK in front of a
+    // working app is not hypothetical here: the same fetch handler once served
+    // it to online users because it followed the Google OAuth callback's
+    // redirect and the browser refuses a redirected response for a navigation.
+    await context.setOffline(false);
+    await page.goto('/today');
+    // The signed-in shell, not the dock: whether /today shows the day or the
+    // first-run wizard depends on what this account happens to own, and the
+    // claim here is only "the real app came back".
+    await expect(page.locator('.sidebar-user-name')).toBeVisible();
+    await expect(page.locator('body')).not.toContainText("You're offline");
+  } finally {
+    await context.close();
+  }
+});
+
+test('a failed request never mistakes an established account for a brand-new one', async ({
+  page,
+}) => {
+  // The first-run gate asks "do you have nothing?", and it used to ask it of
+  // `data?.length ?? 0` the moment the queries stopped being pending. A query
+  // that FAILS leaves data undefined, which that expression cannot tell apart
+  // from an empty account — so a single bad response put the three-step setup
+  // wizard over the top of a real user's day. It is the highest-cost way to get
+  // this wrong, because the wizard exists to WRITE a routine: the offered
+  // recovery from a dropped request was a flow that overwrites the working week
+  // you already had.
+  //
+  // Its own baseline, per the file's rule: this account must genuinely own
+  // something, or "no wizard" would prove nothing.
+  const marker = `Established${Date.now()}`;
+  await go(page, '/today');
+  await page.evaluate(async (title) => {
+    await fetch('http://localhost:4000/tasks', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, priority: 'MEDIUM' }),
+    });
+  }, marker);
+
+  // Fail all four gate queries, the way a 429 burst from the 120/min throttler
+  // or an API restart does — they do not politely pick one endpoint. Matched on
+  // the exact pathname because /events carries a from/to query string, and a
+  // glob written for the bare path silently misses it: with tasks alone still
+  // answering, the gate is false either way and this spec passes against the
+  // very bug it exists to catch.
+  await page.route(
+    (url) => /^\/(tasks|habits|events|routine)$/.test(url.pathname),
+    (route) => route.abort('failed'),
+  );
+
+  await page.goto('/today');
+
+  // Wait PAST the retry policy before asserting. Queries retry twice with a
+  // 1s/2s backoff, so for the first few seconds they are still 'pending' and the
+  // gate is correctly false no matter how it is written — measured on the real
+  // app, the wizard only took over between t+3s and t+7s, and an assertion at
+  // t+2s passes against the bug just as happily as against the fix. Once it
+  // appears it stays (still there at t+15s), so one look after the window is
+  // enough; toHaveCount(0) would otherwise pass on the very first sample.
+  await page.waitForTimeout(8_000);
+
+  // The wizard owns the screen when it renders, so its absence is the claim.
+  await expect(page.locator('.onb')).toHaveCount(0);
+  // And the real surface is what came back instead — the dock is on every page.
+  await expect(page.getByLabel('Capture anything')).toBeAttached();
+});

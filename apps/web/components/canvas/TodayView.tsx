@@ -38,7 +38,18 @@ export function TodayView() {
 
   // First-run gate (routine included — the wizard always writes routine, so
   // finishing it flips this off even with no habits/tasks picked).
-  const loaded = !tasks.isPending && !events.isPending && !habits.isPending && !routine.isPending;
+  //
+  // SUCCEEDED, not merely "no longer pending". A failed query leaves `data`
+  // undefined, and `?? 0` reads that as "you have nothing" — so one bad response
+  // (a 429 from the 120/min throttler, an API restart, a dropped connection)
+  // told an established account it was brand new and put the first-run wizard
+  // over the top of their day. That is not a cosmetic misfire: the wizard's
+  // whole purpose is to WRITE a routine, so the recovery path from a transient
+  // network error was a flow that overwrites the working week the user already
+  // had. Deciding "this account is empty" is only safe from data you actually
+  // received; on an error the canvas renders and shows its own error state.
+  const loaded =
+    tasks.isSuccess && events.isSuccess && habits.isSuccess && routine.isSuccess;
   const isFirstRun =
     loaded &&
     (tasks.data?.length ?? 0) === 0 &&
