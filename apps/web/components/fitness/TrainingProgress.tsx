@@ -93,10 +93,14 @@ export function TrainingProgress({
           </span>
         </div>
         {/* Empty weeks are real zeroes, not skipped — a chart that hides the
-            weeks you missed makes a broken streak look continuous. */}
+            weeks you missed makes a broken streak look continuous. And the
+            domain is anchored at zero for that to mean anything: left to the
+            series' own minimum, eight identical weeks and eight empty ones both
+            draw a flat line along the floor. */}
         <Sparkline
           points={weeks.map((w) => w.volumeGrams)}
           label="Total weight lifted per week over the last eight weeks"
+          min={0}
         />
         <div className="tp-weeks" aria-hidden>
           <span>{weekLabel(weeks[0]!.weekOf)}</span>
@@ -166,6 +170,13 @@ export function TrainingProgress({
                   <div className="tp-lift-detail">
                     {series.length >= 2 ? (
                       <>
+                        {/* Deliberately NOT anchored at zero, unlike every
+                            other chart here. A working 1RM moves within a narrow
+                            band near the top of its own range, and zeroing the
+                            domain squashes a genuine 10kg gain into a line that
+                            looks flat. Nobody's estimated max is ever near zero,
+                            so the misreading the anchor exists to prevent cannot
+                            happen. Don't "fix" this to match the others. */}
                         <Sparkline
                           points={series.map((s) => s.e1RM)}
                           label={`Estimated one-rep max for ${p.name}`}

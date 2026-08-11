@@ -155,6 +155,7 @@ function HabitConsistency({ days }: { days: number }) {
                 label={`${h.name}: check-ins per week`}
                 width={120}
                 height={30}
+                min={0}
                 fill
               />
             )}
@@ -363,6 +364,7 @@ export function ProgressPanel() {
                   label="Training volume per week, in kilograms"
                   width={320}
                   height={64}
+                  min={0}
                   fill
                 />
                 <p className="prog-muted">
@@ -376,7 +378,19 @@ export function ProgressPanel() {
             {/* Money only earns a card once there IS money data — no zero-filled noise. */}
             {derived.hasMoney && (
               <Card title="Net cash flow" hint="per week">
-                <Sparkline points={derived.netWeekly} label="Net cash flow per week" width={320} height={64} />
+                {/* Zero is kept in frame from BOTH ends, rather than pinned as
+                    the floor: this is the one signed series here, and a week you
+                    spent more than you earned has to be able to sit below the
+                    line it is being judged against. Without it, a steady +$400
+                    and a steady -$400 draw the identical flat line. */}
+                <Sparkline
+                  points={derived.netWeekly}
+                  label="Net cash flow per week"
+                  width={320}
+                  height={64}
+                  min={Math.min(0, ...derived.netWeekly)}
+                  max={Math.max(0, ...derived.netWeekly)}
+                />
                 <p className="prog-muted">
                   Spent {formatMinorCompact(data.totals.current.spentMinor)} · earned{' '}
                   {formatMinorCompact(data.totals.current.earnedMinor)}
