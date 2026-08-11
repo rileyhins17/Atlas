@@ -4026,6 +4026,14 @@ input[type='checkbox']:checked::after {
 }
 .wk-day.on { background: color-mix(in srgb, var(--brand) 10%, transparent); }
 .wk-day.on .wk-day-name { color: var(--text-primary); }
+/* Selecting today lays a 10% tint of --brand under brand-coloured text, and
+   --brand is tuned to sit on a SURFACE, not on a tint of itself: measured
+   4.43:1 in light, an AA failure in the state you are looking at for as long as
+   the grid is open (dark is a marginal 4.75:1). --brand-on-tint is the token for
+   this pairing — 6.44:1 light, 6.17:1 dark. Same trap as the task goal chip. */
+.wk-day.is-today.on .wk-day-num {
+  color: var(--brand-on-tint);
+}
 
 .wk-allday {
   border-bottom: 1px solid var(--border-subtle);
