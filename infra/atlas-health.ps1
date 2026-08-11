@@ -9,14 +9,23 @@
   someone happened to load it.
 
   Restarts only what is actually missing, so it is safe to run every minute.
-  Register with:
-    schtasks /create /tn "Atlas health" /tr "powershell -ExecutionPolicy Bypass -File C:\Users\riley\atlas\infra\atlas-health.ps1" /sc minute /mo 2 /f
+  Register from the repo root, so the path follows the clone rather than being
+  retyped (schtasks stores the absolute path it is given, which is fine — the
+  point is not to hardcode a DIFFERENT one by hand):
+    schtasks /create /tn "Atlas health" /tr "powershell -ExecutionPolicy Bypass -File $PWD\infra\atlas-health.ps1" /sc minute /mo 2 /f
 #>
 $ErrorActionPreference = 'SilentlyContinue'
-$atlas = 'C:\Users\riley\atlas'
+# Derived from this file's own location: <repo>\infra\atlas-health.ps1, so the
+# repo is one level up. Hardcoding it meant the watchdog silently supervised a
+# directory that did not exist on any machine but one.
+$atlas = Split-Path -Parent $PSScriptRoot
+$log   = Join-Path $PSScriptRoot 'health.log'
+
+# Preferred install locations, falling back to PATH.
 $cfd   = 'C:\Program Files (x86)\cloudflared\cloudflared.exe'
-$caddy = 'C:\Users\riley\AppData\Local\Microsoft\WinGet\Packages\CaddyServer.Caddy_Microsoft.Winget.Source_8wekyb3d8bbwe\caddy.exe'
-$log   = "$atlas\infra\health.log"
+$caddy = Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Packages\CaddyServer.Caddy_Microsoft.Winget.Source_8wekyb3d8bbwe\caddy.exe'
+if (-not (Test-Path $cfd))   { $cfd   = (Get-Command cloudflared -ErrorAction SilentlyContinue).Source }
+if (-not (Test-Path $caddy)) { $caddy = (Get-Command caddy -ErrorAction SilentlyContinue).Source }
 
 function Note($msg) { "$(Get-Date -Format s)  $msg" | Add-Content $log }
 
@@ -78,6 +87,20 @@ if ($proxies.Count -gt 1) {
   foreach ($p in $sortedProxies[0..($sortedProxies.Count - 2)]) {
     Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
   }
+}
+
+# Anything this sweep just restarted came back at Normal priority, and this is a
+# gaming machine — a web server handling a request a minute must never outrank a
+# game for CPU. Idempotent, so it also repairs anything started by hand.
+foreach ($port in 4000, 3000) {
+  $conn = Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($conn) {
+    $proc = Get-Process -Id $conn.OwningProcess -ErrorAction SilentlyContinue
+    if ($proc) { try { $proc.PriorityClass = 'BelowNormal' } catch { } }
+  }
+}
+foreach ($proc in Get-Process caddy, cloudflared -ErrorAction SilentlyContinue) {
+  try { $proc.PriorityClass = 'BelowNormal' } catch { }
 }
 
 # The only check that matters: can the public actually reach it?

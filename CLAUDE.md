@@ -22,7 +22,15 @@ A personal **Life OS** that Riley intends to sell. One data layer for tasks, cal
 
 **https://atlaslife.app** — served from Riley's PC through a Cloudflare Tunnel.
 
-Cloudflare terminates TLS → tunnel → local Caddy (`infra/Caddyfile.tunnel`) → `/api/*` to the API on :4000, everything else to Next on :3000. **One origin**, which is what makes the session cookie work. `infra/start-atlas.cmd` lives in the Windows Startup folder and is idempotent — it kills existing processes first, because cloudflared has no port to collide on and re-running used to stack up tunnels.
+Cloudflare terminates TLS → tunnel → local Caddy (`infra/Caddyfile.tunnel`) → `/api/*` to the API on :4000, everything else to Next on :3000. **One origin**, which is what makes the session cookie work.
+
+**The origin is started BY HAND, from `infra/Atlas Server.cmd`** (or the "Atlas Server" desktop shortcut). This PC games, so nothing is in the Startup folder and nothing survives a Stop: the window's Stop button retires the watchdog task *first* and then kills all four processes, because the old always-on design put the stack back within two minutes and could not be turned off before a game. Everything Atlas starts is dropped to **BelowNormal** priority, and the watchdog re-applies that to anything it restarts. Closing the window leaves the server running — only Stop stops it.
+
+**It refuses to start on a half-configured `.env`.** Placeholders, or a `DATABASE_URL` still pointing at localhost, and it names the offending keys and starts nothing — booting with the dev values would put an empty database behind the public domain and quietly accept real signups into it.
+
+Docker is **not** part of serving. Production reads Neon over the network; the compose Postgres is dev-only and should stay stopped.
+
+`infra/start-atlas.cmd` is still there for a headless/one-shot start and both it and the watchdog now derive the repo path from their own location rather than hardcoding one.
 
 **`infra/atlas-health.ps1` runs every 2 minutes** as the "Atlas health" scheduled task and restarts
 whatever is missing. It exists because the public origin depends on FOUR local processes and the app
