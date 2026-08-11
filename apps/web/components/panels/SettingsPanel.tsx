@@ -4,6 +4,7 @@ import { useGoogleStatus } from '@/lib/hooks/google';
 
 import { PageHeader } from '@/components/PageHeader';
 import { DataPrivacyPanel } from './DataPrivacyPanel';
+import { NameSettingsCard } from './NameSettingsCard';
 import { AiSettingsCard } from './AiSettingsCard';
 import { ProactiveSettingsCard } from './ProactiveSettingsCard';
 import { PlaidCard } from './PlaidCard';
@@ -24,6 +25,10 @@ export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
           setting people actually come here to correct. */}
       <SettingsSection id="routine" title="Your week" hint="sleep, work and the shape of your day" defaultOpen>
         <RoutineEditor />
+      </SettingsSection>
+
+      <SettingsSection id="you" title="Your name" hint="how Atlas greets you">
+        <NameSettingsCard />
       </SettingsSection>
 
       <SettingsSection id="ai" title="Atlas AI" hint="model key and usage">

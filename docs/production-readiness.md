@@ -152,7 +152,7 @@ handler does any work.
 | ~~M6~~ | ~~Two workouts can be active at once.~~ **Already fixed** — `FitnessService.start` returns the open session rather than creating a second. Confirmed against the running API: two consecutive `POST /fitness/workouts` return the same id. | — |
 | ~~M7~~ | ~~A zero-length routine block passes validation.~~ **DONE** — rejected now, while a block that wraps past midnight (sleep) still works, and a patch moving one end at a time is still allowed. | — |
 | M8 | The embedding sweep runs in-process with no lock — two API replicas would both run it. | Harmless today (single instance); needs an advisory lock before B4's VPS move ever scales past one. |
-| M9 | Times render without AM/PM under some locales (`0:30`, `3:00`), making morning and evening indistinguishable. | Pin `hour12` explicitly in `formatClock`, or follow a user setting. |
+| ~~M9~~ | ~~Times render without AM/PM under some locales, making morning and evening indistinguishable.~~ **NOT A BUG — do not "fix" this.** The `0:30`/`3:00` in the original finding is a 24-hour clock, and it is unambiguous: under `en-GB`/`de-DE`/`fr-FR`/`ja-JP` the same formatter renders 3pm as `15:00` and 9:45pm as `21:45`, so nothing collides. Measured across seven locales. Pinning `hour12: true` would make it **worse** — it would force a 12-hour clock on every user whose locale is 24-hour. `formatClock` following the locale is correct; a user-facing preference would be a feature, not a fix. |
 | M10 | The week strip runs Mon–Sun, so on a **Sunday** you see zero upcoming days. | Either roll the strip from today, or show "next event" in the empty state. Deliberate trade-off: fixed weeks match the routine model's Monday-based day bits, and one tap pages forward. |
 
 ---

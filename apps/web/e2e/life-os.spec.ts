@@ -1315,6 +1315,49 @@ test('⌘K reaches the destinations the app actually has', async ({ page }) => {
   await expect(page).toHaveURL(/\/journal$/);
 });
 
+test('Atlas can be told what to call you, and stops guessing from your address', async ({
+  page,
+}) => {
+  // `displayName` was on the user record, accepted at registration and patchable
+  // through /settings from the start, and no screen ever set it — so it was null
+  // for every account and Today greeted people with their email's local part.
+  // The suite's own accounts are the worst case: "Good morning, e2e-1786…-81051."
+  const marker = `Sam${Date.now()}`;
+
+  // Its own baseline: Today shows the first-run wizard, not the greeting, until
+  // the account owns something.
+  await go(page, '/today');
+  await page.evaluate(async () => {
+    await fetch('http://localhost:4000/tasks', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: `Greeting baseline ${Date.now()}`, priority: 'LOW' }),
+    });
+  });
+
+  // A generated address yields no name at all, which is the point: better to
+  // greet you with nothing than with a timestamp.
+  await go(page, '/today');
+  const hello = page.locator('.hero-brief-greeting');
+  await expect(hello).toBeVisible();
+  await expect(hello).not.toContainText('e2e-');
+  await expect(hello).toHaveText(/^(Good morning|Good afternoon|Good evening|Up late)\.$/);
+
+  await go(page, '/settings');
+  await page.getByRole('button', { name: /Your name/ }).click();
+  const field = page.getByRole('textbox', { name: 'Your name' });
+  await field.click();
+  await field.pressSequentially(marker);
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+  // Today follows, and so does the sidebar — both read /auth/me rather than the
+  // settings response, so this is really asserting that saving invalidates it.
+  await go(page, '/today');
+  await expect(page.locator('.hero-brief-greeting')).toContainText(marker);
+  await expect(page.locator('.sidebar-user-name')).toHaveText(marker);
+});
+
 test('a habit can be renamed and retargeted after you have made a typo', async ({ page }) => {
   // Habits had PATCH on the API and nothing in the UI, so a habit was whatever
   // you called it the first time — a typo was permanent unless you archived the

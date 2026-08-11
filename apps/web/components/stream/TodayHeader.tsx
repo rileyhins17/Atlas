@@ -3,6 +3,7 @@
 import { useMe } from '@/lib/hooks/auth';
 import { HeroBrief } from '@/components/home/HeroBrief';
 import { greeting } from '@/lib/dates';
+import { firstNameFrom } from '@/lib/name';
 
 /**
  * Atlas's voice on Today: it greets you, then briefs you — one line, one voice.
@@ -10,7 +11,7 @@ import { greeting } from '@/lib/dates';
  */
 export function BriefBlock() {
   const me = useMe();
-  const first = (me.data?.displayName ?? me.data?.email ?? '').split('@')[0].split(' ')[0];
+  const first = firstNameFrom(me.data?.displayName, me.data?.email);
   const hello = `${greeting()}${first ? `, ${first}` : ''}.`;
 
   return (

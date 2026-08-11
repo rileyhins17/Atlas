@@ -111,7 +111,7 @@ of the design work in v10 came from reading those PNGs, not the source.
 
 ## Current state
 
-Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **572 unit tests** · **e2e 43/43** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop.
+Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **576 unit tests** · **e2e 44/44** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop.
 
 **"axe clean" means zero violations, not zero serious ones, and it means every route.** The scans
 used to filter to `serious`/`critical`, which silently discarded `meta-viewport` — a real WCAG 1.4.4
@@ -155,6 +155,12 @@ The short version of what is STILL open:
 - **Notes and journal still have no edit UI.** Habits now do. Notes have `PATCH` on the API and no
   client method, and journal has no update at any layer — and they share one writing surface, so
   making half the rows editable is a product decision, not a missing function.
+
+**"The API has it, the UI never wired it" is this codebase's most common gap** — the same shape has
+now turned up four times: event editing, habit editing, and `displayName`, which had a column, a DTO
+and an endpoint since the first migration and no field anywhere, so it was null for every account and
+Today greeted people with their email's local part. Before building something, check whether the
+server already does it.
 
 Done and verified: legal pages, error-reporting plumbing, input bounds, double-submit, RRULE
 validation, and the account purge (440 → 3).
