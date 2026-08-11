@@ -111,7 +111,7 @@ of the design work in v10 came from reading those PNGs, not the source.
 
 ## Current state
 
-Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **568 unit tests** · **e2e 39/39** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop.
+Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **572 unit tests** · **e2e 43/43** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop.
 
 **"axe clean" means zero violations, not zero serious ones, and it means every route.** The scans
 used to filter to `serious`/`critical`, which silently discarded `meta-viewport` — a real WCAG 1.4.4
@@ -123,6 +123,12 @@ If you add an axe scan, assert on the whole violation list.
 on a 12% tint of itself is 4.29:1 in light and drops to 3.74:1 on the 22% hover tint — an AA failure
 in exactly the state you are looking at it. `--brand` is tuned to sit on a surface; `--brand-on-tint`
 is tuned to sit on a tint of itself, and clears 4.5:1 on every pairing the app uses.
+
+**This one comes back.** It returned on the week strip: `.wk-day.is-today .wk-day-num` set `--brand`
+without regard for whether `.on` had laid a 10% tint underneath, so selecting today measured 4.43:1
+in light. The rule to apply when writing it is *whenever a `color-mix` of `--brand` is the
+background, the text on it is `--brand-on-tint`* — the sibling `.cal-day` rule guards the same
+combination with `:not(.on)`.
 
 ### Known gaps — tracked, not hidden
 **`docs/production-readiness.md` is the authoritative list**, written from a 154-assertion API stress
@@ -138,8 +144,10 @@ The short version of what is STILL open:
   "Token has been expired or revoked". Reconnecting works; publishing the consent screen is what
   stops it recurring. The API now returns 424 with a reconnect message instead of a 500.
 - **Unverified live:** Google Calendar delete propagation; Plaid production.
-- **Offline renders a blank page**, on a PWA meant for an iPhone home screen.
 - The Plaid webhook does not verify Plaid's signature (harmless while it is a no-op).
+- **Notes and journal still have no edit UI.** Habits now do. Notes have `PATCH` on the API and no
+  client method, and journal has no update at any layer — and they share one writing surface, so
+  making half the rows editable is a product decision, not a missing function.
 
 Done and verified: legal pages, error-reporting plumbing, input bounds, double-submit, RRULE
 validation, and the account purge (440 → 3).

@@ -7,6 +7,13 @@ here is either measured or marked as an assumption.
 
 ## 0. A warning about audits, including this one
 
+**This document went stale in exactly the way it warns about.** It was written
+28 July 2026 and by 10 August all four Phase 2 items had shipped while the plan
+still called them the work that decides whether Atlas is a business. Anyone
+reading it for "what to build next" would have rebuilt finished features. Phase 2
+is marked accordingly below. Check the suite before believing any roadmap here,
+including this paragraph.
+
 Three things I confidently reported as missing in earlier passes turned out to
 exist:
 
@@ -94,13 +101,33 @@ failures before your users do.*
 5. **Verify Google token refresh against a genuinely expired token.** It is the
    largest untested surface in the app and it fails silently.
 
-### Phase 2 — Make the difference visible (≈2 weeks)
+### Phase 2 — Make the difference visible — **ALL FOUR SHIPPED**
 
-*Ends when: someone can see, in one screen, something no other app could have
+*Ended when: someone can see, in one screen, something no other app could have
 told them.*
 
 This is the phase that decides whether Atlas is a business or a nice personal
 tool. Everything here exists to make the graph felt.
+
+**Every item below is built and covered by a passing e2e spec** — checked by
+running the suite, not by reading the code:
+
+| Item | Spec that proves it |
+|---|---|
+| The connection card | `Today connects two domains, and stays quiet when it cannot` |
+| Link tasks to goals in the UI | `an existing task can be attached to a goal, and completing it fills the bar` |
+| A weekly ritual, not an artifact | `the weekly review ends in a decision, not just a paragraph` |
+| Render the undo strip | `Atlas keeps a visible record of what it changed, and it is reversible` |
+
+So the question this phase existed to answer is now **askable**, and it is the
+one worth your attention: put Atlas in front of someone for a fortnight and find
+out whether the connection card ever tells them something they did not know. If
+it does, Phase 3 is worth building. If the observations feel obvious, that is the
+cheapest possible moment to learn it — which was the entire point of ordering
+this phase before billing.
+
+The original text of each item is kept below, because the reasoning is still
+what the surfaces are *for*.
 
 1. **The connection card.** One card on Today that states a real cross-domain
    observation: *"You slept under 6 hours on 4 of the 5 days you skipped the

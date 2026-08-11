@@ -36,6 +36,25 @@ typecheck 10/10, lint clean, 157 web unit tests, **e2e 21/21** including two new
 
 ---
 
+## Found and fixed since, by running it
+
+Three defects that a green build said nothing about. Recording them because each one is a *class* of
+mistake this project keeps making, not a one-off.
+
+| # | Issue | Root cause |
+|---|---|---|
+| G1 | **A transient network error put the first-run setup wizard over an established account's day** | The gate asked `(data?.length ?? 0) === 0` as soon as the four list queries stopped being *pending*. A failed query leaves `data` undefined, which `?? 0` cannot tell apart from an empty account. The wizard's job is to WRITE a routine, so the path offered after a dropped request was one that overwrites the working week you already had. Now gated on `isSuccess`. |
+| G2 | **`/manifest.webmanifest` returned 500, so the PWA had no installable manifest** | Two files claimed the URL — the Phase 0 `app/manifest.ts` scaffold and the later, iOS-ready `public/manifest.webmanifest`. Next answers a public/page conflict with a hard 500 in dev, and prerendered the route alongside the static file in a build. The scaffold is deleted. |
+| G3 | **Selecting today in the week strip failed AA at 4.43:1** | `--brand` text on a 10% tint of `--brand`. The exact trap CLAUDE.md documents, returned on a new surface. |
+
+**G1 is the one to learn from.** It is invisible on a fast, healthy local API and appears under
+exactly the conditions a real user meets — a slow phone, a 429 from the 120/min throttler, an API
+restart. It took ~5s of retries to appear, so the first regression spec written for it *passed
+against the bug*: it asserted at t+2s, while the queries were still pending and the gate was
+correctly false either way. A regression test that has not been watched to fail is not evidence.
+
+---
+
 ## Blockers
 
 ### ~~B1 · No privacy policy or terms of service~~ — DONE
@@ -76,11 +95,19 @@ Two things the dry run caught that a pattern-match would have destroyed:
 
 ## High — fix before it embarrasses you
 
-### H1 · Offline renders a completely blank page
-This is a PWA you intend to run from an iPhone home screen. Losing signal gives a white screen with
-no explanation. Measured: `net::ERR_INTERNET_DISCONNECTED` → empty body.
-**Fix:** a service-worker offline fallback route plus cache-first for the shell. The manifest and SW
-registration already exist; only the fallback is missing.
+### ~~H1 · Offline renders a completely blank page~~ — DONE, and now tested
+`sw.js` precaches `/offline.html` and answers a failed navigation with it. **Verified live against a
+production build** (the SW is a deliberate no-op outside it): the worker activates, the cache holds
+`/offline.html`, and `/today` with the network cut renders "You're offline" and a Retry button
+instead of an empty page.
+
+It had been fixed for a while and this file still said it was open — the shell existed and nothing
+asserted it, which is how it stayed uncertain. There is an e2e spec now. It registers `sw.js` itself
+rather than waiting for `ServiceWorkerRegistrar`, so it runs against dev and built alike, and it
+lives in its own browser context so a service worker cannot outlive it and sit in front of the rest
+of the suite. It also asserts the offline page LETS GO when the network returns, which is the
+failure mode `sw.js`'s own header records: it once served that page to online users by following the
+Google OAuth callback's redirect.
 
 ### ~~H2 · `email` and `password` have no maximum length~~ — DONE
 Now `.max(320)` on email (the RFC 5321 ceiling) and `.max(200)` on password. Verified live: a 100KB
@@ -116,7 +143,7 @@ handler does any work.
 
 | # | Finding | Fix |
 |---|---|---|
-| M1 | **Habits and notes have `PATCH` on the API but no UI** — the same gap just fixed for events. You cannot rename a habit or edit a note. | Add `update` to `HabitsApi`/`NotesApi` and wire an edit affordance, mirroring the calendar. |
+| ~~M1~~ | ~~Habits and notes have `PATCH` on the API but no UI.~~ **HABITS DONE** — the name opens an edit Dialog (name, times-per-day, cadence), mirroring the calendar. **Notes still open**, and deliberately so: notes share the writing surface with journal entries, journal has no update at *any* layer (see M2), so an edit affordance on half the rows is a product decision rather than a missing client method. Decide M2 first. | — |
 | M2 | Journal is append-only end to end — no edit, no delete, at any layer. | Decide deliberately: append-only is defensible for a journal, but it should be a stated choice, not an omission. |
 | M3 | `/tasks` search input is **19px tall**; `/notes` has an 18×18 checkbox. Both under the 24px AA minimum. | Raise to 24px minimum, 44px for the search field. |
 | M4 | Zero-length and 365-day events are both accepted. | Not wrong, but a `0m` event is almost always a mistake — warn rather than block. |
@@ -146,10 +173,10 @@ Two things my harness reported that turned out to be wrong. Recording them so th
 
 1. **B2** rotate the Plaid secret — **yours to do**, and the only item nobody else can.
 2. Paste a **`SENTRY_DSN`** into `.env` so B3 actually reports. One line, then restart.
-3. **H1** offline fallback — the one most likely to be noticed on a phone.
-4. **H5** verify Google live, **H6** Plaid webhook signature.
-5. **B4** move to a VPS.
-6. **M1–M10** as they annoy you.
+3. **H5** verify Google live, **H6** Plaid webhook signature.
+4. **B4** move to a VPS.
+5. **M2** decide whether journal is append-only on purpose; **M1's** remaining half depends on it.
+6. **M3–M10** as they annoy you.
 
 Everything in steps 1–3 of the original order is done except B2, which needs your Plaid login, and
 the DSN paste. A second person can now have an account without that being reckless — legal pages
