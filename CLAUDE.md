@@ -119,6 +119,13 @@ failure that had pinch-zoom disabled on every page. They also only covered three
 moment the sweep was widened to all thirteen it found a serious contrast failure that had shipped.
 If you add an axe scan, assert on the whole violation list.
 
+**Axe cannot see tap targets, so the phone-width spec measures them.** `target-size` is a WCAG **2.2**
+rule and every scan here asks for 2.0/2.1 tags, so four undersized controls sat under a green axe
+run — including a goals check button that was **16×6px with no circle drawn**, because its box was
+scoped to `.goal-row.done` and only appeared once the goal was achieved. The sweep now measures every
+interactive element on all thirteen routes against 24×24, with no inline-link exemption: an exception
+that never legitimately fires is somewhere a real failure hides.
+
 **Brand-coloured text on a brand tint needs `--brand-on-tint`, not `--brand`.** Measured: `--brand`
 on a 12% tint of itself is 4.29:1 in light and drops to 3.74:1 on the 22% hover tint — an AA failure
 in exactly the state you are looking at it. `--brand` is tuned to sit on a surface; `--brand-on-tint`

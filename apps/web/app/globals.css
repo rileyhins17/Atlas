@@ -1382,7 +1382,10 @@ input[type='checkbox']:checked::after {
   white-space: nowrap;
   display: block;
   max-width: 100%;
-  padding: 0;
+  /* 16px text is a 21px box, under the 24px target floor. Padding keeps
+     display:block so the ellipsis above still applies. */
+  padding: 2px 0;
+  min-height: 24px;
   border: 0;
   background: none;
   text-align: left;
@@ -2697,7 +2700,12 @@ input[type='checkbox']:checked::after {
   flex: none; display: inline-flex; align-items: center; gap: 4px;
   font-size: 11.5px; color: var(--text-muted); font-variant-numeric: tabular-nums;
 }
-.check-add-link { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; font-size: 13px; }
+/* min-height, because this is the ONLY thing to tap on an empty Today and 13px
+   text is a 16px box — under the 24px target floor on the phone it is aimed at. */
+.check-add-link {
+  display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; font-size: 13px;
+  min-height: 24px;
+}
 @media (max-width: 620px) {
   .check-row { padding: 13px 14px; }
   .check-box { width: 26px; height: 26px; }
@@ -4523,10 +4531,15 @@ input[type='checkbox']:checked::after {
 .goal-row:last-child {
   border-bottom: none;
 }
-.goal-row.done .goal-check {
+/* NOT scoped to .done. This is the base box, and qualifying it with the parent's
+   done state meant an OPEN goal's check had no box at all — no circle, no
+   border, and a 16x6px hit area on the primary action of the page. The control
+   only became tappable once the goal was already achieved. Sized 24 to match the
+   floor the checkbox rule below states. */
+.goal-check {
   flex-shrink: 0;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -4947,7 +4960,11 @@ input[type='checkbox']:checked::after {
 .goal-open {
   border: none;
   background: none;
-  padding: 0;
+  /* Vertical padding, not decoration: the bare text box is 19px tall, under the
+     24px target floor. Padding rather than min-height so the label stays
+     centred in its own hit area. */
+  padding: 3px 0;
+  min-height: 24px;
   text-align: left;
   font-size: var(--text-base);
   color: var(--text-primary);

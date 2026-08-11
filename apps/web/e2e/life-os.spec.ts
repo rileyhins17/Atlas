@@ -923,6 +923,22 @@ test('every route renders clean at phone width, with no console errors', async (
     '/fitness', '/finance', '/looking-back', '/everything', '/week', '/settings',
   ];
 
+  // Its own baseline. This spec asserts the capture dock on every route, and the
+  // dock is hidden while the first-run wizard owns the screen — so on an account
+  // with nothing in it, every route "fails". It passed only because earlier
+  // specs happened to leave data behind, which is the shape the file's own rules
+  // forbid: green in a full run, red alone. One task is enough to be past first
+  // run. Seeded before the listeners below so its requests are not collected.
+  await go(page, '/today');
+  await page.evaluate(async () => {
+    await fetch('http://localhost:4000/tasks', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: `Sweep baseline ${Date.now()}`, priority: 'LOW' }),
+    });
+  });
+
   const problems: string[] = [];
   page.on('console', (m) => {
     // Cloudflare's RUM beacon is blocked locally and is not ours.
@@ -972,6 +988,34 @@ test('every route renders clean at phone width, with no console errors', async (
         `a11y on ${route}: ${v.id} (${v.impact}) × ${v.nodes.length} — ${v.nodes[0]?.target.join(' ')}`,
       );
     }
+
+    // Target size (WCAG 2.2 SC 2.5.8), measured rather than scanned. The tags
+    // above are 2.0/2.1 and `target-size` is a wcag22aa rule, so every scan in
+    // this suite was blind to it — which is how the goals check button shipped
+    // at 16x6: its box was scoped to `.goal-row.done`, so the control that marks
+    // a goal achieved only became tappable once the goal already was.
+    const tiny = await page.evaluate(() => {
+      const SEL =
+        'button, a[href], input, select, textarea, [role="button"], [role="checkbox"], [role="tab"], [role="option"], summary';
+      const out: string[] = [];
+      for (const el of document.querySelectorAll(SEL)) {
+        const cs = getComputedStyle(el);
+        if (cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0') continue;
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 && r.height === 0) continue;
+        // No inline-link exemption. 2.5.8 allows one, but every link on these
+        // thirteen routes is a control rather than prose — "Track a habit" sits
+        // in a sentence and is still the only thing to tap on an empty Today.
+        // An exception that never legitimately fires is just a place for a real
+        // one to hide, which is the same lesson as scanning axe by impact.
+        if (r.width < 24 || r.height < 24) {
+          const name = el.getAttribute('aria-label') || el.textContent?.trim() || '';
+          out.push(`${Math.round(r.width)}x${Math.round(r.height)} ${el.tagName.toLowerCase()}.${el.className} "${name.slice(0, 40)}"`);
+        }
+      }
+      return out;
+    });
+    for (const t of tiny) problems.push(`target size on ${route}: ${t}`);
   }
 
   expect(problems, problems.join('\n')).toEqual([]);
