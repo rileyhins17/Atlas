@@ -1372,10 +1372,27 @@ input[type='checkbox']:checked::after {
 }
 
 /* — habit cards — */
+/* The name is a <button> (it opens the edit dialog) and must still read as the
+   <strong> it replaced. Without the reset it renders as browser-default button
+   chrome — a grey bordered box around every habit name — which is the same trap
+   as a className with no rule at all, just in the other direction. */
 .habit-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font-weight: 700;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease);
+}
+.habit-name:hover {
+  color: var(--brand-on-tint);
 }
 .week-grid {
   display: flex;
@@ -4127,13 +4144,17 @@ input[type='checkbox']:checked::after {
 .wk-event.compact .wk-event-time { display: none; }
 .wk-event.compact .wk-event-title { font-size: 11px; }
 
-/* Composer */
-.cal-field {
+/* Composer. `.field`/`.field-label` are the same two rules under a name that is
+   not about the calendar — any dialog form uses them. Aliased rather than
+   duplicated so the two can never drift apart. */
+.cal-field,
+.field {
   display: flex;
   flex-direction: column;
   gap: 5px;
 }
-.cal-label {
+.cal-label,
+.field-label {
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.05em;

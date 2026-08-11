@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { HabitDTO } from '@atlas/shared';
+import type { HabitDTO, UpdateHabitInput } from '@atlas/shared';
 import { HabitsApi } from '@/lib/api';
 import { qk } from './keys';
 
@@ -19,6 +19,20 @@ export function useCreateHabit() {
   return useMutation({
     mutationFn: HabitsApi.create,
     meta: { success: 'Habit added', errorFallback: 'Failed to add habit' },
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.habits }),
+  });
+}
+
+export function useUpdateHabit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { id: string; patch: UpdateHabitInput }) =>
+      HabitsApi.update(args.id, args.patch),
+    meta: { success: 'Habit updated', errorFallback: 'Failed to update habit' },
+    // Changing `target` re-decides which days count as done, so the heatmap and
+    // the week dots have to refetch as well as the list. One call covers both:
+    // qk.habitHistory(days) is ['habits','history',days], and invalidation
+    // matches on key PREFIX — ['habits'] takes the history with it.
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.habits }),
   });
 }

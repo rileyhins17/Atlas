@@ -1271,6 +1271,54 @@ test('⌘K reaches the destinations the app actually has', async ({ page }) => {
   await expect(page).toHaveURL(/\/journal$/);
 });
 
+test('a habit can be renamed and retargeted after you have made a typo', async ({ page }) => {
+  // Habits had PATCH on the API and nothing in the UI, so a habit was whatever
+  // you called it the first time — a typo was permanent unless you archived the
+  // streak and started again.
+  const marker = `Wter${Date.now()}`;
+  const fixed = `Water${Date.now()}`;
+
+  await go(page, '/habits');
+  // Its own baseline: this spec creates the habit it edits.
+  const newHabit = page.getByLabel('New habit name');
+  await newHabit.click();
+  await newHabit.pressSequentially(marker);
+  // exact: the sidebar's "Ask or add… ⌘K" also contains "Add", and role-name
+  // matching is a substring by default.
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await expect(page.getByRole('button', { name: `Edit habit "${marker}"` })).toBeVisible();
+
+  // The name IS the edit affordance.
+  await page.getByRole('button', { name: `Edit habit "${marker}"` }).click();
+
+  const nameField = page.getByRole('textbox', { name: 'Name' });
+  await expect(nameField).toBeVisible();
+  // Typed, not filled. Both of these are controlled inputs, and this file has
+  // been bitten twice by fill() dispatching one event a commit can miss.
+  await nameField.click();
+  await nameField.press('ControlOrMeta+a');
+  await nameField.pressSequentially(fixed);
+
+  const targetField = page.getByRole('spinbutton', { name: 'Times per day' });
+  await targetField.click();
+  await targetField.press('ControlOrMeta+a');
+  await targetField.pressSequentially('8');
+
+  await page.getByRole('button', { name: 'Save' }).click();
+
+  // The whole card follows the rename, not just the heading.
+  await expect(page.getByRole('button', { name: `Edit habit "${fixed}"` })).toBeVisible();
+  await expect(page.getByRole('button', { name: `Check in "${fixed}"` })).toBeVisible();
+  await expect(page.getByRole('button', { name: `Archive "${fixed}"` })).toBeVisible();
+  await expect(page.getByRole('button', { name: `Edit habit "${marker}"` })).toHaveCount(0);
+
+  // Reloaded, because the assertions above could all be satisfied by component
+  // state that never reached the server.
+  await go(page, '/habits');
+  await expect(page.getByRole('button', { name: `Edit habit "${fixed}"` })).toBeVisible();
+  await expect(page.locator('.habit-card', { hasText: fixed })).toContainText('0/8 today');
+});
+
 test('losing the network shows the offline shell, and regaining it gives the app back', async ({
   browser,
 }) => {

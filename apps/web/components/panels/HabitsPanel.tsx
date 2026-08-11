@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { HabitDTO } from '@atlas/shared';
+import type { HabitCadence, HabitDTO } from '@atlas/shared';
 import { Check, Flame, Repeat, X } from 'lucide-react';
 import { errorMessage } from '@/lib/api';
 import {
@@ -10,11 +10,13 @@ import {
   useHabitHistory,
   useHabits,
   useLogHabit,
+  useUpdateHabit,
 } from '@/lib/hooks/habits';
 import {
   Badge,
   Button,
   Card,
+  Dialog,
   EmptyState,
   ErrorState,
   Heatmap,
@@ -28,13 +30,20 @@ import { localDayKey } from '@/lib/dates';
 
 const HISTORY_DAYS = 84; // 12 weeks of heatmap
 
+/** The open edit dialog's working copy — null when nothing is being edited. */
+type HabitDraft = { id: string; name: string; target: string; cadence: HabitCadence };
+
 export function HabitsPanel() {
   const [name, setName] = useState('');
+  const [draft, setDraft] = useState<HabitDraft | null>(null);
+  const [draftError, setDraftError] = useState<string | null>(null);
   const habitsQuery = useHabits();
   const historyQuery = useHabitHistory(HISTORY_DAYS);
   const create = useCreateHabit();
   const latch = useSubmitLatch();
+  const editLatch = useSubmitLatch();
   const log = useLogHabit();
+  const update = useUpdateHabit();
   const remove = useDeleteHabit();
 
   const habits = habitsQuery.data ?? [];
@@ -53,6 +62,49 @@ export function HabitsPanel() {
     if (!name.trim()) return;
     latch((release) =>
       create.mutate({ name: name.trim() }, { onSuccess: () => setName(''), onSettled: release }),
+    );
+  }
+
+  function openEdit(habit: HabitDTO) {
+    setDraftError(null);
+    setDraft({
+      id: habit.id,
+      name: habit.name,
+      // Held as a string so the field can be empty mid-edit. A number input
+      // bound to a number cannot be cleared to retype it — it snaps to 0, which
+      // is below the DTO's minimum and rejects the save you were halfway through.
+      target: String(habit.target),
+      // HabitDTO types cadence as a bare string (it mirrors the column), while
+      // UpdateHabitInput only accepts the two-value enum. Narrow here rather
+      // than tightening the shared DTO: anything that is not 'weekly' is daily,
+      // which is the same default CreateHabitInput applies.
+      cadence: habit.cadence === 'weekly' ? 'weekly' : 'daily',
+    });
+  }
+
+  function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!draft) return;
+
+    const trimmed = draft.name.trim();
+    if (!trimmed) {
+      setDraftError('A habit needs a name.');
+      return;
+    }
+    // Mirrors CreateHabitInput/UpdateHabitInput (int, 1–100). Checked here so a
+    // typo answers instantly and inline instead of round-tripping to a 400.
+    const target = Number(draft.target);
+    if (!Number.isInteger(target) || target < 1 || target > 100) {
+      setDraftError('Target must be a whole number between 1 and 100.');
+      return;
+    }
+
+    setDraftError(null);
+    editLatch((release) =>
+      update.mutate(
+        { id: draft.id, patch: { name: trimmed, target, cadence: draft.cadence } },
+        { onSuccess: () => setDraft(null), onSettled: release },
+      ),
     );
   }
 
@@ -99,11 +151,70 @@ export function HabitsPanel() {
               habit={h}
               counts={historyByHabit.get(h.id)}
               onCheckIn={() => log.mutate(h.id)}
+              onEdit={() => openEdit(h)}
               onRemove={() => remove.mutate(h.id)}
             />
           ))
         )}
       </div>
+
+      <Dialog
+        open={draft !== null}
+        onOpenChange={(open) => !open && setDraft(null)}
+        title="Edit habit"
+      >
+        {draft ? (
+          // noValidate so the inline error slot is the only error surface —
+          // same reasoning as the calendar composer.
+          <form className="stack" noValidate onSubmit={saveEdit}>
+            <label className="field">
+              <span className="field-label">Name</span>
+              <Input
+                value={draft.name}
+                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                autoFocus
+              />
+            </label>
+
+            <label className="field">
+              <span className="field-label">Times per day</span>
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={100}
+                value={draft.target}
+                onChange={(e) => setDraft({ ...draft, target: e.target.value })}
+              />
+            </label>
+
+            <label className="field">
+              <span className="field-label">Cadence</span>
+              <select
+                className="input"
+                value={draft.cadence}
+                onChange={(e) =>
+                  setDraft({ ...draft, cadence: e.target.value as HabitCadence })
+                }
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+              </select>
+            </label>
+
+            {draftError && <div className="error">{draftError}</div>}
+
+            <div className="row" style={{ justifyContent: 'flex-end', gap: 8 }}>
+              <Button type="button" variant="ghost" onClick={() => setDraft(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={update.isPending}>
+                Save
+              </Button>
+            </div>
+          </form>
+        ) : null}
+      </Dialog>
     </>
   );
 }
@@ -129,11 +240,13 @@ function HabitCard({
   habit,
   counts,
   onCheckIn,
+  onEdit,
   onRemove,
 }: {
   habit: HabitDTO;
   counts: Map<string, number> | undefined;
   onCheckIn: () => void;
+  onEdit: () => void;
   onRemove: () => void;
 }) {
   const week = weekCells(counts, habit.target, new Date());
@@ -149,7 +262,20 @@ function HabitCard({
           <Check size={14} strokeWidth={3} aria-hidden />
         </button>
         <div className="stack" style={{ gap: 1, flex: 1, minWidth: 0 }}>
-          <strong className="habit-name">{habit.name}</strong>
+          {/* The name is the edit affordance, the way an event row is on the
+              calendar. A separate pencil would be a fifth control on a row that
+              already carries four. The label is explicit rather than the visible
+              text, so it says what the control DOES and reads like its two
+              siblings ("Check in …", "Archive …") instead of announcing a bare
+              habit name and leaving the purpose to be guessed. */}
+          <button
+            type="button"
+            className="habit-name"
+            aria-label={`Edit habit "${habit.name}"`}
+            onClick={onEdit}
+          >
+            {habit.name}
+          </button>
           <span className="muted" style={{ fontSize: 12 }}>
             {habit.todayCount}/{habit.target} today · {habit.cadence}
           </span>

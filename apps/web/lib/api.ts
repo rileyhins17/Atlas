@@ -8,6 +8,7 @@ import type {
   ChatMessageDTO,
   ChatResponseDTO,
   CreateHabitInput,
+  UpdateHabitInput,
   CreateJournalInput,
   CreateNoteInput,
   CreateExerciseInput,
@@ -190,6 +191,8 @@ export const HabitsApi = {
   history: (days: number) => request<HabitHistoryDTO[]>(`/habits/history?days=${days}`),
   create: (input: Partial<CreateHabitInput> & { name: string }) =>
     request<HabitDTO>('/habits', { method: 'POST', body: JSON.stringify(input) }),
+  update: (id: string, patch: UpdateHabitInput) =>
+    request<HabitDTO>(`/habits/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   log: (id: string) => request<HabitDTO>(`/habits/${id}/log`, { method: 'POST', body: '{}' }),
   remove: (id: string) => request<{ ok: true }>(`/habits/${id}`, { method: 'DELETE' }),
 };
