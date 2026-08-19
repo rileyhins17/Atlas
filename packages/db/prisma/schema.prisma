@@ -20,7 +20,15 @@ generator client {
 
 datasource db {
   provider   = "postgresql"
+  // Pooled (PgBouncer) in production. Prisma opens `num_cpus * 2 + 1`
+  // connections by default — 25 on the dev desktop — and every one of those is a
+  // real Postgres backend holding RAM on the Neon compute. Transaction-mode
+  // pooling multiplexes them onto a handful of backends instead.
   url        = env("DATABASE_URL")
+  // Migrations and introspection cannot run through PgBouncer (they need
+  // session state and prepared statements), so they take the direct endpoint.
+  // Locally both point at the same database and nothing changes.
+  directUrl  = env("DIRECT_DATABASE_URL")
   extensions = [pgcrypto, vector]
 }
 
