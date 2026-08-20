@@ -6,8 +6,6 @@
 import type { EventDTO } from '@atlas/shared';
 import { addDays, localDayKey, startOfDay } from './dates';
 
-const DAY_MS = 86_400_000;
-
 /** Duration chips offered in the composer, in minutes. */
 /**
  * Durations offered when creating an event.
@@ -62,7 +60,9 @@ export function countsByDay(events: EventDTO[]): Map<string, number> {
  */
 export function bucketByDay(events: EventDTO[], from?: Date, to?: Date): DayBucket[] {
   const lo = from ? startOfDay(from).getTime() : -Infinity;
-  const hi = to ? startOfDay(to).getTime() + DAY_MS : Infinity;
+  // End of the LAST day inclusive. A fixed 24h is an hour short on the autumn
+  // transition, which silently drops that day's final hour of events.
+  const hi = to ? addDays(startOfDay(to), 1).getTime() : Infinity;
   const byDay = new Map<string, EventDTO[]>();
 
   for (const e of events) {

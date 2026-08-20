@@ -46,7 +46,7 @@ import {
   ListSkeleton,
 } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
-import { formatDayHeading } from '@/lib/dates';
+import { dayDiff, formatDayHeading } from '@/lib/dates';
 import { RestTimer } from '@/components/fitness/RestTimer';
 
 /** Stable "no data yet" identity — see the note in CalendarPanel. */
@@ -594,7 +594,10 @@ const QUICK_STARTS = ['Push', 'Pull', 'Legs', 'Upper', 'Full body'];
 /** "3 days ago" / "today" — how long since a saved day was last trained. */
 function sinceLabel(iso: string | null): string {
   if (!iso) return 'not done yet';
-  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  // Calendar days, not elapsed hours. Dividing the gap by 24h called a session
+  // logged at 23:00 last night "today" until 23:00 tonight, because barely a
+  // day had passed — while every calendar on the screen said otherwise.
+  const days = dayDiff(new Date(iso), new Date());
   if (days <= 0) return 'today';
   if (days === 1) return 'yesterday';
   if (days < 7) return `${days} days ago`;

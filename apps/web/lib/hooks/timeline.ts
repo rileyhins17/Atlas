@@ -2,6 +2,7 @@
 
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { TimelineApi } from '@/lib/api';
+import { addDays } from '@/lib/dates';
 import { qk } from './keys';
 
 const PAGE_SIZE = 50;
@@ -23,7 +24,9 @@ export function useTimeline(source?: string) {
 /** One local day's actuals for the Day Canvas — [dayStart, dayStart+24h). */
 export function useDayActuals(dayStart: Date) {
   const from = dayStart.toISOString();
-  const to = new Date(dayStart.getTime() + 86_400_000).toISOString();
+  // The real length of this local day. A fixed 24h is an hour short on the
+  // autumn transition and drops that day's last hour of actuals.
+  const to = addDays(dayStart, 1).toISOString();
   return useQuery({
     queryKey: qk.dayActuals(from),
     queryFn: () => TimelineApi.list({ from, to, limit: 100 }),

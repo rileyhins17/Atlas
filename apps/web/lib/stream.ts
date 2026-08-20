@@ -1,5 +1,5 @@
 import type { RoutineBlockDTO, TaskDTO, TimelineEventDTO } from '@atlas/shared';
-import { dayBit, localDayKey } from './dates';
+import { addDays, dayBit, localDayKey } from './dates';
 
 /**
  * Pure logic for the History feed and the now-line. (The Up-Next plan logic
@@ -44,7 +44,10 @@ function minuteOf(d: Date): number {
 export function routineAt(blocks: RoutineBlockDTO[], now: Date): RoutineBlockDTO | null {
   const t = minuteOf(now);
   const today = 1 << dayBit(now);
-  const yesterday = 1 << dayBit(new Date(now.getTime() - 86_400_000));
+  // Calendar day. Stepping back a fixed 24h lands on TODAY across the autumn
+  // transition, so an overnight block would be matched against the wrong mask
+  // and "what am I doing now" would silently miss it.
+  const yesterday = 1 << dayBit(addDays(now, -1));
 
   for (const b of blocks) {
     if (b.startMin <= b.endMin) {

@@ -3,7 +3,7 @@
 process.env.TZ = 'America/Toronto';
 
 import { describe, expect, it } from 'vitest';
-import { addDays, localDayKey, startOfDay } from '../lib/dates';
+import { addDays, dayDiff, localDayKey, startOfDay } from '../lib/dates';
 
 /**
  * A local day is not always 24 hours, and Atlas pages by day on its main screen.
@@ -64,5 +64,34 @@ describe('the day window used to fetch a day of events', () => {
     // 25 hours in autumn, 23 in spring — a fixed 24 is wrong in both directions.
     expect(hours(startOfDay(FALL_BACK), addDays(startOfDay(FALL_BACK), 1))).toBe(25);
     expect(hours(startOfDay(SPRING_FWD), addDays(startOfDay(SPRING_FWD), 1))).toBe(23);
+  });
+});
+
+describe('day-length arithmetic used across the app', () => {
+  it('dayDiff counts calendar days, not elapsed 24-hour blocks', () => {
+    // The fitness "N days ago" label used elapsed/86_400_000, which called a
+    // session logged at 23:00 last night "today" until 23:00 tonight.
+    const lastNight = new Date(2026, 5, 9, 23, 0);
+    const thisMorning = new Date(2026, 5, 10, 8, 0);
+    expect(dayDiff(lastNight, thisMorning)).toBe(1);
+    expect(Math.floor((thisMorning.getTime() - lastNight.getTime()) / 86_400_000)).toBe(0);
+  });
+
+  it('dayDiff survives the transition it spans', () => {
+    // Math.round over startOfDay absorbs the missing/extra hour.
+    expect(dayDiff(FALL_BACK, addDays(FALL_BACK, 1))).toBe(1);
+    expect(dayDiff(SPRING_FWD, addDays(SPRING_FWD, 1))).toBe(1);
+  });
+
+  it('an all-day event ends inside its own day on both transitions', () => {
+    // start + 24h - 1min ends at 22:59 in autumn and spills into the next day
+    // in spring; the next calendar day minus a minute is right in both.
+    for (const day of [FALL_BACK, SPRING_FWD]) {
+      const start = startOfDay(day);
+      const end = new Date(addDays(start, 1).getTime() - 60_000);
+      expect(localDayKey(end)).toBe(localDayKey(start));
+      expect(end.getHours()).toBe(23);
+      expect(end.getMinutes()).toBe(59);
+    }
   });
 });

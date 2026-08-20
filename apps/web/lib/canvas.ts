@@ -1,5 +1,5 @@
 import type { EventDTO, RoutineBlockDTO, TaskDTO, TimelineEventDTO } from '@atlas/shared';
-import { dayBit, localDayKey, startOfDay } from './dates';
+import { addDays, dayBit, localDayKey, startOfDay } from './dates';
 
 /**
  * The Day Canvas engine — pure, exhaustively unit-tested (see docs/atlas-design-v4.md §3).
@@ -71,7 +71,6 @@ export const CANVAS_NOISE_TYPES = new Set([
 /** Ignore sub-5-minute slivers between routine blocks — not a plannable gap. */
 const MIN_OPEN_MS = 5 * 60_000;
 
-const DAY_MS = 86_400_000;
 
 /** Minutes-of-day → an absolute Date on the given local day. */
 function atMinute(dayStart: Date, min: number): Date {
@@ -90,11 +89,16 @@ interface Segment {
  * its MORNING TAIL on the day after a matching day.
  */
 function routineSegments(blocks: RoutineBlockDTO[], dayStart: Date): Segment[] {
-  const dayEnd = new Date(dayStart.getTime() + DAY_MS);
+  // Calendar arithmetic throughout. A fixed 24h made `dayEnd` an hour short on
+  // the 25-hour autumn day — dropping the last hour of the routine from the
+  // canvas — and made "yesterday" resolve to TODAY, so the overnight tail was
+  // matched against the wrong day's mask.
+  const dayEnd = addDays(dayStart, 1);
+  const yesterday = addDays(dayStart, -1);
   const todayMask = 1 << dayBit(dayStart);
-  const yesterdayMask = 1 << dayBit(new Date(dayStart.getTime() - DAY_MS));
+  const yesterdayMask = 1 << dayBit(yesterday);
   const todayKey = localDayKey(dayStart);
-  const yesterdayKey = localDayKey(new Date(dayStart.getTime() - DAY_MS));
+  const yesterdayKey = localDayKey(yesterday);
 
   // A dated block DESCRIBES this particular day, so it replaces the weekly block
   // it stands in for — but only the one of the SAME KIND. "Working 7–3 today"
@@ -172,7 +176,7 @@ function routineSegments(blocks: RoutineBlockDTO[], dayStart: Date): Segment[] {
 
 /** Build the full section skeleton: routine segments + Open gaps. */
 function buildSections(blocks: RoutineBlockDTO[], dayStart: Date): CanvasSection[] {
-  const dayEnd = new Date(dayStart.getTime() + DAY_MS);
+  const dayEnd = addDays(dayStart, 1);
   const segments = routineSegments(blocks, dayStart);
   const sections: CanvasSection[] = [];
   let cursor = dayStart;

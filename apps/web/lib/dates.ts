@@ -1,6 +1,15 @@
 /** Date helpers shared by the dashboard and domain views. Pure — unit-tested. */
 
-const DAY_MS = 86_400_000;
+/**
+ * Twenty-four hours, for ELAPSED time only — a rolling fetch window, a
+ * "how long since" duration.
+ *
+ * It is NOT how you move between calendar days. A local day is 23 or 25 hours
+ * on the DST transitions, so `date + DAY_MS` lands on the wrong date or the
+ * wrong hour twice a year. Use `addDays` to step days and `dayDiff` to count
+ * them; both are calendar arithmetic and neither cares how long a day was.
+ */
+export const DAY_MS = 86_400_000;
 
 /** Local YYYY-MM-DD key for a date (calendar-day identity in the UI). */
 export function localDayKey(d: Date): string {

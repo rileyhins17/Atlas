@@ -1,5 +1,5 @@
 import type { TaskDTO } from '@atlas/shared';
-import { dayDiff, startOfDay } from './dates';
+import { addDays, dayDiff, startOfDay } from './dates';
 
 /** The Tasks page's view filters. `all` still hides done work. */
 export type TaskFilter = 'all' | 'today' | 'overdue' | 'done';
@@ -54,9 +54,9 @@ export function quickAddDueDate(groupKey: string, now: Date): Date | null {
       return endOfDay(now);
     case 'week':
       // Mid-week: far enough to be "this week", near enough to stay actionable.
-      return endOfDay(new Date(now.getTime() + 3 * 86_400_000));
+      return endOfDay(addDays(now, 3));
     case 'later':
-      return endOfDay(new Date(now.getTime() + 14 * 86_400_000));
+      return endOfDay(addDays(now, 14));
     default:
       return null; // someday / no date
   }

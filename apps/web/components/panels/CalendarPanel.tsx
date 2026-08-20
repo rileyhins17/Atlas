@@ -180,7 +180,9 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
       ? combineLocal(draft.day, '00:00')
       : combineLocal(draft.day, draft.startTime);
     const end = draft.allDay
-      ? new Date(start.getTime() + 86_400_000 - 60_000)
+      // One minute before the next calendar day. A fixed 24h ends an all-day
+      // event at 22:59 in autumn and spills it into the NEXT day in spring.
+      ? new Date(addDays(start, 1).getTime() - 60_000)
       : new Date(start.getTime() + draft.durationMin * 60_000);
 
     setClientError(null);

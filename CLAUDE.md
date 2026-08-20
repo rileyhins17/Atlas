@@ -119,7 +119,7 @@ of the design work in v10 came from reading those PNGs, not the source.
 
 ## Current state
 
-Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **601 unit tests** · **e2e 44/44** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop.
+Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **604 unit tests** · **e2e 44/44** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop.
 
 **"axe clean" means zero violations, not zero serious ones, and it means every route.** The scans
 used to filter to `serious`/`critical`, which silently discarded `meta-viewport` — a real WCAG 1.4.4
@@ -127,7 +127,7 @@ failure that had pinch-zoom disabled on every page. They also only covered three
 moment the sweep was widened to all thirteen it found a serious contrast failure that had shipped.
 If you add an axe scan, assert on the whole violation list.
 
-**Never step a day with `+ 86_400_000`.** A local day is 23 or 25 hours on the DST transitions, and this app is used in a timezone that has them. Measured: `1 Nov 2026 00:00 + 86_400_000ms` in America/Toronto is `1 Nov 23:00`, still the same date — which froze Today's day pager, made `DayPager` say "Today" on two consecutive days, and made the day-events window an hour short so the last hour of that day disappeared. Use `addDays` from `lib/dates.ts`; it is `setDate`-based and the only implementation.
+**Never step a day with `+ 86_400_000`.** A local day is 23 or 25 hours on the DST transitions, and this app is used in a timezone that has them. Measured: `1 Nov 2026 00:00 + 86_400_000ms` in America/Toronto is `1 Nov 23:00`, still the same date — which froze Today's day pager, made `DayPager` say "Today" on two consecutive days, and made the day-events window an hour short so the last hour of that day disappeared. Use `addDays` from `lib/dates.ts`; it is `setDate`-based and the only implementation. Nine sites had it wrong — the day pager, the day heading, both day-fetch windows, the routine day masks on Today and in `stream.ts`, the canvas day end, the calendar range end, the all-day event end and the task due-date horizons. `DAY_MS` still exists and is exported, but **only** for genuinely elapsed time (the rolling agenda fetch window); there is no raw `86_400_000` left anywhere else in `apps/web`.
 
 **Axe cannot see tap targets, so the phone-width spec measures them.** `target-size` is a WCAG **2.2**
 rule and every scan here asks for 2.0/2.1 tags, so four undersized controls sat under a green axe

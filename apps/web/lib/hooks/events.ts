@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { EventsApi } from '@/lib/api';
-import { addDays } from '@/lib/dates';
+import { addDays, DAY_MS } from '@/lib/dates';
 import { qk } from './keys';
 
 /** How far ahead the agenda looks. Under the API's 62-day window cap. */
@@ -18,8 +18,10 @@ export function useEvents() {
   return useQuery({
     queryKey: qk.events,
     queryFn: () => {
-      const from = new Date(Date.now() - 86_400_000);
-      const to = new Date(from.getTime() + AGENDA_DAYS * 86_400_000);
+      // Deliberately elapsed time, not calendar days: this is a rolling fetch
+      // window sized against the API's 62-day cap, not a range of dates.
+      const from = new Date(Date.now() - DAY_MS);
+      const to = new Date(from.getTime() + AGENDA_DAYS * DAY_MS);
       return EventsApi.list({ from: from.toISOString(), to: to.toISOString(), limit: 100 });
     },
   });
