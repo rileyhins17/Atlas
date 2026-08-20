@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   nextOccurrences,
   type CreateEventInput,
@@ -154,7 +154,17 @@ export class CalendarService {
   }
 
   async update(userId: string, id: string, input: UpdateEventInput): Promise<EventDTO> {
-    await this.owned(userId, id);
+    const before = await this.owned(userId, id);
+
+    // The half the DTO cannot see. Moving ONE end past the other reverses the
+    // event just as effectively as sending both, and `owned` has already paid
+    // for the read, so this costs nothing.
+    const startAt = input.startAt ?? before.startAt;
+    const endAt = input.endAt ?? before.endAt;
+    if (endAt < startAt) {
+      throw new BadRequestException('endAt must be after startAt');
+    }
+
     const event = await this.prisma.client.event.update({ where: { id }, data: input });
     await this.timeline.write({
       userId,

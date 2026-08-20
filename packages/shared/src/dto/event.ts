@@ -17,15 +17,29 @@ export const CreateEventInput = z
   .refine((v) => v.endAt >= v.startAt, { message: 'endAt must be after startAt', path: ['endAt'] });
 export type CreateEventInput = z.infer<typeof CreateEventInput>;
 
-export const UpdateEventInput = z.object({
-  title: z.string().min(1).max(300).optional(),
-  description: z.string().max(5_000).nullable().optional(),
-  location: z.string().max(500).nullable().optional(),
-  startAt: z.coerce.date().optional(),
-  endAt: z.coerce.date().optional(),
-  allDay: z.boolean().optional(),
-  recurrence: RruleString.nullable().optional(),
-});
+export const UpdateEventInput = z
+  .object({
+    title: z.string().min(1).max(300).optional(),
+    description: z.string().max(5_000).nullable().optional(),
+    location: z.string().max(500).nullable().optional(),
+    startAt: z.coerce.date().optional(),
+    endAt: z.coerce.date().optional(),
+    allDay: z.boolean().optional(),
+    recurrence: RruleString.nullable().optional(),
+  })
+  // Create refines this and update did not, so a PATCH could reverse an event
+  // that could never have been created that way. Nothing crashes — the week
+  // grid guards against a negative height by clamping the end to midnight —
+  // which is worse than a crash: the event silently swallows the rest of the
+  // day and squashes every later event that day into a narrow column.
+  //
+  // Only checkable here when BOTH ends are present. A PATCH carrying one of
+  // them has to be judged against the stored value, which is a DTO's blind
+  // spot; CalendarService.update closes that half.
+  .refine((v) => v.startAt === undefined || v.endAt === undefined || v.endAt >= v.startAt, {
+    message: 'endAt must be after startAt',
+    path: ['endAt'],
+  });
 export type UpdateEventInput = z.infer<typeof UpdateEventInput>;
 
 /** Optional window for listing events (Day Canvas fetches one local day). */
