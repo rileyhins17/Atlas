@@ -57,11 +57,26 @@ export function HabitsPanel() {
 
   const error = create.error ? errorMessage(create.error, 'Failed to add habit') : null;
 
+  // M5: warn on a duplicate name, never block it. Two habits called "Stretch"
+  // is usually a slip of memory, so the first submit asks; but it is sometimes
+  // deliberate (morning/evening), so the SAME submit repeated goes through. A
+  // hard unique constraint would turn the legitimate case into a dead end.
+  const [dupWarned, setDupWarned] = useState<string | null>(null);
+
   function addHabit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+
+    const duplicate = habits.some((h) => h.name.toLowerCase() === trimmed.toLowerCase());
+    if (duplicate && dupWarned !== trimmed) {
+      setDupWarned(trimmed);
+      return;
+    }
+
+    setDupWarned(null);
     latch((release) =>
-      create.mutate({ name: name.trim() }, { onSuccess: () => setName(''), onSettled: release }),
+      create.mutate({ name: trimmed }, { onSuccess: () => setName(''), onSettled: release }),
     );
   }
 
@@ -116,13 +131,23 @@ export function HabitsPanel() {
           placeholder="New habit (e.g. Gym, Read, Water)…"
           aria-label="New habit name"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            setName(e.target.value);
+            // A changed name is a new question; the old warning no longer applies.
+            if (dupWarned) setDupWarned(null);
+          }}
         />
         <Button type="submit" disabled={create.isPending}>
           Add
         </Button>
       </form>
       {error && <div className="error">{error}</div>}
+      {dupWarned && (
+        // role=status so a screen reader hears why the first Add "did nothing".
+        <p className="muted" role="status" style={{ margin: '6px 0 0', fontSize: 13 }}>
+          You already track &ldquo;{dupWarned}&rdquo;. Press Add again to track it twice.
+        </p>
+      )}
 
       <div className="stack" style={{ marginTop: 14, gap: 12 }} aria-busy={habitsQuery.isPending}>
         {habitsQuery.isPending ? (
