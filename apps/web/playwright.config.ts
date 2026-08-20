@@ -18,6 +18,55 @@ if (!process.env.INVITE_CODE) {
   }
 }
 
+/**
+ * Refuse to run against anything that is not a local, throwaway stack.
+ *
+ * This suite registers roughly thirty accounts per full run and mutates data
+ * freely. The repo-root .env is shared by dev and deployment, so it takes one
+ * absent-minded moment with production values in it to point the whole suite at
+ * Neon and the live site — which would write test accounts into real user data
+ * and cannot be undone from here.
+ *
+ * Both halves are checked because they fail independently: DATABASE_URL decides
+ * whose data gets written, E2E_BASE_URL decides whose app gets driven, and
+ * either one alone is enough to do damage. Set E2E_ALLOW_REMOTE=1 if you ever
+ * genuinely mean it.
+ */
+function assertLocalTarget(): void {
+  if (process.env.E2E_ALLOW_REMOTE) return;
+
+  const isLocal = (value: string): boolean =>
+    /(^|@|\/\/)(localhost|127\.0\.0\.1|\[::1\]|db)(:|\/|$)/.test(value);
+
+  let dbUrl = process.env.DATABASE_URL ?? '';
+  if (!dbUrl) {
+    try {
+      const env = readFileSync(resolve(__dirname, '../../.env'), 'utf8');
+      dbUrl = /^DATABASE_URL=(.*)$/m.exec(env)?.[1]?.trim() ?? '';
+    } catch {
+      // No .env at all means CI, which supplies its own ephemeral container.
+    }
+  }
+  if (dbUrl && !isLocal(dbUrl)) {
+    const host = dbUrl.replace(/.*@/, '').replace(/[/?].*/, '');
+    throw new Error(
+      `Refusing to run e2e against a non-local database (${host}).\n` +
+        'This suite registers ~30 accounts and mutates data. Point DATABASE_URL at the ' +
+        'local Postgres, or set E2E_ALLOW_REMOTE=1 if you really mean it.',
+    );
+  }
+
+  const target = process.env.E2E_BASE_URL ?? '';
+  if (target && !isLocal(target)) {
+    throw new Error(
+      `Refusing to run e2e against a non-local app (${target}).\n` +
+        'Set E2E_ALLOW_REMOTE=1 if you really mean it.',
+    );
+  }
+}
+
+assertLocalTarget();
+
 // Full-stack e2e: drives the real web app against a real API + Postgres.
 // Locally the webServer entries boot the built API + web (reusing any already
 // running); CI starts them itself against an ephemeral pgvector container.
