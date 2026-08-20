@@ -1,13 +1,15 @@
 'use client';
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { localDayKey } from '@/lib/dates';
+import { addDays, localDayKey } from '@/lib/dates';
 
 function dayTitle(day: Date, now: Date): string {
   const key = localDayKey(day);
   const nowKey = localDayKey(now);
-  const yesterday = localDayKey(new Date(now.getTime() - 86_400_000));
-  const tomorrow = localDayKey(new Date(now.getTime() + 86_400_000));
+  // Same DST reason as the pager itself: on a 25-hour day the fixed-ms form
+  // makes "tomorrow" resolve to today, so the heading reads Today twice.
+  const yesterday = localDayKey(addDays(now, -1));
+  const tomorrow = localDayKey(addDays(now, 1));
   const pretty = day.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
   if (key === nowKey) return `Today · ${pretty}`;
   if (key === yesterday) return `Yesterday · ${pretty}`;

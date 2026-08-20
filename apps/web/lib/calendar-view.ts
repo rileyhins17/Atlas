@@ -4,7 +4,7 @@
  * eyeballed through the UI.
  */
 import type { EventDTO } from '@atlas/shared';
-import { localDayKey, startOfDay } from './dates';
+import { addDays, localDayKey, startOfDay } from './dates';
 
 const DAY_MS = 86_400_000;
 
@@ -19,11 +19,9 @@ const DAY_MS = 86_400_000;
  */
 export const DURATION_PRESETS = [15, 30, 45, 60, 90, 120, 180, 240, 360, 480, 720] as const;
 
-export function addDays(d: Date, n: number): Date {
-  const out = new Date(d);
-  out.setDate(out.getDate() + n);
-  return out;
-}
+// Lives in ./dates now — one implementation of calendar-day arithmetic for the
+// whole app. Re-exported so the calendar's existing importers stay put.
+export { addDays };
 
 /**
  * Monday-based start of the week containing `d`. Monday because the routine

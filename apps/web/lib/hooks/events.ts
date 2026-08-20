@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { EventsApi } from '@/lib/api';
+import { addDays } from '@/lib/dates';
 import { qk } from './keys';
 
 /** How far ahead the agenda looks. Under the API's 62-day window cap. */
@@ -27,7 +28,10 @@ export function useEvents() {
 /** Events for one local day (Day Canvas) — [dayStart, dayStart+24h). */
 export function useDayEvents(dayStart: Date) {
   const from = dayStart.toISOString();
-  const to = new Date(dayStart.getTime() + 86_400_000).toISOString();
+  // The window has to be the real length of THIS local day. A fixed 24h is an
+  // hour short on the autumn transition, which silently drops that day's last
+  // hour of events from the canvas.
+  const to = addDays(dayStart, 1).toISOString();
   return useQuery({
     queryKey: qk.dayEvents(from),
     queryFn: () => EventsApi.list({ from, to, limit: 100 }),

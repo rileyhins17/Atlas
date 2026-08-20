@@ -17,6 +17,23 @@ export function startOfDay(d: Date): Date {
   return s;
 }
 
+/**
+ * Move by whole CALENDAR days, keeping the wall-clock time.
+ *
+ * Not `+ n * 86_400_000`. A local day is not always 24 hours: on the autumn
+ * transition it is 25, so adding a fixed day to midnight lands at 23:00 on the
+ * SAME date — measured in America/Toronto, 1 Nov 2026 00:00 + 86_400_000ms is
+ * 1 Nov 23:00, not 2 Nov. Anything paging by day then appears frozen for a day,
+ * once a year, in the timezone this app is actually used in.
+ *
+ * `setDate` is calendar arithmetic and the runtime resolves the offset change.
+ */
+export function addDays(d: Date, n: number): Date {
+  const out = new Date(d);
+  out.setDate(out.getDate() + n);
+  return out;
+}
+
 /** Whole local-calendar-day difference (b - a), ignoring time of day. */
 export function dayDiff(a: Date, b: Date): number {
   return Math.round((startOfDay(b).getTime() - startOfDay(a).getTime()) / DAY_MS);

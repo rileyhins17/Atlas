@@ -11,7 +11,7 @@ import { ConnectionCard } from '@/components/stream/ConnectionCard';
 import { ChangeStrip } from '@/components/stream/ChangeStrip';
 import { FirstCapture } from '@/components/stream/FirstCapture';
 import { useAtlasUi } from '@/components/atlas/AtlasUiProvider';
-import { formatClock, localDayKey, startOfDay } from '@/lib/dates';
+import { addDays, formatClock, localDayKey, startOfDay } from '@/lib/dates';
 import type { CanvasSection } from '@/lib/canvas';
 import { DayPager } from './DayPager';
 import { DayOverviewView } from './DayOverviewView';
@@ -65,7 +65,9 @@ export function TodayView() {
     );
   }
 
-  const dayStart = new Date(startOfDay(new Date()).getTime() + dayOffset * 86_400_000);
+  // Calendar days, not fixed milliseconds: across the autumn DST change the
+  // fixed-ms form lands back on the SAME date, so paging forward did nothing.
+  const dayStart = startOfDay(addDays(new Date(), dayOffset));
   const isToday = dayOffset === 0;
 
   function planGap(section: CanvasSection) {
