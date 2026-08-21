@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { HabitDTO, UpdateHabitInput } from '@atlas/shared';
 import { HabitsApi } from '@/lib/api';
 import { qk } from './keys';
+import { useInvalidatingMutation } from './mutation';
 
 export function useHabits() {
   return useQuery({ queryKey: qk.habits, queryFn: HabitsApi.list });
@@ -15,11 +16,11 @@ export function useHabitHistory(days: number) {
 }
 
 export function useCreateHabit() {
-  const qc = useQueryClient();
-  return useMutation({
+  return useInvalidatingMutation({
     mutationFn: HabitsApi.create,
-    meta: { success: 'Habit added', errorFallback: 'Failed to add habit' },
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.habits }),
+    invalidates: qk.habits,
+    success: 'Habit added',
+    errorFallback: 'Failed to add habit',
   });
 }
 
@@ -70,10 +71,10 @@ export function useLogHabit() {
 }
 
 export function useDeleteHabit() {
-  const qc = useQueryClient();
-  return useMutation({
+  return useInvalidatingMutation({
     mutationFn: HabitsApi.remove,
-    meta: { success: 'Habit archived', errorFallback: 'Failed to archive habit' },
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.habits }),
+    invalidates: qk.habits,
+    success: 'Habit archived',
+    errorFallback: 'Failed to archive habit',
   });
 }

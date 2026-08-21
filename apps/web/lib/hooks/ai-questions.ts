@@ -1,27 +1,27 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { AiQuestionsApi } from '@/lib/api';
 import { qk } from './keys';
+import { useInvalidatingMutation } from './mutation';
 
 export function useAiQuestions() {
   return useQuery({ queryKey: qk.aiQuestions, queryFn: AiQuestionsApi.list });
 }
 
 export function useAnswerQuestion() {
-  const qc = useQueryClient();
-  return useMutation({
+  return useInvalidatingMutation({
     mutationFn: ({ id, answer }: { id: string; answer: string }) =>
       AiQuestionsApi.answer(id, answer),
-    meta: { success: 'Answer saved — Atlas will remember it', errorFallback: 'Failed to save answer' },
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.aiQuestions }),
+    invalidates: qk.aiQuestions,
+    success: 'Answer saved — Atlas will remember it',
+    errorFallback: 'Failed to save answer',
   });
 }
 
 export function useDismissQuestion() {
-  const qc = useQueryClient();
-  return useMutation({
+  return useInvalidatingMutation({
     mutationFn: AiQuestionsApi.dismiss,
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.aiQuestions }),
+    invalidates: qk.aiQuestions,
   });
 }

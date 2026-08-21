@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { RoutineBlockInput } from '@atlas/shared';
 import { RoutineApi } from '@/lib/api';
 import { qk } from './keys';
+import { useInvalidatingMutation } from './mutation';
 
 export function useRoutine() {
   return useQuery({ queryKey: qk.routine, queryFn: RoutineApi.list });
@@ -24,12 +25,11 @@ export function useReplaceRoutine() {
  * silently delete date-specific blocks.
  */
 function useBlockMutation<TArgs>(fn: (args: TArgs) => Promise<unknown>, errorFallback: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: fn,
-    meta: { errorFallback },
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.routine }),
-  });
+  // The shared helper, not a private copy of it. This function was the original
+  // handwritten version of that idea; keeping the wrapper is still worth it,
+  // because every caller here invalidates the same key and passes only a
+  // message, and spelling that out three times says nothing.
+  return useInvalidatingMutation({ mutationFn: fn, invalidates: qk.routine, errorFallback });
 }
 
 export function useAddRoutineBlock() {

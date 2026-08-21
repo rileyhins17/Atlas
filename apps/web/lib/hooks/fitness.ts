@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { WorkoutDTO } from '@atlas/shared';
 import { FitnessApi } from '@/lib/api';
 import { qk } from './keys';
+import { useInvalidatingMutation } from './mutation';
 
 /**
  * Every mutation returns the whole updated workout, so the active-session cache
@@ -47,11 +48,11 @@ export function useExercises() {
 }
 
 export function useCreateExercise() {
-  const qc = useQueryClient();
-  return useMutation({
+  return useInvalidatingMutation({
     mutationFn: FitnessApi.createExercise,
-    meta: { success: 'Exercise added', errorFallback: 'Failed to add exercise' },
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.exercises }),
+    invalidates: qk.exercises,
+    success: 'Exercise added',
+    errorFallback: 'Failed to add exercise',
   });
 }
 
@@ -105,30 +106,30 @@ export function useWorkoutTemplates() {
 }
 
 export function useCreateTemplate() {
-  const qc = useQueryClient();
-  return useMutation({
+  return useInvalidatingMutation({
     mutationFn: FitnessApi.createTemplate,
-    meta: { success: 'Workout day saved', errorFallback: 'Failed to save workout day' },
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.workoutTemplates }),
+    invalidates: qk.workoutTemplates,
+    success: 'Workout day saved',
+    errorFallback: 'Failed to save workout day',
   });
 }
 
 export function useUpdateTemplate() {
-  const qc = useQueryClient();
-  return useMutation({
+  return useInvalidatingMutation({
     mutationFn: ({ id, patch }: { id: string; patch: { name?: string; exerciseIds?: string[] } }) =>
       FitnessApi.updateTemplate(id, patch),
-    meta: { success: 'Workout day updated', errorFallback: 'Failed to update workout day' },
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.workoutTemplates }),
+    invalidates: qk.workoutTemplates,
+    success: 'Workout day updated',
+    errorFallback: 'Failed to update workout day',
   });
 }
 
 export function useDeleteTemplate() {
-  const qc = useQueryClient();
-  return useMutation({
+  return useInvalidatingMutation({
     mutationFn: FitnessApi.removeTemplate,
-    meta: { success: 'Workout day removed', errorFallback: 'Failed to remove workout day' },
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.workoutTemplates }),
+    invalidates: qk.workoutTemplates,
+    success: 'Workout day removed',
+    errorFallback: 'Failed to remove workout day',
   });
 }
 

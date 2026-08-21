@@ -1,9 +1,10 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { EventsApi } from '@/lib/api';
 import { addDays, DAY_MS } from '@/lib/dates';
 import { qk } from './keys';
+import { useInvalidatingMutation } from './mutation';
 
 /** How far ahead the agenda looks. Under the API's 62-day window cap. */
 const AGENDA_DAYS = 60;
@@ -41,11 +42,11 @@ export function useDayEvents(dayStart: Date) {
 }
 
 export function useCreateEvent() {
-  const qc = useQueryClient();
-  return useMutation({
+  return useInvalidatingMutation({
     mutationFn: EventsApi.create,
-    meta: { success: 'Event added', errorFallback: 'Failed to add event' },
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.events }),
+    invalidates: qk.events,
+    success: 'Event added',
+    errorFallback: 'Failed to add event',
   });
 }
 
@@ -67,22 +68,21 @@ export function useEventsRange(from: Date, to: Date) {
 }
 
 export function useUpdateEvent() {
-  const qc = useQueryClient();
-  return useMutation({
+  return useInvalidatingMutation({
     mutationFn: ({ id, patch }: { id: string; patch: Parameters<typeof EventsApi.update>[1] }) =>
       EventsApi.update(id, patch),
-    meta: { success: 'Event updated', errorFallback: 'Failed to update event' },
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.events }),
+    invalidates: qk.events,
+    success: 'Event updated',
+    errorFallback: 'Failed to update event',
   });
 }
 
 export function useDeleteEvent() {
-  const qc = useQueryClient();
-  return useMutation({
+  return useInvalidatingMutation({
     mutationFn: EventsApi.remove,
-    // No `meta.success`: the calendar raises its own toast so it can attach an
-    // Undo action, and two toasts for one delete reads as a bug.
-    meta: { errorFallback: 'Failed to delete event' },
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.events }),
+    invalidates: qk.events,
+    // No `success`: the calendar raises its own toast so it can attach an Undo
+    // action, and two toasts for one delete reads as a bug.
+    errorFallback: 'Failed to delete event',
   });
 }

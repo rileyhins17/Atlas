@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { GoogleApi } from '@/lib/api';
 import { qk } from './keys';
+import { useInvalidatingMutation } from './mutation';
 
 export function useGoogleStatus() {
   return useQuery({ queryKey: qk.googleStatus, queryFn: GoogleApi.status });
@@ -23,10 +24,10 @@ export function useGoogleSync() {
 }
 
 export function useGoogleDisconnect() {
-  const qc = useQueryClient();
-  return useMutation({
+  return useInvalidatingMutation({
     mutationFn: GoogleApi.disconnect,
-    meta: { success: 'Google Calendar disconnected', errorFallback: 'Failed to disconnect' },
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.googleStatus }),
+    invalidates: qk.googleStatus,
+    success: 'Google Calendar disconnected',
+    errorFallback: 'Failed to disconnect',
   });
 }

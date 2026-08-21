@@ -1,37 +1,36 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { GoalsApi } from '@/lib/api';
 import { qk } from './keys';
+import { useInvalidatingMutation } from './mutation';
 
 export function useGoals() {
   return useQuery({ queryKey: qk.goals, queryFn: GoalsApi.list });
 }
 
 export function useCreateGoal() {
-  const qc = useQueryClient();
-  return useMutation({
+  return useInvalidatingMutation({
     mutationFn: GoalsApi.create,
-    meta: { success: 'Goal added', errorFallback: 'Failed to add goal' },
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.goals }),
+    invalidates: qk.goals,
+    success: 'Goal added',
+    errorFallback: 'Failed to add goal',
   });
 }
 
 export function useUpdateGoal() {
-  const qc = useQueryClient();
-  return useMutation({
+  return useInvalidatingMutation({
     mutationFn: ({ id, patch }: { id: string; patch: Record<string, unknown> }) =>
       GoalsApi.update(id, patch),
-    meta: { errorFallback: 'Failed to update goal' },
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.goals }),
+    invalidates: qk.goals,
+    errorFallback: 'Failed to update goal',
   });
 }
 
 export function useDeleteGoal() {
-  const qc = useQueryClient();
-  return useMutation({
+  return useInvalidatingMutation({
     mutationFn: GoalsApi.remove,
-    meta: { errorFallback: 'Failed to delete goal' },
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.goals }),
+    invalidates: qk.goals,
+    errorFallback: 'Failed to delete goal',
   });
 }

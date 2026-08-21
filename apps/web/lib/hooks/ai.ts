@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 import type { ChatMessageDTO } from '@atlas/shared';
 import { AiApi } from '@/lib/api';
 import { qk } from './keys';
+import { useInvalidatingMutation } from './mutation';
 
 /**
  * Chat and brain-dump run tools that can write into any domain (tasks,
@@ -19,11 +20,11 @@ export function useAiStatus() {
 }
 
 export function useConnectDeepSeek() {
-  const qc = useQueryClient();
-  return useMutation({
+  return useInvalidatingMutation({
     mutationFn: AiApi.connectDeepSeek,
-    meta: { success: 'DeepSeek connected', errorFallback: 'Failed to save key' },
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.aiStatus }),
+    invalidates: qk.aiStatus,
+    success: 'DeepSeek connected',
+    errorFallback: 'Failed to save key',
   });
 }
 
@@ -56,11 +57,10 @@ export function useInsights() {
  * saw an empty Progress page with nothing to press.
  */
 export function useGenerateWeeklyReview() {
-  const qc = useQueryClient();
-  return useMutation({
+  return useInvalidatingMutation({
     mutationFn: AiApi.weeklyReview,
-    meta: { errorFallback: 'Could not write your review' },
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.insights }),
+    invalidates: qk.insights,
+    errorFallback: 'Could not write your review',
   });
 }
 
