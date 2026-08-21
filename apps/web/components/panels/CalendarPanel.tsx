@@ -4,10 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { describeRrule, type EventDTO } from '@atlas/shared';
 import { errorMessage } from '@/lib/api';
 import {
-  useCreateEvent,
-  useDeleteEvent,
   useEventsRange,
-  useUpdateEvent,
 } from '@/lib/hooks/events';
 import {
   CalendarDays,
@@ -16,39 +13,31 @@ import {
   MapPin,
   Plus,
   Repeat,
-  Trash2,
 } from 'lucide-react';
 import {
   Button,
   Card,
-  Dialog,
   EmptyState,
   ErrorState,
-  Input,
   ListSkeleton,
-  RecurrencePicker,
   useToast,
 } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
 import { WeekGrid } from '@/components/calendar/WeekGrid';
+import { EventComposer } from '@/components/calendar/EventComposer';
+import { blankDraft, draftAtSlot, draftFor, type Draft } from '@/lib/event-draft';
 import { GoogleCalendarCard } from '@/components/connectors/GoogleCalendarCard';
-import { useSubmitLatch } from '@/lib/hooks/submit-latch';
 import { formatClock, localDayKey } from '@/lib/dates';
 import {
-  DURATION_PRESETS,
   addDays,
   bucketByDay,
-  combineLocal,
   countsByDay,
   dateFromDayKey,
-  findOverlaps,
   formatDuration,
   isLive,
   minutesBetween,
-  nextSlot,
   rangeLabel,
   startOfWeek,
-  toTimeValue,
   weekDays,
   weekdayShort,
 } from '@/lib/calendar-view';
@@ -59,56 +48,13 @@ const FUTURE_WEEKS = 4;
 
 const NO_EVENTS: EventDTO[] = [];
 
-type Draft = {
-  id: string | null;
-  title: string;
-  day: string;
-  startTime: string;
-  durationMin: number;
-  location: string;
-  allDay: boolean;
-  recurrence: string | null;
-};
-
-function draftFor(event: EventDTO): Draft {
-  const start = new Date(event.startAt);
-  const end = new Date(event.endAt);
-  return {
-    id: event.id,
-    title: event.title,
-    day: localDayKey(start),
-    startTime: toTimeValue(start),
-    durationMin: Math.max(5, minutesBetween(start, end)),
-    location: event.location ?? '',
-    allDay: event.allDay,
-    recurrence: event.recurrence,
-  };
-}
-
-function blankDraft(dayKey: string, now: Date): Draft {
-  const slot = nextSlot(now);
-  return {
-    id: null,
-    title: '',
-    day: dayKey,
-    // A day in the future has no "next slot" — 9am is the sane default.
-    startTime: dayKey === localDayKey(now) ? toTimeValue(slot) : '09:00',
-    durationMin: 60,
-    location: '',
-    allDay: false,
-    recurrence: null,
-  };
-}
-
 export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' | 'week' } = {}) {
   const [now, setNow] = useState(() => new Date());
   const [anchor, setAnchor] = useState<Date>(() => new Date());
   const [selectedDay, setSelectedDay] = useState<string>(() => localDayKey(new Date()));
   const [scope, setScope] = useState<'day' | 'week'>(initialScope);
   const [draft, setDraft] = useState<Draft | null>(null);
-  const [clientError, setClientError] = useState<string | null>(null);
   const { toast } = useToast();
-  const latch = useSubmitLatch();
 
   // The "now" line and the live-event highlight are wrong the moment the clock
   // moves past them, so re-render on the minute rather than only on refetch.
@@ -124,9 +70,6 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
   }, [anchor]);
 
   const eventsQuery = useEventsRange(from, to);
-  const create = useCreateEvent();
-  const update = useUpdateEvent();
-  const remove = useDeleteEvent();
 
   const events = eventsQuery.data ?? NO_EVENTS;
   const counts = useMemo(() => countsByDay(events), [events]);
@@ -137,26 +80,14 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
     return bucketByDay(events, d, d);
   }, [events, scope, days, selectedDay]);
 
-  const busy = create.isPending || update.isPending;
-  const overlaps = useMemo(() => {
-    if (!draft || draft.allDay || !draft.title.trim()) return [];
-    const start = combineLocal(draft.day, draft.startTime);
-    const end = new Date(start.getTime() + draft.durationMin * 60_000);
-    return findOverlaps(events, start, end, draft.id ?? undefined);
-  }, [draft, events]);
 
   function openCreate(dayKey = selectedDay) {
-    setClientError(null);
     setDraft(blankDraft(dayKey, now));
   }
 
   /** Clicked an empty slot in the week grid: start there, not at "next slot". */
   function openCreateAt(day: Date, minuteOfDay: number) {
-    setClientError(null);
-    const dayKey = localDayKey(day);
-    const hh = String(Math.floor(minuteOfDay / 60)).padStart(2, '0');
-    const mm = String(minuteOfDay % 60).padStart(2, '0');
-    setDraft({ ...blankDraft(dayKey, now), startTime: `${hh}:${mm}` });
+    setDraft(draftAtSlot(day, minuteOfDay, now));
   }
 
   function openEdit(event: EventDTO) {
@@ -165,81 +96,7 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
       toast('Edit the series from its first date.', 'info');
       return;
     }
-    setClientError(null);
     setDraft(draftFor(event));
-  }
-
-  function save() {
-    if (!draft || busy) return;
-    const title = draft.title.trim();
-    if (!title) {
-      setClientError('Give the event a name.');
-      return;
-    }
-    const start = draft.allDay
-      ? combineLocal(draft.day, '00:00')
-      : combineLocal(draft.day, draft.startTime);
-    const end = draft.allDay
-      // One minute before the next calendar day. A fixed 24h ends an all-day
-      // event at 22:59 in autumn and spills it into the NEXT day in spring.
-      ? new Date(addDays(start, 1).getTime() - 60_000)
-      : new Date(start.getTime() + draft.durationMin * 60_000);
-
-    setClientError(null);
-    const payload = {
-      title,
-      startAt: start.toISOString(),
-      endAt: end.toISOString(),
-      location: draft.location.trim() || undefined,
-      allDay: draft.allDay,
-    };
-
-    if (draft.id) {
-      latch((release) =>
-        update.mutate(
-          {
-            id: draft.id!,
-            // null clears a rule server-side; undefined would leave it untouched.
-            patch: { ...payload, recurrence: draft.recurrence ?? null },
-          },
-          { onSuccess: () => setDraft(null), onSettled: release },
-        ),
-      );
-    } else {
-      latch((release) =>
-        create.mutate(
-          { ...payload, ...(draft.recurrence ? { recurrence: draft.recurrence } : {}) },
-          {
-            onSuccess: () => {
-              setDraft(null);
-              setSelectedDay(draft.day);
-            },
-            onSettled: release,
-          },
-        ),
-      );
-    }
-  }
-
-  /** Delete, then offer to put it back — the row is gone before you can regret it. */
-  function destroy(event: EventDTO) {
-    const restore = {
-      title: event.title,
-      startAt: event.startAt,
-      endAt: event.endAt,
-      allDay: event.allDay,
-      ...(event.location ? { location: event.location } : {}),
-      ...(event.recurrence ? { recurrence: event.recurrence } : {}),
-    };
-    remove.mutate(event.id, {
-      onSuccess: () => {
-        setDraft(null);
-        toast(`Deleted "${event.title}"`, 'success', {
-          label: 'Undo',
-          onClick: () => create.mutate(restore),
-        });
-      },
-    });
   }
 
   const todayKey = localDayKey(now);
@@ -464,139 +321,12 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
       {/* One field per row. The old form put two datetime-local inputs side by
           side, which cannot shrink below ~260px each and pushed the page to
           537px wide on a 390px phone. */}
-      <Dialog
-        open={draft !== null}
-        onOpenChange={(open) => !open && setDraft(null)}
-        title={draft?.id ? 'Edit event' : 'New event'}
-      >
-        {draft ? (
-          <form
-            className="stack"
-            // `noValidate` so the inline error slot is the single source of
-            // truth. Native bubbles look different in every browser and cannot
-            // be styled, and having both means one of them is always dead code.
-            noValidate
-            onSubmit={(e) => {
-              e.preventDefault();
-              save();
-            }}
-          >
-            <label className="cal-field">
-              <span className="cal-label">What</span>
-              <Input
-                value={draft.title}
-                onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-                placeholder="Dentist, standup, gym…"
-                autoFocus
-                required
-              />
-            </label>
-
-            <label className="cal-field">
-              <span className="cal-label">Date</span>
-              <Input
-                type="date"
-                value={draft.day}
-                onChange={(e) => e.target.value && setDraft({ ...draft, day: e.target.value })}
-              />
-            </label>
-
-            <label className="cal-allday">
-              <input
-                type="checkbox"
-                checked={draft.allDay}
-                onChange={(e) => setDraft({ ...draft, allDay: e.target.checked })}
-              />
-              <span>All day</span>
-            </label>
-
-            {!draft.allDay && (
-              <>
-                <label className="cal-field">
-                  <span className="cal-label">Starts</span>
-                  <Input
-                    type="time"
-                    value={draft.startTime}
-                    onChange={(e) =>
-                      e.target.value && setDraft({ ...draft, startTime: e.target.value })
-                    }
-                  />
-                </label>
-
-                <div className="cal-field">
-                  <span className="cal-label">
-                    For{' '}
-                    <em className="cal-ends">
-                      · ends{' '}
-                      {formatClock(
-                        new Date(
-                          combineLocal(draft.day, draft.startTime).getTime() +
-                            draft.durationMin * 60_000,
-                        ),
-                      )}
-                    </em>
-                  </span>
-                  <div className="cal-durations" role="group" aria-label="Duration">
-                    {DURATION_PRESETS.map((m) => (
-                      <button
-                        key={m}
-                        type="button"
-                        className={`cal-dur ${draft.durationMin === m ? 'on' : ''}`}
-                        aria-pressed={draft.durationMin === m}
-                        onClick={() => setDraft({ ...draft, durationMin: m })}
-                      >
-                        {formatDuration(m)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-
-            <label className="cal-field">
-              <span className="cal-label">Where</span>
-              <Input
-                value={draft.location}
-                onChange={(e) => setDraft({ ...draft, location: e.target.value })}
-                placeholder="Optional"
-              />
-            </label>
-
-            <RecurrencePicker
-              value={draft.recurrence}
-              onChange={(r) => setDraft({ ...draft, recurrence: r })}
-            />
-
-            {overlaps.length > 0 && (
-              <p className="cal-warn" role="status">
-                Overlaps {overlaps.map((o) => `"${o.title}"`).join(', ')}. That is allowed — just
-                so you know.
-              </p>
-            )}
-
-            {clientError && <div className="error">{clientError}</div>}
-
-            <div className="cal-actions">
-              <Button type="submit" disabled={busy}>
-                {busy ? 'Saving…' : draft.id ? 'Save changes' : 'Add event'}
-              </Button>
-              {draft.id ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  disabled={remove.isPending}
-                  onClick={() => {
-                    const target = events.find((e) => e.id === draft.id);
-                    if (target) destroy(target);
-                  }}
-                >
-                  <Trash2 size={15} aria-hidden /> Delete
-                </Button>
-              ) : null}
-            </div>
-          </form>
-        ) : null}
-      </Dialog>
+      <EventComposer
+        draft={draft}
+        onDraftChange={setDraft}
+        events={events}
+        onCreated={setSelectedDay}
+      />
     </>
   );
 }
