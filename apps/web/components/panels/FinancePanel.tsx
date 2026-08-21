@@ -3,9 +3,8 @@
 import { useMemo } from 'react';
 import type { AccountDTO, TransactionDTO } from '@atlas/shared';
 import { Landmark, Wallet } from 'lucide-react';
-import { errorMessage } from '@/lib/api';
 import { useAccounts, useTransactions } from '@/lib/hooks/finance';
-import { Card, EmptyState, ErrorState, ListSkeleton } from '@/components/ui';
+import { Card, EmptyState, ListSkeleton, QueryState } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
 import { PlaidCard } from './PlaidCard';
 import { formatDayHeading, localDayKey } from '@/lib/dates';
@@ -73,43 +72,43 @@ export function FinancePanel() {
       </div>
 
       <Card stack>
-        {accountsQuery.isPending ? (
-          <ListSkeleton rows={2} circle={false} />
-        ) : accountsQuery.isError ? (
-          <ErrorState
-            message={errorMessage(accountsQuery.error, 'Failed to load accounts')}
-            onRetry={() => void accountsQuery.refetch()}
-          />
-        ) : accounts.length === 0 ? (
-          <EmptyState
-            icon={Wallet}
-            title="No accounts yet"
-            hint="Connect a bank above to pull your accounts and transactions in, or add one by hand."
-          />
-        ) : (
+        <QueryState
+          query={accountsQuery}
+          errorFallback="Failed to load accounts"
+          skeleton={<ListSkeleton rows={2} circle={false} />}
+          empty={
+            accounts.length === 0 && (
+              <EmptyState
+                icon={Wallet}
+                title="No accounts yet"
+                hint="Connect a bank above to pull your accounts and transactions in, or add one by hand."
+              />
+            )
+          }
+        >
           <div className="stack" style={{ gap: 6 }}>
             {accounts.map((a) => (
               <AccountCard key={a.id} account={a} />
             ))}
           </div>
-        )}
+        </QueryState>
       </Card>
 
       <Card style={{ marginTop: 14 }}>
-        {txnsQuery.isPending ? (
-          <ListSkeleton rows={4} circle={false} />
-        ) : txnsQuery.isError ? (
-          <ErrorState
-            message={errorMessage(txnsQuery.error, 'Failed to load transactions')}
-            onRetry={() => void txnsQuery.refetch()}
-          />
-        ) : grouped.length === 0 ? (
-          <EmptyState
-            icon={Wallet}
-            title="No transactions"
-            hint="Once a bank is connected and synced, your transactions show up here."
-          />
-        ) : (
+        <QueryState
+          query={txnsQuery}
+          errorFallback="Failed to load transactions"
+          skeleton={<ListSkeleton rows={4} circle={false} />}
+          empty={
+            grouped.length === 0 && (
+              <EmptyState
+                icon={Wallet}
+                title="No transactions"
+                hint="Once a bank is connected and synced, your transactions show up here."
+              />
+            )
+          }
+        >
           <div className="stack" style={{ gap: 18 }}>
             {grouped.map(([day, dayTxns]) => (
               <section key={day} aria-label={formatDayHeading(new Date(`${day}T12:00:00`))}>
@@ -142,7 +141,7 @@ export function FinancePanel() {
               </section>
             ))}
           </div>
-        )}
+        </QueryState>
       </Card>
     </>
   );

@@ -18,10 +18,10 @@ import {
   Card,
   Dialog,
   EmptyState,
-  ErrorState,
   Heatmap,
   Input,
   ListSkeleton,
+  QueryState,
 } from '@/components/ui';
 import { IconButton } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
@@ -150,27 +150,22 @@ export function HabitsPanel() {
       )}
 
       <div className="stack" style={{ marginTop: 14, gap: 12 }} aria-busy={habitsQuery.isPending}>
-        {habitsQuery.isPending ? (
-          <Card>
-            <ListSkeleton rows={3} />
-          </Card>
-        ) : habitsQuery.isError ? (
-          <Card>
-            <ErrorState
-              message={errorMessage(habitsQuery.error, 'Failed to load habits')}
-              onRetry={() => void habitsQuery.refetch()}
-            />
-          </Card>
-        ) : habits.length === 0 ? (
-          <Card>
-            <EmptyState
-              icon={Repeat}
-              title="No habits yet"
-              hint="Add one to start a streak — daily check-ins keep it alive."
-            />
-          </Card>
-        ) : (
-          habits.map((h) => (
+        <QueryState
+          query={habitsQuery}
+          errorFallback="Failed to load habits"
+          wrapper={Card}
+          skeleton={<ListSkeleton rows={3} />}
+          empty={
+            habits.length === 0 && (
+              <EmptyState
+                icon={Repeat}
+                title="No habits yet"
+                hint="Add one to start a streak — daily check-ins keep it alive."
+              />
+            )
+          }
+        >
+          {habits.map((h) => (
             <HabitCard
               key={h.id}
               habit={h}
@@ -179,8 +174,8 @@ export function HabitsPanel() {
               onEdit={() => openEdit(h)}
               onRemove={() => remove.mutate(h.id)}
             />
-          ))
-        )}
+          ))}
+        </QueryState>
       </div>
 
       <Dialog

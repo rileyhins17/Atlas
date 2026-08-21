@@ -3,10 +3,9 @@
 import { useState } from 'react';
 import { describeGoalProgress, goalProgress, type GoalDTO, type GoalHorizon } from '@atlas/shared';
 import { Check, Plus, Target, X } from 'lucide-react';
-import { errorMessage } from '@/lib/api';
 import { useCreateGoal, useDeleteGoal, useGoals, useUpdateGoal } from '@/lib/hooks/goals';
 import { useCreateTask, useTasks, useUpdateTask } from '@/lib/hooks/tasks';
-import { Button, Card, EmptyState, ErrorState, Input, ListSkeleton } from '@/components/ui';
+import { Button, Card, EmptyState, Input, ListSkeleton, QueryState } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
 import { useSubmitLatch } from '@/lib/hooks/submit-latch';
 
@@ -210,21 +209,21 @@ export function GoalsPanel() {
         </form>
       </Card>
 
-      {goals.isPending ? (
-        <ListSkeleton rows={3} circle={false} />
-      ) : goals.isError ? (
-        <ErrorState
-          message={errorMessage(goals.error, 'Failed to load goals')}
-          onRetry={() => void goals.refetch()}
-        />
-      ) : all.length === 0 ? (
-        <EmptyState
-          icon={Target}
-          title="No goals yet"
-          hint="Add one above, or just tell Atlas — 'I want to run a half marathon by spring'."
-        />
-      ) : (
-        HORIZONS.map((h) => {
+      <QueryState
+        query={goals}
+        errorFallback="Failed to load goals"
+        skeleton={<ListSkeleton rows={3} circle={false} />}
+        empty={
+          all.length === 0 && (
+            <EmptyState
+              icon={Target}
+              title="No goals yet"
+              hint="Add one above, or just tell Atlas — 'I want to run a half marathon by spring'."
+            />
+          )
+        }
+      >
+        {HORIZONS.map((h) => {
           const list = all.filter((g) => g.horizon === h.key);
           if (list.length === 0) return null;
           return (
@@ -240,8 +239,8 @@ export function GoalsPanel() {
               </ul>
             </section>
           );
-        })
-      )}
+        })}
+      </QueryState>
     </>
   );
 }

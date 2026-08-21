@@ -8,6 +8,7 @@ export { Spinner } from './Spinner';
 export { Skeleton, ListSkeleton, CardListSkeleton, type SkeletonProps } from './Skeleton';
 export { EmptyState, type EmptyStateProps } from './EmptyState';
 export { ErrorState, type ErrorStateProps } from './ErrorState';
+export { QueryState, type QueryStateProps, type QueryLike } from './QueryState';
 export { Dialog, type DialogProps } from './Dialog';
 export { ToastProvider, useToast, type ToastTone, type ToastAction } from './Toast';
 export { Kbd } from './Kbd';
