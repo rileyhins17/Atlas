@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { StatsDayDTO } from '@atlas/shared';
+import type { PeriodTotalsDTO, StatsDayDTO, StatsDTO } from '@atlas/shared';
 import {
   bestDay,
   delta,
+  deriveProgress,
   habitConsistency,
   habitRhythm,
+  hasActivity,
   moodSeries,
   reviewBullets,
   weeklyBuckets,
@@ -122,5 +124,69 @@ describe('habitConsistency', () => {
 
   it('is 0 for an empty window rather than NaN', () => {
     expect(habitConsistency([])).toBe(0);
+  });
+});
+
+const totals = (over: Partial<PeriodTotalsDTO> = {}): PeriodTotalsDTO => ({
+  tasksCompleted: 0,
+  habitChecks: 0,
+  moodAvg: null,
+  spentMinor: 0,
+  earnedMinor: 0,
+  workouts: 0,
+  volumeGrams: 0,
+  events: 0,
+  ...over,
+});
+
+const stats = (days: StatsDayDTO[], current = totals(), previous = totals()): StatsDTO => ({
+  days,
+  totals: { current, previous },
+});
+
+describe('hasActivity', () => {
+  it('is about events, not about rows', () => {
+    // Every day in the window is present in the response whether or not
+    // anything happened on it, so a full array is not evidence of a life.
+    expect(hasActivity([day({}), day({ day: '2026-07-02' })])).toBe(false);
+    expect(hasActivity([day({}), day({ day: '2026-07-02', events: 1 })])).toBe(true);
+    expect(hasActivity([])).toBe(false);
+  });
+});
+
+describe('deriveProgress', () => {
+  it('keys the heatmap by day', () => {
+    const d = deriveProgress(
+      stats([day({ day: '2026-07-01', events: 3 }), day({ day: '2026-07-02', events: 0 })]),
+    );
+    expect(d.counts.get('2026-07-01')).toBe(3);
+    expect(d.counts.get('2026-07-02')).toBe(0);
+  });
+
+  it('keeps the training card once EITHER window has a workout', () => {
+    // Both windows, so the card does not blink out of existence the week you
+    // miss the gym — a trend you can only see while it is going well is not a
+    // trend, and its disappearance reads as a bug.
+    expect(deriveProgress(stats([day({})], totals(), totals({ workouts: 2 }))).hasTraining).toBe(
+      true,
+    );
+    expect(deriveProgress(stats([day({})])).hasTraining).toBe(false);
+  });
+
+  it('shows money for earning alone, not just spending', () => {
+    expect(deriveProgress(stats([day({ earnedMinor: 500 })])).hasMoney).toBe(true);
+    expect(deriveProgress(stats([day({ spentMinor: 500 })])).hasMoney).toBe(true);
+    expect(deriveProgress(stats([day({})])).hasMoney).toBe(false);
+  });
+
+  it('nets cash flow signed, so an overspent week reads as one', () => {
+    // The chart anchors zero from both ends precisely because this can be
+    // negative; if it were clamped, a bad week would look like a flat one.
+    const d = deriveProgress(stats([day({ spentMinor: 900, earnedMinor: 400 })]));
+    expect(d.netWeekly).toEqual([-500]);
+  });
+
+  it('reports the window as empty when nothing happened in it', () => {
+    expect(deriveProgress(stats([day({}), day({ day: '2026-07-02' })])).anyActivity).toBe(false);
   });
 });

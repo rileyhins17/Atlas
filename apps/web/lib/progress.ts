@@ -1,4 +1,4 @@
-import type { StatsDayDTO } from '@atlas/shared';
+import type { StatsDayDTO, StatsDTO } from '@atlas/shared';
 
 /**
  * Pure helpers for the Progress page — unit-tested. Deltas compare the current
@@ -107,4 +107,55 @@ export function habitConsistency(days: StatsDayDTO[]): number {
   if (days.length === 0) return 0;
   const hit = days.filter((d) => d.habitChecks > 0).length;
   return Math.round((hit / days.length) * 100);
+}
+
+/**
+ * Does this window contain anything at all? The Progress page's empty state
+ * turns on it, and so does `deriveProgress` — one definition so the page cannot
+ * decide it is empty and then render charts, or the reverse.
+ */
+export function hasActivity(days: StatsDayDTO[]): boolean {
+  return days.some((d) => d.events > 0);
+}
+
+/** Everything the Progress page plots, derived from one stats response. */
+export interface ProgressDerived {
+  /** Day key → event count, for the activity heatmap. */
+  counts: Map<string, number>;
+  tasksWeekly: number[];
+  volumeWeekly: number[];
+  habitsWeekly: number[];
+  /** Earned minus spent, per week. Signed — the only series here that can go below zero. */
+  netWeekly: number[];
+  mood: number[];
+  best: StatsDayDTO | null;
+  consistency: number;
+  /** Cards that would otherwise plot a flat line of zeros only appear once their domain has data. */
+  hasMoney: boolean;
+  hasTraining: boolean;
+  anyActivity: boolean;
+}
+
+/**
+ * The whole Progress page's arithmetic, in one pure function.
+ *
+ * It was a `useMemo` inside the panel, which meant the numbers on the page —
+ * the ones a person makes decisions about their week from — could only be
+ * checked by rendering it. Out here each of them is a test.
+ */
+export function deriveProgress(data: StatsDTO): ProgressDerived {
+  const { days, totals } = data;
+  return {
+    counts: new Map<string, number>(days.map((d) => [d.day, d.events])),
+    tasksWeekly: weeklyBuckets(days, (d) => d.tasksCompleted),
+    volumeWeekly: weeklyBuckets(days, (d) => Math.round(d.volumeGrams / 1000)),
+    habitsWeekly: weeklyBuckets(days, (d) => d.habitChecks),
+    netWeekly: weeklyBuckets(days, (d) => d.earnedMinor - d.spentMinor),
+    mood: moodSeries(days),
+    best: bestDay(days),
+    consistency: habitConsistency(days),
+    hasMoney: days.some((d) => d.spentMinor > 0 || d.earnedMinor > 0),
+    hasTraining: totals.current.workouts > 0 || totals.previous.workouts > 0,
+    anyActivity: hasActivity(days),
+  };
 }

@@ -10,10 +10,11 @@ import { QueryState, type QueryLike } from '@/components/ui/QueryState';
  * request. That exact confusion, in a different component, is what once put the
  * first-run setup wizard over an established account's day.
  */
-const q = (over: Partial<QueryLike> = {}): QueryLike => ({
+const q = <T,>(over: Partial<QueryLike<T>> = {}): QueryLike<T> => ({
   isPending: false,
   isError: false,
   error: null,
+  data: {} as T,
   refetch: vi.fn(),
   ...over,
 });
@@ -80,5 +81,45 @@ describe('QueryState', () => {
       </QueryState>,
     );
     expect(screen.getByTestId('wrap')).toContainElement(screen.getByText('loading'));
+  });
+
+  it('hands the resolved data to the children function', () => {
+    render(
+      <QueryState
+        query={q<{ name: string }>({ data: { name: 'Ada' } })}
+        errorFallback="Failed to load"
+        skeleton={<p>loading</p>}
+      >
+        {(d) => <p>hello {d.name}</p>}
+      </QueryState>,
+    );
+    expect(screen.getByText('hello Ada')).toBeInTheDocument();
+  });
+
+  it('lets the empty state be decided FROM the data, which is the whole point', () => {
+    // Progress asks "is there any activity in this window?" — a question about
+    // the shape of the response, not a row count the caller already has. The
+    // node form is evaluated while data is still possibly-undefined, so this
+    // check could not have been hoisted out of the panel without the function.
+    render(
+      <QueryState
+        query={q<number[]>({ data: [0, 0, 0] })}
+        errorFallback="Failed to load"
+        skeleton={<p>loading</p>}
+        empty={(d) => d.every((n) => n === 0) && <p>nothing yet</p>}
+      >
+        {(d) => <p>sum {d.reduce((a, b) => a + b, 0)}</p>}
+      </QueryState>,
+    );
+    expect(screen.getByText('nothing yet')).toBeInTheDocument();
+  });
+
+  it('keeps waiting when a settled query still has no data, rather than claiming empty', () => {
+    // Not reachable through TanStack's own contract, but the render-prop form
+    // has nothing to call. Inventing "you have nothing" from a value that never
+    // arrived is exactly the failure the error-before-empty order exists to stop.
+    render4(q({ data: undefined }), <p>nothing yet</p>);
+    expect(screen.getByText('loading')).toBeInTheDocument();
+    expect(screen.queryByText('nothing yet')).not.toBeInTheDocument();
   });
 });
