@@ -206,3 +206,39 @@ Append every new setup/build snag here (root cause + fix) so no future thread wa
 
 ## Verifying against a stale bundle (v9)
 - **`playwright.config.ts` starts `pnpm --filter @atlas/web start` with `reuseExistingServer: !CI`** — the BUILT app, and locally that is usually the live deployment already running. A source edit is invisible to the suite until `pnpm build` runs, so a fix "not working" may just be untested. Rebuild before concluding anything about a UI change, and remember `pnpm build` needs node stopped (it holds the Prisma DLL) — pause the "Atlas health" task first or the watchdog restarts node mid-build.
+
+## A dead database used to take the whole origin down (Aug 2026)
+
+**Symptom:** `atlaslife.app` loads, every client route renders, and **sign-in and
+sign-up do nothing**. Measured from outside: `/` and `/today` return 200 with
+`cf-cache-status: DYNAMIC` (so Next really is serving, not a cached copy), a
+bogus path returns a real Next 404, and every `/api/*` path returns **502**.
+
+**Cause:** `PrismaService.onModuleInit` called `$connect()` and let it throw. A
+rejected module init rejects `NestFactory.create`, which rejects `bootstrap()`,
+which exits the process — so nothing listens on :4000 and Caddy 502s all of
+`/api/*`. Auth is pure API, so the product is unusable while the site looks up.
+
+Reproduced both ways with an unreachable `DATABASE_URL`:
+
+| | Result |
+|---|---|
+| Before | exit code 1, `P1001`, never listened |
+| After | listens in ~70s, `/health` → `{"status":"degraded","db":"down","dbAtBoot":false}` |
+
+**The rule:** *the origin must never be able to be taken down by something on
+the other side of the internet.* `connectWithRetry` backs off for ~45s and then
+**returns false rather than throwing**, so the API boots either way. Prisma
+reconnects lazily, so `db` flips back to `ok` on its own when Neon returns.
+
+`/health` stays **200 while degraded** on purpose. Its only consumer is the
+watchdog, which restarts the API on >=400 — and restarting cannot fix a remote
+database, so a 503 would just spin the process, 502ing every route instead of
+only the ones that need data. The watchdog now writes `API up but DATABASE
+UNREACHABLE` to `health.log` instead, because the previous failure reached a
+human as "sign-in is broken" with a clean-looking log and nothing pointing at
+the database.
+
+**Not the cause, though it looked like one:** a missing `DIRECT_DATABASE_URL`.
+`directUrl` is only read by migrate/generate — a client built without that env
+var set connects fine. Verified before writing any fix for it.

@@ -41,6 +41,18 @@ if (-not (Up 'http://localhost:4000/health')) {
   Start-Process -FilePath 'cmd' -ArgumentList '/c','pnpm --filter @atlas/api start' -WorkingDirectory $atlas -WindowStyle Hidden
   Start-Sleep -Seconds 15
 }
+else {
+  # The API answering is not the same as the API working. /health returns 200
+  # with status "degraded" when the database is unreachable, deliberately: a
+  # restart cannot fix Neon, and a restarting API 502s every route instead of
+  # only the ones needing data. But that state has to be WRITTEN DOWN, or the
+  # symptom reaching a human is "sign-in is broken" with a healthy-looking
+  # watchdog log and nothing pointing at the database.
+  try {
+    $h = (Invoke-WebRequest -Uri 'http://localhost:4000/health' -TimeoutSec 8 -UseBasicParsing).Content | ConvertFrom-Json
+    if ($h.db -ne 'ok') { Note "API up but DATABASE UNREACHABLE (db=$($h.db)) - check Neon, not the app" }
+  } catch {}
+}
 if (-not (Up 'http://localhost:3000/')) {
   Note 'Web down - restarting'
   Start-Process -FilePath 'cmd' -ArgumentList '/c','pnpm --filter @atlas/web start' -WorkingDirectory $atlas -WindowStyle Hidden
