@@ -242,3 +242,57 @@ the database.
 **Not the cause, though it looked like one:** a missing `DIRECT_DATABASE_URL`.
 `directUrl` is only read by migrate/generate — a client built without that env
 var set connects fine. Verified before writing any fix for it.
+
+## The watchdog and a 60-second sweep burned the database's monthly quota (Aug 2026)
+
+**Symptom:** the fix above worked — the API stayed up — and the product was
+still dead. Every query, **reads included**, came back:
+
+```
+Error querying the database: ERROR: Your account or project has exceeded the
+compute time quota. Upgrade your plan to increase limits.
+```
+
+Not a hiccup and not something the app could retry its way out of: the data was
+intact and unreachable until the quota reset or the plan changed.
+
+**Cause:** a serverless Postgres bills for the time its compute is *awake* and
+suspends itself after a few idle minutes. Two things in this repo made sure it
+never got them:
+
+| Caller | Interval | Ran when nobody was using Atlas |
+|---|---|---|
+| `infra/atlas-health.ps1` → `GET /health` → `SELECT 1` | 2 min | yes |
+| `EmbeddingService.sweepPending` → `findMany({model:'pending'})` | 60 s | yes |
+
+Neither is wrong in isolation. Together they meant a **three-user personal app
+kept a compute awake 24 hours a day** — roughly 720 compute-hours a month
+against a ~192-hour allowance, so the quota was gone in about a week of uptime.
+The watchdog added to keep the site up is what took it down.
+
+**The rule:** **an idle API makes no database calls.** Work that exists only to
+serve user activity must be triggered by user activity.
+
+`ActivityService` counts real requests (`ActivityMiddleware` marks everything
+except `/health` — counting the liveness poll would make the API look
+permanently busy and defeat the whole thing). `/health` re-probes only when
+somebody has used the API since the last probe, and otherwise returns its last
+known answer with the `dbCheckedAt` that earned it; `?probe=1` forces a live
+check **for humans only — never put it in the watchdog**. `sweepPending`
+returns immediately unless a request has arrived since its last run, with one
+unconditional drain at boot for rows queued before a restart.
+
+**A counter, not a timestamp.** Two events in the same millisecond are
+indistinguishable by clock, and the loser is a queued row that never gets
+embedded because the sweep believes it already covered it.
+
+**What this could not catch, and still cannot:** `ProactiveService.sweep` runs
+hourly and must, since its whole job is to act when you are *not* there. Each
+wake costs the suspend threshold, so budget roughly 2 compute-hours a day for it
+before any real traffic.
+
+**Only a unit test can see this class of bug.** Both sweeps were functionally
+perfect; what was wrong was how often they ran when nobody was there, and
+nothing in a green suite, a healthy watchdog log or a working screen showed it.
+`apps/api/test/idle-db.test.ts` asserts the negative directly — thirty health
+polls and sixty sweep ticks against an idle API, zero queries.

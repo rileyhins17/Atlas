@@ -48,9 +48,22 @@ else {
   # only the ones needing data. But that state has to be WRITTEN DOWN, or the
   # symptom reaching a human is "sign-in is broken" with a healthy-looking
   # watchdog log and nothing pointing at the database.
+  #
+  # NEVER add ?probe=1 here. /health answers from its last known database state
+  # unless somebody has actually used the API since, precisely so this poll --
+  # every two minutes, forever -- cannot keep a serverless Postgres awake. That
+  # is what burned the Neon compute quota and took the site down for real.
+  #
+  # Logged once per outage, not once per sweep: 720 identical lines a day is how
+  # a log stops being read.
   try {
     $h = (Invoke-WebRequest -Uri 'http://localhost:4000/health' -TimeoutSec 8 -UseBasicParsing).Content | ConvertFrom-Json
-    if ($h.db -ne 'ok') { Note "API up but DATABASE UNREACHABLE (db=$($h.db)) - check Neon, not the app" }
+    if ($h.db -ne 'ok') {
+      $last = if (Test-Path $log) { Get-Content $log -Tail 1 } else { '' }
+      if ($last -notmatch 'DATABASE UNREACHABLE') {
+        Note "API up but DATABASE UNREACHABLE (db=$($h.db), last checked $($h.dbCheckedAt)) - check the database, not the app"
+      }
+    }
   } catch {}
 }
 if (-not (Up 'http://localhost:3000/')) {

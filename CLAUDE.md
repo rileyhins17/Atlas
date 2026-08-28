@@ -32,6 +32,15 @@ Docker is **not** part of serving. Production reads Neon over the network; the c
 
 `infra/start-atlas.cmd` is still there for a headless/one-shot start and both it and the watchdog now derive the repo path from their own location rather than hardcoding one.
 
+**Anything that polls on a timer must not touch the database.** The watchdog below asks the API
+every two minutes whether it is alive, and `/health` used to answer by running `SELECT 1`; the
+embedding backfill scanned for queued rows every sixty seconds whether or not any existed. Neither
+is wrong alone, but between them Neon's compute never got the few idle minutes it needs to suspend,
+so three users kept it awake 24/7 and **burned the monthly compute quota in about a week** — after
+which it refused every query, reads included. The rule now is **an idle API makes no database
+calls**: `ActivityService` counts real requests, and both sweeps run only when one has arrived
+since they last ran. Never add `?probe=1` to the watchdog. See `docs/GOTCHAS.md`.
+
 **`infra/atlas-health.ps1` runs every 2 minutes** as the "Atlas health" scheduled task and restarts
 whatever is missing. It exists because the public origin depends on FOUR local processes and the app
 gives no sign when one dies: restarting node leaves the tunnel dead, localhost keeps serving happily,
@@ -119,7 +128,7 @@ of the design work in v10 came from reading those PNGs, not the source.
 
 ## Current state
 
-Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **635 unit tests** · **e2e 44/44** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop.
+Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **649 unit tests** · **e2e 44/44** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop.
 
 **"axe clean" means zero violations, not zero serious ones, and it means every route.** The scans
 used to filter to `serious`/`critical`, which silently discarded `meta-viewport` — a real WCAG 1.4.4
@@ -153,6 +162,10 @@ pass and a full-route UI pass. It is ordered by what blocks shipping and says wh
 rather than assumed. Read it before planning any "make it production ready" work.
 
 The short version of what is STILL open:
+- **Neon's compute quota is exhausted (27 Aug 2026)** and the database refuses every query,
+  including reads — so the app is up and degraded, and no dump or migration can start until the
+  quota resets or the plan changes. Riley's account, nobody else can do it. The cause is fixed
+  above, but the fix cannot give the allowance back. Any replacement host must have **pgvector**.
 - **Rotate the Plaid production secret** — it was pasted into a chat transcript. Needs Riley's Plaid
   login; nobody else can do it.
 - **`SENTRY_DSN` is unset**, so the error reporting that is now wired in reports nothing.

@@ -1,6 +1,7 @@
 import { Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { EMBEDDING_MODEL, LocalEmbedder } from '@atlas/ai';
+import { ActivityService } from '../../core/activity.service.js';
 import { PrismaService } from '../../core/prisma.service.js';
 
 const BACKFILL_BATCH_CAP = 50;
@@ -30,10 +31,12 @@ export interface SemanticMatch {
 export class EmbeddingService implements OnApplicationBootstrap {
   private readonly logger = new Logger(EmbeddingService.name);
   private sweeping = false;
+  private sweptAtCount = -1;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly embedder: LocalEmbedder,
+    private readonly activity: ActivityService,
   ) {}
 
   /**
@@ -46,7 +49,13 @@ export class EmbeddingService implements OnApplicationBootstrap {
     const startedAt = Date.now();
     void this.embedder
       .warmup()
-      .then(() => this.logger.log(`Embedding model ready in ${Date.now() - startedAt}ms`))
+      .then(() => {
+        this.logger.log(`Embedding model ready in ${Date.now() - startedAt}ms`);
+        // One unconditional drain, because rows queued before a restart are
+        // not covered by the activity gate below — no request will arrive to
+        // vouch for them, and they would stay unsearchable indefinitely.
+        return this.runSweep();
+      })
       .catch((err: unknown) =>
         this.logger.warn(
           `Embedding model warmup failed; it will retry on first use: ${
@@ -72,9 +81,22 @@ export class EmbeddingService implements OnApplicationBootstrap {
    */
   @Interval(BACKFILL_INTERVAL_MS)
   async sweepPending(): Promise<void> {
+    // Nothing can have been queued without a request arriving to queue it, so
+    // an idle API must not run this query at all. It used to run every sixty
+    // seconds regardless, which on its own kept a serverless Postgres awake
+    // around the clock and burned its monthly compute quota in about a week.
+    if (!this.activity.hasRequestsSince(this.sweptAtCount)) return;
+    await this.runSweep();
+  }
+
+  /** The sweep itself, with no activity gate — see `onApplicationBootstrap`. */
+  private async runSweep(): Promise<void> {
     // Embedding is CPU-bound and single-threaded here; overlapping runs would
     // just queue up behind each other and pile on memory.
     if (this.sweeping) return;
+    // Taken BEFORE the query: a row queued while this sweep is in flight was
+    // not seen by it, and must still trigger the next one.
+    const seen = this.activity.count;
     this.sweeping = true;
     try {
       const { processed, failed } = await this.backfill({ model: 'pending' }, BACKFILL_BATCH_CAP);
@@ -87,6 +109,7 @@ export class EmbeddingService implements OnApplicationBootstrap {
       );
     } finally {
       this.sweeping = false;
+      this.sweptAtCount = seen;
     }
   }
 

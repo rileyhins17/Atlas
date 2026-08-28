@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { CostGuard } from '@atlas/ai';
+import { ActivityService } from './activity.service.js';
 import { PrismaService } from './prisma.service.js';
 import { CryptoService } from './crypto.service.js';
 import { TimelineService } from './timeline.service.js';
@@ -17,6 +18,7 @@ import { HealthController } from './health.controller.js';
 @Module({
   controllers: [HealthController],
   providers: [
+    ActivityService,
     PrismaService,
     CryptoService,
     TimelineService,
@@ -26,6 +28,7 @@ import { HealthController } from './health.controller.js';
     { provide: CostGuard, useFactory: () => CostGuard.fromEnv() },
   ],
   exports: [
+    ActivityService,
     PrismaService,
     CryptoService,
     TimelineService,

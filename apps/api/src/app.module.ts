@@ -24,6 +24,7 @@ import { TimelineModule } from './modules/timeline/timeline.module.js';
 import { AllExceptionsFilter } from './common/all-exceptions.filter.js';
 import { RequestIdMiddleware } from './common/request-id.middleware.js';
 import { OriginCheckMiddleware } from './common/origin-check.middleware.js';
+import { ActivityMiddleware } from './common/activity.middleware.js';
 
 @Module({
   imports: [
@@ -60,6 +61,6 @@ import { OriginCheckMiddleware } from './common/origin-check.middleware.js';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(RequestIdMiddleware, OriginCheckMiddleware).forRoutes('*');
+    consumer.apply(RequestIdMiddleware, OriginCheckMiddleware, ActivityMiddleware).forRoutes('*');
   }
 }
