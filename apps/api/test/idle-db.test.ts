@@ -49,10 +49,11 @@ describe('ActivityService', () => {
 });
 
 describe('ActivityMiddleware', () => {
-  const run = (path: string) => {
+  /** `path` is what Express exposes mid-router; `originalUrl` is the real one. */
+  const run = (originalUrl: string, path = originalUrl) => {
     const activity = new ActivityService();
     const next = vi.fn();
-    new ActivityMiddleware(activity).use(anyCast({ path }), anyCast({}), next);
+    new ActivityMiddleware(activity).use(anyCast({ originalUrl, path }), anyCast({}), next);
     return { activity, next };
   };
 
@@ -71,6 +72,23 @@ describe('ActivityMiddleware', () => {
     const { activity, next } = run('/health');
     expect(activity.count).toBe(0);
     expect(next).toHaveBeenCalledOnce();
+  });
+
+  /**
+   * The bug this file exists to prevent, reproduced. Express rewrites `req.url`
+   * — and with it `req.path` — to be relative to the mount point while a
+   * mounted router runs, so middleware attached through `forRoutes` sees `/`
+   * for a request to `/health`. Reading `path` here shipped a fix that changed
+   * nothing: measured live, `dbCheckedAt` still moved on every single poll.
+   */
+  it('ignores /health even when Express has rewritten req.path', () => {
+    const { activity } = run('/health', '/');
+    expect(activity.count).toBe(0);
+  });
+
+  it('ignores a health poll carrying a query string', () => {
+    const { activity } = run('/health?probe=1', '/');
+    expect(activity.count).toBe(0);
   });
 });
 

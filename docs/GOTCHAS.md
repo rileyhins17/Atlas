@@ -291,6 +291,24 @@ hourly and must, since its whole job is to act when you are *not* there. Each
 wake costs the suspend threshold, so budget roughly 2 compute-hours a day for it
 before any real traffic.
 
+**And the first fix for it did nothing, for a reason worth remembering.**
+`ActivityMiddleware` asked `req.path`. Express rewrites `req.url` — and with it
+`req.path` — to be relative to the mount point while a mounted router runs, so
+middleware attached through `forRoutes` sees `/` for a request to `/health`;
+the watchdog's own poll was counted as somebody using the app and every gate
+downstream stayed permanently open. It hides well: `RequestIdMiddleware` reads
+the same field from an `res.on('finish')` callback, by which time Express has
+put the original value back, so the request log prints `path: "/health"` while
+the middleware three lines away saw something else — which is what made the
+first diagnosis look wrong. **In middleware, read `originalUrl`.**
+
+Behaviour, measured against the live origin both times:
+
+| | Six `/health` polls, no other traffic |
+|---|---|
+| Reading `req.path` | `dbCheckedAt` moved on every poll |
+| Reading `originalUrl` | one timestamp, unchanged; one real request then causes exactly one re-probe |
+
 **Only a unit test can see this class of bug.** Both sweeps were functionally
 perfect; what was wrong was how often they ran when nobody was there, and
 nothing in a green suite, a healthy watchdog log or a working screen showed it.

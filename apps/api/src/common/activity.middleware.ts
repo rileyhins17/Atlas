@@ -12,13 +12,22 @@ const IGNORED_PREFIX = '/health';
  * `/health` is excluded deliberately: the watchdog polls it every two minutes
  * forever, so counting it would mean the API always looks busy and nothing
  * would ever go idle — which is the exact bug this is here to prevent.
+ *
+ * READ `originalUrl`, NEVER `req.path`. Express rewrites `req.url` (and with it
+ * `req.path`) to be relative to the mount point while a mounted router runs, so
+ * middleware attached through `forRoutes` sees `/` for a request to `/health`
+ * and counts the watchdog as a user. Measured, and it is a nasty one to spot:
+ * `RequestIdMiddleware` reads the same field from an `res.on('finish')`
+ * callback, by which time Express has put the original value back — so the
+ * request log says `/health` while this middleware saw something else.
  */
 @Injectable()
 export class ActivityMiddleware implements NestMiddleware {
   constructor(private readonly activity: ActivityService) {}
 
   use(req: Request, _res: Response, next: NextFunction): void {
-    if (!req.path.startsWith(IGNORED_PREFIX)) this.activity.mark();
+    const [path] = (req.originalUrl || req.url || '').split('?');
+    if (!path?.startsWith(IGNORED_PREFIX)) this.activity.mark();
     next();
   }
 }
