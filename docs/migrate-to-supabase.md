@@ -79,15 +79,26 @@ DIRECT_DATABASE_URL=postgresql://postgres.<ref>:<password>@aws-0-us-east-1.poole
 
 ### 4. Run the switch
 
-One command does the rest — write `.env`, migrate, verify, restart, and check
-the API against the new database:
+With both lines already in `.env` from step 3, one command does the rest —
+migrate, verify, restart, and check the API against the new database:
+
+```bash
+powershell -File infra/db-switch.ps1 -FromEnv
+```
+
+**Prefer this form.** A connection string contains a password, and a password on
+a command line outlives the command: it lands in argv, in any PowerShell
+transcript, and in `ConsoleHost_history.txt`. With `-FromEnv` nothing secret is
+ever typed. The script reads the two values, validates them, and never prints or
+logs them.
+
+The other form takes the URLs directly and rewrites `.env` for you, at that cost:
 
 ```bash
 powershell -File infra/db-switch.ps1 -Pooled "<6543 url>" -Direct "<5432 url>"
 ```
 
-Quote both URLs; they contain characters PowerShell will otherwise eat. The
-script never prints or logs them.
+Quote both; they contain characters PowerShell will otherwise eat.
 
 It refuses the two mistakes that cost the most time — the transaction pooler
 passed as `-Direct`, and the IPv6-only `db.<ref>.supabase.co` host — before it

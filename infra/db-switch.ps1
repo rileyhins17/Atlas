@@ -17,16 +17,31 @@
       projects and simply times out from a home connection. The session pooler
       is the IPv4 answer.
 
-  Usage (quote the URLs — they contain characters PowerShell will otherwise eat):
+  PREFERRED usage — put the two lines in .env with an editor, then:
+
+    powershell -File infra\db-switch.ps1 -FromEnv
+
+  Nothing secret is typed, so nothing lands in argv, in a PowerShell transcript,
+  or in ConsoleHost_history.txt. A connection string contains a password, and a
+  password on a command line outlives the command.
+
+  Or pass them directly, accepting that cost (quote them — they contain
+  characters PowerShell will otherwise eat):
 
     powershell -File infra\db-switch.ps1 -Pooled "<6543 url>" -Direct "<5432 url>"
 
-  The URLs are never printed and never logged. .env is copied to a timestamped
-  backup first, so the previous database is one file-rename away.
+  Either way the URLs are never printed and never logged, and in the second form
+  .env is copied to a timestamped backup first, so the previous database is one
+  file-rename away.
 #>
 param(
-  [Parameter(Mandatory = $true)][string]$Pooled,
-  [Parameter(Mandatory = $true)][string]$Direct,
+  [Parameter(ParameterSetName = 'Urls', Mandatory = $true)][string]$Pooled,
+  [Parameter(ParameterSetName = 'Urls', Mandatory = $true)][string]$Direct,
+  # Read the URLs already in .env instead of taking them as arguments. PREFER
+  # THIS: a connection string on the command line is a password in argv, in the
+  # PowerShell transcript, and in ConsoleHost_history.txt. Put the two lines in
+  # .env with an editor, then run with -FromEnv and nothing is ever typed.
+  [Parameter(ParameterSetName = 'FromEnv', Mandatory = $true)][switch]$FromEnv,
   # Apply and verify, but leave the running origin alone.
   [switch]$NoRestart
 )
@@ -59,59 +74,84 @@ function Fail($msg) {
 
 function Step($msg) { Write-Host "`n== $msg" -ForegroundColor Cyan }
 
-# ── Validate before touching anything ────────────────────────────────────────
+# ── Read from .env when asked, so no secret is ever typed ────────────────────
 
-foreach ($pair in @(@('Pooled', $Pooled), @('Direct', $Direct))) {
+if (-not (Test-Path $EnvFile)) { Fail ".env not found at $EnvFile" }
+
+if ($FromEnv) {
+  $existing = Get-Content $EnvFile -Raw
+  if ($existing -match '(?m)^DATABASE_URL=(.*)$')        { $Pooled = $Matches[1].Trim() }
+  if ($existing -match '(?m)^DIRECT_DATABASE_URL=(.*)$') { $Direct = $Matches[1].Trim() }
+  if (-not $Pooled -or -not $Direct) {
+    Fail 'DATABASE_URL and DIRECT_DATABASE_URL must both be set in .env to use -FromEnv.'
+  }
+  Step 'Read both URLs from .env'
+}
+
+# ── Validate before touching anything ────────────────────────────────────────
+#
+# Name whichever the value actually came from. Being told to fix "-Direct" when
+# you set DIRECT_DATABASE_URL in a file sends you looking in the wrong place.
+
+if ($FromEnv) {
+  $PooledLabel = 'DATABASE_URL in .env'
+  $DirectLabel = 'DIRECT_DATABASE_URL in .env'
+}
+else {
+  $PooledLabel = '-Pooled'
+  $DirectLabel = '-Direct'
+}
+
+foreach ($pair in @(@($PooledLabel, $Pooled), @($DirectLabel, $Direct))) {
   if ($pair[1] -notmatch '^postgres(ql)?://') {
-    Fail "-$($pair[0]) is not a postgres URL."
+    Fail "$($pair[0]) is not a postgres URL."
   }
 }
 
 if ($Direct -match ':6543/') {
-  Fail @'
--Direct is the transaction pooler (port 6543). Migrations cannot run through
-PgBouncer in transaction mode. Use the SESSION pooler, port 5432.
-'@
+  Fail "$DirectLabel is the transaction pooler (port 6543). Migrations cannot run
+through PgBouncer in transaction mode. Use the SESSION pooler, port 5432."
 }
 
 if ($Direct -match '@db\.[a-z0-9]+\.supabase\.co') {
-  Fail @'
--Direct is Supabase's direct host, which is IPv6-only on new projects and will
-time out from this machine. Use the session pooler host (…pooler.supabase.com,
-port 5432) instead.
-'@
+  Fail "$DirectLabel is Supabase's direct host, which is IPv6-only on new projects
+and will time out from this machine. Use the session pooler host
+(...pooler.supabase.com, port 5432) instead."
 }
 
 if ($Pooled -match '(localhost|127\.0\.0\.1)') {
-  Fail '-Pooled points at localhost. That is the dev database, not a hosted one.'
+  Fail "$PooledLabel points at localhost. That is the dev database, not a hosted one."
 }
-
-if (-not (Test-Path $EnvFile)) { Fail ".env not found at $EnvFile" }
 
 # ── Back up, then rewrite exactly two lines ──────────────────────────────────
+#
+# Skipped entirely under -FromEnv: the values are already the ones in the file,
+# so there is nothing to write and nothing to roll back.
 
-$backup = "$EnvFile.bak.$(Get-Date -Format 'yyyyMMdd-HHmmss')"
-Copy-Item $EnvFile $backup
-Step "Backed up .env -> $(Split-Path -Leaf $backup)"
+if (-not $FromEnv) {
+  $backup = "$EnvFile.bak.$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+  Copy-Item $EnvFile $backup
+  Step "Backed up .env -> $(Split-Path -Leaf $backup)"
 
-# Read as one string and replace per-key, so every other line — INVITE_CODE,
-# the encryption key, the API keys — survives byte for byte.
-$text = Get-Content $EnvFile -Raw
-foreach ($entry in @(@('DATABASE_URL', $Pooled), @('DIRECT_DATABASE_URL', $Direct))) {
-  $key = $entry[0]
-  # [regex]::Escape on the replacement is wrong (it is a literal, not a pattern),
-  # but $ in a connection string IS special to -replace, so escape it by hand.
-  $value = $entry[1].Replace('$', '$$')
-  if ($text -match "(?m)^$key=") {
-    $text = $text -replace "(?m)^$key=.*$", "$key=$value"
+  # Read as one string and replace per-key, so every other line — INVITE_CODE,
+  # the encryption key, the API keys — survives byte for byte.
+  $text = Get-Content $EnvFile -Raw
+  foreach ($entry in @(@('DATABASE_URL', $Pooled), @('DIRECT_DATABASE_URL', $Direct))) {
+    $key = $entry[0]
+    # [regex]::Escape on the replacement is wrong (it is a literal, not a pattern),
+    # but $ in a connection string IS special to -replace, so escape it by hand.
+    $value = $entry[1].Replace('$', '$$')
+    if ($text -match "(?m)^$key=") {
+      $text = $text -replace "(?m)^$key=.*$", "$key=$value"
+    }
+    else {
+      $text = $text.TrimEnd() + "`n$key=$value`n"
+    }
   }
-  else {
-    $text = $text.TrimEnd() + "`n$key=$value`n"
-  }
+  Set-Content -Path $EnvFile -Value $text -Encoding utf8 -NoNewline
+  $script:Backup = $backup
+  Step 'Wrote DATABASE_URL and DIRECT_DATABASE_URL'
 }
-Set-Content -Path $EnvFile -Value $text -Encoding utf8 -NoNewline
-$script:Backup = $backup
-Step 'Wrote DATABASE_URL and DIRECT_DATABASE_URL'
 
 # ── Apply the schema ─────────────────────────────────────────────────────────
 #
@@ -174,4 +214,4 @@ catch {
 }
 
 Write-Host "`nAtlas is now on the new database." -ForegroundColor Green
-Write-Host "Previous .env: $(Split-Path -Leaf $backup)"
+if (-not $FromEnv) { Write-Host "Previous .env: $(Split-Path -Leaf $backup)" }
