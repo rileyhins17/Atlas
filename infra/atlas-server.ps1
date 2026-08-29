@@ -71,7 +71,7 @@ function Test-Config {
     return "Fill these in .env first: $($keys -join ', ')"
   }
   if ($text -match '(?m)^DATABASE_URL=.*(localhost|127\.0\.0\.1)') {
-    return 'DATABASE_URL still points at the local dev database, not Neon.'
+    return 'DATABASE_URL still points at the local dev database, not the hosted one.'
   }
   if (-not $Cfd)   { return 'cloudflared is not installed.' }
   if (-not $Caddy) { return 'caddy is not installed.' }

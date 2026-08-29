@@ -162,6 +162,10 @@ pass and a full-route UI pass. It is ordered by what blocks shipping and says wh
 rather than assumed. Read it before planning any "make it production ready" work.
 
 The short version of what is STILL open:
+- **Moving to Supabase** — decided 28 Aug 2026. `docs/migrate-to-supabase.md` is
+  the runbook: the schema half can be done now, the data copy cannot start until
+  Neon is readable. Nothing in the app is Neon-specific; it is two connection
+  strings, and CI already proves the migrations apply to a virgin pgvector database.
 - **Neon's compute quota is exhausted (27 Aug 2026)** and the database refuses every query,
   including reads — so the app is up and degraded, and no dump or migration can start until the
   quota resets or the plan changes. Riley's account, nobody else can do it. The cause is fixed
