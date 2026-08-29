@@ -77,7 +77,31 @@ DATABASE_URL=postgresql://postgres.<ref>:<password>@aws-0-us-east-1.pooler.supab
 DIRECT_DATABASE_URL=postgresql://postgres.<ref>:<password>@aws-0-us-east-1.pooler.supabase.com:5432/postgres
 ```
 
-### 4. Apply the migrations
+### 4. Run the switch
+
+One command does the rest — write `.env`, migrate, verify, restart, and check
+the API against the new database:
+
+```bash
+powershell -File infra/db-switch.ps1 -Pooled "<6543 url>" -Direct "<5432 url>"
+```
+
+Quote both URLs; they contain characters PowerShell will otherwise eat. The
+script never prints or logs them.
+
+It refuses the two mistakes that cost the most time — the transaction pooler
+passed as `-Direct`, and the IPv6-only `db.<ref>.supabase.co` host — before it
+touches anything. `.env` is copied to a timestamped backup first, and **any
+failure before the restart rolls it back**, so a switch that does not work
+leaves the machine exactly as it was rather than pointing the watchdog at a
+broken database.
+
+Pass `-NoRestart` to apply and verify without touching the running origin.
+
+The rest of this section is what the script does, kept because knowing it is
+what lets you fix a half-finished run.
+
+### 4b. Apply the migrations by hand
 
 `migrate deploy` runs with its CWD at `packages/db`, and Prisma only reads a
 `.env` beside the schema or in the CWD — it will **not** see the repo-root file
@@ -95,8 +119,16 @@ pnpm --filter @atlas/db generate
 
 ### 5. Verify, do not assume
 
-Two things actually go wrong here, so check both rather than trusting a clean
-`migrate deploy`:
+`db-switch.ps1` runs this for you via `packages/db/scripts/verify.mjs`, which
+checks the extension, the column type and the migration count and exits
+non-zero if any of them is wrong. To run it alone against whatever `.env`
+currently points at:
+
+```bash
+DIRECT_DATABASE_URL="<the 5432 session-pooler url>" node packages/db/scripts/verify.mjs
+```
+
+Two things actually go wrong here, and a clean `migrate deploy` proves neither:
 
 ```sql
 -- 1. pgvector resolved to a real vector column, not a fallback.
