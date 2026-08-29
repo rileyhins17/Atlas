@@ -79,6 +79,26 @@ DIRECT_DATABASE_URL=postgresql://postgres.<ref>:<password>@aws-0-us-east-1.poole
 
 ### 4. Run the switch
 
+**Easiest path — type only the password:**
+
+```bash
+powershell -File infra/supabase-connect.ps1 -ProjectRef taxcavnrssgtvvhpzfum -Region us-west-2
+```
+
+Prompts for the database password without echoing it, finds the pooler, builds
+and percent-encodes both URLs, writes them to `.env`, then hands over to
+`db-switch.ps1`. Nothing secret is copied, pasted or typed into a command.
+
+Atlas's project lives in **us-west-2** — measured by probing, since Supabase
+exposes no region header. Drop `-Region` and it sweeps every region; a pooler
+that does not host the project answers "tenant/user not found", which is how it
+tells a wrong region apart from a wrong password.
+
+It needs a real terminal, because it prompts. If you have the URLs already, the
+steps below do the same job without one.
+
+### 4a. Run the switch from .env
+
 With both lines already in `.env` from step 3, one command does the rest —
 migrate, verify, restart, and check the API against the new database:
 
