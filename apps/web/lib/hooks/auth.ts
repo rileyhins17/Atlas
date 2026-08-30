@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 import type { UserDTO } from '@atlas/shared';
 import { ApiError, AuthApi } from '@/lib/api';
 import { qk } from './keys';
+import { clearSignedIn, markSignedIn } from '@/lib/session-hint';
 
 /**
  * Drop everything user-scoped from the cache and land on the auth gate.
@@ -21,9 +22,20 @@ export function useMe() {
     queryKey: qk.me,
     queryFn: async () => {
       try {
-        return await AuthApi.me();
+        const user = await AuthApi.me();
+        // Also set here, not only on sign-in: sessions that predate this — and
+        // any browser that has simply not signed in since — would otherwise
+        // never get the fast path despite being perfectly signed in.
+        markSignedIn();
+        return user;
       } catch (err) {
-        if (err instanceof ApiError && err.status === 401) return null;
+        if (err instanceof ApiError && err.status === 401) {
+          // The cookie is gone or rejected. Stop claiming this browser has a
+          // session, or every future load draws a frame that resolves to the
+          // sign-in screen.
+          clearSignedIn();
+          return null;
+        }
         throw err;
       }
     },
@@ -36,7 +48,10 @@ export function useLogin() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: AuthApi.login,
-    onSuccess: (user) => qc.setQueryData(qk.me, user),
+    onSuccess: (user) => {
+      qc.setQueryData(qk.me, user);
+      markSignedIn();
+    },
   });
 }
 
@@ -57,7 +72,10 @@ export function useRegister() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: AuthApi.register,
-    onSuccess: (user) => qc.setQueryData(qk.me, user),
+    onSuccess: (user) => {
+      qc.setQueryData(qk.me, user);
+      markSignedIn();
+    },
   });
 }
 
@@ -65,6 +83,9 @@ export function useLogout() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: AuthApi.logout,
-    onSuccess: () => clearUserScopedCache(qc),
+    onSuccess: () => {
+      clearUserScopedCache(qc);
+      clearSignedIn();
+    },
   });
 }

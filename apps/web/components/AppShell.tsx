@@ -2,11 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { LayoutGrid, LogOut, MessageCircle, PanelLeft, Search } from 'lucide-react';
 import { useMe, useLogout } from '@/lib/hooks/auth';
 import { useTimezoneSync } from '@/lib/hooks/timezone';
-import { IconButton, Kbd } from '@/components/ui';
+import { IconButton, Kbd, Skeleton } from '@/components/ui';
 import { Logo } from '@/components/Logo';
 import { AuthGate } from '@/components/AuthGate';
 import { NavBar } from '@/components/NavBar';
@@ -15,6 +15,7 @@ import { InstallPrompt } from '@/components/InstallPrompt';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { AtlasUiProvider, useAtlasUi } from '@/components/atlas/AtlasUiProvider';
 import { AtlasLoadingScreen } from '@/components/atlas/AtlasLoadingScreen';
+import { hasSignedInBefore } from '@/lib/session-hint';
 import { AsksBell } from '@/components/atlas/AsksPanel';
 import { CaptureDock } from '@/components/atlas/CaptureDock';
 import { CommandBar } from '@/components/atlas/CommandBar';
@@ -32,15 +33,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   // until `me` resolves anyway.
   useTimezoneSync(me.data);
 
-  if (me.isPending) {
-    return (
-      <div className="gate-shell">
-        <div className="gate-body">
-          <AtlasLoadingScreen messages={['Waking Atlas…']} />
-        </div>
-      </div>
-    );
-  }
+  if (me.isPending) return <BootScreen />;
 
   if (!me.data) {
     return (
@@ -191,6 +184,65 @@ function Frame({ name, children }: { name: string; children: ReactNode }) {
       {!focusMode && <CaptureDock />}
       <CommandBar />
       <ChatRail />
+    </div>
+  );
+}
+
+/**
+ * What a returning user looks at while `/auth/me` answers.
+ *
+ * That round trip is ~900ms against a hosted database, and it used to be a
+ * centred logo reading "Waking Atlas…" — a splash screen, which is what an app
+ * shows when it has nothing better to say. For someone who has signed in on
+ * this browser before, there IS something better: the shape of their own app,
+ * so the wait reads as their screen arriving rather than the product booting.
+ *
+ * The hint is not authentication and is never treated as any part of it (see
+ * `session-hint.ts`). Being wrong costs an empty frame for a moment before the
+ * sign-in screen replaces it.
+ *
+ * Resolved in an effect rather than read during render: localStorage does not
+ * exist on the server, so reading it inline would be a hydration mismatch. The
+ * splash therefore shows for one frame before the frame appears, which is
+ * invisible next to the ~900ms it replaces.
+ */
+function BootScreen() {
+  const [returning, setReturning] = useState(false);
+  useEffect(() => setReturning(hasSignedInBefore()), []);
+
+  if (!returning) {
+    return (
+      <div className="gate-shell">
+        <div className="gate-body">
+          <AtlasLoadingScreen messages={['Waking Atlas…']} />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="app-layout" role="status" aria-label="Loading Atlas">
+      <aside className="sidebar">
+        <div className="sidebar-top">
+          <span className="brand sidebar-brand">
+            <Logo size={26} />
+            <span className="wordmark">Atlas</span>
+          </span>
+        </div>
+        <nav className="sidebar-nav" aria-hidden>
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} height={34} />
+          ))}
+        </nav>
+      </aside>
+      <main className="main" aria-hidden>
+        <div className="stream">
+          <Skeleton height={22} width="38%" />
+          <Skeleton height={150} />
+          <Skeleton height={96} />
+          <Skeleton height={54} />
+        </div>
+      </main>
     </div>
   );
 }
