@@ -128,7 +128,7 @@ of the design work in v10 came from reading those PNGs, not the source.
 
 ## Current state
 
-Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **651 unit tests** · **e2e 44/44** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop.
+Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **664 unit tests** · **e2e 44/44** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop.
 
 **"axe clean" means zero violations, not zero serious ones, and it means every route.** The scans
 used to filter to `serious`/`critical`, which silently discarded `meta-viewport` — a real WCAG 1.4.4
@@ -179,9 +179,10 @@ The short version of what is STILL open:
   stops it recurring. The API now returns 424 with a reconnect message instead of a 500.
 - **Unverified live:** Google Calendar delete propagation; Plaid production.
 - The Plaid webhook does not verify Plaid's signature (harmless while it is a no-op).
-- **Notes and journal still have no edit UI.** Habits now do. Notes have `PATCH` on the API and no
-  client method, and journal has no update at any layer — and they share one writing surface, so
-  making half the rows editable is a product decision, not a missing function.
+- ~~Notes and journal have no edit UI~~ — **done.** Both are editable in place on the writing
+  surface (`WrittenCard`). Journal gained `PATCH /journal/:id`; notes gained the client method its
+  API already had. Both write a `*.updated` timeline row, and a journal edit re-embeds only when
+  the text actually changed.
 
 **"The API has it, the UI never wired it" is this codebase's most common gap** — the same shape has
 now turned up four times: event editing, habit editing, and `displayName`, which had a column, a DTO

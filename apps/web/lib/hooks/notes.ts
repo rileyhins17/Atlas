@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import type { UpdateNoteInput } from '@atlas/shared';
 import { NotesApi } from '@/lib/api';
 import { qk } from './keys';
 import { useInvalidatingMutation } from './mutation';
@@ -15,6 +16,15 @@ export function useCreateNote() {
     invalidates: qk.notes,
     success: 'Note saved',
     errorFallback: 'Failed to save note',
+  });
+}
+
+export function useUpdateNote() {
+  return useInvalidatingMutation({
+    mutationFn: ({ id, ...input }: UpdateNoteInput & { id: string }) => NotesApi.update(id, input),
+    invalidates: qk.notes,
+    success: 'Note updated',
+    errorFallback: 'Failed to update note',
   });
 }
 

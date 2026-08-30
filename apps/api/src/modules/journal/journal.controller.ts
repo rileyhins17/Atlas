@@ -1,5 +1,10 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
-import { CreateJournalInput, PaginationQuery, type JournalDTO } from '@atlas/shared';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  CreateJournalInput,
+  PaginationQuery,
+  UpdateJournalInput,
+  type JournalDTO,
+} from '@atlas/shared';
 import { ZodValidationPipe } from '../../common/zod.pipe.js';
 import { SessionGuard } from '../../auth/session.guard.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
@@ -25,5 +30,14 @@ export class JournalController {
     @Body(new ZodValidationPipe(CreateJournalInput)) body: CreateJournalInput,
   ): Promise<JournalDTO> {
     return this.journal.create(user.id, body);
+  }
+
+  @Patch(':id')
+  update(
+    @CurrentUser() user: AuthedUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(UpdateJournalInput)) body: UpdateJournalInput,
+  ): Promise<JournalDTO> {
+    return this.journal.update(user.id, id, body);
   }
 }

@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import type { CreateJournalInput, JournalDTO } from '@atlas/shared';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import type { CreateJournalInput, JournalDTO, UpdateJournalInput } from '@atlas/shared';
 import type { JournalEntry } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
@@ -60,6 +60,58 @@ export class JournalService {
     //    entry) and decides whether a follow-up question is worth asking — see
     //    OrchestratorService.generateQuestions, called from the daily brief and
     //    from POST /ai/questions/generate.
+
+    return toDto(entry);
+  }
+
+  /** Ownership-scoped read. Every mutation goes through this first, so one
+   *  user can never reach another's entry by guessing an id. */
+  async owned(userId: string, id: string): Promise<JournalEntry> {
+    const entry = await this.prisma.client.journalEntry.findFirst({ where: { id, userId } });
+    if (!entry) throw new NotFoundException('Journal entry not found');
+    return entry;
+  }
+
+  /**
+   * Edit an existing entry.
+   *
+   * Journal and notes share one writing surface, so having notes editable and
+   * journal not was a product inconsistency rather than a missing function.
+   *
+   * Two things have to follow the body when it changes, and both are easy to
+   * forget because nothing visibly breaks without them: the embedding, or AI
+   * recall keeps quoting text the user has already rewritten; and the timeline,
+   * which is the compact cross-domain log the model actually reads. The
+   * timeline is append-only by design, so an edit adds a row rather than
+   * rewriting history — what changed IS part of the story.
+   */
+  async update(userId: string, id: string, input: UpdateJournalInput): Promise<JournalDTO> {
+    const before = await this.owned(userId, id);
+    const entry = await this.prisma.client.journalEntry.update({
+      where: { id },
+      data: {
+        body: input.body,
+        mood: input.mood,
+        tags: input.tags,
+        entryDate: input.entryDate,
+      },
+    });
+
+    if (input.body !== undefined && input.body !== before.body) {
+      await this.memory.queueForEmbedding(userId, 'journal', entry.id, entry.body);
+    }
+
+    await this.timeline.write({
+      userId,
+      type: 'journal.updated',
+      source: 'journal',
+      title: `Journal edited: ${snippet(entry.body)}`,
+      summary: entry.mood ? `mood ${entry.mood}/5` : undefined,
+      refType: 'journal',
+      refId: entry.id,
+      payload: entry.mood ? { mood: entry.mood } : undefined,
+      occurredAt: new Date(),
+    });
 
     return toDto(entry);
   }

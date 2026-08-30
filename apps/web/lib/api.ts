@@ -10,7 +10,9 @@ import type {
   CreateHabitInput,
   UpdateHabitInput,
   CreateJournalInput,
+  UpdateJournalInput,
   CreateNoteInput,
+  UpdateNoteInput,
   CreateExerciseInput,
   CreateTaskInput,
   DurationEstimate,
@@ -201,12 +203,16 @@ export const JournalApi = {
   list: () => request<JournalDTO[]>('/journal'),
   create: (input: Partial<CreateJournalInput> & { body: string }) =>
     request<JournalDTO>('/journal', { method: 'POST', body: JSON.stringify(input) }),
+  update: (id: string, input: UpdateJournalInput) =>
+    request<JournalDTO>(`/journal/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
 };
 
 export const NotesApi = {
   list: () => request<NoteDTO[]>('/notes'),
   create: (input: Partial<CreateNoteInput> & { body: string }) =>
     request<NoteDTO>('/notes', { method: 'POST', body: JSON.stringify(input) }),
+  update: (id: string, input: UpdateNoteInput) =>
+    request<NoteDTO>(`/notes/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
   remove: (id: string) => request<{ ok: true }>(`/notes/${id}`, { method: 'DELETE' }),
 };
 

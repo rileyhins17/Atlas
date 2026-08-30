@@ -1,24 +1,22 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { JournalDTO, NoteDTO } from '@atlas/shared';
-import { Pin, X } from 'lucide-react';
+import { Pin } from 'lucide-react';
 import { errorMessage } from '@/lib/api';
-import { useCreateJournalEntry, useJournal } from '@/lib/hooks/journal';
-import { useCreateNote, useDeleteNote, useNotes } from '@/lib/hooks/notes';
+import { useCreateJournalEntry, useJournal, useUpdateJournalEntry } from '@/lib/hooks/journal';
+import { useCreateNote, useDeleteNote, useNotes, useUpdateNote } from '@/lib/hooks/notes';
+import { WrittenCard, type Written } from './WrittenCard';
 import {
   Button,
   Card,
   CardListSkeleton,
   EmptyState,
   ErrorState,
-  IconButton,
   Input,
   Textarea,
 } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
 import { useSubmitLatch } from '@/lib/hooks/submit-latch';
-import { formatDayHeading } from '@/lib/dates';
 
 const MOODS = [1, 2, 3, 4, 5];
 
@@ -37,10 +35,6 @@ const MOODS = [1, 2, 3, 4, 5];
  * pinned notes as standing context and mood only makes sense on a dated entry.
  * The merge is in the interface, where the confusion was.
  */
-type Written =
-  | { kind: 'entry'; at: string; data: JournalDTO }
-  | { kind: 'note'; at: string; data: NoteDTO };
-
 export function WritingPanel() {
   const [body, setBody] = useState('');
   const [title, setTitle] = useState('');
@@ -52,15 +46,17 @@ export function WritingPanel() {
   const createEntry = useCreateJournalEntry();
   const createNote = useCreateNote();
   const removeNote = useDeleteNote();
+  const updateEntry = useUpdateJournalEntry();
+  const updateNote = useUpdateNote();
   const latch = useSubmitLatch();
 
-  const error =
-    createEntry.error || createNote.error || removeNote.error
-      ? errorMessage(
-          createEntry.error ?? createNote.error ?? removeNote.error,
-          'Could not save that',
-        )
-      : null;
+  const failure =
+    createEntry.error ??
+    createNote.error ??
+    removeNote.error ??
+    updateEntry.error ??
+    updateNote.error;
+  const error = failure ? errorMessage(failure, 'Could not save that') : null;
 
   const written = useMemo<Written[]>(() => {
     const entries: Written[] = (journalQuery.data ?? []).map((d) => ({
@@ -101,6 +97,7 @@ export function WritingPanel() {
   }
 
   const busy = createEntry.isPending || createNote.isPending;
+  const savingEdit = updateEntry.isPending || updateNote.isPending;
   const loading = journalQuery.isPending || notesQuery.isPending;
   const failed = journalQuery.isError || notesQuery.isError;
 
@@ -199,49 +196,18 @@ export function WritingPanel() {
           />
         )}
 
-        {written.map((w) =>
-          w.kind === 'entry' ? (
-            <Card key={`e-${w.data.id}`}>
-              <div className="row" style={{ justifyContent: 'space-between' }}>
-                <strong style={{ fontSize: 13 }}>{formatDayHeading(new Date(w.at))}</strong>
-                {w.data.mood !== null && (
-                  <span className="muted" style={{ fontSize: 12 }}>
-                    {w.data.mood}/5
-                  </span>
-                )}
-              </div>
-              <div style={{ marginTop: 4, whiteSpace: 'pre-wrap', fontSize: 14, lineHeight: 1.55 }}>
-                {w.data.body}
-              </div>
-            </Card>
-          ) : (
-            <Card key={`n-${w.data.id}`} className="note-card pinned">
-              <div className="row" style={{ justifyContent: 'space-between' }}>
-                <strong className="row" style={{ gap: 6, minWidth: 0 }}>
-                  <Pin size={13} aria-label="Always in Atlas's context" className="pin-icon" />
-                  <span
-                    style={{
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {w.data.title ?? 'Remembered'}
-                  </span>
-                </strong>
-                <IconButton
-                  label={`Delete "${w.data.title ?? 'note'}"`}
-                  onClick={() => removeNote.mutate(w.data.id)}
-                >
-                  <X size={15} aria-hidden />
-                </IconButton>
-              </div>
-              <div style={{ marginTop: 4, whiteSpace: 'pre-wrap', fontSize: 14, lineHeight: 1.55 }}>
-                {w.data.body}
-              </div>
-            </Card>
-          ),
-        )}
+        {written.map((w) => (
+          <WrittenCard
+            key={`${w.kind}-${w.data.id}`}
+            item={w}
+            busy={savingEdit}
+            onSaveEntry={(id, input, done) =>
+              updateEntry.mutate({ id, ...input }, { onSuccess: done })
+            }
+            onSaveNote={(id, input, done) => updateNote.mutate({ id, ...input }, { onSuccess: done })}
+            onDeleteNote={(id) => removeNote.mutate(id)}
+          />
+        ))}
       </div>
     </>
   );

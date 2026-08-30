@@ -72,6 +72,18 @@ export class NotesService {
   async update(userId: string, id: string, input: UpdateNoteInput): Promise<NoteDTO> {
     await this.owned(userId, id);
     const note = await this.prisma.client.note.update({ where: { id }, data: input });
+    // Every mutation writes a timeline row — this one did not, so an edit was
+    // invisible to the AI's cross-domain log even though the re-embedding meant
+    // it could quote the new text. The log said the note still read as first
+    // written.
+    await this.timeline.write({
+      userId,
+      type: 'note.updated',
+      source: 'notes',
+      title: `Note edited: ${note.title ?? note.body.slice(0, 60)}`,
+      refType: 'note',
+      refId: note.id,
+    });
     await this.memory.queueForEmbedding(userId, 'note', note.id, embedText(note));
     return toDto(note);
   }
