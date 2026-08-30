@@ -1110,8 +1110,21 @@ test('capture works on day one, before any AI key exists', async ({ page }) => {
   // event to tomorrow, and a day view would then show nothing. This spec
   // failed at 21:00 having passed all afternoon, which is exactly the
   // time-bomb shape the suite is supposed to refuse.
+  //
+  // Moving to the week view only closed SIX SEVENTHS of that hole. The grid
+  // runs Mon-Sun, so when today is a Sunday, "tomorrow" is in the NEXT week and
+  // the event is off-screen — measured, on Sunday 30 Aug 2026 at 18:32 UTC,
+  // where this was the only failure in the suite. So the assertion now allows
+  // for the event being in either week, which is simply the truth about what
+  // "tomorrow" means on a Monday-based grid.
   await go(page, '/week');
-  await expect(page.getByText(marker).first()).toBeVisible({ timeout: 15_000 });
+  const marked = () => page.getByText(marker).first();
+  try {
+    await expect(marked()).toBeVisible({ timeout: 8_000 });
+  } catch {
+    await page.getByLabel('Next week').click();
+    await expect(marked()).toBeVisible({ timeout: 15_000 });
+  }
 
   // A sentence with no time still lands, as a plain task.
   await go(page, '/today');
