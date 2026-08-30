@@ -50,7 +50,8 @@ to 502, and the next sweep returns it to 200. If you are ever debugging "the sit
 
 - Sign-up is **closed** via `INVITE_CODE` in `.env`. `GET /auth/config` exposes only the boolean, never the code.
 - **The PC must be awake and logged in.** Fine for one person testing; not somewhere anyone else's data should live. Moving to a VPS is `docker compose --profile full up -d` plus one DNS change — see `docs/ship-to-iphone.md`.
-- The database is **Neon** (cloud Postgres + pgvector), not the compose `db` service.
+- The database is **Supabase** (cloud Postgres + pgvector, project `taxcavnrssgtvvhpzfum`, region
+  `us-west-2`), not the compose `db` service. Moved 29 Aug 2026 — see below.
 
 ---
 
@@ -162,14 +163,18 @@ pass and a full-route UI pass. It is ordered by what blocks shipping and says wh
 rather than assumed. Read it before planning any "make it production ready" work.
 
 The short version of what is STILL open:
-- **Moving to Supabase** — decided 28 Aug 2026. `docs/migrate-to-supabase.md` is
-  the runbook: the schema half can be done now, the data copy cannot start until
-  Neon is readable. Nothing in the app is Neon-specific; it is two connection
-  strings, and CI already proves the migrations apply to a virgin pgvector database.
-- **Neon's compute quota is exhausted (27 Aug 2026)** and the database refuses every query,
-  including reads — so the app is up and degraded, and no dump or migration can start until the
-  quota resets or the plan changes. Riley's account, nobody else can do it. The cause is fixed
-  above, but the fix cannot give the allowance back. Any replacement host must have **pgvector**.
+- ~~Moving to Supabase~~ — **done, 29 Aug 2026.** Live and verified: `pgvector 0.8.2`,
+  `embeddings.embedding` really is a `vector` column, 14/14 migrations applied, `/health` reports
+  `db: ok`. The documented Supabase `search_path` trap did NOT bite. Switch it again with
+  `infra/db-switch.ps1 -FromEnv` (or `infra/supabase-connect.ps1` to type only a password);
+  `packages/db/scripts/verify.mjs` is what proves a database is actually usable, because a clean
+  `migrate deploy` does not.
+- **Started empty, deliberately.** Neon's quota was exhausted and refused reads, so there was no
+  dump to take — the three old accounts were abandoned rather than migrated. The Neon project
+  still exists; do not delete it until nobody wants that data back.
+- **Supabase free takes no backups.** This is now the biggest single risk to real data
+  (journal, finance, fitness). `docs/database-plan.md` step 1 is the nightly `pg_dump`; it needs
+  somewhere off-machine to write to.
 - **Rotate the Plaid production secret** — it was pasted into a chat transcript. Needs Riley's Plaid
   login; nobody else can do it.
 - **`SENTRY_DSN` is unset**, so the error reporting that is now wired in reports nothing.

@@ -1,5 +1,11 @@
 # Where Atlas's database should live, and what to change so it never matters again
 
+> **Decided and executed, 29 Aug 2026: Supabase free, us-west-2.** Verified live —
+> `pgvector 0.8.2`, `embeddings.embedding` typed `vector`, 14/14 migrations,
+> `/health` reporting `db: ok`. Step 2 of the plan below (`db-switch.ps1`) exists
+> and was what performed the move. **Step 1, the nightly backup, is now the
+> outstanding item and the biggest risk to real data.**
+
 Written 29 Aug 2026, after Neon's free compute quota was exhausted and took the
 product down for a day. The goal Riley set: **free, or a few dollars a year, and
 still the right answer in two years.**
@@ -19,7 +25,7 @@ Measured against the code, not assumed.
 
 | Requirement | Reality |
 |---|---|
-| PostgreSQL | Yes. Prisma 6, 15 migrations, enums, `Json` columns. |
+| PostgreSQL | Yes. Prisma 6, 14 migrations, enums, `Json` columns. |
 | `pgvector` | **Migrations require it. The runtime does not.** |
 | `pgcrypto` | Declared and created — and **never used**. |
 | DB-side generators | None. No `gen_random_uuid()`, no `dbgenerated()`. IDs are `cuid()` from Prisma. |

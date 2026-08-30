@@ -1,5 +1,18 @@
 # Moving Atlas off Neon and onto Supabase
 
+> **DONE — 29 Aug 2026.** Half A is complete and verified against the live
+> project: `pgvector 0.8.2`, `embeddings.embedding` typed `vector`, 14/14
+> migrations applied, `/health` reporting `db: ok`. Half B (copying the old
+> data) never happened and never will — Neon's quota refused reads, so there was
+> no dump to take and the three old accounts were abandoned. Kept as the runbook
+> for the next move, and because the two Supabase traps below are still true.
+>
+> Two things this document got wrong, both found by running it:
+> the migration count is **14**, not 15 (the fifteenth entry is
+> `migration_lock.toml`), and it never said to stop the origin first — a running
+> node process holds the Prisma query engine open and `generate` dies with
+> `EPERM` *after* the migrations have applied. `db-switch.ps1` now stops it.
+
 Written 28 Aug 2026, while Neon's compute quota was exhausted and the database
 was refusing every query including reads. **That is the constraint that shapes
 this whole document:** the schema can be stood up on Supabase today, but the
@@ -25,7 +38,7 @@ comment or a log string. The move is two connection strings.
 
 - `packages/db/prisma/schema.prisma` already takes `url` (pooled) and
   `directUrl` (direct, for migrations) from the environment.
-- The 15 migrations contain no `CREATE ROLE`, no `OWNER TO`, no `CREATE SCHEMA`
+- The 14 migrations contain no `CREATE ROLE`, no `OWNER TO`, no `CREATE SCHEMA`
   and no `SET search_path` — audited. The only privileged statements are:
   ```sql
   CREATE EXTENSION IF NOT EXISTS "pgcrypto";
@@ -35,7 +48,7 @@ comment or a log string. The move is two connection strings.
 
 **The from-scratch path is already proven.** CI's e2e job stands up a virgin
 `pgvector/pgvector:pg16` container, runs `migrate:deploy` against it and then
-drives the full Playwright suite — so "the 15 migrations apply cleanly to an
+drives the full Playwright suite — so "the 14 migrations apply cleanly to an
 empty database with pgvector available" is asserted on every push, not assumed
 here. What CI does *not* cover is the two Supabase-specific things below:
 which schema `vector` lives in, and reaching the host over IPv4.
@@ -168,11 +181,11 @@ from pg_attribute
 where attrelid = 'embeddings'::regclass and attname = 'embedding';
 -- expect: vector
 
--- 2. All 15 migrations recorded, none failed.
+-- 2. All 14 migrations recorded, none failed.
 select count(*) filter (where finished_at is not null) as applied,
        count(*) filter (where rolled_back_at is not null) as rolled_back
 from _prisma_migrations;
--- expect: 15, 0
+-- expect: 14, 0
 ```
 
 Supabase ships `vector` pre-installed in the `extensions` schema, so the
