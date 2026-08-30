@@ -67,7 +67,12 @@ prompt, put both URLs in .env yourself and run:
 }
 
 Write-Host 'Supabase database password (Project Settings -> Database).'
-Write-Host 'It will not be shown as you type, and is never printed or logged.'
+Write-Host 'It is not shown as you type, and is never printed or logged.'
+# Ctrl+V does nothing at a masked prompt in the legacy console host, and the
+# only feedback is the asterisks you cannot count. A real attempt failed here
+# with exactly one character registered and a "credentials rejected" message
+# that blamed the password instead of the paste.
+Write-Host 'RIGHT-CLICK to paste. Ctrl+V often does nothing in this window.' -ForegroundColor Yellow
 $secure = Read-Host -AsSecureString '  password'
 $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
 try {
@@ -77,6 +82,17 @@ finally {
   [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
 }
 if ([string]::IsNullOrWhiteSpace($password)) { Fail 'no password entered.' }
+
+# Say how much arrived, without saying what. A silent wrong-length read is the
+# difference between "your password is wrong" and "your paste did not work",
+# and those send you to completely different places.
+Write-Host "  read $($password.Length) characters." -ForegroundColor DarkGray
+if ($password.Length -lt 8) {
+  Fail @'
+that is too short to be a Supabase password, so the paste almost certainly did
+not land. Try again and RIGHT-CLICK to paste, or type it by hand.
+'@
+}
 
 # The bug this prevents: a password with # ? @ & or / in it corrupts a URL, and
 # the failure surfaces as a host or auth error that sends you debugging the
@@ -117,7 +133,12 @@ foreach ($h in $candidates) {
   if ($code -eq 0) { Write-Host '  <- connected' -ForegroundColor Green; $hostFound = $h; break }
   if ($code -eq 2) {
     Write-Host '  <- credentials rejected' -ForegroundColor Red
-    Fail 'the password was rejected. Reset it in Project Settings -> Database and run this again.'
+    Fail @'
+the pooler rejected these credentials. The project was FOUND, so the host and
+project ref are right - it is the password. Check the character count printed
+above matches the password you meant to paste; if it does, reset it in
+Project Settings -> Database and run this again.
+'@
   }
   Write-Host ''
 }
