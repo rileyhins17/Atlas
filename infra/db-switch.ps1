@@ -153,6 +153,22 @@ if (-not $FromEnv) {
   Step 'Wrote DATABASE_URL and DIRECT_DATABASE_URL'
 }
 
+# ── Stop the origin before touching the schema ───────────────────────────────
+#
+# `prisma generate` REWRITES query_engine-windows.dll.node, and a running node
+# process holds that file open. Windows then fails the rename with EPERM and the
+# switch dies after the migrations have already been applied — the worst place
+# to stop, because .env now points at the new database while the API is still
+# serving from the old one.
+#
+# Stopping first also makes the operation coherent: the API is about to be
+# pointed somewhere else, so serving from the old database halfway through a
+# migration was never right. This is the switch's defined downtime.
+
+$server = Join-Path $PSScriptRoot 'atlas-server.ps1'
+Step 'Stopping the origin (it holds the Prisma engine open)'
+& powershell -ExecutionPolicy Bypass -File $server stop | Out-Null
+
 # ── Apply the schema ─────────────────────────────────────────────────────────
 #
 # migrate deploy runs with its CWD at packages/db and Prisma only reads a .env
@@ -185,11 +201,11 @@ finally {
 # ── Restart the origin so the API picks up the new .env ──────────────────────
 
 if ($NoRestart) {
-  Write-Host "`nDone. Not restarting (-NoRestart). The API is still on the old database until it does."
+  Write-Host "`nDone, but THE ORIGIN IS STOPPED (-NoRestart) - atlaslife.app is down" -ForegroundColor Yellow
+  Write-Host 'until you run:  powershell -File "infra\Atlas Server.cmd"'
   exit 0
 }
 
-$server = Join-Path $PSScriptRoot 'atlas-server.ps1'
 # Stop rolling .env back from here on. The database is migrated and verified, so
 # the new values are the CORRECT ones — reverting them because a restart failed
 # would throw away good work and point a healthy app at the old database. What a
