@@ -8,6 +8,7 @@ import { MemoryService } from './memory.service.js';
 import { ModuleRegistryService } from './domain-module.js';
 import { ConnectorsService } from './connectors.service.js';
 import { HealthController } from './health.controller.js';
+import { SchemaCheckService } from './schema-check.service.js';
 
 /**
  * Global infrastructure available to every feature module without re-importing:
@@ -19,6 +20,7 @@ import { HealthController } from './health.controller.js';
   controllers: [HealthController],
   providers: [
     ActivityService,
+    SchemaCheckService,
     PrismaService,
     CryptoService,
     TimelineService,
@@ -29,6 +31,7 @@ import { HealthController } from './health.controller.js';
   ],
   exports: [
     ActivityService,
+    SchemaCheckService,
     PrismaService,
     CryptoService,
     TimelineService,
