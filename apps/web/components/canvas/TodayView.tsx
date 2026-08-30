@@ -5,6 +5,7 @@ import { useEvents } from '@/lib/hooks/events';
 import { useHabits } from '@/lib/hooks/habits';
 import { useTasks } from '@/lib/hooks/tasks';
 import { useRoutine } from '@/lib/hooks/routine';
+import { useEstablished } from '@/lib/hooks/established';
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
 import { BriefBlock } from '@/components/stream/TodayHeader';
 import { ConnectionCard } from '@/components/stream/ConnectionCard';
@@ -30,6 +31,7 @@ export function TodayView() {
   const routine = useRoutine();
 
   const { planWindow } = useAtlasUi();
+  const established = useEstablished();
   const [dayOffset, setDayOffset] = useState(0);
   // Null until the user actually pages — the first mount must NOT animate
   // (a throttled/background tab can freeze a fill-both animation on its
@@ -85,11 +87,20 @@ export function TodayView() {
           inside the product, so between signing up and the first connection
           card — which needs a fortnight of data — Atlas presented as seven
           ordinary tools sharing a login. One quiet line is the cheapest
-          possible fix for "the point isn't obvious". */}
-      <p className="promise">
-        <strong>Tell Atlas anything, in your own words.</strong> It files it, and connects it to the
-        rest of your life.
-      </p>
+          possible fix for "the point isn't obvious".
+
+          It now retires itself, which is what that reasoning always implied:
+          the gap it fills is the one BEFORE the app has proved itself. Left
+          unconditional it was ~70px above the fold on the primary screen,
+          pushing the day itself below y=290 on a phone — a sentence you have
+          read four hundred times, charging rent on the part of the screen you
+          opened the app to see. */}
+      {!established && (
+        <p className="promise">
+          <strong>Tell Atlas anything, in your own words.</strong> It files it, and connects it to
+          the rest of your life.
+        </p>
+      )}
 
       {/* Above the day, because on a brand-new account there is no day yet and
           this is the only thing on screen worth doing. It removes itself the

@@ -4,8 +4,7 @@ import { useEffect, useState } from 'react';
 import { ArrowDown, Check } from 'lucide-react';
 import { useEvents } from '@/lib/hooks/events';
 import { useTasks } from '@/lib/hooks/tasks';
-
-const SEEN_KEY = 'atlas.firstCapture.done';
+import { ESTABLISHED_KEY as SEEN_KEY } from '@/lib/hooks/established';
 
 /**
  * The first thing Atlas teaches, taught by doing it.

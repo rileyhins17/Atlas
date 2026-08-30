@@ -100,8 +100,36 @@ test('capture the Life-OS screens', async ({ page }) => {
   await page.getByRole('button', { name: 'Check in "Gym"' }).click();
   await expect(page.getByLabel('1 day streak')).toBeVisible();
 
+  /**
+   * Wait for the screen to actually BE the screen before photographing it.
+   *
+   * A fixed pause was enough when the database was a container on this machine.
+   * It is not enough against a hosted one in another region: the first pass
+   * after the Supabase move produced a full-page "Waking Atlas…" splash for
+   * /week and /goals and a wall of skeletons for /today — three pictures of
+   * loading states, from a rig whose entire job is showing what the design
+   * looks like. Design work done from those is design work done blind.
+   *
+   * So it waits on the two things that mean "still loading" and only then lets
+   * the entrance animations settle.
+   */
   const shoot = async (path: string, name: string) => {
     await page.goto(path);
+    // Wait for the screen to BE the screen. Asserting the loader is absent
+    // looks like it works and does not: right after goto neither the splash nor
+    // the skeletons have rendered, so both absence checks pass instantly and
+    // the shot lands on the loading state that appeared a moment later. Two
+    // routes were photographed mid-load exactly that way, and /today came out
+    // as a wall of grey bars in two consecutive runs.
+    //
+    // Waiting for the absence to become TRUE AND STAY true is what actually
+    // holds, so this polls the page's own condition rather than a locator.
+    await page.waitForFunction(
+      () =>
+        !document.body.innerText.includes('Waking Atlas') &&
+        document.querySelectorAll('.skeleton').length === 0,
+      { timeout: 45_000 },
+    );
     await page.waitForTimeout(900); // let entrance animations settle
     await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
   };
