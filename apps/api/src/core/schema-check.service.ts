@@ -47,7 +47,7 @@ export class SchemaCheckService implements OnApplicationBootstrap {
     if (!this.prisma.dbReachableAtBoot) {
       // Nothing to say that /health does not already say better, and querying a
       // database we know is down just logs a second, more confusing error.
-      this.logger.warn('Skipping schema checks — the database was unreachable at boot.');
+      this.logger.warn('Skipping schema checks - the database was unreachable at boot.');
       this.findings = [];
       return this.findings;
     }
@@ -75,7 +75,7 @@ export class SchemaCheckService implements OnApplicationBootstrap {
         check: 'embeddings.embedding is a vector',
         ok: type === 'vector',
         detail:
-          type === 'vector' ? 'vector' : `got "${type}" — check the search_path, not the migration`,
+          type === 'vector' ? 'vector' : `got "${type}" - check the search_path, not the migration`,
       });
 
       // Deliberately NOT an exact count. Counting migration directories from
@@ -105,11 +105,14 @@ export class SchemaCheckService implements OnApplicationBootstrap {
 
     this.findings = findings;
     const failed = findings.filter((f) => !f.ok);
+    // ASCII only. The Windows console renders an em-dash or a middot as
+    // mojibake, and a log line nobody can read comfortably is a log line nobody
+    // reads — measured on the first live boot against Supabase.
     if (failed.length === 0) {
-      this.logger.log(`Schema OK — ${findings.map((f) => f.detail).join(' · ')}`);
+      this.logger.log(`Schema OK - ${findings.map((f) => f.detail).join(' | ')}`);
     } else {
       for (const f of failed) {
-        this.logger.error(`SCHEMA PROBLEM — ${f.check}: ${f.detail}`);
+        this.logger.error(`SCHEMA PROBLEM - ${f.check}: ${f.detail}`);
       }
       this.logger.error(
         'The API is running anyway. Data routes may fail or return nothing. ' +
