@@ -28,3 +28,4 @@ export * from './dto/adoption.js';
 export * from './dto/local-capture.js';
 export * from './dto/search.js';
 export * from './dto/duration.js';
+export * from './dto/energy.js';

@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { ChatMessage } from '@atlas/connectors';
 import type { Insight } from '@atlas/db';
 import type { AiToolSpec, InsightDTO, PlanDayDTO, PlanProposalDTO } from '@atlas/shared';
-import { durationKey } from '@atlas/shared';
+import { describeEnergy, durationKey } from '@atlas/shared';
 import { buildContext, CostGuard, runToolLoop, type ToolLoopResult } from '@atlas/ai';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
@@ -115,6 +115,11 @@ Hard rules:
   actually did — use it as the length of the slot. Only your own guess is
   negotiable; their history is not.
 - Default to 30-60 minutes for anything with no measured history.
+- If you are told when the user usually finishes demanding work, put their
+  high-priority and urgent tasks in those hours, and keep the hours they rarely
+  finish anything in for light work or leave them empty. This is measured from
+  what they did, not a preference they stated — treat it like the duration
+  history. If no such line appears, do not speculate about their energy.
 - "why" is one plain sentence about the placement, not a pep talk.`;
 
 /** Newline as a const: writing '
@@ -226,12 +231,17 @@ export class OrchestratorService {
    * prompt-order gotcha): a whole day of calls shares the same date line, and
    * only the trailing time drifts.
    */
-  private async nowBlock(userId: string): Promise<string> {
+  /** The user's timezone, defaulted and validated. Everything local hangs off this. */
+  private async timezoneOf(userId: string): Promise<string> {
     const user = await this.prisma.client.user.findUnique({
       where: { id: userId },
       select: { timezone: true },
     });
-    const tz = safeTz(user?.timezone || 'UTC');
+    return safeTz(user?.timezone || 'UTC');
+  }
+
+  private async nowBlock(userId: string): Promise<string> {
+    const tz = await this.timezoneOf(userId);
     const now = new Date();
     const local = new Intl.DateTimeFormat('en-US', {
       timeZone: tz,
@@ -355,6 +365,13 @@ ${moduleText}`, activityText };
     // invented 45 minutes — it is measurement, not a guess, and it only appears
     // for tasks that have earned it.
     const learned = await this.durations.estimates(userId);
+
+    // When the user actually finishes demanding work. Silent until there is
+    // enough history to mean anything — see buildEnergyProfile — so a new
+    // account gets exactly the plan it got before rather than a confident
+    // claim about a pattern that does not exist yet.
+    const profile = await this.durations.energy(userId, await this.timezoneOf(userId));
+    const energyLine = describeEnergy(profile);
     const tasks = open
       .map((t) => {
         const due = t.dueAt ? `, due ${t.dueAt.toISOString().slice(0, 10)}` : '';
@@ -377,7 +394,10 @@ ${windows}
 
 Open tasks:
 ${tasks}
-
+${energyLine ? `
+When they get things done:
+${energyLine}
+` : ''}
 Propose a plan.`,
       },
     ];

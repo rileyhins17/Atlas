@@ -129,7 +129,7 @@ of the design work in v10 came from reading those PNGs, not the source.
 
 ## Current state
 
-Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **702 unit tests** · **e2e 44/44** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop.
+Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **723 unit tests** · **e2e 44/44** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop.
 
 **"axe clean" means zero violations, not zero serious ones, and it means every route.** The scans
 used to filter to `serious`/`critical`, which silently discarded `meta-viewport` — a real WCAG 1.4.4
@@ -223,9 +223,15 @@ unclickable. The full scale is documented above `.dialog-overlay` in `globals.cs
 ### What to build next
 **`docs/master-plan.md` is the commercial plan** — four phases, ordered so each makes the next worth
 doing, with an explicit "do not build" list. Read it before proposing features.
-`docs/atlas-next-ideas.md` is the older feature-level roadmap. Tier 1 remaining: **energy-aware
-placement** — the last one. (Duration learning, batched roll-forward, and one-tap "running late"
-have shipped.)
+`docs/atlas-next-ideas.md` is the older feature-level roadmap. **Tier 1 is complete.** Next work
+comes from Tier 2 there, or from `docs/master-plan.md`.
+
+**Energy-aware placement has no UI and is meant to.** `TaskDurationService.energy` buckets completed
+tasks by the user's LOCAL hour, `buildEnergyProfile` (pure, `packages/shared/src/dto/energy.ts`)
+finds the hours demanding work actually lands in, and `planDay` hands the model one sentence about
+it. Below **12** demanding completions it says nothing at all rather than hedging — a planner that
+reorganises a week around noise is worse than one that never tried, and a new account must get the
+same plan it got before.
 
 **"Running late" is on the now-line, today only** (`RunningLate` inside `NowNext`). +15/+30/+60 with
 an undo. What it refuses to move is the whole feature: anything synced from another calendar

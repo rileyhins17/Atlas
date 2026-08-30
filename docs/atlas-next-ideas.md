@@ -36,7 +36,7 @@ The insight: **overdue lists are where task apps go to die.** Forcing a small,
 batched decision is what keeps the list honest — and it feeds the AI a real signal
 about what you actually don't intend to do.
 
-### 3. Energy-aware placement
+### ~~3. Energy-aware placement~~ — SHIPPED 30 Aug 2026
 Journal mood is already bucketed by day, and workouts and sleep are now known.
 Learn *when* in the day you tend to complete demanding work, and have the planner
 prefer those windows for high-priority tasks — and protect the low-energy window
