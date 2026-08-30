@@ -147,7 +147,7 @@ handler does any work.
 | # | Finding | Fix |
 |---|---|---|
 | ~~M1~~ | ~~Habits and notes have `PATCH` on the API but no UI.~~ **HABITS DONE** — the name opens an edit Dialog (name, times-per-day, cadence), mirroring the calendar. **Notes still open**, and deliberately so: notes share the writing surface with journal entries, journal has no update at *any* layer (see M2), so an edit affordance on half the rows is a product decision rather than a missing client method. Decide M2 first. | — |
-| M2 | Journal is append-only end to end — no edit, no delete, at any layer. | Decide deliberately: append-only is defensible for a journal, but it should be a stated choice, not an omission. |
+| ~~M2~~ | ~~Journal is append-only end to end.~~ **DECIDED — it is not.** Journal gained `PATCH /journal/:id` and both halves of the writing surface are editable in place, because having notes correctable and yesterday's entry not was an inconsistency with nothing on screen to explain it. Delete is still deliberately absent: an edit leaves a trail (`journal.updated` on the timeline), a delete would not. **This closes M1's remaining half too.** |
 | ~~M3~~ | ~~`/tasks` search input is 19px tall; `/notes` has an 18×18 checkbox.~~ **DONE** — both were already fixed, but a sweep of *every* interactive control on all thirteen routes at 390px found four others that were not: the goals check at **16×6** (see G4), the goal title at 19px, the habit name at 21px, and "Track a habit" — the only thing to tap on an empty Today — at 16px. All now clear 24px, and the phone-width spec measures it on every route so the next one cannot ship quietly. | — |
 | M4 | Zero-length and 365-day events are both accepted. **Partly addressed:** the worse case turned out to be a REVERSED event, which `create` had always refused and `update` did not — see G5. Zero-length is left legal on purpose: a reminder pinned to an instant is a real thing, and `create` has always allowed it. | The remaining half is cosmetic — warn on a `0m` duration in the composer. |
 | ~~M5~~ | ~~Duplicate habit names are allowed.~~ **DONE** — the first Add on a name you already track warns and creates nothing; pressing Add again on the *same* name goes through. Deliberately not a constraint: two habits called "Stretch" is usually a slip of memory but sometimes on purpose (morning/evening), and a warning you cannot override is a block wearing different clothes. Case-insensitive, and editing the box clears the warning so a stale one cannot swallow the next legitimate submit. | — |
@@ -178,7 +178,7 @@ Two things my harness reported that turned out to be wrong. Recording them so th
 2. Paste a **`SENTRY_DSN`** into `.env` so B3 actually reports. One line, then restart.
 3. **H5** verify Google live, **H6** Plaid webhook signature.
 4. **B4** move to a VPS.
-5. **M2** decide whether journal is append-only on purpose; **M1's** remaining half depends on it.
+5. ~~**M2** decide whether journal is append-only~~ — decided, and **M1** is closed with it.
 6. **M3–M10** as they annoy you.
 
 Everything in steps 1–3 of the original order is done except B2, which needs your Plaid login, and

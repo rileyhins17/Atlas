@@ -2589,6 +2589,40 @@ input[type='checkbox']:checked::after {
 .nownext-title { margin: 0; font-size: 27px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
 .nownext-title.nownext-open { color: var(--text-muted); }
 .nownext-sub { font-size: 13px; color: var(--text-muted); }
+/* "Running late" — one tap to push the rest of today. Sits under the now-line
+   because that is the moment it is needed. Pills rather than the standard
+   Button so three of them fit on a phone without wrapping the now-block. */
+.runlate {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  width: 100%; margin-top: 12px;
+  padding-top: 12px; border-top: 1px solid var(--border-subtle);
+}
+.runlate-label {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.runlate-btn {
+  /* 32px, comfortably over the 24px the phone-width spec measures every
+     interactive element against. */
+  min-height: 32px; min-width: 48px; padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  color: var(--text);
+  font: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer;
+}
+.runlate-btn:hover:not(:disabled) {
+  /* --brand-on-tint, NOT --brand: brand text on a tint of itself measures 4.29:1
+     in light and worse on hover. This trap has come back three times. */
+  background: color-mix(in srgb, var(--brand) 10%, var(--surface-raised));
+  border-color: color-mix(in srgb, var(--brand) 45%, transparent);
+  color: var(--brand-on-tint);
+}
+.runlate-btn:disabled { opacity: 0.55; cursor: default; }
+.runlate-undo { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; }
+
 .nownext-next {
   display: flex; flex-direction: column; gap: 2px; align-items: flex-end;
   padding-left: 16px; border-left: 1px solid var(--border-subtle); min-width: 150px;

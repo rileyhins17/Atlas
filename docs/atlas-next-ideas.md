@@ -44,7 +44,7 @@ rather than filling it.
 
 No UI at all. It just makes the same "Plan my day" button smarter over weeks.
 
-### 4. One-tap "reschedule everything after this"
+### ~~4. One-tap "reschedule everything after this"~~ — SHIPPED 29 Aug 2026
 When something runs long, the rest of the day is wrong. A single action on the
 now-line: *"running 30 min late"* → shift today's remaining movable blocks.
 Fixed things (events with other people, work hours) never move.

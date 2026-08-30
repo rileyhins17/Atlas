@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { ArrowRight, MapPin } from 'lucide-react';
 import type { CanvasItem, DayOverview } from '@/lib/canvas';
 import { formatClock } from '@/lib/dates';
@@ -20,7 +21,17 @@ function itemTitle(item: CanvasItem): string {
  * The single most important thing on the page: what you're in right now, and
  * what's next. Everything else on Today is secondary to this.
  */
-export function NowNext({ overview, now }: { overview: DayOverview; now: Date }) {
+export function NowNext({
+  overview,
+  now,
+  action,
+}: {
+  overview: DayOverview;
+  now: Date;
+  /** Rendered inside the card, on its own row. Today-only controls live here so
+   *  they read as part of "right now" rather than as a detached strip. */
+  action?: ReactNode;
+}) {
   const { now: block, current, next } = overview;
 
   // A live timed item beats the routine block containing it: "Sleep until 11:00"
@@ -85,6 +96,8 @@ export function NowNext({ overview, now }: { overview: DayOverview; now: Date })
           </span>
         </div>
       )}
+
+      {action}
     </section>
   );
 }

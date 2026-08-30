@@ -12,6 +12,7 @@ import { usePlanDay, useAcceptProposal } from '@/lib/hooks/plan';
 import type { PlanProposalDTO } from '@atlas/shared';
 import { formatClock } from '@/lib/dates';
 import { NowNext } from './NowNext';
+import { RunningLate } from './RunningLate';
 import { FreeTime } from './FreeTime';
 import { SlippedTasks } from './SlippedTasks';
 import { TodayChecklist } from './TodayChecklist';
@@ -94,7 +95,9 @@ export function DayOverviewView({
         </div>
       )}
 
-      {isToday && <NowNext overview={overview} now={now} />}
+      {/* Today only: "push the rest of the day" has nothing to push from on a
+          date that has already happened or has not started. */}
+      {isToday && <NowNext overview={overview} now={now} action={<RunningLate />} />}
 
       {/* Before anything else about today: settle what didn't happen. Planning
           on top of a backlog you have not looked at is how the list dies. */}

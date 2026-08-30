@@ -86,3 +86,18 @@ export function useDeleteEvent() {
     errorFallback: 'Failed to delete event',
   });
 }
+
+/**
+ * "I'm running late" — push the rest of today by N minutes.
+ *
+ * Invalidates the whole events key rather than patching the cache: a shift
+ * touches an unknown number of rows, and a hand-rolled optimistic update that
+ * disagrees with what the server actually moved is worse than a refetch.
+ */
+export function useShiftSchedule() {
+  return useInvalidatingMutation({
+    mutationFn: EventsApi.shift,
+    invalidates: qk.events,
+    errorFallback: 'Could not move the rest of your day',
+  });
+}

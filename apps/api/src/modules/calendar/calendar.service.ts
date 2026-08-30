@@ -4,9 +4,14 @@ import {
   type CreateEventInput,
   type EventDTO,
   type UpdateEventInput,
+  ShiftScheduleInput,
+  describeShift,
+  planShift,
+  type ShiftScheduleResult,
 } from '@atlas/shared';
 import type { Event } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
+import { dayKeyInTz, safeTz } from '../ai/time.util.js';
 import { TimelineService } from '../../core/timeline.service.js';
 
 function toDto(e: Event): EventDTO {
@@ -175,6 +180,71 @@ export class CalendarService {
       refId: event.id,
     });
     return toDto(event);
+  }
+
+  /**
+   * "I'm running 30 minutes late" — push the rest of today.
+   *
+   * The rules live in `planShift` (pure, in @atlas/shared) so they can be tested
+   * exhaustively and so the UI can describe the outcome before committing to it.
+   * This half is only: read the right window, apply, log once.
+   *
+   * The window is "the rest of the LOCAL day". A fixed 24-hour reach would be
+   * wrong twice a year, so today is defined by comparing timezone day keys
+   * rather than by adding a day's worth of milliseconds — the trap this repo
+   * has hit nine times.
+   */
+  async shiftSchedule(
+    userId: string,
+    timezone: string,
+    input: ShiftScheduleInput,
+  ): Promise<ShiftScheduleResult> {
+    const tz = safeTz(timezone);
+    const from = input.from ?? new Date();
+    const dayKey = (d: Date) => dayKeyInTz(d, tz);
+
+    // 36 hours is a generous over-fetch that cannot miss the end of the local
+    // day under any offset; the day-key filter below is what actually decides.
+    const horizon = new Date(from.getTime() + 36 * 60 * 60 * 1000);
+    const candidates = await this.prisma.client.event.findMany({
+      where: { userId, startAt: { gte: from, lt: horizon } },
+      orderBy: { startAt: 'asc' },
+    });
+    const today = candidates.filter((e) => dayKey(e.startAt) === dayKey(from));
+
+    const plan = planShift(today, { minutes: input.minutes, from, dayKey });
+    const message = describeShift(plan, input.minutes);
+
+    if (plan.moved.length === 0) {
+      return { minutes: input.minutes, moved: [], skipped: plan.skipped, message };
+    }
+
+    // One transaction: a half-applied shift is a worse schedule than either the
+    // old one or the new one, and there is no way for a user to tell which
+    // half landed.
+    const updated = await this.prisma.client.$transaction(
+      plan.moved.map((m) =>
+        this.prisma.client.event.update({
+          where: { id: m.id },
+          data: { startAt: m.startAt, endAt: m.endAt },
+        }),
+      ),
+    );
+
+    // ONE timeline row for one user action. A row per event would bury the
+    // rest of the day's log under a single tap.
+    await this.timeline.write({
+      userId,
+      type: 'schedule.shifted',
+      source: 'calendar',
+      title: message,
+      summary: `${input.minutes > 0 ? '+' : ''}${input.minutes} minutes`,
+      refType: 'schedule',
+      refId: dayKey(from),
+      payload: { minutes: input.minutes, movedIds: plan.moved.map((m) => m.id) },
+    });
+
+    return { minutes: input.minutes, moved: updated.map(toDto), skipped: plan.skipped, message };
   }
 
   async remove(userId: string, id: string): Promise<{ ok: true }> {

@@ -10,6 +10,8 @@ import type {
   CreateHabitInput,
   UpdateHabitInput,
   CreateJournalInput,
+  ShiftScheduleInput,
+  ShiftScheduleResult,
   UpdateJournalInput,
   CreateNoteInput,
   UpdateNoteInput,
@@ -242,6 +244,11 @@ export const EventsApi = {
   update: (id: string, patch: Partial<NewEvent> & { recurrence?: string | null }) =>
     request<EventDTO>(`/events/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   remove: (id: string) => request<{ ok: true }>(`/events/${id}`, { method: 'DELETE' }),
+  shift: (input: ShiftScheduleInput) =>
+    request<ShiftScheduleResult>('/events/shift', {
+      method: 'POST',
+      body: JSON.stringify({ ...input, from: (input.from ?? new Date()).toISOString() }),
+    }),
 };
 
 export const FitnessApi = {
