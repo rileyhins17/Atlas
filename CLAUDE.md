@@ -129,7 +129,7 @@ of the design work in v10 came from reading those PNGs, not the source.
 
 ## Current state
 
-Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **664 unit tests** · **e2e 44/44** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop.
+Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **672 unit tests** · **e2e 44/44** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop.
 
 **"axe clean" means zero violations, not zero serious ones, and it means every route.** The scans
 used to filter to `serious`/`critical`, which silently discarded `meta-viewport` — a real WCAG 1.4.4
@@ -172,9 +172,13 @@ The short version of what is STILL open:
 - **Started empty, deliberately.** Neon's quota was exhausted and refused reads, so there was no
   dump to take — the three old accounts were abandoned rather than migrated. The Neon project
   still exists; do not delete it until nobody wants that data back.
-- **Supabase free takes no backups.** This is now the biggest single risk to real data
-  (journal, finance, fitness). `docs/database-plan.md` step 1 is the nightly `pg_dump`; it needs
-  somewhere off-machine to write to.
+- **Supabase free takes no backups.** This is the biggest single risk to real data (journal,
+  finance, fitness). `infra/atlas-backup.ps1` is written and tested — nightly `pg_dump --format=custom`,
+  14 daily + 8 weekly retention, credentials passed as PG* env vars so no password reaches argv.
+  It needs **one human step**: `winget install -e --id PostgreSQL.PostgreSQL.17` (the server is
+  PG 17.6 and pg_dump refuses to dump a newer server than itself). Then
+  `powershell -File infratlas-backup.ps1 -Register`. Still outstanding after that: an
+  off-machine destination, and a restore drill — an unrestored backup is a hypothesis.
 - **Rotate the Plaid production secret** — it was pasted into a chat transcript. Needs Riley's Plaid
   login; nobody else can do it.
 - **`SENTRY_DSN` is unset**, so the error reporting that is now wired in reports nothing.

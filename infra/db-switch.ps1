@@ -1,4 +1,4 @@
-<#
+﻿<#
   Point Atlas at a different Postgres, in one command.
 
   WHY THIS EXISTS: moving hosts by hand is six steps, and the two that go wrong

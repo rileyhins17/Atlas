@@ -1,4 +1,4 @@
-<#
+﻿<#
   Point Atlas at a Supabase project, typing only the database password.
 
   WHY THIS EXISTS: the previous flow asked for two connection strings, and a

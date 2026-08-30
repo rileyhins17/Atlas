@@ -1,4 +1,4 @@
-<#
+﻿<#
   Atlas watchdog.
 
   The site is served from this PC through a Cloudflare Tunnel, so the public
