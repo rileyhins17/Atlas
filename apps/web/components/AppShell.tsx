@@ -140,25 +140,35 @@ function Frame({ name, children }: { name: string; children: ReactNode }) {
           people look for them; settings itself is reachable from Everything and
           from ⌘K. What is left is the three ambient things you actually use
           from any screen. */}
-      <header className="mobile-topbar">
-        <Link href="/today" className="brand" aria-label="Atlas home">
-          <Logo size={24} />
-          <span className="wordmark">Atlas</span>
-        </Link>
-        <div className="row" style={{ gap: 2 }}>
-          <IconButton label="Search and capture" onClick={() => setCommandOpen(true)}>
-            <Search size={18} aria-hidden />
-          </IconButton>
-          <AsksBell />
-          <IconButton
-            label="Chat with Atlas"
-            aria-pressed={chatOpen}
-            onClick={() => setChatOpen(!chatOpen)}
-          >
-            <MessageCircle size={18} aria-hidden />
-          </IconButton>
-        </div>
-      </header>
+      {/* Stands down during a flow that owns the screen, for the same reason
+          the bottom nav and the capture dock already do: search, notifications
+          and chat can do nothing for an account with no data yet, and offering
+          three dead controls above someone's first question is the difference
+          between a setup flow and an app they have been dropped into.
+          Measured on the first-run frames — the ones the rig had never
+          captured — where this bar was the only thing on screen that was not
+          part of the wizard. */}
+      {!focusMode && (
+        <header className="mobile-topbar">
+          <Link href="/today" className="brand" aria-label="Atlas home">
+            <Logo size={24} />
+            <span className="wordmark">Atlas</span>
+          </Link>
+          <div className="row" style={{ gap: 2 }}>
+            <IconButton label="Search and capture" onClick={() => setCommandOpen(true)}>
+              <Search size={18} aria-hidden />
+            </IconButton>
+            <AsksBell />
+            <IconButton
+              label="Chat with Atlas"
+              aria-pressed={chatOpen}
+              onClick={() => setChatOpen(!chatOpen)}
+            >
+              <MessageCircle size={18} aria-hidden />
+            </IconButton>
+          </div>
+        </header>
+      )}
 
       <main className="main">
         <div className="main-inner">
