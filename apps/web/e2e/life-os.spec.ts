@@ -972,6 +972,26 @@ test('every route renders clean at phone width, with no console errors', async (
     expect(body.length, `${route} rendered almost nothing`).toBeGreaterThan(40);
     expect(body, `${route} shows an error state`).not.toMatch(/something went wrong|application error/i);
 
+    // A route that never finishes loading passes every check above: it throws
+    // nothing, returns no 500, fits the viewport, and a wall of skeletons is
+    // easily more than 40 characters of body text. So it has to be asserted
+    // directly.
+    //
+    // This is not hypothetical. The screenshot rig — the tool this project uses
+    // to look at its own design — photographed a full-page "Waking Atlas…"
+    // splash for two routes and a screen of skeletons for Today, in two
+    // consecutive runs, and nothing anywhere went red. Design work was being
+    // done from pictures of spinners.
+    //
+    // networkidle has already been awaited above, so anything still loading
+    // here is stuck rather than slow.
+    const stuck = await page.evaluate(() => ({
+      skeletons: document.querySelectorAll('.skeleton').length,
+      splash: document.body.innerText.includes('Waking Atlas'),
+    }));
+    expect(stuck.splash, `${route} is still on the boot splash`).toBe(false);
+    expect(stuck.skeletons, `${route} still shows ${stuck.skeletons} skeleton(s)`).toBe(0);
+
     // Axe, on every route, at the width most people use.
     //
     // Three surfaces were scanned before this — Today, Looking back, and the
