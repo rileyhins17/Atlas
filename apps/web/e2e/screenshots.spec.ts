@@ -42,9 +42,17 @@ test('capture the Life-OS screens', async ({ page }) => {
   // FIRST, before any data exists: the first-run wizard. It is the only screen
   // every paying user is guaranteed to see, and it is the one the rig could
   // never reach — seeding a believable day is exactly what dismisses it.
-  await page.waitForTimeout(700);
+  // Wait for the WIZARD, not for a stopwatch. These two frames are the only
+  // screen every paying user is guaranteed to see, and a raw pause photographed
+  // loading skeletons instead — so the most important screen in the product was
+  // the one screen nobody had ever actually looked at. `.onb` is the wizard's
+  // own root, so this either captures it or fails loudly.
+  const wizard = page.locator('.onb');
+  await expect(wizard).toBeVisible({ timeout: 30_000 });
+  await page.waitForTimeout(500); // entrance animation
   await page.screenshot({ path: `${OUT}/00-onboarding.png`, fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
+  await expect(wizard).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/p-00-onboarding.png`, fullPage: true });
   await page.setViewportSize({ width: 1440, height: 900 });
