@@ -29,7 +29,26 @@ export function HeroBrief({
   const latest = insights.data?.[0] ?? null;
   const fresh = latest !== null && localDayKey(new Date(latest.createdAt)) === localDayKey(new Date());
 
-  if (status.data && !status.data.providerConfigured) {
+  // Say nothing about the brief until it is known whether there is one to make.
+  //
+  // The no-key branch below needs `status.data`, so while that query is in
+  // flight this fell through to the briefing path and announced "Reading your
+  // day…" — to an account with no AI key, which cannot have a brief read for
+  // it. It then corrected itself to "connect the AI in Settings". Every new
+  // account saw Atlas claim to be working on something it was not, and the
+  // correction reads as the app changing its story.
+  //
+  // The greeting is safe to show immediately: it comes from the user, not the
+  // provider.
+  if (!status.data) {
+    return (
+      <div className={`hero-brief ${compact ? 'compact' : ''}`}>
+        {greeting && <p className="hero-brief-greeting">{greeting}</p>}
+      </div>
+    );
+  }
+
+  if (!status.data.providerConfigured) {
     return (
       <div className={`hero-brief ${compact ? 'compact' : ''}`}>
         {greeting && <p className="hero-brief-greeting">{greeting}</p>}
