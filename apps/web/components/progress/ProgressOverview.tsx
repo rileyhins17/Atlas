@@ -93,7 +93,11 @@ export function ProgressOverview({ data, days }: { data: StatsDTO; days: number 
               />
             </div>
           ) : (
-            <p className="prog-muted">Journal a couple of times to see your mood trend.</p>
+            // Says DAYS, not times. A trend needs two points and the points
+            // are days, so three entries written this afternoon produce one —
+            // and the old wording told someone who had just journaled three
+            // times that they had not journaled enough.
+            <p className="prog-muted">Journal on a couple of days to see your mood trend.</p>
           )}
         </ProgressCard>
 
