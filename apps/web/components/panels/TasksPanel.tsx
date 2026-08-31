@@ -74,6 +74,26 @@ export function groupTasks(tasks: TaskDTO[], now: Date): { groups: Group[]; done
  * Add a task straight into a group — the due date comes from the group itself,
  * so a dated task costs one line of typing and zero date-picking.
  */
+/**
+ * The groups whose quick-add does something the top composer does not.
+ *
+ * There were six ways to add a task on one phone screen — the composer at the
+ * top, one per group, and the capture dock — and two of them were duplicates
+ * rather than choices:
+ *
+ *   - "Add to no date" creates a task with no due date. So does the composer at
+ *     the top of the page, which is always visible and always first.
+ *   - "Add to overdue" reads as though it back-dates something, and does not:
+ *     `quickAddDueDate('overdue')` returns the END OF TODAY, exactly like
+ *     "Add to today" directly beneath it. Nobody deliberately creates an
+ *     overdue task, and a control whose label disagrees with its behaviour is
+ *     worse than one that is missing.
+ *
+ * The three that remain each set a due date nothing else on the screen sets, so
+ * each is a genuine shortcut rather than another door to the same room.
+ */
+export const GROUPS_WORTH_ADDING_TO = new Set(['today', 'week', 'later']);
+
 function QuickAdd({ groupKey, groupLabel }: { groupKey: string; groupLabel: string }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
@@ -302,8 +322,13 @@ export function TasksPanel() {
                 {g.tasks.map((t) => (
                   <TaskRow key={t.id} task={t} />
                 ))}
-                {/* Quick-add is pointless while searching — it wouldn't match. */}
-                {!searching && <QuickAdd groupKey={g.key} groupLabel={g.label} />}
+                {/* Quick-add is pointless while searching — it wouldn't match.
+                    And it only earns its place in a group where it does
+                    something the composer at the top cannot: set that group's
+                    due date. See GROUPS_WORTH_ADDING_TO. */}
+                {!searching && GROUPS_WORTH_ADDING_TO.has(g.key) && (
+                  <QuickAdd groupKey={g.key} groupLabel={g.label} />
+                )}
               </section>
             ))}
 
