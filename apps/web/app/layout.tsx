@@ -27,6 +27,13 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
   },
+  // Next 15 emits the standardised `mobile-web-app-capable` and no longer emits
+  // the Apple-prefixed one, which is the only name older iOS Safari reads. On
+  // those devices the home-screen icon opens in a browser tab with the address
+  // bar and the tab strip, which is precisely the difference between "an app"
+  // and "a bookmark" — and this is a PWA whose whole distribution story is Add
+  // to Home Screen. Verified missing from the served HTML before adding it.
+  other: { 'apple-mobile-web-app-capable': 'yes' },
   // Safari surfaces this when the page is shared or added to the home screen.
   openGraph: {
     title: 'Atlas — your life OS',
