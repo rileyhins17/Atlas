@@ -27,7 +27,10 @@ export function useCaptureFallback() {
       // expired one. Anything else is a real failure and must stay visible.
       if (!(err instanceof ApiError) || err.status !== 424) return null;
 
-      const parsed = parseCapture(text, new Date());
+      // The dock appends its tapped time window as a trailing "(this evening)"
+      // for the model to read. The local parser has no idea what that is, so it
+      // would end up in the title of the row the user actually gets.
+      const parsed = parseCapture(text.replace(/\s*\([^()]*\)\s*$/, '').trim() || text, new Date());
       if (parsed.kind === 'event' && parsed.at && parsed.endAt) {
         await EventsApi.create({
           title: parsed.title,

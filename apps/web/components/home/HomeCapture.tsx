@@ -4,11 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, Send, X } from 'lucide-react';
 import { useBrainDump } from '@/lib/hooks/ai';
-import { applyUndoBatch, errorMessage } from '@/lib/api';
+import { applyUndoBatch } from '@/lib/api';
 import { detectCaptureIntent, stripAskPrefix } from '@/lib/capture-intent';
 import { useToast } from '@/components/ui';
 import { useAtlasUi } from '@/components/atlas/AtlasUiProvider';
-import { useCaptureFallback } from '@/lib/hooks/capture-fallback';
 import { summarizeToolRuns } from '@/components/atlas/CommandBar';
 
 /** Time-window context attached by tapping an Open gap on the Day Canvas. */
@@ -51,7 +50,6 @@ export function HomeCapture({
   const brainDump = useBrainDump();
   const { toast } = useToast();
   const { openChat, recordChanges } = useAtlasUi();
-  const fileLocally = useCaptureFallback();
   const qc = useQueryClient();
 
   // A gap tap bumps focusToken → pull the cursor into the box.
@@ -144,17 +142,10 @@ export function HomeCapture({
         // until a manual reload. The write is cheap; the wrong cache is not.
         void qc.invalidateQueries();
       },
-      onError: (err) => {
-        // No AI key yet? File it locally rather than answering a new user's
-        // very first capture with an error.
-        void fileLocally(trimmed, err).then(
-          (said) => {
-            if (said) toast(said, 'success');
-            else toast(errorMessage(err, 'Atlas could not file that'), 'error');
-          },
-          () => toast(errorMessage(err, 'Atlas could not file that'), 'error'),
-        );
-      },
+      // No onError here on purpose. The cold-start fallback lives in
+      // useBrainDump, because a callback passed to mutate() only runs while
+      // this component still has a listener on the mutation — measured, this
+      // one never ran, and a new account's first capture wrote nothing.
     });
   }
 

@@ -77,6 +77,15 @@ export function NameSettingsCard() {
         {`${greeting()}${preview ? `, ${preview}` : ''}.`}
       </p>
       {error && <div className="error">{error}</div>}
+      {/* Nothing confirmed this save, so the only way to know it worked was to
+          go to Today and look. That is also how the change got LOST: clicking
+          Save and navigating in the same breath cancels the in-flight PATCH,
+          and the app said nothing either way. */}
+      {update.isSuccess && !dirty && !error && (
+        <p className="field-saved" role="status">
+          Saved. Atlas will call you {preview || 'by no name at all'}.
+        </p>
+      )}
       <div className="row" style={{ justifyContent: 'flex-end' }}>
         <Button type="submit" disabled={!dirty || update.isPending}>
           Save

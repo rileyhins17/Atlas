@@ -20,6 +20,14 @@ declare module '@tanstack/react-query' {
       success?: string;
       /** Toast fallback when the API gives no message. */
       errorFallback?: string;
+      /**
+       * This mutation reports its own failures, so the global handler stays
+       * quiet. Set it only when the mutation really does toast on every error
+       * path — capture is the case: it recovers from a 424 by parsing locally,
+       * and announcing the 424 as well would contradict the toast saying what
+       * was filed.
+       */
+      ownErrorToast?: boolean;
     };
   }
 }
@@ -54,6 +62,11 @@ function QueryProvider({ children }: { children: ReactNode }) {
         onError: (error, _vars, _ctx, mutation) => {
           handleAuthError(error);
           if (error instanceof ApiError && (error.status === 400 || error.status === 401)) return;
+          // A mutation that recovers from its own failures reports them itself.
+          // Capture falls back to a local parse on a 424, so announcing the 424
+          // here would put "Atlas AI needs an API key" on top of the toast
+          // saying what was actually filed.
+          if (mutation.meta?.ownErrorToast) return;
           toast(errorMessage(error, mutation.meta?.errorFallback ?? 'Something went wrong'), 'error');
         },
       }),

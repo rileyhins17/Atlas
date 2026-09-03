@@ -2484,8 +2484,12 @@ input[type='checkbox']:checked::after {
 .canvas-card-meta { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--text-muted); }
 .canvas-card-actual { text-align: left; font: inherit; color: inherit; cursor: pointer; width: 100%; }
 .canvas-card-actual:disabled { cursor: default; }
+/* 24px, not 20. WCAG 2.2 target-size is a hard floor and axe cannot see it —
+   `target-size` is a 2.2 rule and every scan here asks for 2.0/2.1 tags, so
+   this sat under a green run. It is the control for finishing a task on the
+   phone's primary screen, which is the last place to make people aim. */
 .canvas-check {
-  flex: none; width: 20px; height: 20px; border-radius: 6px; cursor: pointer;
+  flex: none; width: 24px; height: 24px; border-radius: 7px; cursor: pointer;
   border: 1.5px solid var(--border-subtle); background: transparent; color: transparent;
   display: flex; align-items: center; justify-content: center;
   transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
@@ -5292,3 +5296,11 @@ label:has(> input[type='checkbox']) {
   padding-left: 13px; border-left: 2px solid color-mix(in srgb, var(--brand) 45%, transparent);
 }
 .mood-patterns-note { margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+
+/* Confirmation that a settings field really saved. Quiet, inline, and a live
+   region — a change you cannot see landing is one you cannot trust. */
+.field-saved {
+  margin: 0;
+  font-size: 13px;
+  color: var(--brand-on-tint);
+}

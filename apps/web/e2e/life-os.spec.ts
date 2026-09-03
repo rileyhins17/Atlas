@@ -1071,10 +1071,15 @@ test('Atlas keeps a visible record of what it changed, and it is reversible', as
   await expect(page.locator('.toast').first()).toBeVisible({ timeout: 25_000 });
 
   const strip = page.locator('.chg-strip');
-  // With no API key configured the write cannot happen at all, and the strip
-  // correctly stays empty — assert the honest branch rather than forcing one.
+  // With no API key the strip stays empty, but NOT because the capture failed:
+  // it falls back to a local parse and really writes the row. There is simply
+  // no server-built inverse to offer, because no tool ran. So the honest branch
+  // asserts the write happened — this used to demand an error message, and went
+  // green for months against a capture box that wrote nothing at all.
   if ((await strip.count()) === 0) {
-    await expect(page.locator('.toast').first()).toContainText(/could not|key|unavailable|error/i);
+    await expect(page.locator('.toast').first()).not.toContainText(/could not|needs an API key/i);
+    await go(page, '/tasks');
+    await expect(page.getByText(marker).first()).toBeVisible({ timeout: 15_000 });
     return;
   }
 
@@ -1400,6 +1405,12 @@ test('Atlas can be told what to call you, and stops guessing from your address',
   await field.click();
   await field.pressSequentially(marker);
   await page.getByRole('button', { name: 'Save', exact: true }).click();
+  // Wait for the save to be CONFIRMED before navigating. Clicking Save and
+  // leaving in the same breath cancels the in-flight PATCH, so this spec used
+  // to fail against a working app — and a real person doing the same thing lost
+  // their name with nothing on screen to say so, which is why the field now
+  // confirms at all.
+  await expect(page.locator('.field-saved')).toContainText('Saved');
 
   // Today follows, and so does the sidebar — both read /auth/me rather than the
   // settings response, so this is really asserting that saving invalidates it.
@@ -1568,4 +1579,91 @@ test('a failed request never mistakes an established account for a brand-new one
   await expect(page.locator('.onb')).toHaveCount(0);
   // And the real surface is what came back instead — the dock is on every page.
   await expect(page.getByLabel('Capture anything')).toBeAttached();
+});
+
+test('Looking back explains what it would need before it will claim a pattern', async ({
+  page,
+}) => {
+  // The payoff for the daily mood tap, and the thing most able to embarrass
+  // Atlas: a confident claim about why someone feels bad, drawn from a handful
+  // of days. So the behaviour worth pinning is the REFUSAL — with one day of
+  // mood logged it must say how far off it is, and must not name a pattern.
+  //
+  // Self-seeding on purpose. Another spec in this file logs a mood, so leaning
+  // on that would pass in a full run and fail alone — the shape that hides in
+  // green. This logs its own, which also makes the assertion exact: every entry
+  // lands on today, so exactly one day is ever logged.
+  const marker = `Pat${Date.now()}`;
+  await go(page, '/journal');
+  const box = page.getByLabel('What are you writing?');
+  await box.click();
+  await box.pressSequentially(`${marker} a day with a mood on it`);
+  await page.getByRole('button', { name: 'Mood 4 out of 5' }).click();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.locator('.wr-list .card', { hasText: marker })).toBeVisible({
+    timeout: 15_000,
+  });
+
+  await go(page, '/looking-back');
+  const card = page.locator('.mood-patterns');
+  await expect(card).toBeVisible({ timeout: 20_000 });
+  await expect(card).toContainText(/1 of 14 days logged/);
+  // Nothing may be asserted about the user from one day. If a line ever renders
+  // here, the thresholds have been lowered and the feature has become a
+  // horoscope.
+  await expect(card.locator('.mood-patterns-item')).toHaveCount(0);
+
+  // The range chips must not be able to change the sample. The server decides
+  // how far back a comparison looks precisely so a narrower window cannot shrink
+  // it until a coincidence clears the bar.
+  await page.getByRole('button', { name: 'Year' }).click();
+  await expect(card).toContainText(/1 of 14 days logged/);
+});
+
+test('Atlas asks how you are at your own waking and bedtime, not the clock', async ({ page }) => {
+  // Mood is the only thing Atlas cannot derive from use, and it is asked TWICE
+  // a day on purpose: one reading says how a day went, two bracket it, and the
+  // difference between them is what the hours in between did to you. That pair
+  // is what the patterns on Looking back compare against.
+  //
+  // Self-seeding, and independent of when it runs: the routine is written
+  // relative to NOW so that "now" lands inside the evening window whatever the
+  // hour. A spec that only passes in the evening is a time bomb.
+  await go(page, '/today');
+  const now = new Date();
+  const bedMin = ((now.getHours() + 1) * 60 + now.getMinutes()) % 1440;
+  await page.evaluate(async (startMin) => {
+    const post = (path: string, body: unknown) =>
+      fetch(`http://localhost:4000${path}`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    // Today shows the first-run wizard until the account owns something.
+    await post('/tasks', { title: `Mood baseline ${Date.now()}`, priority: 'LOW' });
+    await post('/routine/blocks', {
+      label: 'Sleep',
+      kind: 'sleep',
+      days: 127,
+      startMin,
+      endMin: (startMin + 8 * 60) % 1440,
+    });
+  }, bedMin);
+
+  await go(page, '/today');
+  const card = page.locator('.mood-checkin');
+  await expect(card).toBeVisible({ timeout: 20_000 });
+  // The evening question, because bedtime is an hour away — not the morning one.
+  await expect(card).toContainText('How are you ending the day?');
+  // And it says WHY it asks twice. Without that this reads as a nag.
+  await expect(card).toContainText(/this morning/i);
+
+  // One tap files it, with no body: a mood is a legitimate entry on its own.
+  await card.getByRole('button', { name: /Good — 4 out of 5/i }).click();
+  await expect(card).toHaveCount(0, { timeout: 20_000 });
+
+  // And it stays gone on a fresh load — the ask is per window, not per visit.
+  await go(page, '/today');
+  await expect(page.locator('.mood-checkin')).toHaveCount(0);
 });

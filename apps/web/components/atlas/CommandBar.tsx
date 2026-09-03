@@ -27,7 +27,6 @@ import {
 import { DESTINATIONS as NAV_DESTINATIONS } from '@/lib/sections';
 import { useBrainDump } from '@/lib/hooks/ai';
 import { useToast } from '@/components/ui';
-import { errorMessage } from '@/lib/api';
 import { Kbd } from '@/components/ui/Kbd';
 import { useAtlasUi } from './AtlasUiProvider';
 
@@ -209,7 +208,9 @@ export function CommandBar() {
               // potentially stale — this path invalidated nothing at all.
               void qc.invalidateQueries();
             },
-            onError: (err) => toast(errorMessage(err, 'Atlas could not file that'), 'error'),
+            // Failure is handled in useBrainDump. It has to be: the next line
+            // closes the command bar, which unmounts the listener a mutate()
+            // callback needs, so an onError written here could never fire.
           });
           setCommandOpen(false);
         },

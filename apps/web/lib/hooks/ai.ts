@@ -2,8 +2,10 @@
 
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import type { ChatMessageDTO } from '@atlas/shared';
-import { AiApi } from '@/lib/api';
+import { AiApi, errorMessage } from '@/lib/api';
+import { useToast } from '@/components/ui/Toast';
 import { qk } from './keys';
+import { useCaptureFallback } from './capture-fallback';
 import { useInvalidatingMutation } from './mutation';
 
 /**
@@ -37,11 +39,36 @@ export function useChat() {
   });
 }
 
+/**
+ * Capture, and what happens when there is no AI to route it through.
+ *
+ * The cold-start fallback lives HERE, in the hook, rather than in a callback
+ * passed to `mutate()`. Those callbacks are fire-and-forget: TanStack only runs
+ * them while the observer that issued the call still has listeners, so anything
+ * that unmounts loses them. The command bar closes itself on the same tick it
+ * captures, and the dock's own handler was measured never firing at all — a new
+ * account typing "gym at 6" got the raw 424 ("Atlas AI needs an API key") and
+ * NOTHING written, which is precisely the day-one failure the fallback exists
+ * to prevent. A hook-level onError always runs, and both capture surfaces get
+ * the same behaviour without either of them having to remember.
+ *
+ * It owns the error toast too (`ownErrorToast`), because the global handler in
+ * providers.tsx would otherwise announce the 424 the fallback just recovered
+ * from — two toasts, and the wrong one on top.
+ */
 export function useBrainDump() {
   const qc = useQueryClient();
+  const fileLocally = useCaptureFallback();
+  const { toast } = useToast();
   return useMutation({
     mutationFn: AiApi.brainDump,
+    meta: { ownErrorToast: true },
     onSuccess: () => invalidateUserData(qc),
+    onError: async (err, text) => {
+      const said = await fileLocally(text, err).catch(() => null);
+      if (said) toast(said, 'success');
+      else toast(errorMessage(err, 'Atlas could not file that'), 'error');
+    },
   });
 }
 
