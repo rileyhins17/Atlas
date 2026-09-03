@@ -13,6 +13,7 @@ import type { PlanProposalDTO } from '@atlas/shared';
 import { formatClock } from '@/lib/dates';
 import { NowNext } from './NowNext';
 import { RunningLate } from './RunningLate';
+import { MoodCheckIn } from './MoodCheckIn';
 import { FreeTime } from './FreeTime';
 import { SlippedTasks } from './SlippedTasks';
 import { TodayChecklist } from './TodayChecklist';
@@ -50,9 +51,10 @@ export function DayOverviewView({
   // none of those — paging to tomorrow gave "Nothing scheduled yet" and a
   // closed disclosure over an otherwise black screen, when the routine
   // underneath it is exactly what you paged over to look at.
-  const [showFullDay, setShowFullDay] = useState(
-    () => dayStart.toDateString() !== new Date().toDateString(),
-  );
+  // Open on every day now, today included. The disclosure stays so it can be
+  // collapsed, but the default is to SHOW the day rather than to hide it behind
+  // a tap.
+  const [showFullDay, setShowFullDay] = useState(true);
   const [proposals, setProposals] = useState<PlanProposalDTO[] | null>(null);
   const [planNote, setPlanNote] = useState<string | null>(null);
   const plan = usePlanDay();
@@ -95,9 +97,46 @@ export function DayOverviewView({
         </div>
       )}
 
+      {/* First thing, once a day. Mood is the only signal Atlas cannot derive
+          from use, so it is asked for before the day is shown rather than after
+          — a question below the fold is a question nobody answers. */}
+      {isToday && <MoodCheckIn />}
+
       {/* Today only: "push the rest of the day" has nothing to push from on a
           date that has already happened or has not started. */}
       {isToday && <NowNext overview={overview} now={now} action={<RunningLate />} />}
+
+      {/* The hour-by-hour day, directly under what you are in right now, and
+          open rather than folded away. It used to sit at the very bottom behind
+          a disclosure, which meant the screen that answers "what does my day
+          look like" only did so after a tap most people never made. */}
+      <section className="ov-block" aria-label="Full day">
+        <button
+          type="button"
+          className="ov-disclose"
+          aria-expanded={showFullDay}
+          onClick={() => setShowFullDay((v) => !v)}
+        >
+          <ChevronDown size={14} aria-hidden className={showFullDay ? 'open' : ''} />
+          Full day, hour by hour
+        </button>
+        {showFullDay && (
+          <div className="day-canvas">
+            {canvas.sections.map((section, si) => (
+              <TimeSection
+                key={`${section.label}-${si}`}
+                section={section}
+                flavor={canvas.flavor}
+                onPlanGap={onPlanGap}
+              >
+                {section.items.map((item) => (
+                  <CanvasCard key={item.id} item={item} onComplete={(id) => complete.mutate(id)} />
+                ))}
+              </TimeSection>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* Before anything else about today: settle what didn't happen. Planning
           on top of a backlog you have not looked at is how the list dies. */}
@@ -231,33 +270,6 @@ export function DayOverviewView({
         </section>
       )}
 
-      <section className="ov-block" aria-label="Full day">
-        <button
-          type="button"
-          className="ov-disclose"
-          aria-expanded={showFullDay}
-          onClick={() => setShowFullDay((v) => !v)}
-        >
-          <ChevronDown size={14} aria-hidden className={showFullDay ? 'open' : ''} />
-          Full day, hour by hour
-        </button>
-        {showFullDay && (
-          <div className="day-canvas">
-            {canvas.sections.map((section, si) => (
-              <TimeSection
-                key={`${section.label}-${si}`}
-                section={section}
-                flavor={canvas.flavor}
-                onPlanGap={onPlanGap}
-              >
-                {section.items.map((item) => (
-                  <CanvasCard key={item.id} item={item} onComplete={(id) => complete.mutate(id)} />
-                ))}
-              </TimeSection>
-            ))}
-          </div>
-        )}
-      </section>
     </div>
   );
 }

@@ -203,7 +203,7 @@ export const HabitsApi = {
 
 export const JournalApi = {
   list: () => request<JournalDTO[]>('/journal'),
-  create: (input: Partial<CreateJournalInput> & { body: string }) =>
+  create: (input: Partial<CreateJournalInput> & { body: string; mood?: number }) =>
     request<JournalDTO>('/journal', { method: 'POST', body: JSON.stringify(input) }),
   update: (id: string, input: UpdateJournalInput) =>
     request<JournalDTO>(`/journal/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),

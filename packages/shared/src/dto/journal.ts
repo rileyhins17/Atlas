@@ -1,13 +1,29 @@
 import { z } from 'zod';
 
-export const CreateJournalInput = z.object({
-  body: z.string().min(1).max(20_000),
-  // 1 (low) .. 5 (great). Optional, but drives mood-correlation + AI questions.
-  mood: z.number().int().min(1).max(5).optional(),
-  tags: z.array(z.string()).default([]),
-  // The day the entry is about; defaults to today server-side.
-  entryDate: z.coerce.date().optional(),
-});
+/**
+ * A mood on its own is a legitimate entry.
+ *
+ * Mood used to be an optional garnish on a written entry, so recording "I feel
+ * like a 2 today" meant writing a sentence first. That is a high price for one
+ * tap of data, and it is the reason mood history was sparse enough that the
+ * trend chart usually had nothing to draw.
+ *
+ * So the body may be empty WHEN there is a mood. It may not be empty otherwise:
+ * an entry with neither words nor a mood is a row that means nothing.
+ */
+export const CreateJournalInput = z
+  .object({
+    body: z.string().max(20_000),
+    // 1 (low) .. 5 (great). Optional, but drives mood-correlation + AI questions.
+    mood: z.number().int().min(1).max(5).optional(),
+    tags: z.array(z.string()).default([]),
+    // The day the entry is about; defaults to today server-side.
+    entryDate: z.coerce.date().optional(),
+  })
+  .refine((v) => v.body.trim().length > 0 || v.mood != null, {
+    message: 'Write something, or record how you feel.',
+    path: ['body'],
+  });
 export type CreateJournalInput = z.infer<typeof CreateJournalInput>;
 
 /**
