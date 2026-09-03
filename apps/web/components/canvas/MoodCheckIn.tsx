@@ -6,7 +6,7 @@ import { localDayKey } from '@/lib/dates';
 const FACES = [
   { value: 1, label: 'Rough' },
   { value: 2, label: 'Low' },
-  { value: 3, label: 'okay' },
+  { value: 3, label: 'Okay' },
   { value: 4, label: 'Good' },
   { value: 5, label: 'Great' },
 ];
