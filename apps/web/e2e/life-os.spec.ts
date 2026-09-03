@@ -985,6 +985,23 @@ test('every route renders clean at phone width, with no console errors', async (
     //
     // networkidle has already been awaited above, so anything still loading
     // here is stuck rather than slow.
+    // The capture box must not be showing a clipped line. It is on every route
+    // by design, so a placeholder or a padding change that makes its content
+    // taller than the box leaves the top of a second line poking out under the
+    // border — which is what shipped: a 66-character placeholder in a 284px
+    // input, scrollHeight 64 against clientHeight 40.
+    const capture = await page.evaluate(() => {
+      const t = document.querySelector('.home-capture-input') as HTMLTextAreaElement | null;
+      if (!t || t.value !== '') return null;
+      return { scrollH: t.scrollHeight, clientH: t.clientHeight };
+    });
+    if (capture) {
+      expect(
+        capture.scrollH,
+        `${route}: the empty capture box overflows (${capture.scrollH}px of content in ${capture.clientH}px)`,
+      ).toBeLessThanOrEqual(capture.clientH);
+    }
+
     const stuck = await page.evaluate(() => ({
       skeletons: document.querySelectorAll('.skeleton').length,
       splash: document.body.innerText.includes('Waking Atlas'),

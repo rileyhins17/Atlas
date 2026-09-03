@@ -167,10 +167,17 @@ export function HomeCapture({
         <textarea
           ref={inputRef}
           className="home-capture-input"
+          /* Short enough to fit ONE line on a phone. The old placeholder was 66
+             characters and the input is 284px wide at 390px, so it wrapped to
+             two lines inside a box that shows one — leaving the top of the
+             second line poking out below the border. Measured: scrollHeight 64
+             against clientHeight 40.
+
+             The longer examples are not lost: FirstCapture teaches three of
+             them on day one, which is where a first-time user actually reads
+             them. */
           placeholder={
-            context
-              ? `What should happen ${context.label}?`
-              : 'Type anything — "gym at 6", "call mom tomorrow", "how am I doing?"'
+            context ? `What should happen ${context.label}?` : 'Type anything — "gym at 6"'
           }
           aria-label="Capture anything"
           rows={1}
