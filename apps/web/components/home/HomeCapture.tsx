@@ -30,6 +30,9 @@ export interface CaptureContext {
  * guess is wrong the toast offers the other reading in one tap — which is what
  * makes a heuristic acceptable here.
  */
+/** Matches `max-height` on `.home-capture-input`; past this the box scrolls. */
+const MAX_INPUT_HEIGHT = 168;
+
 export function HomeCapture({
   examples,
   autoFocus = false,
@@ -55,6 +58,24 @@ export function HomeCapture({
   useEffect(() => {
     if (focusToken > 0) inputRef.current?.focus();
   }, [focusToken]);
+
+  /**
+   * Grow with the text, up to the cap the stylesheet already set.
+   *
+   * `max-height: 168px` on this input has been there the whole time, which says
+   * the box was always meant to grow — but nothing ever set its height, so it
+   * stayed at one line and a long thought was written into a box showing 40px
+   * of 88px. You could not see what you were typing.
+   *
+   * Reset to `auto` first: scrollHeight is the content height only when the
+   * element is not already holding itself open at the previous, taller value.
+   */
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, MAX_INPUT_HEIGHT)}px`;
+  }, [text]);
 
   function submit() {
     const trimmed = text.trim();
