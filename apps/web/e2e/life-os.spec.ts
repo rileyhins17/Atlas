@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { register, resetFitness, seedWorkoutHistory } from './helpers';
+import { clearTodaysMoods, register, resetFitness, seedWorkoutHistory } from './helpers';
 
 /**
  * The Life-OS shell: command bar, chat rail, sidebar, the Today overview (v4
@@ -1626,10 +1626,14 @@ test('Atlas asks how you are at your own waking and bedtime, not the clock', asy
   // difference between them is what the hours in between did to you. That pair
   // is what the patterns on Looking back compare against.
   //
-  // Self-seeding, and independent of when it runs: the routine is written
-  // relative to NOW so that "now" lands inside the evening window whatever the
-  // hour. A spec that only passes in the evening is a time bomb.
+  // Self-seeding twice over, and independent of when it runs. The routine is
+  // written relative to NOW so "now" lands inside the evening window whatever
+  // the hour — a spec that only passes in the evening is a time bomb. And the
+  // moods other specs logged (all timestamped now) are cleared first, because
+  // they correctly suppress the ask: without that this passed alone and failed
+  // in a full run.
   await go(page, '/today');
+  await clearTodaysMoods(page);
   const now = new Date();
   const bedMin = ((now.getHours() + 1) * 60 + now.getMinutes()) % 1440;
   await page.evaluate(async (startMin) => {

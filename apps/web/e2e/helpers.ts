@@ -157,3 +157,37 @@ export async function seedWorkoutHistory(page: Page): Promise<void> {
 
   await page.reload({ waitUntil: 'networkidle' });
 }
+
+/**
+ * Clear every mood logged today, so a check-in spec starts from "not asked yet".
+ *
+ * Specs share one account by necessity (sign-up is throttled 5/min/IP), and
+ * several of them log a mood — the writing spec, and the patterns spec — all
+ * timestamped now. The check-in asks per WINDOW, so those correctly suppress
+ * it, and a spec that assumed otherwise passed alone and failed in a full run:
+ * the shape that hides in green.
+ *
+ * Clearing rather than deleting: there is no DELETE on journal entries, and
+ * `mood` is nullable on PATCH precisely so a mood can be taken back off an
+ * entry. The entry survives, which is also the truthful thing to do to someone
+ * else's writing.
+ */
+export async function clearTodaysMoods(page: Page): Promise<void> {
+  if (!page.url().startsWith('http')) await page.goto('/today');
+
+  await page.evaluate(async () => {
+    const base = window.location.hostname === 'localhost' ? 'http://localhost:4000' : '/api';
+    const res = await fetch(`${base}/journal`, { credentials: 'include' });
+    const entries = (await res.json()) as { id: string; mood: number | null; entryDate: string }[];
+    const today = new Date().toDateString();
+    for (const e of entries) {
+      if (e.mood == null || new Date(e.entryDate).toDateString() !== today) continue;
+      await fetch(`${base}/journal/${e.id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ mood: null }),
+      });
+    }
+  });
+}
