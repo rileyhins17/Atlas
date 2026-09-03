@@ -38,6 +38,7 @@ import type {
   RoutineBlockInput,
   SearchResultDTO,
   SettingsDTO,
+  MoodPatternsDTO,
   StatsDTO,
   TaskDTO,
   TransactionDTO,
@@ -433,6 +434,7 @@ export const SettingsApi = {
 
 export const StatsApi = {
   get: (days: number) => request<StatsDTO>(`/stats?days=${days}`),
+  patterns: () => request<MoodPatternsDTO>('/stats/patterns'),
 };
 
 export const RoutineApi = {

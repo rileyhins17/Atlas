@@ -6,6 +6,7 @@ import { hasActivity } from '@/lib/progress';
 import { EmptyState, ListSkeleton, QueryState } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
 import { ProgressOverview } from '@/components/progress/ProgressOverview';
+import { MoodPatterns } from '@/components/progress/MoodPatterns';
 
 const RANGES = [
   { days: 30, label: '30 days' },
@@ -61,6 +62,11 @@ export function ProgressPanel() {
       >
         {(d) => <ProgressOverview data={d} days={days} />}
       </QueryState>
+
+      {/* Outside the range chips on purpose: the server decides how far back a
+          comparison may look, so switching to "30 days" must not be able to
+          shrink the sample until a coincidence clears the threshold. */}
+      <MoodPatterns />
     </div>
   );
 }

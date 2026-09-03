@@ -5267,3 +5267,28 @@ label:has(> input[type='checkbox']) {
 .mood-checkin-word { font-size: 10.5px; color: var(--text-muted); letter-spacing: 0.02em; }
 .mood-checkin-btn:hover:not(:disabled) .mood-checkin-word { color: inherit; }
 .mood-checkin-why { margin: 0; font-size: 12px; color: var(--text-muted); }
+
+/* ── What your better days have in common ─────────────────────────────────
+   The payoff for the daily mood tap. Framed as a card rather than a chart
+   because it is prose: four numbers a person can check, not a trend to skim.
+   The leading number is the whole point of each line, so it is the only thing
+   emphasised — the sentence around it stays plain, because bolding a claim
+   about someone's mood is how a count starts reading like a diagnosis. */
+.mood-patterns {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: 18px;
+  padding: 16px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.mood-patterns-h {
+  margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+.mood-patterns-wait { margin: 0; font-size: 14px; line-height: 1.55; color: var(--text-muted); }
+.mood-patterns-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 9px; }
+.mood-patterns-item {
+  font-size: 14.5px; line-height: 1.55; color: var(--text-primary);
+  padding-left: 13px; border-left: 2px solid color-mix(in srgb, var(--brand) 45%, transparent);
+}
+.mood-patterns-note { margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-muted); }

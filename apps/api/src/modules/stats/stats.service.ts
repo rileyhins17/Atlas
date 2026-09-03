@@ -1,6 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@atlas/db';
-import type { StatsDTO } from '@atlas/shared';
+import {
+  MIN_DAYS_FOR_PATTERNS,
+  MOOD_FACTORS,
+  PACKED_DAY_EVENTS,
+  describeMoodContrast,
+  findMoodContrasts,
+  type MoodDay,
+  type MoodPatternsDTO,
+  type StatsDTO,
+} from '@atlas/shared';
 import { PrismaService } from '../../core/prisma.service.js';
 import { dayKeyInTz, localDayStartUtc } from '../ai/time.util.js';
 import { assembleStats, type MetricRow, type StatsMetric } from './stats.assemble.js';
@@ -11,6 +20,13 @@ import { assembleStats, type MetricRow, type StatsMetric } from './stats.assembl
  * the requested window and the one before it; the pure assembler zero-fills
  * and splits totals for the delta chips.
  */
+/**
+ * How far back a pattern looks. Long enough that a fortnight of logging is not
+ * the whole sample, short enough that it is still about how life is NOW —
+ * "you were happier in March" is history, not something to act on.
+ */
+const PATTERN_WINDOW_DAYS = 90;
+
 @Injectable()
 export class StatsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -111,6 +127,92 @@ export class StatsService {
   }
 
   /** Compact 30-day summary for the weekly review — the correlation payoff. */
+  /**
+   * What the user's better days have in common.
+   *
+   * The one thing a single-purpose app cannot do. A habit tracker knows you
+   * trained; a journal knows you felt like a 2; only something holding both can
+   * notice the 2s cluster on the days you did not.
+   *
+   * Every factor is a by-product of using Atlas, so the whole feature costs the
+   * user one tap a day. A domain nobody uses never reaches MIN_DAYS_PER_SIDE and
+   * drops out by itself, which is why there is no "does this user do fitness?"
+   * branch anywhere here.
+   *
+   * Bucketing is the user's local day, in SQL, with the timezone BOUND — the
+   * same rule as the rollup. A UTC comparison would file an evening workout
+   * under tomorrow for anyone east of Greenwich and shuffle the two sides of
+   * every contrast.
+   */
+  async moodPatterns(userId: string): Promise<MoodPatternsDTO> {
+    const tz = await this.timezone(userId);
+    const from = new Date(localDayStartUtc(tz, new Date()).getTime() - PATTERN_WINDOW_DAYS * 86_400_000);
+    const q = <T>(sql: Prisma.Sql) => this.prisma.client.$queryRaw<T[]>(sql);
+
+    const [moods, trained, habits, tasks, packed] = await Promise.all([
+      // Mood keys off entryDate — the day the entry is ABOUT, matching the rollup.
+      q<{ day: string; value: number }>(Prisma.sql`
+        SELECT ((("entryDate" AT TIME ZONE 'UTC') AT TIME ZONE ${tz})::date)::text AS day,
+               AVG(mood)::float AS value
+        FROM journal_entries
+        WHERE "userId" = ${userId} AND mood IS NOT NULL AND "entryDate" >= ${from}
+        GROUP BY 1`),
+      q<{ day: string }>(Prisma.sql`
+        SELECT DISTINCT ((("endedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${tz})::date)::text AS day
+        FROM workouts
+        WHERE "userId" = ${userId} AND "endedAt" IS NOT NULL AND "endedAt" >= ${from}`),
+      q<{ day: string }>(Prisma.sql`
+        SELECT DISTINCT ((("loggedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${tz})::date)::text AS day
+        FROM habit_logs
+        WHERE "userId" = ${userId} AND "loggedAt" >= ${from}`),
+      q<{ day: string }>(Prisma.sql`
+        SELECT DISTINCT ((("completedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${tz})::date)::text AS day
+        FROM tasks
+        WHERE "userId" = ${userId} AND "completedAt" IS NOT NULL AND "completedAt" >= ${from}`),
+      // All-day rows are excluded: a birthday reminder is not a day with four
+      // things in it, and counting it would make "packed" mean "has a calendar".
+      q<{ day: string }>(Prisma.sql`
+        SELECT ((("startAt" AT TIME ZONE 'UTC') AT TIME ZONE ${tz})::date)::text AS day
+        FROM events
+        WHERE "userId" = ${userId} AND "allDay" = false AND "startAt" >= ${from}
+        GROUP BY 1
+        HAVING COUNT(*) >= ${PACKED_DAY_EVENTS}`),
+    ]);
+
+    const set = (rows: { day: string }[]) => new Set(rows.map((r) => r.day));
+    const trainedDays = set(trained);
+    const habitDays = set(habits);
+    const taskDays = set(tasks);
+    const packedDays = set(packed);
+
+    // Only days with a mood take part: a day nobody rated says nothing about
+    // how the day felt, and filling it with an average would invent the answer.
+    const days: MoodDay[] = moods.map((m) => ({
+      dayKey: m.day,
+      mood: m.value,
+      factors: {
+        trained: trainedDays.has(m.day),
+        keptAHabit: habitDays.has(m.day),
+        finishedTasks: taskDays.has(m.day),
+        packedDay: packedDays.has(m.day),
+      },
+    }));
+
+    return {
+      daysLogged: days.length,
+      daysNeeded: MIN_DAYS_FOR_PATTERNS,
+      patterns: findMoodContrasts(days).map((c) => ({
+        factor: c.factor,
+        line: describeMoodContrast(c, MOOD_FACTORS),
+        withMean: c.withMean,
+        withoutMean: c.withoutMean,
+        withDays: c.withDays,
+        withoutDays: c.withoutDays,
+        delta: c.delta,
+      })),
+    };
+  }
+
   async summarizeForAi(userId: string): Promise<string> {
     const stats = await this.rollup(userId, 30);
     const { current, previous } = stats.totals;
