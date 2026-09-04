@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import { ServiceWorkerRegistrar } from '@/components/ServiceWorkerRegistrar';
+import { DEFAULT_PALETTE, palettesCss } from '@/lib/theme/palettes';
 
 // Self-hosted at build (no runtime request to Google; CSP/offline-safe). A warm,
 // friendly geometric sans — carries the "warm & cozy" feel.
@@ -59,13 +60,28 @@ export const viewport: Viewport = {
 // Runs before first paint so the saved (or system) theme is applied with no
 // flash. Kept tiny and dependency-free; the base CSS is dark, so any failure
 // falls back to dark.
-const themeScript = `(function(){try{var t=localStorage.getItem('atlas-theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`;
+const themeScript = `(function(){try{var d=document.documentElement;var t=localStorage.getItem('atlas-theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}d.setAttribute('data-theme',t);var p=localStorage.getItem('atlas-palette');d.setAttribute('data-palette',p&&/^[a-z]{2,16}$/.test(p)?p:'${DEFAULT_PALETTE}');}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     // The theme script sets data-theme on <html> before hydration; suppress the
     // expected attribute mismatch it causes (standard theme-flash pattern).
     <html lang="en" className={sans.variable} suppressHydrationWarning>
+      <head>
+        {/*
+          Every palette, as static CSS, generated from one source of truth in
+          lib/theme/palettes.ts. Generated rather than hand-written because ten
+          palettes across light and dark is 280 colours that each have to clear
+          WCAG AA, and axe can only ever scan the one that happens to be active
+          — nine broken themes would sit under a green run. The values are
+          solved for contrast and re-checked by test/palette-contrast.test.ts.
+
+          Inline rather than a stylesheet link so the palette is present in the
+          first paint alongside the no-flash script below; it is a few KB of
+          static text and compresses to almost nothing.
+        */}
+        <style dangerouslySetInnerHTML={{ __html: palettesCss() }} />
+      </head>
       <body>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <Providers>{children}</Providers>

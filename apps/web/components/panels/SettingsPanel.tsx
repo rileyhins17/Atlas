@@ -10,6 +10,7 @@ import { ProactiveSettingsCard } from './ProactiveSettingsCard';
 import { PlaidCard } from './PlaidCard';
 import { RoutineEditor } from './RoutineEditor';
 import { SettingsSection } from './SettingsSection';
+import { PaletteSettingsCard } from './PaletteSettingsCard';
 import { TrainingSettingsCard } from './TrainingSettingsCard';
 import { GoogleCalendarCard } from '@/components/connectors/GoogleCalendarCard';
 
@@ -49,6 +50,13 @@ export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
         hint={status?.connected ? 'connected' : 'not connected'}
       >
         <GoogleCalendarCard />
+      </SettingsSection>
+
+      {/* Its own section rather than buried under "Your data & account" with
+          the light/dark toggle: a colour scheme is the thing people go looking
+          for, and it was two levels down next to Delete account. */}
+      <SettingsSection id="appearance" title="Appearance" hint="ten colour schemes">
+        <PaletteSettingsCard />
       </SettingsSection>
 
       <SettingsSection id="banking" title="Banking" hint="connect an account">

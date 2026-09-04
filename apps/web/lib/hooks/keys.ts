@@ -23,6 +23,7 @@ export const qk = {
   habitHistory: (days: number) => ['habits', 'history', days] as const,
   timeline: (source?: string) => ['timeline', source ?? 'all'] as const,
   stats: (days: number) => ['stats', days] as const,
+  googleCalendars: ['google', 'calendars'] as const,
   moodPatterns: () => ['stats', 'patterns'] as const,
   dayEvents: (fromIso: string) => ['events', 'day', fromIso] as const,
   workoutTemplates: ['fitness', 'templates'] as const,

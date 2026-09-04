@@ -23,6 +23,7 @@ import type {
   HabitDTO,
   LastPerformanceDTO,
   GoalDTO,
+  GoogleCalendarChoiceDTO,
   PlanSplitResultDTO,
   WeightUnitPref,
   WorkoutTemplateDTO,
@@ -360,6 +361,12 @@ export interface SyncResult {
 
 export const GoogleApi = {
   status: () => request<GoogleStatus>('/connectors/google/status'),
+  calendars: () => request<GoogleCalendarChoiceDTO[]>('/connectors/google/calendars'),
+  setCalendars: (calendarIds: string[]) =>
+    request<{ removed: number }>('/connectors/google/calendars', {
+      method: 'PUT',
+      body: JSON.stringify({ calendarIds }),
+    }),
   start: () => request<{ url: string }>('/connectors/google/start'),
   sync: () => request<SyncResult>('/connectors/google/sync', { method: 'POST', body: '{}' }),
   disconnect: () =>
