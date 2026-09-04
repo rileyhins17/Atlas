@@ -115,3 +115,63 @@ describe('CostGuard', () => {
     expect(arg.data.userId).toBeNull();
   });
 });
+
+/**
+ * The cap has to be PER USER.
+ *
+ * It was a single global sum: `aggregate` ran with `where: { day }` and no
+ * userId, so one person's spending locked every other account out of AI until
+ * UTC midnight. The ledger has carried `userId` and an `@@index([userId, day])`
+ * from the first migration — it was simply never queried that way.
+ */
+describe('CostGuard — the cap is per user', () => {
+  it('counts only the asking user towards their cap', async () => {
+    const guard = new CostGuard(1000);
+    await guard.assertUnderCap('user-a');
+    const where = aggregate.mock.calls[0]?.[0]?.where as Record<string, unknown>;
+    expect(where.userId).toBe('user-a');
+  });
+
+  it('lets one user through while another is over', async () => {
+    // The ledger answers per user: A has spent everything, B has spent nothing.
+    aggregate.mockImplementation(({ where }: { where: { userId?: string } }) =>
+      Promise.resolve(
+        where.userId === 'heavy'
+          ? { _sum: { promptTokens: 5000, completionTokens: 0 } }
+          : { _sum: { promptTokens: 0, completionTokens: 0 } },
+      ),
+    );
+    const guard = new CostGuard(1000);
+    await expect(guard.assertUnderCap('heavy')).rejects.toThrow(DailyTokenCapError);
+    await expect(guard.assertUnderCap('light')).resolves.toBeUndefined();
+  });
+
+  /**
+   * A second ceiling above the per-user one, so a hundred accounts cannot
+   * bankrupt the owner between them even while each stays polite.
+   */
+  it('still enforces a global ceiling when one is set', async () => {
+    aggregate.mockImplementation(({ where }: { where: { userId?: string } }) =>
+      Promise.resolve(
+        where.userId === undefined
+          ? { _sum: { promptTokens: 99_000, completionTokens: 0 } }
+          : { _sum: { promptTokens: 10, completionTokens: 0 } },
+      ),
+    );
+    const guard = new CostGuard(1000, 50_000);
+    await expect(guard.assertUnderCap('anyone')).rejects.toThrow(DailyTokenCapError);
+  });
+
+  it('says which limit was hit, because the remedies differ', async () => {
+    aggregate.mockImplementation(({ where }: { where: { userId?: string } }) =>
+      Promise.resolve(
+        where.userId === undefined
+          ? { _sum: { promptTokens: 99_000, completionTokens: 0 } }
+          : { _sum: { promptTokens: 10, completionTokens: 0 } },
+      ),
+    );
+    const guard = new CostGuard(1000, 50_000);
+    // "Atlas is busy" is not the same instruction as "you are out of budget".
+    await expect(guard.assertUnderCap('anyone')).rejects.toThrow(/everyone|shared|server/i);
+  });
+});

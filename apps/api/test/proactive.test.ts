@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ProactiveService } from '../src/modules/ai/proactive.service.js';
+import { ActivityService } from '../src/core/activity.service.js';
 import { localHour } from '../src/modules/ai/time.util.js';
 
 function makeService() {
@@ -11,9 +12,18 @@ function makeService() {
     generateWeeklyReview: vi.fn().mockResolvedValue({ id: 'review_1', title: 'Weekly review', body: 'body' }),
   };
   const push = { sendToUser: vi.fn().mockResolvedValue(1) };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const service = new ProactiveService(prisma as any, orchestrator as any, push as any);
-  return { service, user, insight, orchestrator, push };
+  // A real ActivityService with one request already marked. These cases are
+  // about what the sweep DOES; the gate that stops it running on an idle server
+  // is pinned separately in proactive-idle.test.ts.
+  const activity = new ActivityService();
+  activity.mark();
+  const service = new ProactiveService(
+    prisma as never,
+    orchestrator as never,
+    push as never,
+    activity,
+  );
+  return { service, user, insight, orchestrator, push, activity };
 }
 
 // briefHour 0 in UTC ⇒ the hour-gate is always open, isolating the eligibility logic.
@@ -36,9 +46,8 @@ describe('ProactiveService.sweep', () => {
     const { service, user, insight, orchestrator } = makeService();
     user.findMany.mockResolvedValue([alwaysDue('u1')]);
     // A daily brief already exists today; the weekly review does not.
-    insight.count.mockImplementation(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ({ where }: any) => Promise.resolve(where.kind === 'daily_brief' ? 1 : 0),
+    insight.count.mockImplementation(({ where }: { where: { kind: string } }) =>
+      Promise.resolve(where.kind === 'daily_brief' ? 1 : 0),
     );
 
     await service.sweep();

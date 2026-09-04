@@ -2,7 +2,7 @@
   "name": "atlas",
   "version": "0.0.0",
   "private": true,
-  "description": "Atlas — a personal Life OS: one unified data layer for tasks, calendar, habits, journal and finance, with a cheap cross-domain AI.",
+  "description": "Atlas \u2014 a personal Life OS: one unified data layer for tasks, calendar, habits, journal and finance, with a cheap cross-domain AI.",
   "packageManager": "pnpm@11.13.1",
   "engines": {
     "node": ">=20"

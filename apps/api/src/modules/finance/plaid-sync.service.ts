@@ -189,12 +189,32 @@ export class PlaidSyncService {
     try {
       const sync = await connector.syncTransactions(ctx, cursor);
 
+      // A transaction we cannot place is a transaction we have NOT stored, and
+      // the cursor below is the only record of what has been seen. Advancing
+      // past one loses it permanently — Plaid never sends it again — and the
+      // user's ledger is quietly short by whatever was in it. It used to be a
+      // bare `continue`: no row, no error, no trace.
+      //
+      // It happens for real: an account opened between the accounts call and
+      // this one, or an account Plaid declines to return. So the drop is
+      // recorded, and the cursor is held back so the next sync sees the page
+      // again once the account exists.
+      const dropped: string[] = [];
       for (const t of [...sync.added, ...sync.modified]) {
         const accountId = acctMap.get(t.account_id);
-        if (!accountId) continue; // transaction for an account we didn't load
+        if (!accountId) {
+          dropped.push(t.account_id);
+          continue;
+        }
         const existed = await this.upsertTransaction(userId, accountId, t);
         if (existed) result.updated++;
         else result.imported++;
+      }
+      if (dropped.length > 0) {
+        const accounts = [...new Set(dropped)];
+        result.errors.push(
+          `${dropped.length} transaction(s) skipped for unknown account(s) ${accounts.join(', ')} — not saved, and this page will be re-read on the next sync`,
+        );
       }
 
       for (const removedId of sync.removed) {
@@ -204,10 +224,17 @@ export class PlaidSyncService {
         result.deleted += count;
       }
 
-      await this.connectors.saveCredentialMeta(userId, CONNECTOR_ID, {
-        cursor: sync.nextCursor,
-        lastSyncedAt: new Date().toISOString(),
-      }, itemId);
+      // Only advance past a page that was fully written. Re-reading a page is
+      // free and idempotent (upsert by external id); skipping one is not.
+      await this.connectors.saveCredentialMeta(
+        userId,
+        CONNECTOR_ID,
+        {
+          ...(dropped.length === 0 ? { cursor: sync.nextCursor } : {}),
+          lastSyncedAt: new Date().toISOString(),
+        },
+        itemId,
+      );
 
       await this.timeline.write({
         userId,

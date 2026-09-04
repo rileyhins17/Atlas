@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { buildContext, CostGuard, estimateTokens } from '@atlas/ai';
 import {
   AnswerQuestionInput,
@@ -49,6 +50,15 @@ export class AiController {
 
   // --- Chat with your life ---
 
+  /*
+   * Every route below this point either spends money or does real work per
+   * call, and none of them was tightened past the global 120 req/min. That
+   * global limit is a defence against a broken client, not against a user
+   * deliberately burning a shared budget — at 120/min one account could empty
+   * the day's tokens in under a minute. The numbers are generous for a person
+   * and hostile to a loop.
+   */
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('chat')
   async chat(
     @CurrentUser() user: AuthedUser,
@@ -60,6 +70,7 @@ export class AiController {
   }
 
   /** Paste in a messy brain dump; the AI files it into tasks/events/journal/notes via tool calls. */
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('brain-dump')
   async brainDump(
     @CurrentUser() user: AuthedUser,
@@ -71,11 +82,13 @@ export class AiController {
 
   // --- Daily brief + insights ---
 
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('daily-brief')
   generateDailyBrief(@CurrentUser() user: AuthedUser): Promise<InsightDTO> {
     return this.orchestrator.generateDailyBrief(user.id);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('weekly-review')
   generateWeeklyReview(@CurrentUser() user: AuthedUser): Promise<InsightDTO> {
     return this.orchestrator.generateWeeklyReview(user.id);
@@ -91,12 +104,14 @@ export class AiController {
 
   // --- Semantic memory ---
 
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('questions/generate')
   async generateQuestions(@CurrentUser() user: AuthedUser): Promise<{ ok: true }> {
     await this.orchestrator.generateQuestions(user.id);
     return { ok: true };
   }
 
+  @Throttle({ default: { limit: 6, ttl: 60_000 } })
   @Post('embeddings/backfill')
   backfillEmbeddings(
     @CurrentUser() user: AuthedUser,
@@ -153,6 +168,7 @@ export class AiController {
    * Propose a plan for today. Returns proposals ONLY — the user accepts them in
    * the UI, which creates the events through the normal calendar path.
    */
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('plan-day')
   planDay(
     @CurrentUser() user: AuthedUser,
@@ -161,6 +177,13 @@ export class AiController {
     return this.orchestrator.planDay(user.id, body.gaps);
   }
 
+  /*
+   * Rate-limited despite calling no model. It reads every domain's context to
+   * weigh the prompt, so it is a full fan-out of database reads per request —
+   * and it used to charge its estimate to the shared token cap, which made it
+   * the cheapest way to deny everyone else the feature.
+   */
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('dry-run')
   async dryRun(@CurrentUser() user: AuthedUser) {
     const chunks = await this.registry.collectContext(user.id);

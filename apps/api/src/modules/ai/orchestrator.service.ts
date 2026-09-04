@@ -189,7 +189,7 @@ export class OrchestratorService {
     tools?: Record<string, unknown>[],
     maxTokens: number = MAX_RESPONSE_TOKENS,
   ) {
-    await this.costGuard.assertUnderCap();
+    await this.costGuard.assertUnderCap(userId);
     const env = loadEnv();
     const ctx = this.connectors.contextFor(userId, 'deepseek');
     const res = await this.connectors.deepseek.chat(ctx, messages, {

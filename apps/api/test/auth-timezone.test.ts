@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../src/auth/auth.service.js';
+import { ActivityService } from '../src/core/activity.service.js';
 
 /**
  * `User.timezone` is the one clock every day rollup buckets by, using
@@ -18,8 +19,9 @@ function makeService() {
   const client = {
     user: { findUnique: vi.fn().mockResolvedValue(null), create },
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return { service: new AuthService({ client } as any), create };
+  // A real ActivityService, unmarked: registration is a request path, not a
+  // sweep, so the idle gate is irrelevant to these cases.
+  return { service: new AuthService({ client } as never, new ActivityService()), create };
 }
 
 const input = (timezone: string) => ({

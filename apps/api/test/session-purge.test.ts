@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../src/auth/auth.service.js';
+import { ActivityService } from '../src/core/activity.service.js';
 
 /**
  * Expired sessions used to accumulate forever: `logout` removes the one token it
@@ -14,8 +15,12 @@ import { AuthService } from '../src/auth/auth.service.js';
  */
 function makeService(deleteMany = vi.fn().mockResolvedValue({ count: 0 })) {
   const client = { session: { deleteMany } };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return { service: new AuthService({ client } as any), deleteMany };
+  // One request marked: these cases are about what the purge does. The gate
+  // that keeps an idle API off the database is pinned in proactive-idle.test.ts
+  // and applies to every @Interval in the app.
+  const activity = new ActivityService();
+  activity.mark();
+  return { service: new AuthService({ client } as never, activity), deleteMany, activity };
 }
 
 describe('purgeExpiredSessions', () => {
@@ -39,7 +44,7 @@ describe('purgeExpiredSessions', () => {
     const gate = new Promise<{ count: number }>((res) => {
       release = () => res({ count: 1 });
     });
-    const { service, deleteMany } = makeService(vi.fn().mockReturnValue(gate));
+    const { service, deleteMany, activity } = makeService(vi.fn().mockReturnValue(gate));
 
     const first = service.purgeExpiredSessions();
     await service.purgeExpiredSessions(); // must be a no-op while the first is in flight
@@ -48,7 +53,10 @@ describe('purgeExpiredSessions', () => {
     release();
     await first;
 
-    // …and the guard reopens, so the next scheduled sweep still runs.
+    // …and the guard reopens, so the next scheduled sweep still runs — given
+    // the app has been used since. A sweep does not earn its next run just by
+    // having finished, or one visit would put it back on the always-on path.
+    activity.mark();
     await service.purgeExpiredSessions();
     expect(deleteMany).toHaveBeenCalledTimes(2);
   });

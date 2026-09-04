@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import type { InsightDTO } from '@atlas/shared';
 import { PrismaService } from '../../core/prisma.service.js';
+import { ActivityService } from '../../core/activity.service.js';
 import { PushService } from '../push/push.service.js';
 import { OrchestratorService } from './orchestrator.service.js';
 import { localDayStartUtc, localHour, localWeekStartUtc } from './time.util.js';
@@ -13,8 +14,15 @@ import { localDayStartUtc, localHour, localWeekStartUtc } from './time.util.js';
  * timezone) it generates a daily brief once per local day and a weekly review
  * once per local week — each of which also seeds fresh `ai_questions`.
  *
- * Mirrors EmbeddingService.sweepPending (timer + re-entrancy guard, scans
- * users). Unlike embeddings this costs money, so it goes through
+ * Mirrors EmbeddingService.sweepPending: timer, re-entrancy guard, AND the
+ * activity gate. The gate is not decoration — it is the reason that class
+ * exists in the shape it does. Two timer sweeps that queried unconditionally
+ * kept a serverless Postgres awake around the clock and burned the whole
+ * monthly compute quota in about a week, after which it refused every query.
+ * This sweep copied the guard and the sentence "mirrors sweepPending" and
+ * missed the gate, so an idle Atlas still woke the database every hour.
+ *
+ * Unlike embeddings this also costs money, so it goes through
  * OrchestratorService (CostGuard-capped) and is bounded per sweep.
  */
 const SWEEP_INTERVAL_MS = 60 * 60_000; // hourly; per-period guards limit real generation
@@ -24,17 +32,33 @@ const MAX_USERS_PER_SWEEP = 50; // spend + load safety rail
 export class ProactiveService {
   private readonly logger = new Logger(ProactiveService.name);
   private running = false;
+  /**
+   * Request count at the last sweep. Starts at 0, not -1, so a server that
+   * boots and is never used sweeps zero times — the embedding sweep can afford
+   * -1 because it pairs it with a deliberate one-off run at bootstrap, and this
+   * one has nothing it needs to catch up on: a brief is due at a wall-clock
+   * hour, and if nobody has opened Atlas there is nobody to deliver it to.
+   */
+  private sweptAtCount = 0;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly orchestrator: OrchestratorService,
     private readonly push: PushService,
+    private readonly activity: ActivityService,
   ) {}
 
   @Interval(SWEEP_INTERVAL_MS)
   async sweep(): Promise<void> {
+    // Nobody can be due a brief without having used Atlas, so an idle API must
+    // not run this query at all. Checked BEFORE the re-entrancy guard is taken
+    // so a skipped sweep leaves no state behind.
+    if (!this.activity.hasRequestsSince(this.sweptAtCount)) return;
     if (this.running) return;
     this.running = true;
+    // Read the counter before the work, not after: a request that arrives
+    // during the sweep must still earn the next one.
+    const seen = this.activity.count;
     try {
       const users = await this.eligibleUsers();
       const now = new Date();
@@ -71,6 +95,7 @@ export class ProactiveService {
     } catch (err) {
       this.logger.warn(`Proactive sweep errored: ${errText(err)}`);
     } finally {
+      this.sweptAtCount = seen;
       this.running = false;
     }
   }

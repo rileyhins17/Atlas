@@ -27,3 +27,40 @@ packageExtensions:
   '@huggingface/transformers':
     dependencies:
       onnxruntime-common: '1.24.3'
+
+# Transitive security advisories, pinned forward.
+#
+# None of these is a direct dependency of Atlas — they arrive through Next,
+# ESLint, Prisma and the build tooling — so the alternative to overriding them
+# is waiting on nine separate upstream release cycles while `pnpm audit` reports
+# fifteen high-severity findings. Every entry is the minimum patched version the
+# advisory names, CARET-bounded to that major. A bare '>=' is not safe here: it
+# is unbounded, so `brace-expansion@1: '>=1.1.18'` resolved to 5.x, whose export
+# shape differs from v1's, and ESLint died with "expand is not a function".
+#
+# Lives here rather than in package.json's `pnpm.overrides`: pnpm 11 stopped
+# reading that field and ignores it silently, which looks exactly like the
+# overrides having no effect.
+overrides:
+  adm-zip: '^0.6.0'
+  brace-expansion@1: '^1.1.18'
+  brace-expansion@2: '^2.0.2'
+  browserslist: '^4.28.7'
+  js-yaml@4: '^4.3.1'
+  nanoid@3: '^3.3.18'
+  postcss: '^8.5.23'
+  qs: '^6.16.0'
+  # brace-expansion has three live major lines in this tree (minimatch pulls 1,
+  # 2 and 5); each advisory names a different patched floor. The 5.x line
+  # resists overriding — ESLint's nested minimatch keeps resolving 5.0.8 — and
+  # it is left that way deliberately: the only paths to it are
+  # eslint > minimatch > brace-expansion, so it runs at lint time over Atlas's
+  # own source and is never shipped, never reachable by a user, and never fed
+  # attacker-controlled input. Assessed, not missed. Revisit when ESLint
+  # updates; `pnpm audit` will keep reporting exactly this one until then.
+  # sharp reaches us twice — Next's image optimiser and the local embedding
+  # model's image path, neither of which Atlas uses for anything but decoding.
+  sharp: '^0.35.0'
+  # Prisma's config loader. Major bump, so the Prisma client build and the
+  # migration path are the things to watch after changing it.
+  deepmerge-ts: '^8.0.0'

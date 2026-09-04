@@ -3,6 +3,7 @@ import { Interval } from '@nestjs/schedule';
 import { createHash, randomBytes } from 'node:crypto';
 import type { RegisterInput, LoginInput, UserDTO } from '@atlas/shared';
 import { PrismaService } from '../core/prisma.service.js';
+import { ActivityService } from '../core/activity.service.js';
 import { safeTz } from '../modules/ai/time.util.js';
 import { hashPassword, verifyPassword } from './password.util.js';
 
@@ -25,8 +26,13 @@ export interface AuthedUser {
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private sweeping = false;
+  /** Request count at the last purge; see purgeExpiredSessions. */
+  private sweptAtCount = 0;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly activity: ActivityService,
+  ) {}
 
   private toDto(u: AuthedUser): UserDTO {
     return { id: u.id, email: u.email, displayName: u.displayName, timezone: u.timezone };
@@ -83,12 +89,21 @@ export class AuthService {
    * reason.
    *
    * Daily is often enough for rows with a thirty-day life, and the re-entrancy
-   * guard matches the other sweeps in the app.
+   * guard and activity gate match the other sweeps in the app.
+   *
+   * Gated even though daily is cheap — one query a day is not what burned the
+   * Neon quota. It is here so the rule reads the same everywhere: every
+   * @Interval in this codebase checks ActivityService first. A sweep that is
+   * exempt "because it is cheap" is how the next one gets written ungated.
+   * Nothing can expire that was not created by a request, so there is never
+   * work waiting on a server nobody has used.
    */
   @Interval(SESSION_SWEEP_INTERVAL_MS)
   async purgeExpiredSessions(): Promise<void> {
+    if (!this.activity.hasRequestsSince(this.sweptAtCount)) return;
     if (this.sweeping) return;
     this.sweeping = true;
+    const seen = this.activity.count;
     try {
       const { count } = await this.prisma.client.session.deleteMany({
         where: { expiresAt: { lt: new Date() } },
@@ -98,6 +113,7 @@ export class AuthService {
       // A failed sweep must never take the API down; the next one retries.
       this.logger.warn(`Session purge failed: ${String(err)}`);
     } finally {
+      this.sweptAtCount = seen;
       this.sweeping = false;
     }
   }

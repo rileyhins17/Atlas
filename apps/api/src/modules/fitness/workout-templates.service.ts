@@ -226,7 +226,7 @@ export class WorkoutTemplatesService {
     catalogNames: string[],
   ): Promise<string | null> {
     try {
-      await this.costGuard.assertUnderCap();
+      await this.costGuard.assertUnderCap(userId);
       const ctx = this.connectors.contextFor(userId, 'deepseek');
       const res = await this.connectors.deepseek.chat(
         ctx,

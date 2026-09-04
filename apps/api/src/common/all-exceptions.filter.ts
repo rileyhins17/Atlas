@@ -6,6 +6,7 @@ import {
   type ExceptionFilter,
 } from '@nestjs/common';
 import { ConnectorAuthExpiredError, ConnectorNotConfiguredError } from '@atlas/connectors';
+import { DailyTokenCapError } from '@atlas/ai';
 import type { Response } from 'express';
 import type { RequestWithId } from './request-id.middleware.js';
 import { reportServerError } from './observability.js';
@@ -35,9 +36,23 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const notConfigured =
       exception instanceof ConnectorNotConfiguredError ||
       exception instanceof ConnectorAuthExpiredError;
+    // Running out of AI budget is an expected daily condition with a clear
+    // remedy, not a fault. It carried a genuinely useful message and NOTHING
+    // caught it, so the filter flattened it to a 500 reading "Internal server
+    // error" — for the one failure a user can actually understand. It also
+    // poisoned the error budget: every cap hit was reported to Sentry as an
+    // unhandled exception.
+    //
+    // 424 rather than 429 deliberately. It is the status the client already
+    // reads as "this integration cannot be used right now, show the message",
+    // and it is what arms the local capture fallback — which was the real
+    // damage, because the fallback fired only on 424 and therefore switched
+    // itself off at the exact moment cost mattered most.
+    const outOfBudget = exception instanceof DailyTokenCapError;
+    const userFixable = notConfigured || outOfBudget;
     const status = isHttp
       ? exception.getStatus()
-      : notConfigured
+      : userFixable
         ? HttpStatus.FAILED_DEPENDENCY
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
@@ -67,7 +82,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const body = isHttp
       ? exception.getResponse()
-      : notConfigured
+      : userFixable
         ? { statusCode: status, message: (exception as Error).message }
         : { statusCode: status, message: 'Internal server error' };
 

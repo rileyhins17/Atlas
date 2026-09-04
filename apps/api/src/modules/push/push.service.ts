@@ -41,12 +41,41 @@ export class PushService {
     return this.vapidPublicKey;
   }
 
+  /**
+   * Register a device for push.
+   *
+   * An endpoint belongs to a browser, not to an account, so re-subscribing on
+   * one that already exists has to rebind it — two people sharing a laptop get
+   * the same endpoint from the push service, and the second to sign in must not
+   * be silently unsubscribable.
+   *
+   * What it must NOT do is what it used to: upsert keyed on `endpoint` alone,
+   * whose update branch rewrote `userId` in place. That made this the only
+   * write in the codebase capable of mutating another user's row — post someone
+   * else's endpoint and their briefs arrive on your device while they quietly
+   * stop receiving their own.
+   *
+   * So the rebind is a delete of whatever held the endpoint followed by a fresh
+   * row owned by the caller, both inside one transaction: no foreign row is
+   * edited, no window exists where the device is registered to nobody, and a
+   * takeover leaves a log line rather than nothing.
+   */
   async subscribe(userId: string, sub: PushSubscriptionInput): Promise<void> {
-    await this.prisma.client.pushSubscription.upsert({
+    const existing = await this.prisma.client.pushSubscription.findUnique({
       where: { endpoint: sub.endpoint },
-      create: { userId, endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth },
-      // Re-subscribing on the same endpoint (possibly as a different user) rebinds it.
-      update: { userId, p256dh: sub.keys.p256dh, auth: sub.keys.auth },
+      select: { userId: true },
+    });
+    if (existing && existing.userId !== userId) {
+      this.logger.warn(
+        `Push endpoint reassigned from user ${existing.userId} to ${userId} (shared device, or an endpoint that leaked)`,
+      );
+    }
+
+    await this.prisma.client.$transaction(async (tx) => {
+      await tx.pushSubscription.deleteMany({ where: { endpoint: sub.endpoint } });
+      await tx.pushSubscription.create({
+        data: { userId, endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth },
+      });
     });
   }
 

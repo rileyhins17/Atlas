@@ -32,7 +32,12 @@ const EnvSchema = z.object({
   // deepseek-v4-flash) and the resolved name is what lands in the ai_usage
   // ledger, so pricing lookups miss unless we ask for the real id up front.
   AI_MODEL: z.string().default('deepseek-v4-flash'),
+  // Per USER, per UTC day. 0 turns AI off entirely.
   AI_DAILY_TOKEN_CAP: z.coerce.number().default(0),
+  // A second ceiling across everyone, for a deployment paying with one key: a
+  // hundred accounts each politely under their own limit still add up. 0 means
+  // the per-user cap is the only limit.
+  AI_GLOBAL_DAILY_TOKEN_CAP: z.coerce.number().default(0),
   // Google Calendar OAuth client (app-level, not a user secret). Optional: when
   // unset the connector reports itself unconfigured instead of failing at boot,
   // so Atlas runs fine without Google.
