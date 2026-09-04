@@ -2,11 +2,10 @@
 
 import { useState } from 'react';
 import { useStats } from '@/lib/hooks/stats';
-import { hasActivity } from '@/lib/progress';
+import { hasRealActivity } from '@/lib/what-changed';
 import { EmptyState, ListSkeleton, QueryState } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
 import { ProgressOverview } from '@/components/progress/ProgressOverview';
-import { MoodPatterns } from '@/components/progress/MoodPatterns';
 
 const RANGES = [
   { days: 30, label: '30 days' },
@@ -25,10 +24,11 @@ export function ProgressPanel() {
 
   return (
     <div className="stream">
-      {/* The nav says "Looking back" and /progress redirects here, so the page
-          must say it too — a destination whose heading disagrees with the item
-          you clicked reads as having navigated somewhere else. */}
-      <PageHeader title="Looking back" subtitle="How your life is actually trending." />
+      {/* The heading has to match the nav item that got you here, or the page
+          reads as having navigated somewhere else. The subtitle promises only
+          what the page delivers: it used to say "how your life is actually
+          trending" above six charts with no axis. */}
+      <PageHeader title="Progress" subtitle={`What changed in the last ${days} days.`} />
 
       <div className="filter-chips" role="group" aria-label="Range">
         {RANGES.map((r) => (
@@ -51,22 +51,22 @@ export function ProgressPanel() {
         query={stats}
         errorFallback="Couldn't load your progress."
         skeleton={<ListSkeleton rows={4} circle={false} />}
+        // Gated on what the PERSON did, not on `d.events` — which counts rows
+        // Atlas wrote to its own timeline. An account with ninety days of real
+        // history was shown "your long arc starts now" because its timeline
+        // happened to be empty, and a sync that writes one row instead of two
+        // hundred makes a busy month look like a blank one.
         empty={(d) =>
-          !hasActivity(d.days) && (
+          !hasRealActivity(d.days) && (
             <EmptyState
-              title="Your long arc starts now"
-              hint="As you complete tasks, check in habits, journal and spend, the trends chart themselves here."
+              title="Nothing to compare yet"
+              hint="Finish a task, check in a habit or log how you feel. As soon as there are two periods to put side by side, this page says what changed."
             />
           )
         }
       >
         {(d) => <ProgressOverview data={d} days={days} />}
       </QueryState>
-
-      {/* Outside the range chips on purpose: the server decides how far back a
-          comparison may look, so switching to "30 days" must not be able to
-          shrink the sample until a coincidence clears the threshold. */}
-      <MoodPatterns />
     </div>
   );
 }

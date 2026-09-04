@@ -1,4 +1,5 @@
 import type { StatsDayDTO, StatsDTO } from '@atlas/shared';
+import { hasRealActivity } from './what-changed';
 
 /**
  * Pure helpers for the Progress page — unit-tested. Deltas compare the current
@@ -110,13 +111,15 @@ export function habitConsistency(days: StatsDayDTO[]): number {
 }
 
 /**
- * Does this window contain anything at all? The Progress page's empty state
- * turns on it, and so does `deriveProgress` — one definition so the page cannot
- * decide it is empty and then render charts, or the reverse.
+ * Does this window contain anything at all?
+ *
+ * Re-exported from what-changed.ts rather than defined twice. It used to ask
+ * `d.events > 0` — the count of rows Atlas wrote to its OWN timeline — so an
+ * account with ninety days of history whose timeline happened to be empty was
+ * shown "your long arc starts now". `hasRealActivity` counts what the person
+ * did instead.
  */
-export function hasActivity(days: StatsDayDTO[]): boolean {
-  return days.some((d) => d.events > 0);
-}
+export { hasRealActivity as hasActivity };
 
 /** Everything the Progress page plots, derived from one stats response. */
 export interface ProgressDerived {
@@ -156,6 +159,6 @@ export function deriveProgress(data: StatsDTO): ProgressDerived {
     consistency: habitConsistency(days),
     hasMoney: days.some((d) => d.spentMinor > 0 || d.earnedMinor > 0),
     hasTraining: totals.current.workouts > 0 || totals.previous.workouts > 0,
-    anyActivity: hasActivity(days),
+    anyActivity: hasRealActivity(days),
   };
 }

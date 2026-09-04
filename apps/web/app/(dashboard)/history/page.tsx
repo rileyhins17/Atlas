@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-/** History is the bottom half of Looking back now. */
-export default function Page() {
-  redirect('/looking-back');
+/** The feed is the bottom half of Progress now, folded away. */
+export default function HistoryPage(): never {
+  redirect('/progress');
 }

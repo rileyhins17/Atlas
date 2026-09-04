@@ -39,6 +39,13 @@ export function MoodPatterns() {
     <section className="mood-patterns" aria-labelledby="mood-patterns-h">
       <h2 className="mood-patterns-h" id="mood-patterns-h">
         What your better days have in common
+        {/* The window is stated because it is NOT the range chips above: the
+            server decides how far back a correlation may look, so this card
+            says 90 days while the page header says 30, and two different
+            numbers with no explanation read as a bug. */}
+        {daysLogged >= daysNeeded && (
+          <span className="mood-patterns-scope"> · across {daysLogged} logged days</span>
+        )}
       </h2>
 
       {daysLogged < daysNeeded ? (

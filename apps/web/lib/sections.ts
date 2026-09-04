@@ -16,7 +16,7 @@
  *
  *   Today        — what is happening now?
  *   Week         — what is coming?
- *   Looking back — how did it actually go?
+ *   Progress — what changed, and what should I do about it?
  *
  * Everything that existed still exists and keeps its own URL. The domain pages
  * are reachable from "Everything" and from search; nothing was deleted, and no
@@ -56,10 +56,10 @@ export const SECTIONS: Section[] = [
     ],
   },
   {
-    href: '/looking-back',
-    label: 'Looking back',
+    href: '/progress',
+    label: 'Progress',
     icon: 'rewind',
-    tabs: [{ key: 'back', label: 'Looking back', href: '/looking-back' }],
+    tabs: [{ key: 'progress', label: 'Progress', href: '/progress' }],
   },
 ];
 
@@ -127,7 +127,7 @@ export interface Destination {
 const EXTRA_KEYWORDS: Record<string, string> = {
   '/today': 'home now day canvas',
   '/week': 'week calendar schedule upcoming soon',
-  '/looking-back': 'progress stats statistics trends history timeline story review past',
+  '/progress': 'progress stats statistics trends history timeline story review past looking back',
   '/calendar': 'events schedule',
   '/tasks': 'todo to-do',
   '/goals': 'objectives ambitions',

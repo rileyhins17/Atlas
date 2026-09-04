@@ -15,6 +15,7 @@ export type StatsMetric =
   | 'earned'
   | 'workouts'
   | 'volume'
+  | 'journal'
   | 'events';
 
 export interface MetricRow {
@@ -30,6 +31,7 @@ function emptyDay(day: string): StatsDayDTO {
     tasksCompleted: 0,
     habitChecks: 0,
     moodAvg: null,
+    journalEntries: 0,
     spentMinor: 0,
     earnedMinor: 0,
     workouts: 0,
@@ -43,6 +45,7 @@ function emptyTotals(): PeriodTotalsDTO {
     tasksCompleted: 0,
     habitChecks: 0,
     moodAvg: null,
+    journalEntries: 0,
     spentMinor: 0,
     earnedMinor: 0,
     workouts: 0,
@@ -82,6 +85,9 @@ function apply(target: StatsDayDTO | PeriodTotalsDTO, metric: StatsMetric, value
       break;
     case 'volume':
       target.volumeGrams += value;
+      break;
+    case 'journal':
+      target.journalEntries += value;
       break;
     case 'events':
       target.events += value;

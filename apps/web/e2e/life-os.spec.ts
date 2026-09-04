@@ -127,7 +127,7 @@ test('Today overview: capture, pager, now/next, habit check-in', async ({ page }
 });
 
 test('the capture dock and the asks bell are on every page', async ({ page }) => {
-  await go(page, '/looking-back');
+  await go(page, '/progress');
   // Capture is docked app-wide now, not just on Today.
   await expect(page.locator('.capture-dock').getByLabel('Capture anything')).toBeVisible();
 
@@ -151,8 +151,8 @@ test('History shows cross-domain moments and filters by domain', async ({ page }
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(page.getByText('Meditate')).toBeVisible();
 
-  // Both land in the feed — the folded-away half of Looking back.
-  await page.goto('/looking-back');
+  // Both land in the feed — the folded-away half of Progress.
+  await page.goto('/progress');
   await page.getByRole('button', { name: /Everything that happened/ }).click();
   const feed = page.getByRole('region', { name: 'Your story' });
   await expect(feed.getByText('Created task: Write the story view')).toBeVisible();
@@ -214,26 +214,61 @@ test('Tasks filters, searches, and quick-adds into a group', async ({ page }) =>
   );
 });
 
-test('Looking back charts the long arc and passes the axe scan', async ({ page }) => {
-  // The shared account completed a task in an earlier test, so the tiles have
-  // something real to render.
-  await go(page, '/looking-back');
-  // The heading has to match the nav item that got you here — it used to say
-  // "Progress", which reads as having landed somewhere other than where you
-  // clicked.
-  await expect(page.getByRole('heading', { name: 'Looking back' })).toBeVisible();
+test('Progress leads with what changed and passes the axe scan', async ({ page }) => {
+  // Self-seeding. This used to lean on another spec having completed a task
+  // earlier in the file, which passes in a full run and fails alone — the shape
+  // that hides in green. The page says what CHANGED, so it needs something to
+  // have changed.
+  await go(page, '/today');
+  await page.evaluate(async () => {
+    const post = (path: string, body: unknown) =>
+      fetch(`http://localhost:4000${path}`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    const made = await post('/tasks', { title: `Progress seed ${Date.now()}`, priority: 'LOW' });
+    const task = (await made.json()) as { id: string };
+    await post(`/tasks/${task.id}/complete`, {});
+    await post('/journal', { body: 'Seeded for the progress spec.', mood: 4 });
+  });
+
+  await go(page, '/progress');
+  await expect(page.getByRole('heading', { name: 'Progress' })).toBeVisible();
 
   // Range chips drive the window.
   await page.getByRole('button', { name: '90 days' }).click();
   await expect(page.getByRole('button', { name: '90 days' })).toHaveAttribute('aria-pressed', 'true');
 
-  // Headline tiles render (the empty state would replace them entirely).
-  await expect(page.getByText('Tasks done')).toBeVisible();
-  // Habit check-ins was deliberately dropped from the tiles — it duplicated the
-  // consistency % already in the hero strip.
-  await expect(page.getByText('Habit check-ins')).toHaveCount(0);
-  // Mood is ONE visual with a labelled axis; the distribution bars are gone.
-  await expect(page.locator('.prog-mood-bar')).toHaveCount(0);
+  // The page leads with SENTENCES now, and every one carries a real number.
+  // It used to lead with "193 things happened" over six sparklines that had no
+  // axis, no baseline and no values — shapes you could not read anything off.
+  const changes = page.locator('.wc-item');
+  await expect(changes.first()).toBeVisible();
+  await expect(changes.first()).toContainText(/\d/);
+
+  // The calendar is labelled on every axis. The version this replaced was a
+  // bare grid of squares: no weekdays, no months, no scale, and a tooltip
+  // carrying a raw ISO date — which on a phone, with no hover, was decoration.
+  await expect(page.locator('.cal-weekdays')).toContainText('Mon');
+  await expect(page.locator('.cal-months')).not.toBeEmpty();
+  await expect(page.locator('.cal-key')).toBeVisible();
+
+  // Tapping a day names it. This is the only way the calendar works on touch.
+  const firstDay = page.locator('.cal-cell:not([data-level="future"])').first();
+  await firstDay.click();
+  await expect(page.locator('.cal-readout')).toContainText(
+    /Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday/,
+  );
+
+  // The charts still exist as evidence, but folded away rather than being the
+  // page. Nothing from the old headline tiles survives.
+  await expect(page.getByText('Tasks done')).toHaveCount(0);
+  await expect(page.getByText('things happened')).toHaveCount(0);
+  await expect(page.locator('.prog-grid')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Charts' }).click();
+  await expect(page.locator('.prog-grid')).toBeVisible();
 
   await page.addStyleTag({
     content: '*, *::before, *::after { animation: none !important; transition: none !important; }',
@@ -589,11 +624,11 @@ test('the nav is three destinations, and every old route still resolves', async 
   // carries "Everything" as well, because the sidebar that holds it is hidden
   // below 901px and half the app was otherwise reachable only through search.
   const nav = page.locator('.app-nav').first();
-  await expect(nav.locator('.nav-label')).toHaveText(['Today', 'Week', 'Looking back']);
+  await expect(nav.locator('.nav-label')).toHaveText(['Today', 'Week', 'Progress']);
   await expect(page.locator('.bottom-nav .nav-label')).toHaveText([
     'Today',
     'Week',
-    'Looking back',
+    'Progress',
     'Everything',
   ]);
 
@@ -619,9 +654,9 @@ test('the nav is three destinations, and every old route still resolves', async 
 
   // Progress and History merged: both land on one "how did it go" screen.
   await page.goto('/progress');
-  await expect(page).toHaveURL(/\/looking-back$/);
+  await expect(page).toHaveURL(/\/progress$/);
   await page.goto('/history');
-  await expect(page).toHaveURL(/\/looking-back$/);
+  await expect(page).toHaveURL(/\/progress$/);
 });
 
 test('goals split into short and long term', async ({ page }) => {
@@ -817,7 +852,7 @@ test('capture updates the page it was typed on, without a reload', async ({ page
 });
 
 test('the weekly review can be asked for, not only waited for', async ({ page }) => {
-  await go(page, '/looking-back');
+  await go(page, '/progress');
 
   // The proactive engine writes one on a schedule and Progress has always
   // displayed it — but nothing could REQUEST one, so a new account (or one
@@ -929,7 +964,7 @@ test('every route renders clean at phone width, with no console errors', async (
   // it was written, which is the point: it is a tripwire, not a diagnosis.
   const ROUTES = [
     '/today', '/tasks', '/calendar', '/goals', '/habits', '/journal', '/notes',
-    '/fitness', '/finance', '/looking-back', '/everything', '/week', '/settings',
+    '/fitness', '/finance', '/progress', '/everything', '/week', '/settings',
   ];
 
   // Its own baseline. This spec asserts the capture dock on every route, and the
@@ -1020,7 +1055,7 @@ test('every route renders clean at phone width, with no console errors', async (
 
     // Axe, on every route, at the width most people use.
     //
-    // Three surfaces were scanned before this — Today, Looking back, and the
+    // Three surfaces were scanned before this — Today, Progress, and the
     // week grid — and the moment the grid was added to that list it turned up
     // eight serious violations that had shipped. Scanning three of thirteen
     // routes is how the other ten stay broken quietly. The whole violation list
@@ -1115,7 +1150,7 @@ test('the weekly review ends in a decision, not just a paragraph', async ({ page
   await page.getByRole('button', { name: /Add/ }).click();
   await expect(page.locator('.goal-open', { hasText: marker })).toBeVisible();
 
-  await go(page, '/looking-back');
+  await go(page, '/progress');
   const decide = page.locator('.wk-decide');
   await expect(decide).toBeVisible();
   await expect(decide).toContainText('Worth deciding');
@@ -1371,8 +1406,8 @@ test('⌘K reaches the destinations the app actually has', async ({ page }) => {
 
   // And the old vocabulary still lands on whatever replaced it.
   await open('progress');
-  await page.getByRole('option', { name: 'Go to Looking back' }).click();
-  await expect(page).toHaveURL(/\/looking-back$/);
+  await page.getByRole('option', { name: 'Go to Progress' }).click();
+  await expect(page).toHaveURL(/\/progress$/);
 
   await open('notes');
   await page.getByRole('option', { name: 'Go to Writing' }).click();
@@ -1590,7 +1625,7 @@ test('a failed request never mistakes an established account for a brand-new one
   await expect(page.getByLabel('Capture anything')).toBeAttached();
 });
 
-test('Looking back explains what it would need before it will claim a pattern', async ({
+test('Progress explains what it would need before it will claim a pattern', async ({
   page,
 }) => {
   // The payoff for the daily mood tap, and the thing most able to embarrass
@@ -1613,7 +1648,7 @@ test('Looking back explains what it would need before it will claim a pattern', 
     timeout: 15_000,
   });
 
-  await go(page, '/looking-back');
+  await go(page, '/progress');
   const card = page.locator('.mood-patterns');
   await expect(card).toBeVisible({ timeout: 20_000 });
   await expect(card).toContainText(/1 of 14 days logged/);
@@ -1633,7 +1668,7 @@ test('Atlas asks how you are at your own waking and bedtime, not the clock', asy
   // Mood is the only thing Atlas cannot derive from use, and it is asked TWICE
   // a day on purpose: one reading says how a day went, two bracket it, and the
   // difference between them is what the hours in between did to you. That pair
-  // is what the patterns on Looking back compare against.
+  // is what the patterns on Progress compare against.
   //
   // Self-seeding twice over, and independent of when it runs. The routine is
   // written relative to NOW so "now" lands inside the evening window whatever

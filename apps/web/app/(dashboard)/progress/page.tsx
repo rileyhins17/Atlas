@@ -1,6 +1,5 @@
-import { redirect } from 'next/navigation';
+import { LookingBackPanel } from '@/components/panels/LookingBackPanel';
 
-/** Progress and History merged into one "Looking back" screen. */
-export default function Page() {
-  redirect('/looking-back');
+export default function ProgressPage() {
+  return <LookingBackPanel />;
 }

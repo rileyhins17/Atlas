@@ -52,7 +52,7 @@ export class StatsService {
     // tz is a BOUND parameter (never string-interpolated).
     const q = <T>(sql: Prisma.Sql) => this.prisma.client.$queryRaw<T[]>(sql);
 
-    const [tasks, habits, mood, money, events, workouts, volume] = await Promise.all([
+    const [tasks, habits, mood, money, events, workouts, volume, journal] = await Promise.all([
       q<{ day: string; value: number }>(Prisma.sql`
         SELECT ((("completedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${tz})::date)::text AS day,
                COUNT(*)::int AS value
@@ -106,6 +106,15 @@ export class StatsService {
           AND s.warmup = false
           AND s."weightGrams" IS NOT NULL AND s.reps IS NOT NULL
         GROUP BY 1`),
+      // Journal entries as a COUNT, separate from the mood average above: an
+      // entry with no mood is still something the person did that day, and the
+      // activity calendar has to count it.
+      q<{ day: string; value: number }>(Prisma.sql`
+        SELECT ((("entryDate" AT TIME ZONE 'UTC') AT TIME ZONE ${tz})::date)::text AS day,
+               COUNT(*)::int AS value
+        FROM journal_entries
+        WHERE "userId" = ${userId} AND "entryDate" >= ${prevFrom}
+        GROUP BY 1`),
     ]);
 
     const rows: MetricRow[] = [
@@ -116,6 +125,7 @@ export class StatsService {
         { metric: 'spent' as StatsMetric, day: m.day, value: Number(m.spent) },
         { metric: 'earned' as StatsMetric, day: m.day, value: Number(m.earned) },
       ]),
+      ...tag('journal', journal),
       ...tag('events', events),
       ...tag('workouts', workouts),
       // Volume arrives as a bigint sum; Number() is safe here because a

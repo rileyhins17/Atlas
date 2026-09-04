@@ -5292,6 +5292,7 @@ label:has(> input[type='checkbox']) {
   margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -0.01em;
   color: var(--text-primary);
 }
+.mood-patterns-scope { font-weight: 400; font-size: 13px; color: var(--text-muted); }
 .mood-patterns-wait { margin: 0; font-size: 14px; line-height: 1.55; color: var(--text-muted); }
 .mood-patterns-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 9px; }
 .mood-patterns-item {
@@ -5401,3 +5402,82 @@ label:has(> input[type='checkbox']) {
   color: var(--brand); font: inherit; font-size: 12.5px; cursor: pointer;
   text-decoration: underline;
 }
+
+/* ── Progress: what changed ───────────────────────────────────────────────
+   The page leads with sentences now, not tiles. Each carries its own number,
+   so the line length varies and they are laid out as a list rather than a
+   grid — a grid would either truncate the long ones or leave holes. */
+.wc { display: flex; flex-direction: column; gap: 2px; }
+.wc-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
+.wc-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 11px 12px; border-radius: 12px;
+  font-size: 15px; line-height: 1.45; color: var(--text-primary);
+}
+.wc-item:nth-child(odd) { background: var(--surface); }
+.wc-icon { flex: none; margin-top: 2px; color: var(--text-muted); }
+.wc-item[data-tone='good'] .wc-icon { color: var(--success-text); }
+.wc-item[data-tone='bad'] .wc-icon { color: var(--pill-warm-fg); }
+/* The one you can act on tonight. Tinted, not shouted: it is a nudge, not an
+   error, and a red banner every time you miss two days trains you to ignore it. */
+.wc-item[data-tone='warn'] {
+  background: color-mix(in srgb, var(--brand) 10%, transparent);
+}
+.wc-item[data-tone='warn'] .wc-icon { color: var(--brand-on-tint); }
+.wc-text { min-width: 0; overflow-wrap: anywhere; }
+
+/* ── Progress: the activity calendar ──────────────────────────────────────
+   Every axis is drawn. The version this replaces was a bare grid of squares —
+   no weekdays, no months, no scale, and a tooltip carrying a raw ISO date,
+   which on a phone (no hover) meant no information at all. */
+.cal { display: flex; flex-direction: column; gap: 10px; }
+.cal-scroll {
+  overflow-x: auto;
+  /* Contained, or swiping the calendar drags the whole page on iOS. */
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  padding-bottom: 2px;
+}
+/* 24px cells, not the 15px a GitHub-style graph would use. Every one is a
+   button, and WCAG 2.2 target-size is a 24x24 floor regardless of pointer —
+   which is also the difference between a calendar you can tap a day on and one
+   you can only look at. A year's worth scrolls sideways; that is the trade. */
+.cal-months {
+  display: flex; gap: 4px;
+  margin-left: 38px; margin-bottom: 4px;
+  font-size: 11px; color: var(--text-muted);
+}
+.cal-month { width: 24px; flex: none; white-space: nowrap; }
+.cal-body { display: flex; gap: 6px; }
+.cal-weekdays {
+  display: flex; flex-direction: column; gap: 4px;
+  width: 34px; flex: none;
+  font-size: 11px; color: var(--text-muted);
+}
+.cal-weekdays span { height: 24px; line-height: 24px; }
+.cal-grid { display: flex; gap: 4px; }
+.cal-col { display: flex; flex-direction: column; gap: 4px; }
+.cal-cell {
+  width: 24px; height: 24px; flex: none;
+  border: 0; padding: 0; border-radius: 3px;
+  background: var(--surface-inset);
+  cursor: pointer;
+}
+.cal-cell[data-level='0'] { background: var(--surface-inset); }
+.cal-cell[data-level='1'] { background: color-mix(in srgb, var(--brand) 28%, var(--surface-inset)); }
+.cal-cell[data-level='2'] { background: color-mix(in srgb, var(--brand) 52%, var(--surface-inset)); }
+.cal-cell[data-level='3'] { background: color-mix(in srgb, var(--brand) 76%, var(--surface-inset)); }
+.cal-cell[data-level='4'] { background: var(--brand); }
+.cal-cell[data-level='future'] { background: transparent; cursor: default; }
+.cal-cell.on { outline: 2px solid var(--text-primary); outline-offset: 1px; }
+.cal-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+/* The readout is the whole point on touch: no hover, so tapping a day has to
+   say which day it was and what was on it. */
+.cal-readout { margin: 0; font-size: 13.5px; color: var(--text-primary); font-weight: 600; }
+.cal-key { display: flex; align-items: center; gap: 4px; margin-left: auto; font-size: 11px; color: var(--text-muted); }
+.cal-key i { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+.cal-key i[data-level='0'] { background: var(--surface-inset); }
+.cal-key i[data-level='1'] { background: color-mix(in srgb, var(--brand) 28%, var(--surface-inset)); }
+.cal-key i[data-level='2'] { background: color-mix(in srgb, var(--brand) 52%, var(--surface-inset)); }
+.cal-key i[data-level='3'] { background: color-mix(in srgb, var(--brand) 76%, var(--surface-inset)); }
+.cal-key i[data-level='4'] { background: var(--brand); }

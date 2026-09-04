@@ -7,7 +7,7 @@ describe('sections', () => {
     // defend. Eleven peers became four sections, and four sections still hid a
     // tab strip that put the eleven back. If this grows, the nav is drifting.
     expect(SECTIONS).toHaveLength(3);
-    expect(SECTIONS.map((s) => s.label)).toEqual(['Today', 'Week', 'Looking back']);
+    expect(SECTIONS.map((s) => s.label)).toEqual(['Today', 'Week', 'Progress']);
   });
 
   it('is organised by time, not by data type', () => {
@@ -15,7 +15,7 @@ describe('sections', () => {
     // like "Money" or "Life" is the shape this replaced.
     expect(sectionFor('/today')?.label).toBe('Today');
     expect(sectionFor('/week')?.label).toBe('Week');
-    expect(sectionFor('/looking-back')?.label).toBe('Looking back');
+    expect(sectionFor('/progress')?.label).toBe('Progress');
   });
 
   it('keeps the planning routes reachable inside Week', () => {
@@ -106,8 +106,8 @@ describe('DESTINATIONS (what ⌘K can reach)', () => {
       DESTINATIONS.filter((d) => d.keywords.includes(term)).map((d) => d.href);
     // Someone who learnt this app before the restructure still gets somewhere.
     expect(find('notes')).toContain('/journal');
-    expect(find('progress')).toContain('/looking-back');
-    expect(find('history')).toContain('/looking-back');
+    expect(find('progress')).toContain('/progress');
+    expect(find('history')).toContain('/progress');
     expect(find('finance')).toContain('/finance');
     expect(find('workout')).toContain('/fitness');
   });

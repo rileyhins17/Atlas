@@ -11,6 +11,7 @@ function day(over: Partial<StatsDayDTO> = {}): StatsDayDTO {
     tasksCompleted: 0,
     habitChecks: 0,
     moodAvg: null,
+    journalEntries: 0,
     spentMinor: 0,
     earnedMinor: 0,
     workouts: 0,

@@ -17,6 +17,7 @@ const day = (over: Partial<StatsDayDTO>): StatsDayDTO => ({
   tasksCompleted: 0,
   habitChecks: 0,
   moodAvg: null,
+  journalEntries: 0,
   spentMinor: 0,
   earnedMinor: 0,
   workouts: 0,
@@ -130,6 +131,7 @@ describe('habitConsistency', () => {
 const totals = (over: Partial<PeriodTotalsDTO> = {}): PeriodTotalsDTO => ({
   tasksCompleted: 0,
   habitChecks: 0,
+  journalEntries: 0,
   moodAvg: null,
   spentMinor: 0,
   earnedMinor: 0,
@@ -145,11 +147,20 @@ const stats = (days: StatsDayDTO[], current = totals(), previous = totals()): St
 });
 
 describe('hasActivity', () => {
-  it('is about events, not about rows', () => {
-    // Every day in the window is present in the response whether or not
-    // anything happened on it, so a full array is not evidence of a life.
+  /**
+   * It used to ask `d.events > 0` — the count of rows Atlas wrote to its OWN
+   * timeline — so an account with ninety days of real history whose timeline
+   * happened to be empty was shown "your long arc starts now". It now counts
+   * what the person actually did.
+   */
+  it('is about what you did, not about what Atlas logged', () => {
+    // Every day in the window is present whether or not anything happened on
+    // it, so a full array is not evidence of a life.
     expect(hasActivity([day({}), day({ day: '2026-07-02' })])).toBe(false);
-    expect(hasActivity([day({}), day({ day: '2026-07-02', events: 1 })])).toBe(true);
+    // A day full of timeline rows and nothing done is still an empty day.
+    expect(hasActivity([day({ events: 250 })])).toBe(false);
+    expect(hasActivity([day({ day: '2026-07-02', tasksCompleted: 1 })])).toBe(true);
+    expect(hasActivity([day({ day: '2026-07-02', journalEntries: 1 })])).toBe(true);
     expect(hasActivity([])).toBe(false);
   });
 });
