@@ -1715,3 +1715,106 @@ test('Atlas asks how you are at your own waking and bedtime, not the clock', asy
   await go(page, '/today');
   await expect(page.locator('.mood-checkin')).toHaveCount(0);
 });
+
+/**
+ * Supersets: two movements done back to back, with rest only after the round.
+ *
+ * The rest timer is the whole point, and it is the part that cannot be checked
+ * by reading the DOM for a label — a superset that still restarts the clock
+ * after each movement is a superset in name only. So this drives the real
+ * timer: it lets it run, logs the FIRST movement of the round and asserts the
+ * clock kept counting, then logs the LAST and asserts it went back to zero.
+ *
+ * Own baseline via `resetFitness`, because a workout left open by another spec
+ * hides the start card entirely and saved days change what the picker offers.
+ */
+test('a superset is one round, and the rest timer waits for the end of it', async ({ page }) => {
+  await resetFitness(page);
+  await go(page, '/fitness');
+
+  await page.getByRole('button', { name: 'New workout day' }).click();
+  await page.getByLabel('Workout day name').fill('Superset Day');
+
+  // Whatever the catalog offers under "barbell" — the assertion is about
+  // grouping, and naming three exercises would couple it to the catalog.
+  await page.getByRole('searchbox', { name: /search exercises to add/i }).fill('barbell');
+  const picked: string[] = [];
+  for (let i = 0; i < 3; i += 1) {
+    const option = page.getByRole('option').first();
+    await expect(option).toBeVisible({ timeout: 20_000 });
+    picked.push((await option.locator('.day-option-name').innerText()).trim());
+    await option.click();
+  }
+
+  // The control says what it will do to WHICH two movements, so it can be
+  // understood without first working out what "link" means here.
+  const link = page.locator('.day-link').first();
+  await expect(link).toHaveAttribute('aria-label', `Superset ${picked[0]} with ${picked[1]}`);
+  await link.click();
+  await expect(link).toHaveAttribute('aria-label', `Separate ${picked[0]} from ${picked[1]}`);
+  await expect(page.locator('.day-superset-tag')).toHaveCount(2);
+
+  await page.getByRole('button', { name: /^Save/ }).click();
+  await expect(page.getByRole('button', { name: 'Start Superset Day' })).toBeVisible({
+    timeout: 20_000,
+  });
+
+  // It is a stored fact, not a screen state: read it back off the API.
+  const stored = await page.evaluate(async () => {
+    const base = window.location.hostname === 'localhost' ? 'http://localhost:4000' : '/api';
+    const days = (await (
+      await fetch(`${base}/fitness/templates`, { credentials: 'include' })
+    ).json()) as { name: string; exercises: { supersetGroup: number | null }[] }[];
+    return days.find((d) => d.name === 'Superset Day')?.exercises.map((e) => e.supersetGroup);
+  });
+  expect(stored).toEqual([0, 0, null]);
+
+  await page.getByRole('button', { name: 'Start Superset Day' }).click();
+  await expect(page.locator('.fit-active')).toBeVisible({ timeout: 20_000 });
+
+  // The round is drawn as one thing, and says why.
+  const round = page.locator('.fit-superset');
+  await expect(round).toHaveCount(1);
+  await expect(round).toContainText('Superset A');
+  await expect(round).toContainText('no rest between these');
+  // Exactly the two that were linked, in the order the day plans them.
+  await expect(round.locator('.fit-block-title')).toHaveText([picked[0]!, picked[1]!]);
+
+  const seconds = async () => {
+    const [mm, ss] = (await page.locator('.rest-clock').innerText()).trim().split(':');
+    return Number(mm) * 60 + Number(ss);
+  };
+
+  const logSet = async (name: string, weight: string, reps: string) => {
+    const block = page.locator('.fit-block').filter({ hasText: name }).first();
+    const before = await block.locator('.fit-set').count();
+    const fields = block.locator('.fit-field input');
+    // Typed, not filled: a controlled input can swallow a one-shot value, and
+    // a click alone must change nothing.
+    await fields.nth(0).click();
+    await fields.nth(0).pressSequentially(weight);
+    await fields.nth(1).click();
+    await fields.nth(1).pressSequentially(reps);
+    await block.getByRole('button', { name: /log set/i }).click();
+    await expect(block.locator('.fit-set')).toHaveCount(before + 1, { timeout: 20_000 });
+  };
+
+  // Let the clock get somewhere, so a reset would be unmistakable.
+  await page.waitForTimeout(4_000);
+  const started = await seconds();
+  expect(started).toBeGreaterThanOrEqual(3);
+
+  // First movement of the round: you are NOT resting yet, so the clock runs on.
+  await logSet(picked[0]!, '100', '5');
+  expect(await seconds()).toBeGreaterThanOrEqual(started);
+
+  // Last movement of the round: now you rest, so the clock starts over.
+  await logSet(picked[1]!, '80', '8');
+  await expect
+    .poll(seconds, { timeout: 10_000 })
+    .toBeLessThan(started);
+
+  // Leave nothing open behind us — an active session hides the start card for
+  // every spec that runs after this one.
+  await page.getByRole('button', { name: 'Finish' }).click();
+});

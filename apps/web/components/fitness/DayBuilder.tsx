@@ -1,8 +1,16 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { describeExercise, type ExerciseDTO, type WorkoutTemplateDTO } from '@atlas/shared';
-import { Check, GripVertical, Plus, Search, X } from 'lucide-react';
+import {
+  describeExercise,
+  groupIntoRounds,
+  normaliseGroups,
+  supersetLabel,
+  toggleSupersetAt,
+  type ExerciseDTO,
+  type WorkoutTemplateDTO,
+} from '@atlas/shared';
+import { Check, GripVertical, Link2, Plus, Search, Unlink2, X } from 'lucide-react';
 import { Button, Card, Input } from '@/components/ui';
 import {
   useCreateTemplate,
@@ -42,9 +50,15 @@ export function DayBuilder({
   const latch = useSubmitLatch();
 
   const [name, setName] = useState(editing?.name ?? '');
-  const [chosen, setChosen] = useState<string[]>(
-    editing ? editing.exercises.map((e) => e.exerciseId) : [],
+  // Each movement carries whatever it is supersetted with, because the two
+  // facts are edited together — moving an exercise out of a pair has to break
+  // the pair, and a parallel array of groups would quietly slide out of step.
+  const [chosen, setChosen] = useState<{ exerciseId: string; supersetGroup: number | null }[]>(
+    editing
+      ? editing.exercises.map((e) => ({ exerciseId: e.exerciseId, supersetGroup: e.supersetGroup }))
+      : [],
   );
+  const chosenIds = useMemo(() => chosen.map((c) => c.exerciseId), [chosen]);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<MuscleFilterValue>(NO_FILTER);
 
@@ -68,18 +82,36 @@ export function DayBuilder({
     const pool = q ? scoped.filter((e) => e.name.toLowerCase().includes(q)) : scoped;
     // Chosen movements are shown in the list above; offering them again is noise.
     const narrowed = q || filter.target || filter.equipment;
-    return pool.filter((e) => !chosen.includes(e.id)).slice(0, narrowed ? 40 : 60);
-  }, [all, query, chosen, filter]);
+    return pool.filter((e) => !chosenIds.includes(e.id)).slice(0, narrowed ? 40 : 60);
+  }, [all, query, chosenIds, filter]);
+
+  /** Which round each movement belongs to, so the list can bracket the pairs. */
+  const rounds = useMemo(() => groupIntoRounds(chosen), [chosen]);
+  const groupOf = useMemo(() => {
+    const map = new Map<string, number | null>();
+    for (const round of rounds) {
+      for (const m of round.members) map.set(m.exerciseId, round.group);
+    }
+    return map;
+  }, [rounds]);
 
   const busy = create.isPending || update.isPending;
 
   function save() {
     const label = name.trim();
     if (!label || chosen.length === 0 || busy) return;
+    // Renumber once, here: editing leaves holes (pair, unpair, pair again gives
+    // group 2 with no 0 or 1) and the number is shown as "Superset A".
+    const tidy = normaliseGroups(chosen);
+    const exerciseIds = tidy.map((c) => c.exerciseId);
+    const supersetGroups = tidy.map((c) => c.supersetGroup);
     latch((release) => {
       const opts = { onSuccess: onDone, onSettled: release };
-      if (editing) update.mutate({ id: editing.id, patch: { name: label, exerciseIds: chosen } }, opts);
-      else create.mutate({ name: label, exerciseIds: chosen }, opts);
+      if (editing) {
+        update.mutate({ id: editing.id, patch: { name: label, exerciseIds, supersetGroups } }, opts);
+      } else {
+        create.mutate({ name: label, exerciseIds, supersetGroups }, opts);
+      }
     });
   }
 
@@ -106,38 +138,71 @@ export function DayBuilder({
 
       {chosen.length > 0 && (
         <ol className="day-chosen">
-          {chosen.map((id, i) => {
+          {chosen.map((entry, i) => {
+            const id = entry.exerciseId;
             const ex: ExerciseDTO | undefined = byId.get(id);
+            const label = ex?.name ?? 'Exercise';
+            const group = groupOf.get(id) ?? null;
+            const next = chosen[i + 1];
+            const nextName = next ? byId.get(next.exerciseId)?.name ?? 'the next exercise' : null;
+            // Linked to the one below only when they are really in the same
+            // round. Two members of a group with something between them are
+            // not, and the control has to say what is true.
+            const linkedBelow =
+              next !== undefined &&
+              group !== null &&
+              (groupOf.get(next.exerciseId) ?? null) === group;
             return (
-              <li key={id} className="day-chosen-row">
-                <GripVertical size={14} aria-hidden className="day-grip" />
-                <span className="day-chosen-name">{ex?.name ?? 'Exercise'}</span>
-                <button
-                  type="button"
-                  className="day-move"
-                  aria-label={`Move ${ex?.name ?? 'exercise'} up`}
-                  disabled={i === 0}
-                  onClick={() => move(i, -1)}
-                >
-                  ↑
-                </button>
-                <button
-                  type="button"
-                  className="day-move"
-                  aria-label={`Move ${ex?.name ?? 'exercise'} down`}
-                  disabled={i === chosen.length - 1}
-                  onClick={() => move(i, 1)}
-                >
-                  ↓
-                </button>
-                <button
-                  type="button"
-                  className="day-remove"
-                  aria-label={`Remove ${ex?.name ?? 'exercise'} from this day`}
-                  onClick={() => setChosen((prev) => prev.filter((x) => x !== id))}
-                >
-                  <X size={14} aria-hidden />
-                </button>
+              <li key={id} className={`day-chosen-item ${group !== null ? 'in-superset' : ''}`}>
+                <div className="day-chosen-row">
+                  <GripVertical size={14} aria-hidden className="day-grip" />
+                  <span className="day-chosen-name">{label}</span>
+                  {group !== null && (
+                    <span className="day-superset-tag">{supersetLabel(group)}</span>
+                  )}
+                  <button
+                    type="button"
+                    className="day-move"
+                    aria-label={`Move ${label} up`}
+                    disabled={i === 0}
+                    onClick={() => move(i, -1)}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    className="day-move"
+                    aria-label={`Move ${label} down`}
+                    disabled={i === chosen.length - 1}
+                    onClick={() => move(i, 1)}
+                  >
+                    ↓
+                  </button>
+                  <button
+                    type="button"
+                    className="day-remove"
+                    aria-label={`Remove ${label} from this day`}
+                    onClick={() => setChosen((prev) => prev.filter((x) => x.exerciseId !== id))}
+                  >
+                    <X size={14} aria-hidden />
+                  </button>
+                </div>
+                {next && (
+                  <button
+                    type="button"
+                    className={`day-link ${linkedBelow ? 'on' : ''}`}
+                    aria-pressed={linkedBelow}
+                    aria-label={
+                      linkedBelow
+                        ? `Separate ${label} from ${nextName}`
+                        : `Superset ${label} with ${nextName}`
+                    }
+                    onClick={() => setChosen((prev) => toggleSupersetAt(prev, i))}
+                  >
+                    {linkedBelow ? <Unlink2 size={12} aria-hidden /> : <Link2 size={12} aria-hidden />}
+                    <span>{linkedBelow ? 'Separate' : 'Superset'}</span>
+                  </button>
+                )}
               </li>
             );
           })}
@@ -166,7 +231,9 @@ export function DayBuilder({
             role="option"
             aria-selected={false}
             className="day-option"
-            onClick={() => setChosen((prev) => [...prev, e.id])}
+            onClick={() =>
+              setChosen((prev) => [...prev, { exerciseId: e.id, supersetGroup: null }])
+            }
           >
             <Plus size={13} aria-hidden />
             <span className="day-option-name">{e.name}</span>

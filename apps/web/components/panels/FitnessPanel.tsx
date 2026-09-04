@@ -121,6 +121,10 @@ export function FitnessPanel() {
                     type="button"
                     className="fit-day-chip"
                     disabled={start.isPending}
+                    /* Without this its accessible name is the whole chip —
+                       "Push Day3 moves · 4 days ago" — which is what a screen
+                       reader announces and what the button is addressed by. */
+                    aria-label={`Start ${t.name}`}
                     onClick={() => start.mutate({ templateId: t.id })}
                   >
                     <span className="fit-day-name">{t.name}</span>

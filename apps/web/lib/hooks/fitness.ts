@@ -131,7 +131,13 @@ export function useCreateTemplate() {
 
 export function useUpdateTemplate() {
   return useInvalidatingMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: { name?: string; exerciseIds?: string[] } }) =>
+    mutationFn: ({
+      id,
+      patch,
+    }: {
+      id: string;
+      patch: { name?: string; exerciseIds?: string[]; supersetGroups?: (number | null)[] };
+    }) =>
       FitnessApi.updateTemplate(id, patch),
     invalidates: qk.workoutTemplates,
     success: 'Workout day updated',

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   matchExercise,
+  normaliseGroups,
   parseSplitText,
   type CreateWorkoutTemplateInput,
   type PlanSplitResultDTO,
@@ -29,6 +30,7 @@ type TemplateRow = {
   exercises: {
     exerciseId: string;
     position: number;
+    supersetGroup: number | null;
     exercise: { name: string; muscle: string; kind: string };
   }[];
 };
@@ -44,6 +46,7 @@ function toDto(row: TemplateRow, lastPerformedAt: Date | null): WorkoutTemplateD
       muscle: te.exercise.muscle as WorkoutTemplateDTO['exercises'][number]['muscle'],
       kind: te.exercise.kind as WorkoutTemplateDTO['exercises'][number]['kind'],
       position: te.position,
+      supersetGroup: te.supersetGroup,
     })),
     lastPerformedAt: lastPerformedAt ? lastPerformedAt.toISOString() : null,
     createdAt: row.createdAt.toISOString(),
@@ -101,6 +104,35 @@ export class WorkoutTemplatesService {
     return [...new Set(ids)];
   }
 
+  /**
+   * The exercises of a day, each with whatever it is supersetted with.
+   *
+   * `supersetGroups` arrives index-aligned with `exerciseIds`, and dedupe can
+   * change that length — so the two are zipped BEFORE deduping and travel
+   * together afterwards. Doing it the other way round silently slides every
+   * grouping one place left the first time someone lists an exercise twice.
+   */
+  private async resolveEntries(
+    userId: string,
+    ids: string[],
+    supersetGroups: (number | null)[] | undefined,
+  ): Promise<{ exerciseId: string; supersetGroup: number | null }[]> {
+    const paired = ids.map((exerciseId, i) => ({
+      exerciseId,
+      supersetGroup: supersetGroups?.[i] ?? null,
+    }));
+    const seen = new Set<string>();
+    const unique = paired.filter((e) => {
+      if (seen.has(e.exerciseId)) return false;
+      seen.add(e.exerciseId);
+      return true;
+    });
+    await this.resolveExerciseIds(userId, unique.map((e) => e.exerciseId));
+    // Renumber from zero here too: the client normalises before sending, but
+    // the AI split path and any other caller do not, and the number is shown.
+    return normaliseGroups(unique);
+  }
+
   async create(userId: string, input: CreateWorkoutTemplateInput): Promise<WorkoutTemplateDTO> {
     const count = await this.prisma.client.workoutTemplate.count({ where: { userId } });
     if (count >= MAX_TEMPLATES) {
@@ -113,13 +145,13 @@ export class WorkoutTemplatesService {
     });
     if (existing) throw new BadRequestException(`You already have a day called "${name}"`);
 
-    const ids = await this.resolveExerciseIds(userId, input.exerciseIds);
+    const entries = await this.resolveEntries(userId, input.exerciseIds, input.supersetGroups);
     const row = await this.prisma.client.workoutTemplate.create({
       data: {
         userId,
         name,
         position: count,
-        exercises: { create: ids.map((exerciseId, position) => ({ exerciseId, position })) },
+        exercises: { create: entries.map((e, position) => ({ ...e, position })) },
       },
       include: WITH_EXERCISES,
     });
@@ -137,10 +169,10 @@ export class WorkoutTemplatesService {
     });
     if (!owned) throw new NotFoundException('Workout day not found');
 
-    const ids =
+    const entries =
       input.exerciseIds === undefined
         ? null
-        : await this.resolveExerciseIds(userId, input.exerciseIds);
+        : await this.resolveEntries(userId, input.exerciseIds, input.supersetGroups);
 
     const row = await this.prisma.client.workoutTemplate.update({
       where: { id },
@@ -149,11 +181,11 @@ export class WorkoutTemplatesService {
         ...(input.position !== undefined ? { position: input.position } : {}),
         // Replace wholesale: the list IS the ordering, so a diff would be more
         // code for the same result.
-        ...(ids
+        ...(entries
           ? {
               exercises: {
                 deleteMany: {},
-                create: ids.map((exerciseId, position) => ({ exerciseId, position })),
+                create: entries.map((e, position) => ({ ...e, position })),
               },
             }
           : {}),

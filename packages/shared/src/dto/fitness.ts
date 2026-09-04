@@ -243,6 +243,12 @@ export const TemplateExerciseDTO = z.object({
   muscle: MuscleGroup,
   kind: ExerciseKind,
   position: z.number().int(),
+  /**
+   * Exercises sharing a group are a superset — performed back to back, with
+   * rest only after the round. Null means on its own. See `dto/supersets.ts`
+   * for what consecutive membership means and why it is not a partition.
+   */
+  supersetGroup: z.number().int().nullable().default(null),
 });
 export type TemplateExerciseDTO = z.infer<typeof TemplateExerciseDTO>;
 
@@ -261,18 +267,49 @@ export type WorkoutTemplateDTO = z.infer<typeof WorkoutTemplateDTO>;
 // turning one template into an unusable wall.
 const templateExerciseIds = z.array(z.string().min(1).max(64)).max(30);
 
-export const CreateWorkoutTemplateInput = z.object({
-  name: z.string().min(1).max(60),
-  exerciseIds: templateExerciseIds.default([]),
-});
+/**
+ * Superset membership, INDEX-ALIGNED with `exerciseIds`.
+ *
+ * Aligned rather than a separate partition of positions so the wire carries the
+ * same single representation the DTO does — two shapes for one fact is the
+ * arrangement that drifts. Bounded by the same 30, and validated against the
+ * list's length below so a mismatched pair is rejected at the boundary rather
+ * than silently truncating someone's grouping.
+ */
+const templateSupersetGroups = z.array(z.number().int().min(0).max(29).nullable()).max(30);
+
+/** Rejects a grouping that does not describe the list it came with. */
+function sameLength(input: {
+  exerciseIds?: string[];
+  supersetGroups?: (number | null)[];
+}): boolean {
+  if (!input.supersetGroups) return true;
+  return input.exerciseIds !== undefined && input.supersetGroups.length === input.exerciseIds.length;
+}
+const LENGTH_MESSAGE = {
+  message: 'supersetGroups must line up with exerciseIds',
+  path: ['supersetGroups'] as (string | number)[],
+};
+
+export const CreateWorkoutTemplateInput = z
+  .object({
+    name: z.string().min(1).max(60),
+    exerciseIds: templateExerciseIds.default([]),
+    supersetGroups: templateSupersetGroups.optional(),
+  })
+  .refine(sameLength, LENGTH_MESSAGE);
 export type CreateWorkoutTemplateInput = z.infer<typeof CreateWorkoutTemplateInput>;
 
-export const UpdateWorkoutTemplateInput = z.object({
-  name: z.string().min(1).max(60).optional(),
-  /** Replaces the whole list, in order. Omit to leave the exercises alone. */
-  exerciseIds: templateExerciseIds.optional(),
-  position: z.number().int().min(0).max(100).optional(),
-});
+export const UpdateWorkoutTemplateInput = z
+  .object({
+    name: z.string().min(1).max(60).optional(),
+    /** Replaces the whole list, in order. Omit to leave the exercises alone. */
+    exerciseIds: templateExerciseIds.optional(),
+    /** Only meaningful alongside `exerciseIds`, which it lines up with. */
+    supersetGroups: templateSupersetGroups.optional(),
+    position: z.number().int().min(0).max(100).optional(),
+  })
+  .refine(sameLength, LENGTH_MESSAGE);
 export type UpdateWorkoutTemplateInput = z.infer<typeof UpdateWorkoutTemplateInput>;
 
 /** Free text describing a split, e.g. "push: bench, incline db, lateral raises". */

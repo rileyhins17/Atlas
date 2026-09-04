@@ -367,6 +367,11 @@ model TemplateExercise {
   exerciseId String
   exercise   Exercise        @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
   position   Int             @default(0)
+  // Exercises sharing a group are a superset: performed back to back, with rest
+  // only after the round. Null — the overwhelming majority — means on its own,
+  // so there is no sentinel to remember. Scoped to this template and renumbered
+  // from zero on save, because it is shown as "Superset A".
+  supersetGroup Int?         @map("superset_group")
 
   @@unique([templateId, exerciseId])
   @@index([templateId, position])

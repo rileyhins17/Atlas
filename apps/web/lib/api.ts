@@ -274,12 +274,20 @@ export const FitnessApi = {
   deleteSet: (workoutId: string, setId: string) =>
     request<WorkoutDTO>(`/fitness/workouts/${workoutId}/sets/${setId}`, { method: 'DELETE' }),
   templates: () => request<WorkoutTemplateDTO[]>('/fitness/templates'),
-  createTemplate: (input: { name: string; exerciseIds: string[] }) =>
+  createTemplate: (input: {
+    name: string;
+    exerciseIds: string[];
+    /** Superset membership, index-aligned with `exerciseIds`. */
+    supersetGroups?: (number | null)[];
+  }) =>
     request<WorkoutTemplateDTO>('/fitness/templates', {
       method: 'POST',
       body: JSON.stringify(input),
     }),
-  updateTemplate: (id: string, patch: { name?: string; exerciseIds?: string[] }) =>
+  updateTemplate: (
+    id: string,
+    patch: { name?: string; exerciseIds?: string[]; supersetGroups?: (number | null)[] },
+  ) =>
     request<WorkoutTemplateDTO>(`/fitness/templates/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(patch),

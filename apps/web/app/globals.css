@@ -30,9 +30,9 @@
   --space-8: 48px;
 
   /* — type scale — */
-  --text-xs: 11px;
-  --text-sm: 13px;
-  --text-base: 15px;
+  --text-xs: 12.5px;
+  --text-sm: 14.5px;
+  --text-base: 16px;
   --text-lg: 18px;
   --text-xl: 22px;
   --text-2xl: 28px;
@@ -214,7 +214,7 @@ a {
 
 /* Sub-section headers, in the accent colour (à la Things' coloured headers). */
 .section-title {
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 650;
   letter-spacing: 0.01em;
   color: var(--brand);
@@ -408,10 +408,10 @@ input[type='checkbox']:checked::after {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 600;
   padding: 3px 9px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--border-subtle);
   color: var(--text-muted);
 }
@@ -466,10 +466,11 @@ input[type='checkbox']:checked::after {
    AA (7:1) in both themes; the assistant sits on the inset surface. */
 .chat-bubble {
   max-width: 85%;
-  padding: 8px 12px;
+  padding: 9px 13px;
   border-radius: var(--radius-md);
   white-space: pre-wrap;
-  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+  font-size: var(--text-base);
   line-height: 1.5;
 }
 .chat-bubble.user {
@@ -490,7 +491,7 @@ input[type='checkbox']:checked::after {
 
 .error {
   color: var(--danger);
-  font-size: 13px;
+  font-size: 14.5px;
   margin-top: 8px;
 }
 .muted {
@@ -627,7 +628,7 @@ input[type='checkbox']:checked::after {
   place-items: center;
   background: var(--accent-strong);
   color: #fff;
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 650;
 }
 .sidebar-user-name {
@@ -682,7 +683,7 @@ input[type='checkbox']:checked::after {
 .greeting-sub {
   margin: 7px 0 0;
   color: var(--text-muted);
-  font-size: 15px;
+  font-size: 16.5px;
 }
 .greeting .hl {
   background: color-mix(in srgb, var(--brand) 14%, transparent);
@@ -857,7 +858,7 @@ input[type='checkbox']:checked::after {
   }
   .bottom-nav .nav-label {
     /* 10px failed both readability and, in the active state, WCAG AA. */
-    font-size: 11px;
+    font-size: 12.5px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1043,7 +1044,7 @@ input[type='checkbox']:checked::after {
 }
 .hero-brief-text {
   margin: 0;
-  font-size: 15.5px;
+  font-size: 17px;
   line-height: 1.65;
   color: var(--text-primary);
   white-space: pre-wrap;
@@ -1085,7 +1086,7 @@ input[type='checkbox']:checked::after {
   align-items: center;
   gap: 8px;
   margin: 0 0 14px;
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 650;
   letter-spacing: 0.01em;
   color: var(--brand);
@@ -1562,7 +1563,7 @@ input[type='checkbox']:checked::after {
   background: var(--surface-inset);
   color: var(--text-muted);
   font-family: inherit;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 600;
   line-height: 1;
 }
@@ -1637,7 +1638,7 @@ input[type='checkbox']:checked::after {
 /* The scale, said out loud. Without it the shading is decoration. */
 .heatmap-key {
   display: flex; align-items: center; gap: 4px; margin-top: 10px;
-  font-size: 11px; color: var(--text-muted);
+  font-size: 12.5px; color: var(--text-muted);
 }
 .heatmap-key i { width: 11px; height: 11px; border-radius: 3px; background: var(--surface-inset); }
 .heatmap-key i[data-level='1'] { background: color-mix(in srgb, var(--brand) 30%, var(--surface-inset)); }
@@ -1752,9 +1753,14 @@ input[type='checkbox']:checked::after {
 /* — chat rail (⌘J) — */
 .chat-rail {
   position: fixed;
-  top: 0;
+  /* Sized to the VISUAL viewport, which is the only one that shrinks when the
+     iOS keyboard opens. Pinned to the layout viewport with `bottom: 0`, the
+     composer sat behind the keyboard — the one element you need to see while
+     typing. `--vv-h` is set by the rail itself; the fallbacks are what a
+     desktop browser and an old engine get. */
+  top: var(--vv-top, 0px);
   right: 0;
-  bottom: 0;
+  height: var(--vv-h, 100dvh);
   z-index: 60;
   width: min(400px, 100vw);
   display: flex;
@@ -1763,6 +1769,8 @@ input[type='checkbox']:checked::after {
   border-left: 1px solid var(--border-subtle);
   box-shadow: var(--shadow-2);
   animation: rail-in var(--dur-base) var(--ease);
+  /* Containing block for the floating "Latest" button. */
+  isolation: isolate;
 }
 @keyframes rail-in {
   from {
@@ -1799,34 +1807,290 @@ input[type='checkbox']:checked::after {
 .chat-rail-log {
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior-y: contain;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 16px;
   padding: 16px;
+  scroll-behavior: smooth;
 }
-.chat-rail-empty {
-  display: flex;
-  flex-direction: column;
+@media (prefers-reduced-motion: reduce) {
+  .chat-rail-log { scroll-behavior: auto; }
+}
+
+/* ── The conversation ─────────────────────────────────────────────────────
+   Two bubbles and a spinner is what every generic chat UI ships. What makes
+   this readable is the parts that are specific: replies render as documents
+   rather than as one flat string, and what Atlas DID sits with the reply that
+   caused it rather than in a footer under the whole conversation. */
+
+.chat-rail-id {
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
-  padding: var(--space-4);
-  background: var(--surface-raised);
+  color: var(--brand);
+}
+.chat-rail-id strong {
+  color: var(--text-primary);
+  font-size: var(--text-base);
+}
+
+.chat-msg {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  animation: chat-in 0.24s var(--ease) both;
+}
+.chat-msg.user {
+  justify-content: flex-end;
+}
+@keyframes chat-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-msg { animation: none; }
+}
+
+/* Marks Atlas's side of the conversation without an avatar image to load. */
+.chat-avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-top: 1px;
+  border-radius: 50%;
+  color: var(--brand-on-tint);
+  background: color-mix(in oklab, var(--brand) 13%, transparent);
+}
+.chat-body {
+  min-width: 0;
+  flex: 1;
+}
+
+/* ── Rendered markdown ───────────────────────────────────────────────────── */
+.md {
+  font-size: var(--text-base);
+  line-height: 1.6;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.md > :first-child { margin-top: 0; }
+.md > :last-child { margin-bottom: 0; }
+.md-p { margin: 0 0 10px; }
+.md-h { margin: 14px 0 6px; line-height: 1.35; font-weight: 680; }
+.md-h1 { font-size: var(--text-lg); }
+.md-h2 { font-size: var(--text-base); }
+.md-h3 { font-size: var(--text-base); color: var(--text-muted); }
+.md-list { margin: 0 0 10px; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+.md-list li { padding-left: 2px; }
+.md-list li::marker { color: var(--text-muted); }
+.md-code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--surface-inset);
   border: 1px solid var(--border-subtle);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+}
+.md-pre {
+  margin: 0 0 10px;
+  padding: 10px 12px;
   border-radius: var(--radius-md);
+  background: var(--surface-inset);
+  border: 1px solid var(--border-subtle);
+  /* Code is the one thing that legitimately does not wrap, so it scrolls
+     inside its own box rather than widening the rail. */
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+.md-pre code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: var(--text-sm);
   line-height: 1.5;
 }
-.chat-rail-tools {
-  padding: 4px 16px 8px;
-  font-size: var(--text-xs);
+.md-quote {
+  margin: 0 0 10px;
+  padding: 2px 0 2px 12px;
+  border-left: 2px solid color-mix(in oklab, var(--brand) 40%, transparent);
+  color: var(--text-muted);
 }
+.md-rule { margin: 14px 0; border: 0; border-top: 1px solid var(--border-subtle); }
+.md-link { color: var(--brand); text-underline-offset: 2px; }
+
+/* ── What Atlas actually did ─────────────────────────────────────────────── */
+.chat-did {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in oklab, var(--ok, var(--brand)) 28%, transparent);
+  background: color-mix(in oklab, var(--ok, var(--brand)) 6%, transparent);
+  font-size: var(--text-sm);
+}
+.chat-did li { display: flex; align-items: flex-start; gap: 7px; }
+.chat-did svg { flex: none; margin-top: 3px; color: var(--brand-on-tint); }
+
+.chat-error { margin: 0; color: var(--danger); font-size: var(--text-base); line-height: 1.55; }
+
+.chat-acts { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+.chat-act {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 2px 9px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+.chat-act:hover { color: var(--text-primary); background: var(--surface-inset); }
+
+/* ── Waiting ─────────────────────────────────────────────────────────────── */
+.chat-thinking {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 3px 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.chat-dots { display: inline-flex; gap: 3px; }
+.chat-dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--brand);
+  animation: chat-dot 1.05s ease-in-out infinite;
+}
+.chat-dots i:nth-child(2) { animation-delay: 0.14s; }
+.chat-dots i:nth-child(3) { animation-delay: 0.28s; }
+@keyframes chat-dot {
+  0%, 60%, 100% { opacity: 0.25; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-dots i { animation: none; opacity: 0.6; }
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+.chat-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: var(--space-3) 2px;
+}
+.chat-empty-mark {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: var(--brand-on-tint);
+  background: color-mix(in oklab, var(--brand) 13%, transparent);
+}
+.chat-empty-title { margin: 0; font-size: var(--text-lg); font-weight: 680; }
+.chat-empty-sub {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+.chat-suggests { display: flex; flex-direction: column; gap: 6px; width: 100%; margin-top: 4px; }
+/* Tappable, because a suggestion you have to retype is not a suggestion. */
+.chat-suggest {
+  text-align: left;
+  min-height: 40px;
+  padding: 9px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+.chat-suggest:hover { border-color: var(--brand); transform: translateY(-1px); }
+
+/* ── Jump to latest ──────────────────────────────────────────────────────── */
+.chat-jump {
+  position: absolute;
+  left: 50%;
+  bottom: 84px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 4px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--text-xs);
+  box-shadow: var(--shadow-1);
+  cursor: pointer;
+}
+
 .chat-rail-composer {
   display: flex;
   gap: 8px;
-  align-items: center;
+  align-items: flex-end;
   padding: 12px 16px;
   padding-bottom: max(12px, env(safe-area-inset-bottom));
   border-top: 1px solid var(--border-subtle);
+  background: var(--sidebar-bg);
 }
+.chat-input {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  max-height: 160px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-primary);
+  /* 16px: below that iOS zooms the page the moment the field takes focus. */
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.45;
+}
+.chat-input:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.chat-send {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--accent-strong);
+  color: var(--text-on-accent);
+  cursor: pointer;
+  transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+/* "Nothing typed yet", not "broken". A washed-out fill of the accent colour
+   reads as a dead control; a neutral surface reads as waiting for you. */
+.chat-send:disabled {
+  background: var(--surface-inset);
+  color: var(--text-muted);
+  cursor: default;
+}
+.chat-send:not(:disabled):active { transform: scale(0.94); }
 
 .empty-state-icon {
   display: grid;
@@ -1870,7 +2134,7 @@ input[type='checkbox']:checked::after {
 .home-capture-examples { display: flex; flex-wrap: wrap; gap: 8px; }
 .capture-chip {
   border: 1px solid var(--border, #e7ddd6); background: transparent; color: var(--text);
-  border-radius: 999px; padding: 6px 13px; font: inherit; font-size: 13px; cursor: pointer;
+  border-radius: var(--radius-pill); padding: 6px 13px; font: inherit; font-size: 14.5px; cursor: pointer;
   transition: background .12s ease, border-color .12s ease;
 }
 .capture-chip:hover {
@@ -1886,10 +2150,10 @@ input[type='checkbox']:checked::after {
 .home-onboarding .home-capture { width: 100%; margin-top: 16px; text-align: left; }
 .home-onboarding .home-capture-examples { justify-content: center; }
 .onboarding-sub {
-  color: var(--muted, #7c716a); font-size: 15px; line-height: 1.55;
+  color: var(--muted, #7c716a); font-size: 16.5px; line-height: 1.55;
   max-width: 470px; margin: 4px 0 0;
 }
-.onboarding-hint { color: var(--muted, #9a8f88); font-size: 13px; margin-top: 8px; }
+.onboarding-hint { color: var(--muted, #9a8f88); font-size: 14.5px; margin-top: 8px; }
 
 /* ── Constellation motif animation ───────────────────────────────────────── */
 @keyframes atlas-line-draw { to { stroke-dashoffset: 0; } }
@@ -1938,7 +2202,7 @@ input[type='checkbox']:checked::after {
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 22%, transparent);
   animation: atlas-node-pulse 2.4s ease-in-out infinite;
 }
-.now-line-label { font-size: 12px; font-weight: 650; color: var(--brand); letter-spacing: .3px; white-space: nowrap; }
+.now-line-label { font-size: 13.5px; font-weight: 650; color: var(--brand); letter-spacing: .3px; white-space: nowrap; }
 .now-line-rule { flex: 1; height: 1px; background: linear-gradient(to right, color-mix(in srgb, var(--brand) 45%, transparent), transparent); }
 @media (prefers-reduced-motion: reduce) { .now-line-dot { animation: none; } }
 
@@ -1946,7 +2210,7 @@ input[type='checkbox']:checked::after {
 .feed { display: flex; flex-direction: column; gap: 14px; }
 .feed-groups { display: flex; flex-direction: column; gap: 22px; }
 .feed-day {
-  font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px;
+  font-size: 13.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px;
   color: var(--muted, #9a8f88); margin: 0 0 6px;
 }
 .feed-list { list-style: none; margin: 0; padding: 0; position: relative; display: flex; flex-direction: column; }
@@ -1980,16 +2244,16 @@ input[type='checkbox']:checked::after {
 }
 .feed-body:disabled { cursor: default; }
 .feed-row:hover .feed-body:not(:disabled) .feed-title { color: var(--brand); }
-.feed-title { font-size: 14px; line-height: 1.45; transition: color .12s ease; }
+.feed-title { font-size: 15.5px; line-height: 1.45; transition: color .12s ease; }
 .feed-summary {
-  font-size: 12.5px; color: var(--muted, #9a8f88); line-height: 1.45;
+  font-size: 14px; color: var(--muted, #9a8f88); line-height: 1.45;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .feed-time {
   /* Solid muted (not a low-opacity mix): the composited 65% version fell to
      2.63:1 on the light surface — below WCAG AA. Solid --text-muted clears AA
      in both themes. */
-  flex: none; font-size: 11.5px; color: var(--text-muted, #9a8f88);
+  flex: none; font-size: 13px; color: var(--text-muted, #9a8f88);
   padding-top: 4px; font-variant-numeric: tabular-nums; transition: color .12s ease;
 }
 .feed-row:hover .feed-time { color: var(--text-primary); }
@@ -2009,7 +2273,7 @@ input[type='checkbox']:checked::after {
 .hero-brief-toggle {
   display: inline-flex; align-items: center; gap: 5px;
   border: none; background: none; padding: 4px 6px; margin-left: -6px;
-  font: inherit; font-size: 12.5px; font-weight: 600; color: var(--brand);
+  font: inherit; font-size: 14px; font-weight: 600; color: var(--brand);
   cursor: pointer; border-radius: 8px;
 }
 .hero-brief-toggle:hover { background: color-mix(in srgb, var(--brand) 9%, transparent); }
@@ -2029,7 +2293,7 @@ input[type='checkbox']:checked::after {
   color: var(--text-primary); line-height: 1.2;
 }
 .nowstrip-date {
-  font-size: 12px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase;
+  font-size: 13.5px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase;
   color: var(--brand);
 }
 
@@ -2067,7 +2331,7 @@ input[type='checkbox']:checked::after {
 }
 .conn-headline {
   margin: 0;
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 650;
   line-height: 1.4;
   color: var(--text-primary);
@@ -2075,7 +2339,7 @@ input[type='checkbox']:checked::after {
 }
 .conn-detail {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 14px;
   line-height: 1.45;
   color: var(--text-muted);
 }
@@ -2088,7 +2352,7 @@ input[type='checkbox']:checked::after {
 }
 .conn-missing {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 14px;
   line-height: 1.45;
   color: var(--text-muted);
 }
@@ -2099,7 +2363,7 @@ input[type='checkbox']:checked::after {
 .wk-decide { margin: 0 0 14px; }
 .wk-decide-head {
   display: flex; align-items: center; gap: 6px; margin: 0 0 8px;
-  font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+  font-size: 12.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
   color: var(--text-muted);
 }
 .wk-decide-list { display: flex; flex-direction: column; gap: 9px; margin: 0; padding: 0; list-style: none; }
@@ -2108,12 +2372,12 @@ input[type='checkbox']:checked::after {
   gap: 8px; padding-bottom: 9px; border-bottom: 1px solid var(--border-subtle);
 }
 .wk-decide-item:last-child { border-bottom: none; padding-bottom: 0; }
-.wk-decide-what { min-width: 0; font-size: 13.5px; line-height: 1.45; color: var(--text-primary); overflow-wrap: anywhere; }
+.wk-decide-what { min-width: 0; font-size: 15px; line-height: 1.45; color: var(--text-primary); overflow-wrap: anywhere; }
 .wk-decide-acts { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .wk-act {
   display: inline-flex; align-items: center; gap: 5px; min-height: 32px;
-  padding: 6px 11px; border: 1px solid var(--border-subtle); border-radius: 999px;
-  background: transparent; font: inherit; font-size: 12.5px; font-weight: 600;
+  padding: 6px 11px; border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
+  background: transparent; font: inherit; font-size: 14px; font-weight: 600;
   color: var(--text-primary); text-decoration: none; cursor: pointer;
   transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
@@ -2138,7 +2402,7 @@ input[type='checkbox']:checked::after {
   align-items: center;
   gap: 6px;
   margin: 0 0 7px;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -2161,7 +2425,7 @@ input[type='checkbox']:checked::after {
 }
 .chg-what {
   min-width: 0;
-  font-size: 13px;
+  font-size: 14.5px;
   line-height: 1.4;
   color: var(--text-primary);
   overflow-wrap: anywhere;
@@ -2172,7 +2436,7 @@ input[type='checkbox']:checked::after {
 }
 .chg-state {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -2186,10 +2450,10 @@ input[type='checkbox']:checked::after {
   min-height: 24px;
   padding: 3px 9px;
   border: 1px solid var(--border-subtle);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   font: inherit;
-  font-size: 11.5px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-muted);
   cursor: pointer;
@@ -2201,8 +2465,8 @@ input[type='checkbox']:checked::after {
 
 /* Compact brief: a single line with an inline spark, expandable in place. */
 .hero-brief.compact { gap: 6px; }
-.hero-brief.compact .hero-brief-text { font-size: 13.5px; line-height: 1.5; margin: 0; }
-.hero-brief.compact .hero-brief-toggle { font-size: 12px; }
+.hero-brief.compact .hero-brief-text { font-size: 15px; line-height: 1.5; margin: 0; }
+.hero-brief.compact .hero-brief-toggle { font-size: 13.5px; }
 .hero-brief-text.clamped-1 {
   display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
 }
@@ -2253,7 +2517,7 @@ input[type='checkbox']:checked::after {
 .onb-dot.done { background: color-mix(in srgb, var(--brand) 55%, transparent); }
 .onb-skip {
   border: none; background: none; color: var(--text-muted); cursor: pointer;
-  font: inherit; font-size: 13px; padding: 8px 10px; border-radius: 10px;
+  font: inherit; font-size: 14.5px; padding: 8px 10px; border-radius: 10px;
 }
 .onb-skip:hover { color: var(--text-primary); background: var(--surface-raised); }
 
@@ -2271,7 +2535,7 @@ input[type='checkbox']:checked::after {
 }
 
 .onb-q { font-size: 26px; font-weight: 700; letter-spacing: -.02em; margin: 0; }
-.onb-hint { color: var(--text-muted); font-size: 14px; margin: 0; max-width: 400px; line-height: 1.5; }
+.onb-hint { color: var(--text-muted); font-size: 15.5px; margin: 0; max-width: 400px; line-height: 1.5; }
 .onb-name-row { display: flex; gap: 10px; width: 100%; max-width: 400px; }
 
 .onb-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; max-width: 480px; }
@@ -2288,8 +2552,8 @@ input[type='checkbox']:checked::after {
   border-color: var(--accent-strong); background: var(--accent-strong); color: #fff;
 }
 .onb-chip.picked .onb-chip-hint { color: rgba(255, 255, 255, .8); }
-.onb-chip-label { font-size: 15.5px; font-weight: 650; display: inline-flex; align-items: center; gap: 6px; }
-.onb-chip-hint { font-size: 12px; color: var(--text-muted); }
+.onb-chip-label { font-size: 17px; font-weight: 650; display: inline-flex; align-items: center; gap: 6px; }
+.onb-chip-hint { font-size: 13.5px; color: var(--text-muted); }
 
 @media (max-width: 620px) {
   .onb { margin-top: 1vh; }
@@ -2307,7 +2571,7 @@ input[type='checkbox']:checked::after {
 }
 .day-pager-arrow:hover { color: var(--text-primary); border-color: var(--text-muted); }
 .day-pager-title {
-  border: none; background: none; font: inherit; font-size: 15px; font-weight: 700;
+  border: none; background: none; font: inherit; font-size: 16.5px; font-weight: 700;
   color: var(--text-primary); cursor: pointer; padding: 6px 12px; border-radius: 10px;
   letter-spacing: -0.01em;
 }
@@ -2324,11 +2588,11 @@ input[type='checkbox']:checked::after {
 .day-canvas { display: flex; flex-direction: column; gap: 10px; }
 .canvas-allday {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  font-size: 13px; color: var(--text-muted); padding: 2px 4px;
+  font-size: 14.5px; color: var(--text-muted); padding: 2px 4px;
 }
 .canvas-allday-item {
   background: var(--surface-raised); border: 1px solid var(--border-subtle);
-  border-radius: 999px; padding: 3px 11px; color: var(--text-primary); font-size: 12.5px;
+  border-radius: var(--radius-pill); padding: 3px 11px; color: var(--text-primary); font-size: 14px;
 }
 
 /* — the day as a shape, not a list ——————————————————————————————————————
@@ -2386,7 +2650,7 @@ input[type='checkbox']:checked::after {
   padding-top: 13px;
 }
 .canvas-rail-time {
-  font-size: 11.5px;
+  font-size: 13px;
   font-weight: 650;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
@@ -2450,34 +2714,41 @@ input[type='checkbox']:checked::after {
 .canvas-sec.is-past { opacity: 0.6; }
 
 .canvas-sec-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
-.canvas-sec-label { font-size: 14.5px; font-weight: 700; letter-spacing: -0.01em; }
+.canvas-sec-label { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
 .canvas-sec-len {
-  font-size: 11px; font-weight: 650; color: var(--text-muted);
+  font-size: 12.5px; font-weight: 650; color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   background: color-mix(in srgb, var(--surface-inset) 70%, transparent);
-  border-radius: 999px; padding: 2px 8px;
+  border-radius: var(--radius-pill); padding: 2px 8px;
 }
 .canvas-sec-nowchip {
-  font-size: 11px; font-weight: 650; color: var(--brand-on-tint);
+  font-size: 12.5px; font-weight: 650; color: var(--brand-on-tint);
   background: color-mix(in srgb, var(--brand) 12%, transparent);
-  border-radius: 999px; padding: 2px 9px;
+  border-radius: var(--radius-pill); padding: 2px 9px;
 }
 .canvas-plan-btn {
   margin-left: auto; display: inline-flex; align-items: center; gap: 4px;
   border: 1px solid var(--border-subtle); background: none; color: var(--text-muted);
-  font: inherit; font-size: 12.5px; font-weight: 650; cursor: pointer;
-  padding: 5px 11px; border-radius: 999px; min-height: 28px;
+  font: inherit; font-size: 14px; font-weight: 650; cursor: pointer;
+  padding: 5px 11px; border-radius: var(--radius-pill); min-height: 28px;
   transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
 .canvas-plan-btn:hover { color: var(--brand); border-color: var(--brand); }
 
 @media (max-width: 620px) {
-  .day-canvas::before { left: 45px; }
-  .canvas-sec { grid-template-columns: 54px 1fr; gap: 8px; }
-  .canvas-rail-time { font-size: 11px; }
+  /* Wide enough for the longest label the clock can produce — "10:30 PM".
+     The rail is justify-content: flex-end, so a gutter too narrow to hold the
+     text does not wrap or ellipsise: it runs off the left edge of the screen.
+     At 54px, minus a 9px gap and a 9px node, the text had 36px — so every PM
+     hour from 10 onward was cut in half on a phone. */
+  .day-canvas::before { left: 63px; }
+  .canvas-sec { grid-template-columns: 72px 1fr; gap: 8px; }
+  .canvas-rail { gap: 6px; }
+  .canvas-rail-time { font-size: 13.5px; }
+  .canvas-rail-node { width: 8px; height: 8px; }
 }
 
-.canvas-sec-empty { margin: 6px 0 2px; font-size: 12.5px; color: color-mix(in srgb, var(--text-muted) 70%, transparent); }
+.canvas-sec-empty { margin: 6px 0 2px; font-size: 14px; color: color-mix(in srgb, var(--text-muted) 70%, transparent); }
 
 /* — cards — */
 .canvas-card {
@@ -2487,10 +2758,10 @@ input[type='checkbox']:checked::after {
   transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 .canvas-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-1); }
-.canvas-card-title { font-size: 14px; min-width: 0; }
-.canvas-card-time { font-size: 11.5px; font-weight: 700; color: var(--brand); font-variant-numeric: tabular-nums; }
-.canvas-card-time-right { margin-left: auto; font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
-.canvas-card-meta { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--text-muted); }
+.canvas-card-title { font-size: 15.5px; min-width: 0; }
+.canvas-card-time { font-size: 13px; font-weight: 700; color: var(--brand); font-variant-numeric: tabular-nums; }
+.canvas-card-time-right { margin-left: auto; font-size: 12.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.canvas-card-meta { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--text-muted); }
 .canvas-card-actual { text-align: left; font: inherit; color: inherit; cursor: pointer; width: 100%; }
 .canvas-card-actual:disabled { cursor: default; }
 /* 24px, not 20. WCAG 2.2 target-size is a hard floor and axe cannot see it —
@@ -2512,9 +2783,9 @@ input[type='checkbox']:checked::after {
 /* — capture time-context chip — */
 .capture-context {
   display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
-  font-size: 12.5px; font-weight: 600; color: var(--brand-on-tint);
+  font-size: 14px; font-weight: 600; color: var(--brand-on-tint);
   background: color-mix(in srgb, var(--brand) 10%, transparent);
-  border-radius: 999px; padding: 4px 6px 4px 12px; width: fit-content;
+  border-radius: var(--radius-pill); padding: 4px 6px 4px 12px; width: fit-content;
 }
 .capture-context-clear {
   border: none; background: none; color: inherit; cursor: pointer;
@@ -2531,7 +2802,7 @@ input[type='checkbox']:checked::after {
 .nav-group-toggle:hover .nav-group-label { color: var(--text-primary); }
 .nav-group-toggle.has-active .nav-group-label { color: var(--brand); }
 .nav-group-label {
-  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em;
+  font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em;
   transition: color var(--dur-fast) var(--ease);
 }
 .nav-group-chevron { transition: transform var(--dur-fast) var(--ease); }
@@ -2548,7 +2819,7 @@ input[type='checkbox']:checked::after {
 .onb-field-row { display: flex; gap: 12px; width: 100%; max-width: 420px; }
 .onb-field-col { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 420px; }
 .onb-field { display: flex; flex-direction: column; gap: 5px; flex: 1; text-align: left; }
-.onb-field > span { font-size: 12.5px; font-weight: 600; color: var(--text-muted); }
+.onb-field > span { font-size: 14px; font-weight: 600; color: var(--text-muted); }
 .onb-textarea { max-width: 460px; width: 100%; text-align: left; }
 
 .atlas-loading {
@@ -2559,7 +2830,7 @@ input[type='checkbox']:checked::after {
   margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -0.01em;
   animation: atlas-msg-in 0.4s var(--ease) both;
 }
-.atlas-loading-sub { margin: 0; font-size: 13.5px; color: var(--text-muted); max-width: 380px; line-height: 1.5; }
+.atlas-loading-sub { margin: 0; font-size: 15px; color: var(--text-muted); max-width: 380px; line-height: 1.5; }
 @keyframes atlas-msg-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .atlas-loading-msg { animation: none; } }
 
@@ -2570,11 +2841,11 @@ input[type='checkbox']:checked::after {
   background: var(--surface-raised); border: 1px solid var(--border-subtle);
   border-radius: 16px; padding: 14px 16px;
 }
-.prog-tile-label { font-size: 12px; font-weight: 650; color: var(--text-muted); letter-spacing: 0.02em; }
+.prog-tile-label { font-size: 13.5px; font-weight: 650; color: var(--text-muted); letter-spacing: 0.02em; }
 .prog-tile-value { font-size: 26px; font-weight: 750; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .prog-delta {
   display: inline-flex; align-items: center; gap: 3px; width: fit-content;
-  font-size: 11.5px; font-weight: 700; border-radius: 999px; padding: 2px 8px;
+  font-size: 13px; font-weight: 700; border-radius: var(--radius-pill); padding: 2px 8px;
 }
 .prog-delta.up { color: var(--success-text); background: color-mix(in srgb, var(--success-role) 12%, transparent); }
 .prog-delta.down { color: var(--danger-role); background: color-mix(in srgb, var(--danger-role) 12%, transparent); }
@@ -2596,7 +2867,7 @@ input[type='checkbox']:checked::after {
 .nownext-main { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 190px; }
 .nownext-eyebrow {
   display: inline-flex; align-items: center; gap: 7px;
-  font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--brand);
 }
 .nownext-dot {
@@ -2607,7 +2878,7 @@ input[type='checkbox']:checked::after {
 @media (prefers-reduced-motion: reduce) { .nownext-dot { animation: none; } }
 .nownext-title { margin: 0; font-size: 27px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
 .nownext-title.nownext-open { color: var(--text-muted); }
-.nownext-sub { font-size: 13px; color: var(--text-muted); }
+.nownext-sub { font-size: 14.5px; color: var(--text-muted); }
 /* "Running late" — one tap to push the rest of today. Sits under the now-line
    because that is the moment it is needed. Pills rather than the standard
    Button so three of them fit on a phone without wrapping the now-block. */
@@ -2618,18 +2889,18 @@ input[type='checkbox']:checked::after {
 }
 .runlate-label {
   display: inline-flex; align-items: center; gap: 5px;
-  font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--text-muted);
 }
 .runlate-btn {
   /* 32px, comfortably over the 24px the phone-width spec measures every
      interactive element against. */
   min-height: 32px; min-width: 48px; padding: 0 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--border-subtle);
   background: var(--surface-raised);
   color: var(--text);
-  font: inherit; font-size: 13px; font-weight: 600;
+  font: inherit; font-size: 14.5px; font-weight: 600;
   cursor: pointer;
 }
 .runlate-btn:hover:not(:disabled) {
@@ -2648,13 +2919,13 @@ input[type='checkbox']:checked::after {
 }
 .nownext-next-label {
   display: inline-flex; align-items: center; gap: 4px;
-  font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
   color: var(--text-muted);
 }
-.nownext-next-title { font-size: 15px; font-weight: 650; text-align: right; }
+.nownext-next-title { font-size: 16.5px; font-weight: 650; text-align: right; }
 .nownext-next-meta {
   display: inline-flex; align-items: center; gap: 3px;
-  font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums;
+  font-size: 13.5px; color: var(--text-muted); font-variant-numeric: tabular-nums;
 }
 
 /* — overview blocks —
@@ -2674,26 +2945,26 @@ input[type='checkbox']:checked::after {
 .ov-block { display: flex; flex-direction: column; gap: 8px; }
 .ov-head {
   display: flex; align-items: center; gap: 8px; margin: 0;
-  font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  font-size: 13.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--text-muted);
 }
 .ov-count {
-  font-size: 11px; font-weight: 700; letter-spacing: 0;
+  font-size: 12.5px; font-weight: 700; letter-spacing: 0;
   background: var(--surface-inset); color: var(--text-muted);
-  border-radius: 999px; padding: 1px 8px;
+  border-radius: var(--radius-pill); padding: 1px 8px;
 }
 .ov-list { display: flex; flex-direction: column; gap: 6px; }
 .ov-list .canvas-card { margin-top: 0; }
 .ov-empty {
   display: flex; align-items: center; gap: 8px; margin: 0;
-  font-size: 13.5px; color: var(--text-muted);
+  font-size: 15px; color: var(--text-muted);
   padding: 12px 14px; border-radius: 12px;
   border: 1.5px dashed color-mix(in srgb, var(--border-subtle) 85%, transparent);
 }
 .ov-disclose {
   display: flex; align-items: center; gap: 7px; width: fit-content; min-height: 24px;
   border: none; background: none; cursor: pointer; font: inherit; padding: 4px 8px 4px 0;
-  font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  font-size: 13.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--text-muted); border-radius: 8px;
 }
 .ov-disclose:hover { color: var(--text-primary); }
@@ -2710,7 +2981,7 @@ input[type='checkbox']:checked::after {
 
 /* Atlas's greeting, as the opening line of its brief. */
 .hero-brief-greeting {
-  margin: 0 0 4px; font-size: 14.5px; font-weight: 650; color: var(--text-primary);
+  margin: 0 0 4px; font-size: 16px; font-weight: 650; color: var(--text-primary);
   letter-spacing: -0.01em;
 }
 
@@ -2748,15 +3019,15 @@ input[type='checkbox']:checked::after {
 .check-box.done {
   border-color: var(--success-role); background: var(--success-role); color: #fff; cursor: default;
 }
-.check-title { flex: 1; min-width: 0; font-size: 14.5px; }
+.check-title { flex: 1; min-width: 0; font-size: 16px; }
 .check-meta {
   flex: none; display: inline-flex; align-items: center; gap: 4px;
-  font-size: 11.5px; color: var(--text-muted); font-variant-numeric: tabular-nums;
+  font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums;
 }
 /* min-height, because this is the ONLY thing to tap on an empty Today and 13px
    text is a 16px box — under the 24px target floor on the phone it is aimed at. */
 .check-add-link {
-  display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; font-size: 13px;
+  display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; font-size: 14.5px;
   min-height: 24px;
 }
 @media (max-width: 620px) {
@@ -2768,8 +3039,8 @@ input[type='checkbox']:checked::after {
 .asks-bell { position: relative; display: inline-flex; }
 .asks-badge {
   position: absolute; top: -5px; right: -6px; min-width: 15px; height: 15px; padding: 0 4px;
-  border-radius: 999px; background: var(--accent-strong); color: #fff;
-  font-size: 9.5px; font-weight: 700; line-height: 15px; text-align: center;
+  border-radius: var(--radius-pill); background: var(--accent-strong); color: #fff;
+  font-size: 11px; font-weight: 700; line-height: 15px; text-align: center;
 }
 .asks-panel {
   position: fixed; z-index: 81; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -2784,27 +3055,27 @@ input[type='checkbox']:checked::after {
 }
 .asks-panel-title {
   display: flex; align-items: center; gap: 7px; margin: 0;
-  font-size: 15.5px; font-weight: 700; letter-spacing: -0.01em; color: var(--text-primary);
+  font-size: 17px; font-weight: 700; letter-spacing: -0.01em; color: var(--text-primary);
 }
 .asks-panel-title svg { color: var(--brand); flex: none; }
-.asks-panel-sub { margin: 4px 0 0; font-size: 12.5px; color: var(--text-muted); }
+.asks-panel-sub { margin: 4px 0 0; font-size: 14px; color: var(--text-muted); }
 .asks-panel-body {
   padding: 14px 18px 18px; overflow-y: auto;
   display: flex; flex-direction: column; gap: 12px;
 }
-.asks-empty { margin: 0; font-size: 13.5px; color: var(--text-muted); text-align: center; padding: 20px 0; }
+.asks-empty { margin: 0; font-size: 15px; color: var(--text-muted); text-align: center; padding: 20px 0; }
 .ask-card {
   display: flex; flex-direction: column; gap: 8px;
   padding: 14px; border-radius: 14px;
   background: var(--surface); border: 1px solid var(--border-subtle);
 }
-.ask-question { margin: 0; font-size: 14.5px; line-height: 1.45; }
-.ask-rationale { margin: 0; font-size: 12px; color: var(--text-muted); line-height: 1.45; }
+.ask-question { margin: 0; font-size: 16px; line-height: 1.45; }
+.ask-rationale { margin: 0; font-size: 13.5px; color: var(--text-muted); line-height: 1.45; }
 .ask-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .ask-actions .input { flex: 1; min-width: 160px; }
 .ask-card-saved {
   flex-direction: row; align-items: center; gap: 8px;
-  font-size: 13.5px; font-weight: 600; color: var(--success-text);
+  font-size: 15px; font-weight: 600; color: var(--success-text);
   border-color: color-mix(in srgb, var(--success-role) 40%, transparent);
 }
 
@@ -2849,7 +3120,11 @@ input[type='checkbox']:checked::after {
 .task-search:focus-within { border-color: var(--brand); }
 .task-search-input {
   flex: 1; border: none; background: transparent; outline: none;
-  font: inherit; font-size: 13.5px; color: var(--text-primary); min-width: 0;
+  /* 16px, because iOS zooms the whole page the moment a field under 16px takes
+     focus — which is what happened every time someone searched for an exercise.
+     Pinning maximumScale would stop the zoom and disable pinch-zoom for
+     everyone, failing WCAG 1.4.4. Size the field instead. */
+  font: inherit; font-size: 16px; color: var(--text-primary); min-width: 0;
   /* The input itself was 19px tall — under the 24px AA minimum and a genuinely
      awkward thumb target, even though its bordered wrapper looked big enough.
      The hit area is the input, not the box around it. */
@@ -2860,7 +3135,7 @@ input[type='checkbox']:checked::after {
 
 .quick-add-open {
   display: inline-flex; align-items: center; gap: 6px;
-  border: none; background: none; cursor: pointer; font: inherit; font-size: 13px;
+  border: none; background: none; cursor: pointer; font: inherit; font-size: 14.5px;
   color: var(--text-muted); padding: 8px 10px; margin: 2px 0 6px; border-radius: 9px;
   transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
@@ -2874,7 +3149,7 @@ input[type='checkbox']:checked::after {
 .quick-prio { display: flex; gap: 5px; margin-right: auto; }
 .quick-prio-chip {
   border: 1px solid var(--border-subtle); background: transparent; color: var(--text-muted);
-  border-radius: var(--radius-pill); padding: 4px 11px; font: inherit; font-size: 12px;
+  border-radius: var(--radius-pill); padding: 4px 11px; font: inherit; font-size: 13.5px;
   font-weight: 600; cursor: pointer;
   transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease),
     background var(--dur-fast) var(--ease);
@@ -2885,11 +3160,11 @@ input[type='checkbox']:checked::after {
 /* ── Recurrence: repeat is a tap, never typed ────────────────────────────── */
 .repeat-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
 .repeat-picker-label {
-  font-size: 11.5px; font-weight: 600; color: var(--text-muted); margin-right: 2px;
+  font-size: 13px; font-weight: 600; color: var(--text-muted); margin-right: 2px;
 }
 .repeat-chip {
   border: 1px solid var(--border-subtle); background: transparent; color: var(--text-muted);
-  border-radius: var(--radius-pill); padding: 4px 11px; font: inherit; font-size: 12px;
+  border-radius: var(--radius-pill); padding: 4px 11px; font: inherit; font-size: 13.5px;
   font-weight: 600; cursor: pointer;
   transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease),
     background var(--dur-fast) var(--ease);
@@ -2901,7 +3176,7 @@ input[type='checkbox']:checked::after {
    a transparent mix composites below 4.5:1 on the light surface. */
 .repeat-chip-label {
   display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
-  font-size: 11.5px; font-weight: 600; color: var(--text-muted);
+  font-size: 13px; font-weight: 600; color: var(--text-muted);
 }
 .repeat-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -2933,10 +3208,10 @@ input[type='checkbox']:checked::after {
   min-height: 24px;
   padding: 2px 7px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   font: inherit;
-  font-size: 11.5px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-muted);
   cursor: pointer;
@@ -3008,7 +3283,7 @@ input[type='checkbox']:checked::after {
   border-radius: 8px;
   background: transparent;
   font: inherit;
-  font-size: 13px;
+  font-size: 14.5px;
   color: var(--text);
   text-align: left;
   cursor: pointer;
@@ -3027,7 +3302,7 @@ input[type='checkbox']:checked::after {
 }
 .task-goal-horizon {
   flex-shrink: 0;
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -3036,7 +3311,7 @@ input[type='checkbox']:checked::after {
 .task-goal-empty {
   margin: 0;
   padding: 8px 9px;
-  font-size: 12.5px;
+  font-size: 14px;
   color: var(--text-muted);
 }
 .task-goal-clear {
@@ -3049,7 +3324,7 @@ input[type='checkbox']:checked::after {
   border-radius: 0 0 8px 8px;
   background: transparent;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 14px;
   color: var(--text-muted);
   text-align: left;
   cursor: pointer;
@@ -3061,7 +3336,7 @@ input[type='checkbox']:checked::after {
 /* What this task usually takes, measured from completed blocks. Quieter than
    the due chip on purpose: it is context, never a demand for attention. */
 .usual-chip {
-  flex-shrink: 0; font-size: 11.5px; font-weight: 500;
+  flex-shrink: 0; font-size: 13px; font-weight: 500;
   color: var(--text-muted); white-space: nowrap;
 }
 
@@ -3073,7 +3348,7 @@ input[type='checkbox']:checked::after {
 }
 .prog-hero-stat { display: flex; flex-direction: column; gap: 2px; }
 .prog-hero-value { font-size: 21px; font-weight: 700; letter-spacing: -0.02em; }
-.prog-hero-label { font-size: 11.5px; color: var(--text-muted); }
+.prog-hero-label { font-size: 13px; color: var(--text-muted); }
 
 .prog-grid {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px;
@@ -3092,33 +3367,33 @@ input[type='checkbox']:checked::after {
 .prog-card > .sparkline,
 .prog-card > .prog-mood-chart { margin-block: auto; }
 .prog-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.prog-card-title { margin: 0; font-size: 13.5px; font-weight: 700; letter-spacing: -0.01em; }
-.prog-card-hint { font-size: 11.5px; color: var(--text-muted); white-space: nowrap; }
+.prog-card-title { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+.prog-card-hint { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
 .prog-card svg { max-width: 100%; height: auto; }
-.prog-muted { margin: 0; font-size: 12.5px; color: var(--text-muted); line-height: 1.5; }
+.prog-muted { margin: 0; font-size: 14px; color: var(--text-muted); line-height: 1.5; }
 
 .prog-habits { display: flex; flex-direction: column; gap: 12px; }
 .prog-habit-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.prog-habit-pct { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.prog-habit-pct { font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .prog-habit-meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
 .prog-habit-name {
-  font-size: 13px; font-weight: 600;
+  font-size: 14.5px; font-weight: 600;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.prog-habit-sub { font-size: 11.5px; color: var(--text-muted); }
+.prog-habit-sub { font-size: 13px; color: var(--text-muted); }
 
 /* Mood: one chart, with the axis that makes it legible. */
 .prog-mood-chart { display: flex; align-items: stretch; gap: 8px; margin-top: 2px; }
 .prog-mood-axis {
   display: flex; flex-direction: column; justify-content: space-between;
-  font-size: 10px; font-weight: 600; color: var(--text-muted);
+  font-size: 11.5px; font-weight: 600; color: var(--text-muted);
   font-variant-numeric: tabular-nums; padding: 2px 0;
 }
 
 .prog-review-list {
   margin: 0; padding-left: 18px;
   display: flex; flex-direction: column; gap: 7px;
-  font-size: 13.5px; line-height: 1.5; color: var(--text-primary);
+  font-size: 15px; line-height: 1.5; color: var(--text-primary);
 }
 .prog-review-list strong { font-weight: 700; }
 
@@ -3131,28 +3406,28 @@ input[type='checkbox']:checked::after {
 /* ── Training: the active-workout logger ─────────────────────────────────── */
 .fit-active-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .fit-active-title { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
-.fit-active-sub { margin: 2px 0 0; font-size: 12.5px; color: var(--text-muted); }
+.fit-active-sub { margin: 2px 0 0; font-size: 14px; color: var(--text-muted); }
 
 .fit-block {
   margin-top: 12px; padding: 14px 16px; border-radius: 16px;
   background: var(--surface-raised); border: 1px solid var(--border-subtle);
 }
 .fit-block-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
-.fit-block-title { margin: 0; font-size: 14.5px; font-weight: 700; }
-.fit-last { font-size: 11.5px; color: var(--text-muted); }
+.fit-block-title { margin: 0; font-size: 16px; font-weight: 700; }
+.fit-last { font-size: 13px; color: var(--text-muted); }
 
 .fit-sets { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.fit-set { display: flex; align-items: center; gap: 10px; font-size: 13.5px; }
+.fit-set { display: flex; align-items: center; gap: 10px; font-size: 15px; }
 .fit-set.warmup { color: var(--text-muted); }
 .fit-set-n {
   flex: 0 0 22px; height: 22px; display: grid; place-items: center;
-  border-radius: 999px; background: var(--surface-sunken);
-  font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums;
+  border-radius: var(--radius-pill); background: var(--surface-sunken);
+  font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums;
 }
 .fit-set-body { flex: 1; font-variant-numeric: tabular-nums; }
 .fit-pr {
   display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0;
-  font-size: 10.5px; font-weight: 700; color: var(--success-text);
+  font-size: 12px; font-weight: 700; color: var(--success-text);
 }
 
 .fit-entry { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-top: 12px; }
@@ -3161,14 +3436,14 @@ input[type='checkbox']:checked::after {
    commented as meeting and the input collapsed to 32px — about two digits,
    for a box that takes three. */
 .fit-field { display: flex; flex-direction: column; gap: 3px; flex: 1 1 152px; min-width: 152px; max-width: 200px; }
-.fit-field > span { font-size: 11px; font-weight: 600; color: var(--text-muted); }
+.fit-field > span { font-size: 12.5px; font-weight: 600; color: var(--text-muted); }
 
 .fit-add-exercise {
   display: flex; align-items: center; justify-content: center; gap: 6px;
   width: 100%; margin-top: 12px; padding: 12px;
   border: 1px dashed var(--border-subtle); border-radius: 14px;
   background: transparent; color: var(--text-muted);
-  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  font: inherit; font-size: 14.5px; font-weight: 600; cursor: pointer;
   transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
 .fit-add-exercise:hover { color: var(--text-primary); border-color: var(--accent-strong); }
@@ -3179,11 +3454,11 @@ input[type='checkbox']:checked::after {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 9px 6px; border: 0; border-bottom: 1px solid var(--border-subtle);
   background: transparent; color: var(--text-primary);
-  font: inherit; font-size: 13.5px; text-align: left; cursor: pointer;
+  font: inherit; font-size: 15px; text-align: left; cursor: pointer;
 }
 .fit-picker-row:hover { background: var(--surface-sunken); }
 .fit-picker-row.create { gap: 6px; justify-content: flex-start; font-weight: 600; color: var(--accent-strong); }
-.fit-picker-muscle { font-size: 11px; color: var(--text-muted); text-transform: capitalize; }
+.fit-picker-muscle { font-size: 12.5px; color: var(--text-muted); text-transform: capitalize; }
 
 /* Rest timer */
 .rest-timer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -3193,9 +3468,13 @@ input[type='checkbox']:checked::after {
 }
 .rest-clock.done { color: var(--success-text); }
 .rest-targets { display: flex; gap: 4px; margin-right: auto; }
+/* 24px minimum, and measured rather than assumed: these were 23px tall. The
+   phone-width tap-target sweep never caught it because the rest timer only
+   exists while a session is OPEN, and the sweep visits /fitness at rest. */
 .rest-chip {
+  display: inline-flex; align-items: center; min-height: 24px;
   border: 1px solid var(--border-subtle); background: transparent; color: var(--text-muted);
-  border-radius: var(--radius-pill); padding: 3px 9px; font: inherit; font-size: 11.5px;
+  border-radius: var(--radius-pill); padding: 3px 9px; font: inherit; font-size: 13px;
   font-weight: 600; cursor: pointer;
 }
 .rest-chip.on { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
@@ -3212,9 +3491,9 @@ input[type='checkbox']:checked::after {
   background: var(--surface-raised); border: 1px solid var(--border-subtle);
 }
 .fit-history-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
-.fit-history-when { font-size: 11.5px; color: var(--text-muted); }
+.fit-history-when { font-size: 13px; color: var(--text-muted); }
 .fit-history-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
-.fit-history-list li { display: flex; flex-wrap: wrap; gap: 8px; font-size: 12.5px; }
+.fit-history-list li { display: flex; flex-wrap: wrap; gap: 8px; font-size: 14px; }
 /* A button now, not a label: tapping the movement opens everything you have
    ever done with it. 24px tall because every interactive element is measured
    against that, and it is underlined so it reads as pressable rather than as
@@ -3248,7 +3527,7 @@ input[type='checkbox']:checked::after {
   border: 1px solid var(--border-subtle);
 }
 .freetime-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.freetime-total { font-size: 11.5px; color: var(--text-muted); font-weight: 600; }
+.freetime-total { font-size: 13px; color: var(--text-muted); font-weight: 600; }
 .freetime-gaps { display: flex; flex-wrap: wrap; gap: 7px; }
 /* Inset, not raised: the block itself is now a raised card, so a raised chip on
    top of it had no edge at all. */
@@ -3259,17 +3538,17 @@ input[type='checkbox']:checked::after {
   font: inherit; transition: border-color var(--dur-fast) var(--ease);
 }
 .freetime-gap:hover { border-color: var(--accent-strong); }
-.freetime-gap-when { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.freetime-gap-len { font-size: 11px; color: var(--text-muted); }
+.freetime-gap-when { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.freetime-gap-len { font-size: 12.5px; color: var(--text-muted); }
 .freetime-plan {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   align-self: flex-start; padding: 8px 14px; border-radius: var(--radius-pill);
   border: 0; background: var(--accent-strong); color: #fff;
-  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  font: inherit; font-size: 14.5px; font-weight: 600; cursor: pointer;
 }
 .freetime-plan:disabled { opacity: 0.65; cursor: default; }
 
-.plan-note { margin: 8px 0 0; font-size: 12.5px; color: var(--text-muted); }
+.plan-note { margin: 8px 0 0; font-size: 14px; color: var(--text-muted); }
 .plan-proposals { display: flex; flex-direction: column; gap: 8px; }
 .plan-row {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
@@ -3277,13 +3556,13 @@ input[type='checkbox']:checked::after {
   background: var(--surface-raised); border: 1px solid var(--border-subtle);
 }
 .plan-row-main { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
-.plan-row-title { font-size: 13.5px; font-weight: 600; }
-.plan-row-why { font-size: 11.5px; color: var(--text-muted); }
-.plan-row-when { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.plan-row-title { font-size: 15px; font-weight: 600; }
+.plan-row-why { font-size: 13px; color: var(--text-muted); }
+.plan-row-when { font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .plan-accept {
   border: 0; border-radius: var(--radius-pill); padding: 6px 14px;
   background: var(--accent-strong); color: #fff;
-  font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
 }
 
 /* ── Slipped work: the batched decision ────────────────────────────────────
@@ -3300,23 +3579,23 @@ input[type='checkbox']:checked::after {
 .slipped-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .slipped-later {
   border: 0; background: none; padding: 0; cursor: pointer;
-  font: inherit; font-size: 11.5px; font-weight: 600; color: var(--text-muted);
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--text-muted);
 }
 .slipped-later:hover { color: var(--text); text-decoration: underline; }
 .slipped-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .slipped-item {
   display: flex; align-items: center; gap: 9px; cursor: pointer;
-  padding: 6px 2px; font-size: 13.5px;
+  padding: 6px 2px; font-size: 15px;
 }
 .slipped-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Deselected still reads clearly — it is a choice, not disabled state. */
 .slipped-title.off { color: var(--text-muted); text-decoration: line-through; }
-.slipped-when { font-size: 11.5px; font-weight: 600; color: var(--text-muted); flex-shrink: 0; }
+.slipped-when { font-size: 13px; font-weight: 600; color: var(--text-muted); flex-shrink: 0; }
 .slipped-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .slipped-move, .slipped-drop {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 8px 14px; border-radius: var(--radius-pill);
-  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  font: inherit; font-size: 14.5px; font-weight: 600; cursor: pointer;
 }
 .slipped-move { border: 0; background: var(--accent-strong); color: #fff; }
 /* Dropping is deliberately the quieter of the two, but never hidden — the
@@ -3339,12 +3618,12 @@ input[type='checkbox']:checked::after {
 .routine-label { flex: 1; min-width: 130px; }
 .routine-kind {
   border: 1px solid var(--border-subtle); border-radius: 10px; padding: 7px 9px;
-  background: var(--surface-sunken); color: var(--text-primary); font: inherit; font-size: 12.5px;
+  background: var(--surface-sunken); color: var(--text-primary); font: inherit; font-size: 14px;
 }
 .routine-time input[type='time'] {
   border: 1px solid var(--border-subtle); border-radius: 10px; padding: 6px 8px;
   background: var(--surface-sunken); color: var(--text-primary);
-  font: inherit; font-size: 12.5px; font-variant-numeric: tabular-nums;
+  font: inherit; font-size: 16px; font-variant-numeric: tabular-nums;
 }
 .routine-dash { color: var(--text-muted); }
 .routine-del {
@@ -3357,21 +3636,21 @@ input[type='checkbox']:checked::after {
 .routine-day {
   width: 26px; height: 26px; border-radius: 8px; cursor: pointer;
   border: 1px solid var(--border-subtle); background: transparent; color: var(--text-muted);
-  font: inherit; font-size: 11.5px; font-weight: 700;
+  font: inherit; font-size: 13px; font-weight: 700;
 }
 .routine-day.on { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
-.routine-oneoff { font-size: 11.5px; font-weight: 600; color: var(--text-muted); font-variant-numeric: tabular-nums; }
-.routine-hint { font-size: 11px; color: var(--text-muted); }
+.routine-oneoff { font-size: 13px; font-weight: 600; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.routine-hint { font-size: 12.5px; color: var(--text-muted); }
 .routine-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .routine-dated { margin-top: 4px; }
-.routine-summary { margin: 0; font-size: 11.5px; color: var(--text-muted); line-height: 1.6; }
+.routine-summary { margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.6; }
 
 .freetime-foot {
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
   margin-top: 2px;
 }
 .freetime-fix {
-  font-size: 11.5px; font-weight: 600; min-height: 24px; display: inline-flex; align-items: center;
+  font-size: 13px; font-weight: 600; min-height: 24px; display: inline-flex; align-items: center;
   color: var(--text-muted); text-decoration: underline; text-underline-offset: 2px;
 }
 .freetime-fix:hover { color: var(--text-primary); }
@@ -3483,7 +3762,7 @@ input[type='checkbox']:checked::after {
   .focus-group-title,
   .canvas-card-meta,
   .prog-hero-label {
-    font-size: 12px;
+    font-size: 13.5px;
   }
 }
 
@@ -3512,8 +3791,8 @@ input[type='checkbox']:checked::after {
 }
 .set-head svg { flex-shrink: 0; color: var(--text-muted); transition: transform var(--dur-fast) var(--ease); }
 .set-head svg.open { transform: rotate(180deg); }
-.set-title { font-size: 14.5px; font-weight: 650; }
-.set-hint { margin-left: auto; font-size: 12px; color: var(--text-muted); text-align: right; }
+.set-title { font-size: 16px; font-weight: 650; }
+.set-hint { margin-left: auto; font-size: 13.5px; color: var(--text-muted); text-align: right; }
 .set-body { padding-bottom: 16px; }
 
 
@@ -3540,7 +3819,7 @@ input[type='checkbox']:checked::after {
 .fit-quick-chip {
   border: 1px solid var(--border-subtle); background: transparent; color: var(--text-muted);
   border-radius: var(--radius-pill); padding: 7px 14px;
-  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  font: inherit; font-size: 14.5px; font-weight: 600; cursor: pointer;
   transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .fit-quick-chip:hover { color: var(--text-primary); border-color: var(--accent-strong); }
@@ -3553,7 +3832,7 @@ input[type='checkbox']:checked::after {
 .fit-pitch-list li {
   padding: 12px 15px; border-radius: 13px;
   background: var(--surface-raised); border: 1px solid var(--border-subtle);
-  font-size: 13.5px; line-height: 1.5; color: var(--text-muted);
+  font-size: 15px; line-height: 1.5; color: var(--text-muted);
 }
 .fit-pitch-list strong { color: var(--text-primary); font-weight: 650; }
 
@@ -3570,7 +3849,7 @@ input[type='checkbox']:checked::after {
 .landing-signin {
   padding: 10px 18px; border-radius: var(--radius-pill);
   border: 1px solid var(--border-subtle); color: var(--text-primary);
-  font-size: 14px; font-weight: 600; text-decoration: none;
+  font-size: 15.5px; font-weight: 600; text-decoration: none;
 }
 .landing-signin:hover { border-color: var(--accent-strong); }
 
@@ -3586,10 +3865,10 @@ input[type='checkbox']:checked::after {
 .landing-cta {
   display: inline-block; padding: 14px 28px; border-radius: var(--radius-pill);
   background: var(--accent-strong); color: #fff;
-  font-size: 15px; font-weight: 650; text-decoration: none;
+  font-size: 16.5px; font-weight: 650; text-decoration: none;
 }
 .landing-cta:hover { filter: brightness(1.06); }
-.landing-note { margin: 14px 0 0; font-size: 13px; color: var(--text-muted); }
+.landing-note { margin: 14px 0 0; font-size: 14.5px; color: var(--text-muted); }
 
 .landing-grid {
   display: grid; gap: 14px; margin-top: 26px;
@@ -3600,15 +3879,15 @@ input[type='checkbox']:checked::after {
   background: var(--surface-raised); border: 1px solid var(--border-subtle);
 }
 .landing-card h2 { margin: 0 0 8px; font-size: 16px; font-weight: 650; letter-spacing: -0.01em; }
-.landing-card p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--text-muted); }
+.landing-card p { margin: 0; font-size: 15.5px; line-height: 1.6; color: var(--text-muted); }
 
 .landing-close { margin-top: 64px; padding: 40px 0; max-width: 640px; }
 .landing-close h2 { margin: 0 0 14px; font-size: clamp(24px, 4vw, 34px); letter-spacing: -0.02em; }
-.landing-close p { margin: 0 0 26px; font-size: 15.5px; line-height: 1.65; color: var(--text-muted); }
+.landing-close p { margin: 0 0 26px; font-size: 17px; line-height: 1.65; color: var(--text-muted); }
 
 .landing-foot {
   margin-top: 40px; padding-top: 22px; border-top: 1px solid var(--border-subtle);
-  font-size: 13px; color: var(--text-muted);
+  font-size: 14.5px; color: var(--text-muted);
 }
 
 @media (max-width: 640px) {
@@ -3646,7 +3925,7 @@ input[type='checkbox']:checked::after {
   margin: 20px 0 0;
   font-size: 27px; font-weight: 700; letter-spacing: -0.032em; line-height: 1.15;
 }
-.gate-blurb { margin: 7px 0 0; font-size: 14px; line-height: 1.5; color: var(--text-muted); }
+.gate-blurb { margin: 7px 0 0; font-size: 15.5px; line-height: 1.5; color: var(--text-muted); }
 
 /* Segmented switch, flush and quiet — it orients, it is not the action. */
 .gate-seg {
@@ -3657,7 +3936,7 @@ input[type='checkbox']:checked::after {
 .gate-seg-btn {
   padding: 8px 10px; border: 0; border-radius: 9px;
   background: transparent; color: var(--text-muted);
-  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  font: inherit; font-size: 14.5px; font-weight: 600; cursor: pointer;
 }
 .gate-seg-btn.on {
   background: var(--surface-raised); color: var(--text-primary);
@@ -3667,7 +3946,7 @@ input[type='checkbox']:checked::after {
 .gate-form { display: flex; flex-direction: column; gap: 15px; }
 .gate-field { display: flex; flex-direction: column; gap: 6px; }
 .gate-label {
-  font-size: 12.5px; font-weight: 600; letter-spacing: 0.01em;
+  font-size: 14px; font-weight: 600; letter-spacing: 0.01em;
   color: var(--text-muted);
 }
 .gate-input {
@@ -3676,7 +3955,7 @@ input[type='checkbox']:checked::after {
   border: 1px solid var(--border-subtle);
   background: var(--surface-sunken);
   color: var(--text-primary);
-  font: inherit; font-size: 15px;
+  font: inherit; font-size: 16.5px;
   transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 .gate-input::placeholder { color: color-mix(in srgb, var(--text-muted) 70%, transparent); }
@@ -3686,11 +3965,11 @@ input[type='checkbox']:checked::after {
   /* A ring rather than a thicker border, so nothing shifts on focus. */
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 22%, transparent);
 }
-.gate-hint { font-size: 12px; color: var(--text-muted); }
+.gate-hint { font-size: 13.5px; color: var(--text-muted); }
 
 .gate-remember {
   display: flex; align-items: center; gap: 9px;
-  font-size: 13.5px; color: var(--text-muted); cursor: pointer;
+  font-size: 15px; color: var(--text-muted); cursor: pointer;
   padding: 2px 0;
 }
 .gate-remember input {
@@ -3702,7 +3981,7 @@ input[type='checkbox']:checked::after {
   margin-top: 3px; padding: 13px 18px;
   border: 0; border-radius: 12px;
   background: var(--accent-strong); color: #fff;
-  font: inherit; font-size: 15px; font-weight: 650; cursor: pointer;
+  font: inherit; font-size: 16.5px; font-weight: 650; cursor: pointer;
   transition: filter var(--dur-fast) var(--ease), transform 90ms var(--ease);
 }
 .gate-submit:hover:not(:disabled) { filter: brightness(1.07); }
@@ -3713,7 +3992,7 @@ input[type='checkbox']:checked::after {
   padding: 10px 13px; border-radius: 10px;
   background: color-mix(in srgb, var(--danger-role, #ef4444) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--danger-role, #ef4444) 34%, transparent);
-  font-size: 13px; color: var(--danger-text, #ef4444); line-height: 1.45;
+  font-size: 14.5px; color: var(--danger-text, #ef4444); line-height: 1.45;
 }
 
 .onb-cal-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
@@ -4039,11 +4318,11 @@ input[type='checkbox']:checked::after {
   gap: 10px; pointer-events: none;
   background: color-mix(in srgb, var(--surface-raised) 76%, transparent);
 }
-.wk-empty-line { margin: 0; font-size: 14px; font-weight: 600; color: var(--text-muted); }
+.wk-empty-line { margin: 0; font-size: 15.5px; font-weight: 600; color: var(--text-muted); }
 .wk-empty-act {
   pointer-events: auto;
   border: 1px solid var(--border-subtle); background: var(--surface-raised);
-  color: var(--brand); font: inherit; font-size: 13px; font-weight: 650;
+  color: var(--brand); font: inherit; font-size: 14.5px; font-weight: 650;
   padding: 8px 16px; border-radius: var(--radius-pill); min-height: 36px; cursor: pointer;
   transition: border-color var(--dur-fast) var(--ease);
 }
@@ -4094,9 +4373,9 @@ input[type='checkbox']:checked::after {
 }
 .wk-day:last-child { border-right: 0; }
 .wk-day:hover { background: var(--surface-inset); }
-.wk-day-name { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; }
+.wk-day-name { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
 .wk-day-num {
-  font-size: 15px; font-weight: 650; color: var(--text-primary);
+  font-size: 16.5px; font-weight: 650; color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 /* Today is a ring on the number, so it survives another day being selected. */
@@ -4127,7 +4406,7 @@ input[type='checkbox']:checked::after {
 .wk-chip {
   border: 0; border-radius: 5px; padding: 3px 6px; cursor: pointer;
   background: color-mix(in srgb, var(--brand) 16%, var(--surface-raised));
-  color: var(--text-primary); font: inherit; font-size: 11px; font-weight: 600;
+  color: var(--text-primary); font: inherit; font-size: 12.5px; font-weight: 600;
   text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
@@ -4146,7 +4425,7 @@ input[type='checkbox']:checked::after {
   height: var(--wk-hour);
   display: flex; justify-content: flex-end;
   padding-right: 7px;
-  font-size: 10.5px; color: var(--text-muted); font-variant-numeric: tabular-nums;
+  font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums;
 }
 /* Sat ON the line rather than inside the row, which is where the hour is. */
 .wk-hour-label span { transform: translateY(-6px); }
@@ -4193,18 +4472,18 @@ input[type='checkbox']:checked::after {
 }
 .wk-event:hover { background: color-mix(in srgb, var(--brand) 26%, var(--surface-raised)); }
 .wk-event-title {
-  font-size: 11.5px; font-weight: 650; line-height: 1.25;
+  font-size: 13px; font-weight: 650; line-height: 1.25;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .wk-event-time {
-  font-size: 10px; color: var(--text-muted); font-variant-numeric: tabular-nums;
+  font-size: 11.5px; color: var(--text-muted); font-variant-numeric: tabular-nums;
   overflow: hidden; white-space: nowrap;
 }
 /* Too short for a second line — the title alone, vertically centred, and the
    time stays available in the tooltip and in the composer. */
 .wk-event.compact { justify-content: center; padding-block: 1px; }
 .wk-event.compact .wk-event-time { display: none; }
-.wk-event.compact .wk-event-title { font-size: 11px; }
+.wk-event.compact .wk-event-title { font-size: 12.5px; }
 
 /* Composer. `.field`/`.field-label` are the same two rules under a name that is
    not about the calendar — any dialog form uses them. Aliased rather than
@@ -4845,15 +5124,64 @@ input[type='checkbox']:checked::after {
   padding: 0;
   counter-reset: move;
 }
+.day-chosen-item {
+  border-bottom: 1px solid var(--border-subtle);
+}
+.day-chosen-item:last-child {
+  border-bottom: none;
+}
+/* A superset is a bracket down the side, so a pair reads as one thing to do
+   without needing the tag to be found and read first. */
+.day-chosen-item.in-superset {
+  border-left: 2px solid color-mix(in oklab, var(--brand) 45%, transparent);
+  padding-left: var(--space-2);
+  background: color-mix(in oklab, var(--brand) 4%, transparent);
+}
 .day-chosen-row {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) 0;
-  border-bottom: 1px solid var(--border-subtle);
 }
-.day-chosen-row:last-child {
-  border-bottom: none;
+/* Brand text on a brand tint needs the on-tint token, never --brand. */
+.day-superset-tag {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--brand-on-tint);
+  background: color-mix(in oklab, var(--brand) 12%, transparent);
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+/* The link between two neighbours. Sits under the row it belongs to, so the
+   thing it joins is unambiguous. */
+.day-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  margin: 0 0 var(--space-2) 22px;
+  padding: 3px 9px;
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease,
+    background var(--dur-fast) ease;
+}
+.day-link:hover {
+  color: var(--text);
+  border-color: var(--border);
+}
+.day-link.on {
+  border-style: solid;
+  border-color: color-mix(in oklab, var(--brand) 35%, transparent);
+  background: color-mix(in oklab, var(--brand) 10%, transparent);
+  color: var(--brand-on-tint);
 }
 .day-grip {
   color: var(--text-muted);
@@ -5105,10 +5433,10 @@ label:has(> input[type='checkbox']) {
 .adm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
 .adm-stat { display: flex; flex-direction: column; gap: 2px; }
 .adm-n { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; color: var(--text-primary); font-variant-numeric: tabular-nums; }
-.adm-l { font-size: 12px; font-weight: 600; color: var(--text-primary); }
-.adm-sub { font-size: 11.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.adm-l { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+.adm-sub { font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .adm-domains { display: flex; flex-direction: column; gap: 5px; margin: 8px 0 0; padding: 0; list-style: none; }
-.adm-domains li { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
+.adm-domains li { display: flex; justify-content: space-between; gap: 10px; font-size: 14.5px; }
 
 /* ── Everything (the demoted domain pages) ───────────────────────────────── */
 /* Two columns, so the eight parts of Atlas can be taken in at once instead of
@@ -5132,8 +5460,8 @@ label:has(> input[type='checkbox']) {
   background: var(--surface-inset); color: var(--brand);
 }
 .evy-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.evy-label { font-size: 15px; font-weight: 650; letter-spacing: -0.01em; }
-.evy-blurb { font-size: 12.5px; color: var(--text-muted); line-height: 1.45; text-wrap: pretty; }
+.evy-label { font-size: 16.5px; font-weight: 650; letter-spacing: -0.01em; }
+.evy-blurb { font-size: 14px; color: var(--text-muted); line-height: 1.45; text-wrap: pretty; }
 @media (max-width: 620px) {
   .evy-list { grid-template-columns: 1fr; gap: 8px; }
 }
@@ -5162,7 +5490,7 @@ label:has(> input[type='checkbox']) {
    which is a hint about a hint. It is the premise; it gets to be legible. */
 .promise {
   margin: 0 2px 14px;
-  font-size: 14.5px;
+  font-size: 16px;
   line-height: 1.5;
   font-weight: 500;
   color: var(--text-primary);
@@ -5174,13 +5502,13 @@ label:has(> input[type='checkbox']) {
 
 /* Google's redirect_uri_mismatch is unfixable from inside the app; showing the
    exact string Atlas sends is the most useful thing it can do about it. */
-.gc-redirect { font-size: 12.5px; color: var(--text-muted); }
+.gc-redirect { font-size: 14px; color: var(--text-muted); }
 .gc-redirect summary { cursor: pointer; min-height: 24px; padding: 3px 0; }
 .gc-redirect p { margin: 6px 0; line-height: 1.5; }
 .gc-redirect code {
   display: block; padding: 8px 10px; border-radius: var(--radius-sm);
   background: var(--surface-inset); color: var(--text-primary);
-  font-size: 12px; overflow-wrap: anywhere; user-select: all;
+  font-size: 13.5px; overflow-wrap: anywhere; user-select: all;
 }
 
 /* The connector as a status line, not a setup card. A live dot, the name, the
@@ -5189,7 +5517,7 @@ label:has(> input[type='checkbox']) {
 .gc-inline { margin-bottom: 12px; }
 .gc-inline-row {
   display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
-  font-size: 13px; color: var(--text-muted);
+  font-size: 14.5px; color: var(--text-muted);
 }
 .gc-dot {
   width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto;
@@ -5201,7 +5529,7 @@ label:has(> input[type='checkbox']) {
 .gc-inline-state { color: var(--text-muted); font-weight: 500; }
 .gc-inline-act {
   margin-left: auto; border: 1px solid var(--border-subtle); background: none;
-  color: var(--brand); font: inherit; font-size: 12.5px; font-weight: 650;
+  color: var(--brand); font: inherit; font-size: 14px; font-weight: 650;
   cursor: pointer; padding: 5px 12px; border-radius: var(--radius-pill); min-height: 30px;
   transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
@@ -5210,7 +5538,7 @@ label:has(> input[type='checkbox']) {
 /* Only the first action pushes right; the rest sit beside it. */
 .gc-inline-act ~ .gc-inline-act { margin-left: 0; }
 .gc-inline-act.quiet { color: var(--text-muted); }
-.gc-inline-note { margin: 7px 0 0; font-size: 12.5px; color: var(--text-muted); line-height: 1.5; }
+.gc-inline-note { margin: 7px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.5; }
 
 /* Writing: one box for a dated entry or a durable fact. */
 .wr-moods { gap: 6px; flex-wrap: wrap; align-items: center; }
@@ -5218,7 +5546,7 @@ label:has(> input[type='checkbox']) {
   min-width: 36px; min-height: 36px; padding: 6px 10px;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
   background: transparent; color: var(--text-muted);
-  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  font: inherit; font-size: 14.5px; font-weight: 600; cursor: pointer;
 }
 .wr-mood.on { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
 
@@ -5228,19 +5556,19 @@ label:has(> input[type='checkbox']) {
   border: 1px solid var(--brand); border-radius: var(--radius-lg);
   background: var(--surface-raised);
 }
-.fc-head { margin: 0 0 6px; font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: var(--text-primary); }
-.fc-body { margin: 0 0 9px; font-size: 13.5px; line-height: 1.5; color: var(--text-primary); text-wrap: pretty; }
+.fc-head { margin: 0 0 6px; font-size: 16.5px; font-weight: 700; letter-spacing: -0.01em; color: var(--text-primary); }
+.fc-body { margin: 0 0 9px; font-size: 15px; line-height: 1.5; color: var(--text-primary); text-wrap: pretty; }
 .fc-examples { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 9px; padding: 0; list-style: none; }
 .fc-examples li {
   padding: 5px 10px; border-radius: var(--radius-pill); background: var(--surface-inset);
-  font-size: 12.5px; color: var(--text-muted); font-family: var(--font-mono, inherit);
+  font-size: 14px; color: var(--text-muted); font-family: var(--font-mono, inherit);
 }
-.fc-point { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12.5px; color: var(--text-muted); }
+.fc-point { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 14px; color: var(--text-muted); }
 .fc-card.done {
   display: flex; align-items: flex-start; gap: 9px;
   border-color: var(--border-subtle);
 }
-.fc-card.done p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+.fc-card.done p { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--text-muted); }
 .fc-card.done svg { flex-shrink: 0; margin-top: 2px; color: var(--success-text, var(--brand)); }
 
 /* Once-a-day mood check-in, at the top of Today.
@@ -5278,9 +5606,9 @@ label:has(> input[type='checkbox']) {
 }
 .mood-checkin-btn:disabled { opacity: 0.55; cursor: default; }
 .mood-checkin-num { font-size: 17px; font-weight: 700; line-height: 1; }
-.mood-checkin-word { font-size: 10.5px; color: var(--text-muted); letter-spacing: 0.02em; }
+.mood-checkin-word { font-size: 12px; color: var(--text-muted); letter-spacing: 0.02em; }
 .mood-checkin-btn:hover:not(:disabled) .mood-checkin-word { color: inherit; }
-.mood-checkin-why { margin: 0; font-size: 12px; color: var(--text-muted); }
+.mood-checkin-why { margin: 0; font-size: 13.5px; color: var(--text-muted); }
 
 /* ── What your better days have in common ─────────────────────────────────
    The payoff for the daily mood tap. Framed as a card rather than a chart
@@ -5299,20 +5627,20 @@ label:has(> input[type='checkbox']) {
   margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -0.01em;
   color: var(--text-primary);
 }
-.mood-patterns-scope { font-weight: 400; font-size: 13px; color: var(--text-muted); }
-.mood-patterns-wait { margin: 0; font-size: 14px; line-height: 1.55; color: var(--text-muted); }
+.mood-patterns-scope { font-weight: 400; font-size: 14.5px; color: var(--text-muted); }
+.mood-patterns-wait { margin: 0; font-size: 15.5px; line-height: 1.55; color: var(--text-muted); }
 .mood-patterns-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 9px; }
 .mood-patterns-item {
-  font-size: 14.5px; line-height: 1.55; color: var(--text-primary);
+  font-size: 16px; line-height: 1.55; color: var(--text-primary);
   padding-left: 13px; border-left: 2px solid color-mix(in srgb, var(--brand) 45%, transparent);
 }
-.mood-patterns-note { margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+.mood-patterns-note { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--text-muted); }
 
 /* Confirmation that a settings field really saved. Quiet, inline, and a live
    region — a change you cannot see landing is one you cannot trust. */
 .field-saved {
   margin: 0;
-  font-size: 13px;
+  font-size: 14.5px;
   color: var(--brand-on-tint);
 }
 
@@ -5322,12 +5650,12 @@ label:has(> input[type='checkbox']) {
    tells you which is which. The swatch carries Google's own colour so the
    list reads as the same set of calendars the user sees over there. */
 .gcal-picker { display: flex; flex-direction: column; gap: 8px; }
-.gcal-picker-h { margin: 0; font-size: 13px; font-weight: 700; color: var(--text-primary); }
+.gcal-picker-h { margin: 0; font-size: 14.5px; font-weight: 700; color: var(--text-primary); }
 .gcal-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
 .gcal-row {
   display: flex; align-items: center; gap: 9px;
   min-height: 32px; padding: 3px 4px; border-radius: 8px;
-  font-size: 14px; color: var(--text-primary); cursor: pointer;
+  font-size: 15.5px; color: var(--text-primary); cursor: pointer;
 }
 .gcal-row:hover { background: color-mix(in srgb, var(--brand) 7%, transparent); }
 .gcal-row input { width: 18px; height: 18px; flex: none; cursor: pointer; accent-color: var(--brand); }
@@ -5337,12 +5665,12 @@ label:has(> input[type='checkbox']) {
 }
 .gcal-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .gcal-tag {
-  flex: none; font-size: 11px; font-weight: 700; letter-spacing: 0.02em;
+  flex: none; font-size: 12.5px; font-weight: 700; letter-spacing: 0.02em;
   color: var(--brand-on-tint);
   background: color-mix(in srgb, var(--brand) 12%, transparent);
-  border-radius: 999px; padding: 2px 7px;
+  border-radius: var(--radius-pill); padding: 2px 7px;
 }
-.gcal-warn { margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+.gcal-warn { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--text-muted); }
 
 /* ── colour scheme picker ─────────────────────────────────────────────────
    Two columns on a phone, more where there is room. Each card shows the
@@ -5375,15 +5703,15 @@ label:has(> input[type='checkbox']) {
   border: 1px solid var(--border-subtle);
   display: flex; align-items: center; justify-content: center; gap: 3px;
 }
-.pal-dot { width: 9px; height: 9px; border-radius: 999px; }
+.pal-dot { width: 9px; height: 9px; border-radius: var(--radius-pill); }
 .pal-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .pal-name {
   display: flex; align-items: center; gap: 5px;
-  font-size: 13.5px; font-weight: 700; color: var(--text-primary);
+  font-size: 15px; font-weight: 700; color: var(--text-primary);
 }
 .pal-card.on .pal-name { color: var(--brand-on-tint); }
 .pal-check { flex: none; }
-.pal-hint { font-size: 12px; line-height: 1.35; color: var(--text-muted); }
+.pal-hint { font-size: 13.5px; line-height: 1.35; color: var(--text-muted); }
 
 /* ── browse the exercise catalog by muscle ────────────────────────────────
    Three hundred movements is only usable if it can be narrowed, and search
@@ -5399,14 +5727,24 @@ label:has(> input[type='checkbox']) {
 .fit-chips {
   display: flex; gap: 6px;
   overflow-x: auto; scrollbar-width: none;
+  /* Swiping a chip row must not drag the page with it. */
+  overscroll-behavior-x: contain;
   padding-bottom: 2px;
+}
+/* The set-type and RPE rows are a SHORT, fixed set of options, so they WRAP
+   rather than scroll. Measured at 390px: scrolling with the scrollbar hidden
+   cut "AMRAP" and the two lowest RPEs clean off the right edge with nothing to
+   say they were there, which reads as broken rather than as scrollable. */
+.fit-opts .fit-chips {
+  flex-wrap: wrap;
+  overflow-x: visible;
 }
 .fit-chips::-webkit-scrollbar { display: none; }
 .fit-chips .chip { flex: none; }
 .fit-clear {
   align-self: flex-start; min-height: 24px;
   border: 0; background: none; padding: 2px 0;
-  color: var(--brand); font: inherit; font-size: 12.5px; cursor: pointer;
+  color: var(--brand); font: inherit; font-size: 14px; cursor: pointer;
   text-decoration: underline;
 }
 
@@ -5419,7 +5757,7 @@ label:has(> input[type='checkbox']) {
 .wc-item {
   display: flex; align-items: flex-start; gap: 10px;
   padding: 11px 12px; border-radius: 12px;
-  font-size: 15px; line-height: 1.45; color: var(--text-primary);
+  font-size: 16.5px; line-height: 1.45; color: var(--text-primary);
 }
 .wc-item:nth-child(odd) { background: var(--surface); }
 .wc-icon { flex: none; margin-top: 2px; color: var(--text-muted); }
@@ -5452,14 +5790,14 @@ label:has(> input[type='checkbox']) {
 .cal-months {
   display: flex; gap: 4px;
   margin-left: 38px; margin-bottom: 4px;
-  font-size: 11px; color: var(--text-muted);
+  font-size: 12.5px; color: var(--text-muted);
 }
 .cal-month { width: 24px; flex: none; white-space: nowrap; }
 .cal-body { display: flex; gap: 6px; }
 .cal-weekdays {
   display: flex; flex-direction: column; gap: 4px;
   width: 34px; flex: none;
-  font-size: 11px; color: var(--text-muted);
+  font-size: 12.5px; color: var(--text-muted);
 }
 .cal-weekdays span { height: 24px; line-height: 24px; }
 .cal-grid { display: flex; gap: 4px; }
@@ -5480,8 +5818,8 @@ label:has(> input[type='checkbox']) {
 .cal-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
 /* The readout is the whole point on touch: no hover, so tapping a day has to
    say which day it was and what was on it. */
-.cal-readout { margin: 0; font-size: 13.5px; color: var(--text-primary); font-weight: 600; }
-.cal-key { display: flex; align-items: center; gap: 4px; margin-left: auto; font-size: 11px; color: var(--text-muted); }
+.cal-readout { margin: 0; font-size: 15px; color: var(--text-primary); font-weight: 600; }
+.cal-key { display: flex; align-items: center; gap: 4px; margin-left: auto; font-size: 12.5px; color: var(--text-muted); }
 .cal-key i { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
 .cal-key i[data-level='0'] { background: var(--surface-inset); }
 .cal-key i[data-level='1'] { background: color-mix(in srgb, var(--brand) 28%, var(--surface-inset)); }
@@ -5497,8 +5835,8 @@ label:has(> input[type='checkbox']) {
    with the stake, which is why it is taller than the Chromium version. */
 .install-prompt.ios { align-items: flex-start; }
 .install-ios-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.install-ios-copy strong { font-size: 14.5px; }
-.install-ios-copy p { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--text-primary); }
+.install-ios-copy strong { font-size: 16px; }
+.install-ios-copy p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--text-primary); }
 /* Inline with the words, because the user is looking for this exact glyph in
    the Safari toolbar and a description of it is harder to match than the icon. */
 .install-share {
@@ -5506,7 +5844,7 @@ label:has(> input[type='checkbox']) {
   vertical-align: -2px;
   color: var(--brand);
 }
-.install-ios-why { color: var(--text-muted) !important; font-size: 12.5px !important; }
+.install-ios-why { color: var(--text-muted) !important; font-size: 14px !important; }
 
 /* ── "What should Atlas call you?" ────────────────────────────────────────
    Sits directly under the greeting, because that is the sentence the answer
@@ -5515,7 +5853,7 @@ label:has(> input[type='checkbox']) {
 .name-nudge-open {
   min-height: 24px; padding: 2px 0;
   border: 0; background: none;
-  color: var(--brand); font: inherit; font-size: 13px; cursor: pointer;
+  color: var(--brand); font: inherit; font-size: 14.5px; cursor: pointer;
   text-decoration: underline; text-underline-offset: 3px;
 }
 .name-nudge { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
@@ -5550,18 +5888,18 @@ label:has(> input[type='checkbox']) {
   background: var(--surface-inset);
 }
 .exd-record-v { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; color: var(--text-primary); }
-.exd-record-l { font-size: 11.5px; color: var(--text-muted); }
+.exd-record-l { font-size: 13px; color: var(--text-muted); }
 
 .exd-trend { display: flex; flex-direction: column; gap: 6px; }
 .exd-trend-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.exd-trend-label { font-size: 13px; font-weight: 650; color: var(--text-primary); }
-.exd-trend-now { font-size: 15px; font-weight: 700; color: var(--text-primary); }
-.exd-trend-delta { margin-left: 6px; font-size: 12.5px; font-weight: 650; }
+.exd-trend-label { font-size: 14.5px; font-weight: 650; color: var(--text-primary); }
+.exd-trend-now { font-size: 16.5px; font-weight: 700; color: var(--text-primary); }
+.exd-trend-delta { margin-left: 6px; font-size: 14px; font-weight: 650; }
 .exd-trend-delta.up { color: var(--success-text); }
 .exd-trend-delta.down { color: var(--pill-warm-fg); }
 /* Said as an estimate every time. It is arithmetic on a set you did, not a
    number you have lifted, and blurring the two is how a tracker starts lying. */
-.exd-trend-foot { margin: 0; font-size: 12px; line-height: 1.45; color: var(--text-muted); }
+.exd-trend-foot { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--text-muted); }
 
 .exd-log { display: flex; flex-direction: column; gap: 10px; }
 .exd-session {
@@ -5569,12 +5907,12 @@ label:has(> input[type='checkbox']) {
   border: 1px solid var(--border-subtle); background: var(--surface);
 }
 .exd-session-head { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
-.exd-session-when { font-size: 13.5px; font-weight: 650; color: var(--text-primary); }
-.exd-session-meta { font-size: 12px; color: var(--text-muted); }
+.exd-session-when { font-size: 15px; font-weight: 650; color: var(--text-primary); }
+.exd-session-meta { font-size: 13.5px; color: var(--text-muted); }
 .exd-session-sets { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 4px 12px; }
 .exd-session-sets li {
   display: inline-flex; align-items: center; gap: 4px;
-  font-size: 13px; color: var(--text-primary);
+  font-size: 14.5px; color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 .exd-session-sets li.warmup { color: var(--text-muted); }
@@ -5591,26 +5929,26 @@ label:has(> input[type='checkbox']) {
 }
 .fit-opts-label {
   flex: none; align-self: center;
-  font-size: 11.5px; font-weight: 650; color: var(--text-muted);
+  font-size: 13px; font-weight: 650; color: var(--text-muted);
   padding-right: 2px;
 }
-.fit-opts .chip { flex: none; min-height: 28px; padding: 3px 10px; font-size: 12.5px; }
+.fit-opts .chip { flex: none; min-height: 28px; padding: 3px 10px; font-size: 14px; }
 /* Effort belongs to the set it was logged with, so it sits under the numbers
    rather than beside them, and never competes with the weight for attention. */
 .fit-set-rpe {
   display: block;
-  font-size: 11.5px; color: var(--text-muted);
+  font-size: 13px; color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 .fit-plates { display: flex; flex-direction: column; gap: 4px; }
 .fit-plates-toggle {
   align-self: flex-start; min-height: 24px;
   border: 0; background: none; padding: 0;
-  color: var(--brand); font: inherit; font-size: 12.5px; cursor: pointer;
+  color: var(--brand); font: inherit; font-size: 14px; cursor: pointer;
   text-decoration: underline; text-underline-offset: 3px;
 }
 .fit-plates-out {
-  margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-primary);
+  margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 /* A weight the gym cannot make is reported, never rounded away — a silently
@@ -5622,7 +5960,7 @@ label:has(> input[type='checkbox']) {
    since fitness shipped, and no field anywhere ever set it. How a session felt
    is the part you cannot reconstruct from the numbers later. */
 .fit-notes { display: flex; flex-direction: column; gap: 4px; }
-.fit-notes-label { font-size: 12px; font-weight: 650; color: var(--text-muted); }
+.fit-notes-label { font-size: 13.5px; font-weight: 650; color: var(--text-muted); }
 .fit-notes-input {
   width: 100%; resize: vertical; min-height: 44px;
   padding: 8px 10px; border-radius: 10px;
@@ -5632,3 +5970,40 @@ label:has(> input[type='checkbox']) {
   font: inherit; font-size: 16px; line-height: 1.45;
 }
 .fit-notes-input::placeholder { color: var(--text-muted); }
+
+/* ── Supersets in the open session ───────────────────────────────────────── */
+
+/* Draws the round as one block, because that is what it is: you work through
+   every movement in here before the rest timer starts. */
+.fit-superset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding: var(--space-2);
+  border: 1px solid color-mix(in oklab, var(--brand) 28%, transparent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklab, var(--brand) 4%, transparent);
+}
+.fit-superset > .card {
+  margin-top: 0;
+}
+.fit-superset-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0 0 2px;
+  padding: 0 2px;
+  font-size: var(--text-xs);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  /* On a tint of --brand, so --brand-on-tint. See the note above
+     .dialog-overlay's scale and the contrast rule in CLAUDE.md. */
+  color: var(--brand-on-tint);
+}
+.fit-superset-hint {
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--text-muted);
+}

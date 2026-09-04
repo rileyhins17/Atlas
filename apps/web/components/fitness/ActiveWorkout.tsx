@@ -3,10 +3,15 @@
 import { useMemo, useState } from 'react';
 import {
   formatVolume,
+  groupIntoRounds,
   groupSetsByExercise,
+  restStartsAfter,
   summarizeWorkout,
+  supersetLabel,
   type ExerciseDTO,
+  type ExerciseKind,
   type WorkoutDTO,
+  type WorkoutSetDTO,
   type WorkoutSummaryDTO,
 } from '@atlas/shared';
 import { Plus } from 'lucide-react';
@@ -17,6 +22,18 @@ import { RestTimer } from '@/components/fitness/RestTimer';
 import { elapsed } from './helpers';
 import { ExercisePicker } from './ExercisePicker';
 import { ExerciseBlock } from './ExerciseBlock';
+
+/** One movement on screen, with its place in the day and its logged sets. */
+interface Block {
+  exerciseId: string;
+  exerciseName: string;
+  kind: ExerciseKind;
+  /** Shared with its neighbours when they are a superset. */
+  supersetGroup: number | null;
+  sets: WorkoutSetDTO[];
+  /** From the saved day, rather than added mid-session. */
+  planned: boolean;
+}
 
 /** The open session. */
 export function ActiveWorkout({
@@ -49,25 +66,61 @@ export function ActiveWorkout({
   const groups = useMemo(() => groupSetsByExercise(workout.sets), [workout.sets]);
 
   /**
-   * Blocks that need rendering but have no sets yet: the saved day's movements
-   * (so a templated session opens ready to log, not empty), plus anything
-   * picked manually. Without this, starting "Push" would show a blank screen
-   * and picking an exercise would appear to do nothing.
+   * Every block this session shows, in the order it is meant to be done.
+   *
+   * The saved day leads, so a templated session opens in its planned order and
+   * STAYS there — building the list out of logged sets first meant the screen
+   * quietly reshuffled itself as you worked, which also made a superset
+   * impossible to draw. Anything logged or picked that the day does not know
+   * about follows, ungrouped, because it was decided mid-session.
    */
-  const emptyBlocks = useMemo(() => {
+  const blocks = useMemo<Block[]>(() => {
     const byId = new Map((exercises.data ?? []).map((e) => [e.id, e]));
-    const fromTemplate = (template?.exercises ?? [])
-      .map((te) => byId.get(te.exerciseId))
-      .filter((e): e is ExerciseDTO => Boolean(e));
-    const merged = [...fromTemplate, ...added];
+    const setsFor = new Map(groups.map((g) => [g.exerciseId, g]));
+    const out: Block[] = [];
     const seen = new Set<string>();
-    return merged.filter((e) => {
-      if (seen.has(e.id) || skipped.includes(e.id)) return false;
-      if (groups.some((g) => g.exerciseId === e.id)) return false;
-      seen.add(e.id);
-      return true;
-    });
+
+    const push = (
+      exerciseId: string,
+      name: string,
+      kind: ExerciseKind,
+      supersetGroup: number | null,
+      planned: boolean,
+    ) => {
+      if (seen.has(exerciseId) || skipped.includes(exerciseId)) return;
+      seen.add(exerciseId);
+      out.push({
+        exerciseId,
+        exerciseName: name,
+        kind,
+        supersetGroup,
+        sets: setsFor.get(exerciseId)?.sets ?? [],
+        planned,
+      });
+    };
+
+    for (const te of template?.exercises ?? []) {
+      const ex = byId.get(te.exerciseId);
+      if (ex) push(ex.id, ex.name, ex.kind, te.supersetGroup, true);
+    }
+    // Logged but not planned — the exercise name comes off the set itself, so
+    // this still renders while the catalog query is in flight.
+    for (const g of groups) push(g.exerciseId, g.exerciseName, g.kind, null, false);
+    for (const e of added) push(e.id, e.name, e.kind, null, false);
+    return out;
   }, [template, exercises.data, added, groups, skipped]);
+
+  /** Supersets: consecutive blocks sharing a group are one round. */
+  const rounds = useMemo(() => groupIntoRounds(blocks), [blocks]);
+
+  /**
+   * Rest begins after the ROUND, not after every set. Inside a superset the
+   * whole point is that you do not rest between the movements, so a timer
+   * counting down while you are still working is worse than none.
+   */
+  const logged = (exerciseId: string) => {
+    if (restStartsAfter(rounds, exerciseId)) setRestKey((k) => k + 1);
+  };
 
   return (
     <>
@@ -118,38 +171,40 @@ export function ActiveWorkout({
         <RestTimer key={restKey} />
       </Card>
 
-      {groups.map((g) => (
-        <ExerciseBlock
-          key={g.exerciseId}
-          workoutId={workout.id}
-          exerciseId={g.exerciseId}
-          exerciseName={g.exerciseName}
-          kind={g.kind}
-          sets={g.sets}
-          onLogged={() => setRestKey((k) => k + 1)}
-        />
-      ))}
-      {emptyBlocks.map((e) => (
-        <ExerciseBlock
-          key={e.id}
-          workoutId={workout.id}
-          exerciseId={e.id}
-          exerciseName={e.name}
-          kind={e.kind}
-          sets={[]}
-          onLogged={() => setRestKey((k) => k + 1)}
-          onSkip={() => setSkipped((prev) => [...prev, e.id])}
-        />
-      ))}
+      {rounds.map((round) => {
+        const body = round.members.map((b) => (
+          <ExerciseBlock
+            key={b.exerciseId}
+            workoutId={workout.id}
+            exerciseId={b.exerciseId}
+            exerciseName={b.exerciseName}
+            kind={b.kind}
+            sets={b.sets}
+            onLogged={() => logged(b.exerciseId)}
+            {...(b.sets.length === 0 ? { onSkip: () => setSkipped((p) => [...p, b.exerciseId]) } : {})}
+          />
+        ));
+        if (round.group === null) return body;
+        return (
+          <section
+            key={`ss-${round.group}`}
+            className="fit-superset"
+            aria-label={supersetLabel(round.group)}
+          >
+            <p className="fit-superset-head">
+              {supersetLabel(round.group)}
+              <span className="fit-superset-hint">no rest between these</span>
+            </p>
+            {body}
+          </section>
+        );
+      })}
 
       {picking ? (
         <Card style={{ marginTop: 12 }}>
           <ExercisePicker
             template={template}
-            alreadyInWorkout={[
-              ...groups.map((g) => g.exerciseId),
-              ...emptyBlocks.map((e) => e.id),
-            ]}
+            alreadyInWorkout={blocks.map((b) => b.exerciseId)}
             onClose={() => setPicking(false)}
             onPick={(e) => {
               setSkipped((prev) => prev.filter((id) => id !== e.id));

@@ -24,8 +24,22 @@ const PUSH: WorkoutTemplateDTO = {
   lastPerformedAt: null,
   createdAt: '',
   exercises: [
-    { exerciseId: 'bench', name: 'Bench Press (Barbell)', muscle: 'chest', kind: 'weight_reps', position: 0 },
-    { exerciseId: 'lateral', name: 'Lateral Raise (Dumbbell)', muscle: 'shoulders', kind: 'weight_reps', position: 1 },
+    {
+      exerciseId: 'bench',
+      name: 'Bench Press (Barbell)',
+      muscle: 'chest',
+      kind: 'weight_reps',
+      position: 0,
+      supersetGroup: null,
+    },
+    {
+      exerciseId: 'lateral',
+      name: 'Lateral Raise (Dumbbell)',
+      muscle: 'shoulders',
+      kind: 'weight_reps',
+      position: 1,
+      supersetGroup: null,
+    },
   ],
 };
 
