@@ -64,6 +64,21 @@ export function useWorkoutHistory() {
   return useQuery({ queryKey: qk.workouts, queryFn: () => FitnessApi.history() });
 }
 
+/**
+ * Everything ever logged for one movement.
+ *
+ * Its own query rather than derived from workout history: history is paginated
+ * to twenty sessions, and "what have I ever done on squats" is a different
+ * question from "what did I do this month".
+ */
+export function useExerciseHistory(exerciseId: string | null) {
+  return useQuery({
+    queryKey: qk.exerciseHistory(exerciseId ?? 'none'),
+    queryFn: () => FitnessApi.exerciseHistory(exerciseId!),
+    enabled: Boolean(exerciseId),
+  });
+}
+
 /** What you did last time on a movement — the target for today's sets. */
 export function useLastPerformance(exerciseId: string | null) {
   return useQuery({

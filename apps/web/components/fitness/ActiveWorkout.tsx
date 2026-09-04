@@ -1,7 +1,14 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { formatWeight, groupSetsByExercise, summarizeWorkout, type ExerciseDTO, type WorkoutDTO, type WorkoutSummaryDTO } from '@atlas/shared';
+import {
+  formatVolume,
+  groupSetsByExercise,
+  summarizeWorkout,
+  type ExerciseDTO,
+  type WorkoutDTO,
+  type WorkoutSummaryDTO,
+} from '@atlas/shared';
 import { Plus } from 'lucide-react';
 import { useExercises, useFinishWorkout, useWorkoutHistory, useWorkoutTemplates } from '@/lib/hooks/fitness';
 import { useWeightUnit } from '@/lib/hooks/settings';
@@ -65,7 +72,7 @@ export function ActiveWorkout({
             <h2 className="fit-active-title">{workout.title}</h2>
             <p className="fit-active-sub">
               {elapsed(workout.startedAt)} · {workout.workingSets} sets ·{' '}
-              {formatWeight(workout.volumeGrams, unit)} volume
+              {formatVolume(workout.volumeGrams, unit)} volume
             </p>
           </div>
           <Button

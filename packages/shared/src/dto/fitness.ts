@@ -313,3 +313,39 @@ export const ApplySplitInput = z.object({
 });
 export type ApplySplitInput = z.infer<typeof ApplySplitInput>;
 
+/** One session's worth of a single movement, for its detail screen. */
+export const ExerciseSessionDTO = z.object({
+  workoutId: z.string(),
+  performedAt: z.string(),
+  workoutTitle: z.string(),
+  sets: z.array(WorkoutSetDTO),
+  /** Working-set volume for this movement in this session, in grams. */
+  volumeGrams: z.number().int(),
+  /** Best estimated 1RM in this session, in grams. Null for unweighted work. */
+  bestE1rmGrams: z.number().int().nullable(),
+});
+export type ExerciseSessionDTO = z.infer<typeof ExerciseSessionDTO>;
+
+/**
+ * Everything worth knowing about one movement.
+ *
+ * The strength maths for this — `estimatedOneRepMax`, `bestEffort`,
+ * `strengthSeries` — has been in this package since fitness shipped, and
+ * nothing ever put it on a screen. Tapping an exercise to see what you have
+ * done with it is the screen a paid tracker is lived in; Atlas had no
+ * equivalent, and the only way to find last week's squat was to scroll a wall
+ * of identical session cards.
+ */
+export const ExerciseHistoryDTO = z.object({
+  exercise: ExerciseDTO,
+  sessions: z.array(ExerciseSessionDTO),
+  records: z.object({
+    heaviestGrams: z.number().int().nullable(),
+    heaviestReps: z.number().int().nullable(),
+    bestE1rmGrams: z.number().int().nullable(),
+    bestSessionVolumeGrams: z.number().int().nullable(),
+    mostReps: z.number().int().nullable(),
+    totalSets: z.number().int(),
+  }),
+});
+export type ExerciseHistoryDTO = z.infer<typeof ExerciseHistoryDTO>;

@@ -3221,7 +3221,20 @@ input[type='checkbox']:checked::after {
 .fit-history-when { font-size: 11.5px; color: var(--text-muted); }
 .fit-history-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
 .fit-history-list li { display: flex; flex-wrap: wrap; gap: 8px; font-size: 12.5px; }
-.fit-history-ex { font-weight: 600; min-width: 140px; }
+/* A button now, not a label: tapping the movement opens everything you have
+   ever done with it. 24px tall because every interactive element is measured
+   against that, and it is underlined so it reads as pressable rather than as
+   bold text that happens to respond. */
+.fit-history-ex {
+  min-width: 140px; min-height: 24px;
+  border: 0; padding: 0; background: none;
+  font: inherit; font-weight: 600; text-align: left;
+  color: var(--text-primary); cursor: pointer;
+  text-decoration: underline; text-decoration-color: var(--border-subtle);
+  text-underline-offset: 3px;
+  transition: text-decoration-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.fit-history-ex:hover { color: var(--brand); text-decoration-color: var(--brand); }
 .fit-history-sets { color: var(--text-muted); font-variant-numeric: tabular-nums; }
 
 @media (max-width: 640px) {
@@ -5527,3 +5540,48 @@ label:has(> input[type='checkbox']) {
   background: var(--surface-raised); color: var(--brand); cursor: pointer;
 }
 .name-nudge-save:disabled { opacity: 0.5; cursor: default; }
+
+/* ── one movement, and everything you have done with it ───────────────────
+   The screen a paid tracker is lived in. Atlas had no equivalent: the only way
+   to find last week's squat was to scroll twenty identical session cards, and
+   the strength maths that makes this worth opening had sat unused in
+   packages/shared since fitness shipped. */
+.exd-records {
+  display: grid; gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+}
+.exd-record {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 10px 12px; border-radius: 12px;
+  background: var(--surface-inset);
+}
+.exd-record-v { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; color: var(--text-primary); }
+.exd-record-l { font-size: 11.5px; color: var(--text-muted); }
+
+.exd-trend { display: flex; flex-direction: column; gap: 6px; }
+.exd-trend-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.exd-trend-label { font-size: 13px; font-weight: 650; color: var(--text-primary); }
+.exd-trend-now { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.exd-trend-delta { margin-left: 6px; font-size: 12.5px; font-weight: 650; }
+.exd-trend-delta.up { color: var(--success-text); }
+.exd-trend-delta.down { color: var(--pill-warm-fg); }
+/* Said as an estimate every time. It is arithmetic on a set you did, not a
+   number you have lifted, and blurring the two is how a tracker starts lying. */
+.exd-trend-foot { margin: 0; font-size: 12px; line-height: 1.45; color: var(--text-muted); }
+
+.exd-log { display: flex; flex-direction: column; gap: 10px; }
+.exd-session {
+  padding: 10px 12px; border-radius: 12px;
+  border: 1px solid var(--border-subtle); background: var(--surface);
+}
+.exd-session-head { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+.exd-session-when { font-size: 13.5px; font-weight: 650; color: var(--text-primary); }
+.exd-session-meta { font-size: 12px; color: var(--text-muted); }
+.exd-session-sets { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.exd-session-sets li {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 13px; color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.exd-session-sets li.warmup { color: var(--text-muted); }
+.exd-top { color: var(--brand); }

@@ -4,6 +4,7 @@ import {
   bestWeightGrams,
   countWorkingSets,
   describeSet,
+  formatVolume,
   gramsToKg,
   groupSetsByExercise,
   kgToGrams,
@@ -149,5 +150,29 @@ describe('groupSetsByExercise', () => {
 
   it('is empty for an empty workout rather than throwing', () => {
     expect(groupSetsByExercise([])).toEqual([]);
+  });
+});
+
+/**
+ * Volume is tonnage — weight times reps, summed — not a weight anyone lifted.
+ * `formatWeight` rendered a session's volume as "83830.8 lb", which reads as an
+ * absurd claim about one lift rather than the sum of a hundred sets.
+ */
+describe('formatVolume', () => {
+  it('rounds away precision that is noise at this scale', () => {
+    expect(formatVolume(975_223, 'kg')).toBe('975 kg');
+  });
+
+  it('groups thousands so the number can be taken in', () => {
+    expect(formatVolume(5_000_000, 'kg')).toBe('5,000 kg');
+  });
+
+  it('abbreviates once it stops being readable', () => {
+    expect(formatVolume(38_000_000, 'kg')).toBe('38.0k kg');
+    expect(formatVolume(380_000_000, 'kg')).toBe('380k kg');
+  });
+
+  it('never claims a fractional pound of tonnage', () => {
+    expect(formatVolume(1_000_000, 'lb')).not.toMatch(/\./);
   });
 });

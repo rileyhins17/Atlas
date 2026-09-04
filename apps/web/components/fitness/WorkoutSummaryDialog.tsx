@@ -1,6 +1,11 @@
 'use client';
 
-import { formatWeight, type WeightUnit, type WorkoutSummaryDTO } from '@atlas/shared';
+import {
+  formatVolume,
+  formatWeight,
+  type WeightUnit,
+  type WorkoutSummaryDTO,
+} from '@atlas/shared';
 import { Trophy } from 'lucide-react';
 import { Button, Dialog } from '@/components/ui';
 
@@ -47,7 +52,7 @@ export function WorkoutSummaryDialog({
             <span className="wo-stat-l">sets</span>
           </div>
           <div className="wo-stat">
-            <span className="wo-stat-n">{formatWeight(summary.volumeGrams, unit)}</span>
+            <span className="wo-stat-n">{formatVolume(summary.volumeGrams, unit)}</span>
             <span className="wo-stat-l">lifted</span>
           </div>
         </div>

@@ -2,7 +2,9 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import type {
   CreateExerciseInput,
   ExerciseDTO,
+  ExerciseHistoryDTO,
   ExerciseKind,
+  ExerciseSessionDTO,
   FinishWorkoutInput,
   LastPerformanceDTO,
   LogSetInput,
@@ -14,13 +16,16 @@ import type {
   WorkoutSetDTO,
 } from '@atlas/shared';
 import {
+  bestE1rm,
   bestWeightGrams,
   // Pure training maths lives in @atlas/shared so the logger UI and the API
   // compute volume, records and set labels from ONE implementation.
   countWorkingSets,
   describeSet,
   gramsToKg,
+  exerciseRecords,
   groupSetsByExercise,
+  setVolumeGrams,
   workoutVolumeGrams,
 } from '@atlas/shared';
 import type { Exercise, Prisma } from '@atlas/db';
@@ -35,6 +40,10 @@ type WorkoutWithSets = Prisma.WorkoutGetPayload<{
 }>;
 
 const MAX_PAGE = 100;
+/** How many sessions of one movement its detail screen shows. */
+const MAX_EXERCISE_SESSIONS = 30;
+/** Ceiling on the rows read to build it. Records are computed from all of them. */
+const MAX_EXERCISE_SETS = 600;
 const MAX_SETS_PER_WORKOUT = 500;
 
 function toExerciseDto(e: Exercise): ExerciseDTO {
@@ -53,8 +62,20 @@ function toExerciseDto(e: Exercise): ExerciseDTO {
   };
 }
 
-function toWorkoutDto(w: WorkoutWithSets): WorkoutDTO {
-  const sets: WorkoutSetDTO[] = w.sets.map((s) => ({
+/** One set row to its DTO. Shared so a set means the same thing on every screen. */
+function toSetDto(s: {
+  id: string;
+  exerciseId: string;
+  exercise: { name: string; kind: string };
+  position: number;
+  weightGrams: number | null;
+  reps: number | null;
+  durationSec: number | null;
+  distanceM: number | null;
+  warmup: boolean;
+  completedAt: Date;
+}): WorkoutSetDTO {
+  return {
     id: s.id,
     exerciseId: s.exerciseId,
     exerciseName: s.exercise.name,
@@ -66,7 +87,11 @@ function toWorkoutDto(w: WorkoutWithSets): WorkoutDTO {
     distanceM: s.distanceM,
     warmup: s.warmup,
     completedAt: s.completedAt.toISOString(),
-  }));
+  };
+}
+
+function toWorkoutDto(w: WorkoutWithSets): WorkoutDTO {
+  const sets: WorkoutSetDTO[] = w.sets.map(toSetDto);
   return {
     id: w.id,
     title: w.title,
@@ -342,6 +367,83 @@ export class FitnessService {
    * What you did last time on a movement, plus your all-time best. The logger
    * shows this beside the input so every set has a target.
    */
+  /**
+   * Everything logged for one movement, newest session first.
+   *
+   * The screen a paid tracker is lived in, and Atlas had no equivalent: the
+   * only way to find last week's squat was to scroll a wall of identical
+   * session cards. The strength maths this serves has existed in
+   * packages/shared since fitness shipped, unused.
+   *
+   * Capped at MAX_EXERCISE_SESSIONS sessions rather than paginated. It is a
+   * chart and a log, both of which stop being readable long before they stop
+   * being bounded, and someone with four years of squats does not want to page
+   * through forty of them to see the trend.
+   */
+  async exerciseHistory(userId: string, exerciseId: string): Promise<ExerciseHistoryDTO> {
+    // Scoped to the shared catalog OR this user's own additions, so a borrowed
+    // id from another account matches nothing rather than 404ing informatively.
+    const exercise = await this.prisma.client.exercise.findFirst({
+      where: { id: exerciseId, OR: [{ userId: null }, { userId }] },
+    });
+    if (!exercise) throw new NotFoundException('Unknown exercise');
+
+    const rows = await this.prisma.client.workoutSet.findMany({
+      // Finished workouts only: the session in progress is what you are doing
+      // now, not part of the record it is being measured against.
+      where: { userId, exerciseId, workout: { endedAt: { not: null } } },
+      orderBy: { completedAt: 'desc' },
+      take: MAX_EXERCISE_SETS,
+      include: { workout: { select: { id: true, title: true, startedAt: true } } },
+    });
+
+    // The exercise is already loaded, so its name and kind are attached here
+    // rather than joined onto every row — one movement, one lookup.
+    const withExercise = (row: (typeof rows)[number]) =>
+      toSetDto({ ...row, exercise: { name: exercise.name, kind: exercise.kind } });
+
+    // Grouped in memory rather than with a query per session — the same N+1
+    // that made Google sync take five minutes.
+    const byWorkout = new Map<string, { title: string; startedAt: Date; sets: typeof rows }>();
+    for (const row of rows) {
+      const existing = byWorkout.get(row.workoutId);
+      if (existing) existing.sets.push(row);
+      else
+        byWorkout.set(row.workoutId, {
+          title: row.workout.title,
+          startedAt: row.workout.startedAt,
+          sets: [row],
+        });
+    }
+
+    const sessions: ExerciseSessionDTO[] = [...byWorkout.entries()]
+      .sort((a, b) => b[1].startedAt.getTime() - a[1].startedAt.getTime())
+      .slice(0, MAX_EXERCISE_SESSIONS)
+      .map(([workoutId, w]) => {
+        // Ascending within a session: the order you did them in is the story.
+        const sets = w.sets
+          .slice()
+          .sort((a, b) => a.completedAt.getTime() - b.completedAt.getTime())
+          .map(withExercise);
+        return {
+          workoutId,
+          workoutTitle: w.title,
+          performedAt: w.startedAt.toISOString(),
+          sets,
+          volumeGrams: setVolumeGrams(sets),
+          bestE1rmGrams: bestE1rm(sets),
+        };
+      });
+
+    return {
+      exercise: toExerciseDto(exercise),
+      sessions,
+      // Records span every set read, not only the sessions shown, so a best
+      // from further back is not quietly forgotten by the cap above.
+      records: exerciseRecords([{ sets: rows.map(withExercise) }]),
+    };
+  }
+
   async lastPerformance(
     userId: string,
     exerciseId: string,

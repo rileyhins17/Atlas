@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import {
   exerciseProgress,
+  formatVolume,
   formatWeight,
   muscleLoad,
   strengthSeries,
@@ -74,7 +75,7 @@ export function TrainingProgress({
             <span className="wo-stat-l">sessions</span>
           </div>
           <div className="wo-stat">
-            <span className="wo-stat-n">{formatWeight(totals.volumeGrams, unit)}</span>
+            <span className="wo-stat-n">{formatVolume(totals.volumeGrams, unit)}</span>
             <span className="wo-stat-l">lifted</span>
           </div>
           <div className="wo-stat">

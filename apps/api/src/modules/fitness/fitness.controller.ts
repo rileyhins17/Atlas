@@ -20,6 +20,7 @@ import {
   StartWorkoutInput,
   UpdateWorkoutTemplateInput,
   type ExerciseDTO,
+  type ExerciseHistoryDTO,
   type LastPerformanceDTO,
   type PlanSplitResultDTO,
   type WorkoutDTO,
@@ -103,6 +104,19 @@ export class FitnessController {
     @Body(new ZodValidationPipe(CreateExerciseInput)) body: CreateExerciseInput,
   ): Promise<ExerciseDTO> {
     return this.fitness.createExercise(user.id, body);
+  }
+
+  /**
+   * Everything logged for one movement — the screen a paid tracker is lived in.
+   * Bounded in the service rather than paginated: it is a chart and a log, both
+   * of which stop being readable long before they stop being bounded.
+   */
+  @Get('exercises/:id/history')
+  exerciseHistory(
+    @CurrentUser() user: AuthedUser,
+    @Param('id') id: string,
+  ): Promise<ExerciseHistoryDTO> {
+    return this.fitness.exerciseHistory(user.id, id);
   }
 
   @Get('exercises/:id/last')

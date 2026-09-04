@@ -20,6 +20,7 @@ import type {
   DurationEstimate,
   EventDTO,
   ExerciseDTO,
+  ExerciseHistoryDTO,
   HabitDTO,
   LastPerformanceDTO,
   GoalDTO,
@@ -257,6 +258,8 @@ export const FitnessApi = {
   exercises: () => request<ExerciseDTO[]>('/fitness/exercises'),
   createExercise: (input: CreateExerciseInput) =>
     request<ExerciseDTO>('/fitness/exercises', { method: 'POST', body: JSON.stringify(input) }),
+  exerciseHistory: (id: string) =>
+    request<ExerciseHistoryDTO>(`/fitness/exercises/${id}/history`),
   lastPerformance: (exerciseId: string) =>
     request<LastPerformanceDTO | null>(`/fitness/exercises/${exerciseId}/last`),
   active: () => request<WorkoutDTO | null>('/fitness/workouts/active'),

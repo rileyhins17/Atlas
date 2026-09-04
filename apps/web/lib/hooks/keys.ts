@@ -25,6 +25,7 @@ export const qk = {
   stats: (days: number) => ['stats', days] as const,
   googleCalendars: ['google', 'calendars'] as const,
   moodPatterns: () => ['stats', 'patterns'] as const,
+  exerciseHistory: (id: string) => ['fitness', 'exercise', id] as const,
   dayEvents: (fromIso: string) => ['events', 'day', fromIso] as const,
   workoutTemplates: ['fitness', 'templates'] as const,
   goals: ['goals'] as const,

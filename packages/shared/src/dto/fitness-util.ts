@@ -97,6 +97,24 @@ export function formatWeight(grams: number, unit: WeightUnit): string {
 }
 
 /**
+ * Total tonnage — weight times reps, summed. NOT a weight anyone lifted.
+ *
+ * `formatWeight` is for a single load and rendered a session's volume as
+ * "83830.8 lb", which reads as an absurd claim about one lift rather than the
+ * sum of a hundred and seventeen sets. Volume is rounded to whole units (a
+ * tenth of a pound is noise at this scale), grouped with separators, and
+ * abbreviated past ten thousand so it stays a number you can take in.
+ */
+export function formatVolume(grams: number, unit: WeightUnit): string {
+  const n = gramsToUnit(grams, unit);
+  if (n >= 10_000) {
+    const k = n / 1000;
+    return `${k >= 100 ? Math.round(k) : k.toFixed(1)}k ${unit}`;
+  }
+  return `${Math.round(n).toLocaleString()} ${unit}`;
+}
+
+/**
  * The smallest increment worth offering as a one-tap bump: 5 lb is the standard
  * plate pair in an imperial gym, 2.5 kg in a metric one.
  */
