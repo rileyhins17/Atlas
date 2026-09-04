@@ -5481,3 +5481,22 @@ label:has(> input[type='checkbox']) {
 .cal-key i[data-level='2'] { background: color-mix(in srgb, var(--brand) 52%, var(--surface-inset)); }
 .cal-key i[data-level='3'] { background: color-mix(in srgb, var(--brand) 76%, var(--surface-inset)); }
 .cal-key i[data-level='4'] { background: var(--brand); }
+
+/* ── the iOS "Add to Home Screen" hint ────────────────────────────────────
+   Safari fires no beforeinstallprompt, so on iPhone the install banner used to
+   render nothing at all. It is not a nicety: iOS refuses notification
+   permission to a page in a browser tab, so without the icon Atlas can never
+   remind anyone of anything. The copy leads with the instruction and closes
+   with the stake, which is why it is taller than the Chromium version. */
+.install-prompt.ios { align-items: flex-start; }
+.install-ios-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.install-ios-copy strong { font-size: 14.5px; }
+.install-ios-copy p { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--text-primary); }
+/* Inline with the words, because the user is looking for this exact glyph in
+   the Safari toolbar and a description of it is harder to match than the icon. */
+.install-share {
+  display: inline-block;
+  vertical-align: -2px;
+  color: var(--brand);
+}
+.install-ios-why { color: var(--text-muted) !important; font-size: 12.5px !important; }
