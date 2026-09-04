@@ -5500,3 +5500,30 @@ label:has(> input[type='checkbox']) {
   color: var(--brand);
 }
 .install-ios-why { color: var(--text-muted) !important; font-size: 12.5px !important; }
+
+/* ── "What should Atlas call you?" ────────────────────────────────────────
+   Sits directly under the greeting, because that is the sentence the answer
+   goes into. Deliberately small and quiet: it is an offer, not a task, and it
+   removes itself the moment there is a name. */
+.name-nudge-open {
+  min-height: 24px; padding: 2px 0;
+  border: 0; background: none;
+  color: var(--brand); font: inherit; font-size: 13px; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.name-nudge { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.name-nudge-input {
+  flex: 1; min-width: 0; max-width: 220px;
+  min-height: 36px; padding: 6px 10px;
+  border: 1px solid var(--border-subtle); border-radius: 9px;
+  background: var(--surface); color: var(--text-primary);
+  /* 16px so iOS does not zoom the whole page on focus. */
+  font: inherit; font-size: 16px;
+}
+.name-nudge-save {
+  flex: none; width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border-subtle); border-radius: 9px;
+  background: var(--surface-raised); color: var(--brand); cursor: pointer;
+}
+.name-nudge-save:disabled { opacity: 0.5; cursor: default; }

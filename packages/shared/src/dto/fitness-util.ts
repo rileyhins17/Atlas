@@ -50,19 +50,6 @@ export function bestWeightGrams(sets: SetLike[]): number | null {
   return best;
 }
 
-/**
- * Did this set beat every previous working set on the movement?
- *
- * Strictly greater, so repeating your best is not announced as a new record —
- * an app that calls everything a PR trains you to ignore the word.
- */
-export function isPersonalRecord(set: SetLike, previousBestGrams: number | null): boolean {
-  if (set.warmup) return false;
-  if (set.weightGrams == null || (set.reps ?? 0) < 1) return false;
-  if (previousBestGrams === null) return true;
-  return set.weightGrams > previousBestGrams;
-}
-
 /** Grams → kg, rounded to one decimal (the granularity of real plates). */
 export function gramsToKg(grams: number): number {
   return Math.round(grams / 100) / 10;

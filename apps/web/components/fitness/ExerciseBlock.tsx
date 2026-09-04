@@ -1,7 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { bestWeightGrams, describeSet, gramsToUnit, isPersonalRecord, stepFor, unitToGrams, type ExerciseDTO, type WorkoutDTO } from '@atlas/shared';
+import {
+  describeRecord,
+  describeSet,
+  exerciseRecords,
+  gramsToUnit,
+  recordsBrokenBy,
+  stepFor,
+  unitToGrams,
+  type ExerciseDTO,
+  type WorkoutDTO,
+} from '@atlas/shared';
 import { Check, Trophy, X } from 'lucide-react';
 import { useDeleteSet, useLastPerformance, useLogSet } from '@/lib/hooks/fitness';
 import { useWeightUnit } from '@/lib/hooks/settings';
@@ -125,15 +135,28 @@ export function ExerciseBlock({
             // one. Without the in-session part, a first-ever exercise badges
             // every ascending set as a PR, which is exactly the noise that
             // teaches people to ignore the word.
-            const best = bestWeightGrams([...sets.slice(0, i), ...(previousBest === null ? [] : [{ weightGrams: previousBest, reps: 1 }])]);
-            const pr = isPersonalRecord(s, best);
+            // Compared against everything BEFORE this set — previous sessions
+            // (all `previousBest` knows) plus the earlier sets of this one.
+            // Without the in-session half, a first-ever exercise badges every
+            // ascending set, which is the noise that teaches people to ignore
+            // the word.
+            //
+            // Four records rather than one, so the badge can say WHICH: the
+            // heaviest bar and the best estimated 1RM are different
+            // achievements, and 100kg x 5 beating 105kg x 1 is the whole reason
+            // to estimate at all.
+            const before = exerciseRecords([
+              { sets: previousBest === null ? [] : [{ weightGrams: previousBest, reps: 1, warmup: false }] },
+              { sets: sets.slice(0, i) },
+            ]);
+            const claim = describeRecord(recordsBrokenBy(s, before));
             return (
               <li key={s.id} className={`fit-set ${s.warmup ? 'warmup' : ''}`}>
                 <span className="fit-set-n">{s.warmup ? 'W' : i + 1}</span>
                 <span className="fit-set-body">{describeSet(s, kind, unit)}</span>
-                {pr && (
-                  <span className="fit-pr" title="Personal record">
-                    <Trophy size={11} aria-hidden /> PR
+                {claim && (
+                  <span className="fit-pr" title={claim}>
+                    <Trophy size={11} aria-hidden /> {claim === 'Heaviest ever' ? 'PR' : claim}
                   </span>
                 )}
                 <IconButton

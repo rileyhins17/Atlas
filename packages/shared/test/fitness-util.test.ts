@@ -6,7 +6,6 @@ import {
   describeSet,
   gramsToKg,
   groupSetsByExercise,
-  isPersonalRecord,
   kgToGrams,
   workoutVolumeGrams,
 } from '../src/dto/fitness-util.js';
@@ -103,25 +102,6 @@ describe('bestWeightGrams', () => {
   it('is null when nothing qualifies', () => {
     expect(bestWeightGrams([])).toBeNull();
     expect(bestWeightGrams([{ weightGrams: null, reps: 10 }])).toBeNull();
-  });
-});
-
-describe('isPersonalRecord', () => {
-  it('is true for the first real set on a movement', () => {
-    expect(isPersonalRecord({ weightGrams: 60_000, reps: 5 }, null)).toBe(true);
-  });
-
-  it('requires beating the previous best STRICTLY', () => {
-    expect(isPersonalRecord({ weightGrams: 80_000, reps: 1 }, 75_000)).toBe(true);
-    // Matching your best is not a record — an app that celebrates everything
-    // teaches you to ignore the word.
-    expect(isPersonalRecord({ weightGrams: 75_000, reps: 1 }, 75_000)).toBe(false);
-    expect(isPersonalRecord({ weightGrams: 70_000, reps: 5 }, 75_000)).toBe(false);
-  });
-
-  it('never fires for a warm-up or an unlifted weight', () => {
-    expect(isPersonalRecord({ weightGrams: 200_000, reps: 5, warmup: true }, null)).toBe(false);
-    expect(isPersonalRecord({ weightGrams: 200_000, reps: 0 }, null)).toBe(false);
   });
 });
 
