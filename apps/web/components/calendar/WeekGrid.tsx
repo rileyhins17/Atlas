@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { EventDTO } from '@atlas/shared';
-import { formatClock, localDayKey } from '@/lib/dates';
+import { fmt, formatClock, localDayKey } from '@/lib/dates';
 import { placeDayEvents, visibleHourRange, weekdayShort } from '@/lib/calendar-view';
 
-/** "9 AM" / "14:00", following the locale, without the minutes on the hour. */
+/** "9 AM" — 12-hour, in the user's timezone, without minutes on the hour. */
 function hourLabel(hour: number): string {
   const d = new Date();
   d.setHours(hour, 0, 0, 0);
-  return d.toLocaleTimeString(undefined, { hour: 'numeric' });
+  return d.toLocaleTimeString('en-US', fmt({ hour: 'numeric', hour12: true }));
 }
 
 /**
@@ -190,11 +190,10 @@ export function WeekGrid({
                   // name at all — axe calls that aria-prohibited-attr, and the
                   // label was silently doing nothing.
                   role="group"
-                  aria-label={d.toLocaleDateString(undefined, {
-                    weekday: 'long',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
+                  aria-label={d.toLocaleDateString(
+                    'en-US',
+                    fmt({ weekday: 'long', month: 'long', day: 'numeric' }),
+                  )}
                   // Pointer affordance only, and deliberately so. Turning every
                   // hour cell into a button would put ~110 stops in the tab
                   // order for keyboard users; they have "New" and the day

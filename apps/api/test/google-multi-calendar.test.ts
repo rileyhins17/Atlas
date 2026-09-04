@@ -54,18 +54,21 @@ function makeService(opts: {
         findUnique: vi.fn(async () => ({ meta: opts.meta ?? null })),
       },
       event: {
-        findUnique: vi.fn(async () => null),
-        create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
-          created.push(data);
-          return { id: `row_${created.length}`, ...data };
+        // Nothing already synced, so every remote event is an import.
+        findMany: vi.fn(async ({ where }: { where: Record<string, unknown> }) =>
+          where['source'] === 'atlas' ? [] : [],
+        ),
+        createMany: vi.fn(async ({ data }: { data: Record<string, unknown>[] }) => {
+          created.push(...data);
+          return { count: data.length };
         }),
         update: vi.fn(async () => ({})),
-        findMany: vi.fn(async () => []),
         deleteMany: vi.fn(async ({ where }: { where: Record<string, unknown> }) => {
           deleteArgs.push(where);
           return { count: 3 };
         }),
       },
+      $transaction: vi.fn(async (ops: unknown[]) => ops),
     },
   };
 
@@ -82,7 +85,7 @@ function makeService(opts: {
     timeline as never,
     connectors as never,
   );
-  return { service, connector, connectors, asked, created, deleteArgs };
+  return { service, connector, connectors, timeline, prisma, asked, created, deleteArgs };
 }
 
 describe('GoogleSyncService — every calendar, not just primary', () => {
@@ -213,5 +216,76 @@ describe('GoogleSyncService.setCalendars', () => {
     expect(connectors.saveCredentialMeta).toHaveBeenCalledWith('u1', 'google-calendar', {
       syncedCalendarIds: ['work@example.com'],
     });
+  });
+});
+
+/**
+ * The sync used to make three sequential round trips PER EVENT: a findUnique, a
+ * create or update, and a timeline insert. Fine against a local database and
+ * ruinous against a hosted one — measured 384ms to Supabase, 276 events, 318
+ * seconds predicted and 305 observed. The HTTP request died at the proxy's
+ * ~100-second ceiling long before that, so the calendars later in the list were
+ * never reached: a real user watched two of her six calendars sync behind a
+ * spinner that never finished.
+ *
+ * So these are performance tests written as behaviour: the number of database
+ * calls must not grow with the number of events.
+ */
+describe('GoogleSyncService — writes in bulk, not per event', () => {
+  const many = (n: number, prefix: string) =>
+    Array.from({ length: n }, (_, i) => gEvent(`${prefix}${i}`));
+
+  it('reads existing rows in one query however many events there are', async () => {
+    const { service, prisma } = makeService({
+      eventsByCalendar: { 'me@example.com': many(200, 'a'), 'work@example.com': many(200, 'b') },
+    });
+    await service.sync('u1');
+    // One lookup for the remote ids, plus the unsynced-push query. Not 400.
+    expect(prisma.client.event.findMany.mock.calls.length).toBeLessThanOrEqual(3);
+  });
+
+  it('creates them in one call', async () => {
+    const { service, prisma } = makeService({
+      eventsByCalendar: { 'me@example.com': many(150, 'a') },
+    });
+    const result = await service.sync('u1');
+    expect(prisma.client.event.createMany).toHaveBeenCalledTimes(1);
+    expect(result.imported).toBe(150);
+  });
+
+  /**
+   * A meeting you are invited to carries the SAME Google id on every calendar
+   * it appears on. Before the dedupe this reached createMany twice and violated
+   * the unique index, failing the whole batch rather than one row.
+   */
+  it('writes an event shared by two calendars exactly once', async () => {
+    const shared = gEvent('shared-1');
+    const { service, created } = makeService({
+      eventsByCalendar: { 'me@example.com': [shared], 'work@example.com': [shared] },
+    });
+    const result = await service.sync('u1');
+    expect(created.filter((d) => d.externalId === 'shared-1')).toHaveLength(1);
+    expect(result.imported).toBe(1);
+  });
+
+  /**
+   * One timeline row for the sync, not one per event. The canvas already
+   * discarded `event.imported` as noise, so those were 234 writes at 384ms each
+   * to be thrown away — and they drowned the compact log the AI reads.
+   */
+  it('writes one timeline row for the whole sync', async () => {
+    const { service, timeline } = makeService({
+      eventsByCalendar: { 'me@example.com': many(50, 'a') },
+    });
+    await service.sync('u1');
+    expect(timeline.write).toHaveBeenCalledTimes(1);
+    expect(timeline.write.mock.calls[0]?.[0]).toMatchObject({ type: 'calendar.synced' });
+  });
+
+  /** Nothing changed is not an event worth logging. */
+  it('writes no timeline row when nothing changed', async () => {
+    const { service, timeline } = makeService();
+    await service.sync('u1');
+    expect(timeline.write).not.toHaveBeenCalled();
   });
 });

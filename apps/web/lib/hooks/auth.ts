@@ -5,6 +5,7 @@ import type { UserDTO } from '@atlas/shared';
 import { ApiError, AuthApi } from '@/lib/api';
 import { qk } from './keys';
 import { clearSignedIn, markSignedIn } from '@/lib/session-hint';
+import { setDisplayTimezone } from '@/lib/dates';
 
 /**
  * Drop everything user-scoped from the cache and land on the auth gate.
@@ -27,6 +28,13 @@ export function useMe() {
         // any browser that has simply not signed in since — would otherwise
         // never get the fast path despite being perfectly signed in.
         markSignedIn();
+        // The whole UI formats times in the timezone Atlas holds for the user,
+        // not the browser's. They agree for almost everyone; when they do not,
+        // the browser's is the wrong one — the API already buckets every day,
+        // every stat and every "is this today" by the stored value, so a device
+        // set elsewhere used to put the screen hours out of step with the data
+        // behind it, silently, and only for that person.
+        setDisplayTimezone(user?.timezone);
         return user;
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {

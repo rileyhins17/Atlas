@@ -1,6 +1,56 @@
 /** Date helpers shared by the dashboard and domain views. Pure — unit-tested. */
 
 /**
+ * The timezone times are DISPLAYED in, and whether to use a 12-hour clock.
+ *
+ * Two real bugs live here, both reported by the same user on the same day.
+ *
+ * `toLocaleTimeString(undefined, { hour: 'numeric' })` takes the browser's
+ * locale, and en-GB and en-CA render that as a 24-hour clock: a massage at ten
+ * past ten in the evening came out as "22:05", which nobody reads as a time
+ * they are about to attend. Atlas is a day planner, so it is now explicitly a
+ * 12-hour clock everywhere rather than whatever the machine happens to prefer.
+ *
+ * The timezone is the more serious half. Every time in the app was rendered in
+ * the BROWSER'S timezone, while the API buckets days by the timezone stored on
+ * the user record — so a device that disagrees puts the whole app an hour or
+ * four out, silently, and only for that person. The stored timezone is the one
+ * Atlas already treats as the truth, so it is now the one the screen uses.
+ *
+ * A module-level value rather than a prop threaded through fifty components:
+ * these are pure functions called from everywhere, including outside React. It
+ * defaults to the browser until `/auth/me` arrives, which is the same answer
+ * for anyone whose device is set correctly.
+ */
+let displayTz: string | undefined;
+
+/** Set once the user record is known. Ignores nonsense rather than throwing. */
+export function setDisplayTimezone(tz: string | null | undefined): void {
+  if (!tz) return;
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    displayTz = tz;
+  } catch {
+    /* not a real IANA zone — keep the browser's */
+  }
+}
+
+/** The timezone the UI is formatting in, or undefined for the browser's. */
+export function displayTimezone(): string | undefined {
+  return displayTz;
+}
+
+/**
+ * Options every formatter passes, so the clock and the zone are decided in ONE
+ * place. `en-US` is the locale, not the user's, purely because it is the one
+ * that renders `hour: 'numeric'` as "10:05 PM"; `hour12` is set explicitly as
+ * well so the intent survives a locale change.
+ */
+export function fmt(opts: Intl.DateTimeFormatOptions): Intl.DateTimeFormatOptions {
+  return { ...opts, ...(displayTz ? { timeZone: displayTz } : {}) };
+}
+
+/**
  * Twenty-four hours, for ELAPSED time only — a rolling fetch window, a
  * "how long since" duration.
  *
@@ -76,8 +126,8 @@ export function formatDue(due: Date, now: Date = new Date()): string {
     return `in ${Math.round(mins / 60)}h`;
   }
   if (days === 1) return 'tomorrow';
-  if (days < 7) return due.toLocaleDateString(undefined, { weekday: 'short' });
-  return due.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  if (days < 7) return due.toLocaleDateString('en-US', fmt({ weekday: 'short' }));
+  return due.toLocaleDateString('en-US', fmt({ month: 'short', day: 'numeric' }));
 }
 
 /** "Just now" / "12m ago" / "3h ago" / "yesterday" / "Jul 12" for the timeline. */
@@ -90,7 +140,7 @@ export function formatAgo(then: Date, now: Date = new Date()): string {
   const days = dayDiff(then, now);
   if (days === 1) return 'yesterday';
   if (days < 7) return `${days}d ago`;
-  return then.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return then.toLocaleDateString('en-US', fmt({ month: 'short', day: 'numeric' }));
 }
 
 /** Time-of-day greeting for the Home hero. */
@@ -107,10 +157,10 @@ export function formatDayHeading(d: Date, now: Date = new Date()): string {
   const days = dayDiff(d, now);
   if (days === 0) return 'Today';
   if (days === 1) return 'Yesterday';
-  return d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  return d.toLocaleDateString('en-US', fmt({ weekday: 'long', month: 'long', day: 'numeric' }));
 }
 
 /** "9:30 AM" (or locale equivalent) without seconds. */
 export function formatClock(d: Date): string {
-  return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  return d.toLocaleTimeString('en-US', fmt({ hour: 'numeric', minute: '2-digit', hour12: true }));
 }

@@ -12,7 +12,7 @@ import { ConnectionCard } from '@/components/stream/ConnectionCard';
 import { ChangeStrip } from '@/components/stream/ChangeStrip';
 import { FirstCapture } from '@/components/stream/FirstCapture';
 import { useAtlasUi } from '@/components/atlas/AtlasUiProvider';
-import { addDays, formatClock, localDayKey, startOfDay } from '@/lib/dates';
+import { addDays, fmt, formatClock, localDayKey, startOfDay } from '@/lib/dates';
 import type { CanvasSection } from '@/lib/canvas';
 import { DayPager } from './DayPager';
 import { DayOverviewView } from './DayOverviewView';
@@ -74,7 +74,7 @@ export function TodayView() {
 
   function planGap(section: CanvasSection) {
     const label = `${formatClock(section.start)}–${formatClock(section.end)}`;
-    const dayWord = isToday ? 'today' : `on ${dayStart.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}`;
+    const dayWord = isToday ? 'today' : `on ${dayStart.toLocaleDateString('en-US', fmt({ weekday: 'long', month: 'long', day: 'numeric' }))}`;
     planWindow({
       label,
       hint: `between ${formatClock(section.start)} and ${formatClock(section.end)} ${dayWord}`,

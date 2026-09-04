@@ -27,7 +27,7 @@ import { WeekGrid } from '@/components/calendar/WeekGrid';
 import { EventComposer } from '@/components/calendar/EventComposer';
 import { blankDraft, draftAtSlot, draftFor, type Draft } from '@/lib/event-draft';
 import { GoogleCalendarCard } from '@/components/connectors/GoogleCalendarCard';
-import { formatClock, localDayKey } from '@/lib/dates';
+import { fmt, formatClock, localDayKey } from '@/lib/dates';
 import {
   addDays,
   bucketByDay,
@@ -194,7 +194,7 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
                 type="button"
                 className={classes}
                 aria-pressed={key === selectedDay}
-                aria-label={`${d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}, ${count} ${count === 1 ? 'event' : 'events'}`}
+                aria-label={`${d.toLocaleDateString('en-US', fmt({ weekday: 'long', month: 'long', day: 'numeric' }))}, ${count} ${count === 1 ? 'event' : 'events'}`}
                 onClick={() => {
                   setSelectedDay(key);
                   setScope('day');

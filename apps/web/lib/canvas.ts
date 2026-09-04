@@ -60,6 +60,9 @@ export const CANVAS_NOISE_TYPES = new Set([
   'task.deleted',
   'connector.connected',
   'finance.synced',
+  // One row per sync, replacing the per-event 'event.imported' rows. Same
+  // reason it is noise: the event cards already show what arrived.
+  'calendar.synced',
   // Rolling a task into today puts it in today's checklist — a card saying so
   // is the same fact twice. ('task.dropped' is NOT noise: the task disappears
   // from every list, so the feed row is the only trace of the decision.)

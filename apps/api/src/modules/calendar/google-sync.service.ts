@@ -8,7 +8,7 @@ import {
   type GoogleEvent,
   type SyncResult,
 } from '@atlas/connectors';
-import type { Event } from '@atlas/db';
+import { Prisma, type Event } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
 import { ConnectorsService } from '../../core/connectors.service.js';
@@ -30,6 +30,59 @@ const MAX_PUSH_PER_SYNC = 50;
 const MAX_CALENDARS = 25;
 /** Null in the column means primary, which is what every pre-existing row is. */
 const PRIMARY = 'primary';
+
+/**
+ * How many calendars are read at once.
+ *
+ * Six calendars fetched one after another is six round trips to Google before
+ * any work starts. Bounded rather than unbounded because a Google account can
+ * be subscribed to dozens and hammering the API is how a sync earns a 403.
+ */
+const CALENDAR_FETCH_CONCURRENCY = 4;
+/** Postgres is happy with a large IN list, but not an unbounded one. */
+const ID_CHUNK = 1000;
+
+/** The calendars a sync is reading, reduced to what the mapping needs. */
+interface SyncCalendar {
+  id: string;
+  primary: boolean;
+}
+
+/** The row fields Atlas derives from a Google event. */
+interface RemoteEventData {
+  title: string;
+  description: string | null;
+  location: string | null;
+  startAt: Date;
+  endAt: Date;
+  allDay: boolean;
+  sourceCalendarId: string | null;
+}
+
+function chunks<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+/** Promise.all with a ceiling on how many run at once. */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    for (;;) {
+      const i = next++;
+      if (i >= items.length) return;
+      out[i] = await fn(items[i]!);
+    }
+  });
+  await Promise.all(workers);
+  return out;
+}
 
 /** One calendar as Settings needs to show it. */
 export interface GoogleCalendarChoice {
@@ -235,7 +288,7 @@ export class GoogleSyncService {
     // the shared family one. An account connected before Atlas asked for the
     // calendar-list scope answers 403; that is not a failure, it is an older
     // grant, so the sync carries on with primary and says what would fix it.
-    let calendars: { id: string; primary: boolean }[];
+    let calendars: SyncCalendar[];
     try {
       calendars = await this.calendarsToSync(userId);
     } catch (err) {
@@ -247,57 +300,147 @@ export class GoogleSyncService {
       }
     }
 
-    for (const calendar of calendars) {
-      let remote: GoogleEvent[];
+    // Read the calendars a few at a time rather than one after another. The
+    // token was refreshed by the calendar-list call above, so these cannot race
+    // each other into two refreshes of the same credential.
+    const fetched = await mapWithConcurrency(calendars, CALENDAR_FETCH_CONCURRENCY, async (cal) => {
       try {
-        remote = await connector.listEvents(ctx, { timeMin, timeMax, calendarId: calendar.id });
+        return {
+          calendar: cal,
+          events: await connector.listEvents(ctx, { timeMin, timeMax, calendarId: cal.id }),
+        };
       } catch (err) {
         // One unreadable calendar - unshared since the list was fetched, say -
         // must not abandon the others.
         result.errors.push(
-          `calendar ${calendar.id}: ${err instanceof Error ? err.message : 'unknown error'}`,
+          `calendar ${cal.id}: ${err instanceof Error ? err.message : 'unknown error'}`,
         );
-        continue;
+        return null;
       }
+    });
 
-      for (const gEvent of remote) {
-        try {
-          if (gEvent.status === 'cancelled') {
-            result.deleted += await this.applyRemoteDeletion(userId, gEvent.id);
-            continue;
-          }
-          const applied = await this.applyRemoteEvent(userId, gEvent, calendar);
-          if (applied === 'imported') result.imported++;
-          else if (applied === 'updated') result.updated++;
-        } catch (err) {
-          result.errors.push(
-            `event ${gEvent.id}: ${err instanceof Error ? err.message : 'unknown error'}`,
-          );
-        }
+    // Everything from here is done in memory and written in a handful of
+    // queries. It used to be three sequential round trips PER EVENT - a
+    // findUnique, a create or update, and a timeline insert - which is fine
+    // against a local database and ruinous against a hosted one. Measured: 384ms
+    // to Supabase, 276 events, 318 seconds predicted and 305 observed. The
+    // request died at the proxy's 100-second ceiling long before that, so the
+    // calendars later in the list were never reached at all: the user saw two
+    // of her six calendars sync and a spinner that never finished.
+    const remoteById = new Map<string, { event: GoogleEvent; calendar: SyncCalendar }>();
+    for (const got of fetched) {
+      if (!got) continue;
+      for (const event of got.events) {
+        // Deduplicated by id BEFORE writing. A meeting you are invited to
+        // carries the same Google id on every calendar it appears on, and
+        // createMany would otherwise violate the unique index rather than
+        // quietly showing the meeting twice.
+        if (!remoteById.has(event.id)) remoteById.set(event.id, { event, calendar: got.calendar });
       }
+    }
+
+    const cancelledIds: string[] = [];
+    const liveIds: string[] = [];
+    for (const [id, { event }] of remoteById) {
+      (event.status === 'cancelled' ? cancelledIds : liveIds).push(id);
+    }
+
+    // One read for every row these ids already have, keyed by external id
+    // rather than by window: an event whose start moved out of the window is
+    // still the same row, and looking it up by date would create a duplicate.
+    const existing = new Map<string, Event>();
+    for (const chunk of chunks([...remoteById.keys()], ID_CHUNK)) {
+      const rows = await this.prisma.client.event.findMany({
+        where: { userId, source: CONNECTOR_ID, externalId: { in: chunk } },
+      });
+      for (const row of rows) if (row.externalId) existing.set(row.externalId, row);
+    }
+
+    const toCreate: Prisma.EventCreateManyInput[] = [];
+    const toUpdate: { id: string; data: RemoteEventData }[] = [];
+    for (const id of liveIds) {
+      const found = remoteById.get(id)!;
+      const data = this.toRowData(found.event, found.calendar);
+      if (!data) continue; // unusable times - skipping beats writing endAt < startAt
+      const row = existing.get(id);
+      if (!row) {
+        toCreate.push({ userId, source: CONNECTOR_ID, externalId: id, ...data });
+      } else if (this.differs(row, data)) {
+        toUpdate.push({ id: row.id, data });
+      }
+    }
+
+    const deletable = cancelledIds.filter((id) => existing.has(id));
+
+    if (deletable.length > 0) {
+      const { count } = await this.prisma.client.event.deleteMany({
+        where: { userId, source: CONNECTOR_ID, externalId: { in: deletable } },
+      });
+      result.deleted = count;
+    }
+    if (toCreate.length > 0) {
+      // skipDuplicates guards the race where the same sync runs twice at once;
+      // the dedupe above handles the ordinary case.
+      const { count } = await this.prisma.client.event.createMany({
+        data: toCreate,
+        skipDuplicates: true,
+      });
+      result.imported = count;
+    }
+    if (toUpdate.length > 0) {
+      // One round trip for all of them. Prisma has no bulk update with
+      // per-row values, but it sends a transaction as a single batch.
+      await this.prisma.client.$transaction(
+        toUpdate.map((u) => this.prisma.client.event.update({ where: { id: u.id }, data: u.data })),
+      );
+      result.updated = toUpdate.length;
     }
 
     // Push Atlas-authored events that have never reached Google. Once pushed,
     // the row flips to source=google-calendar so later pulls match it instead of
-    // creating a duplicate.
+    // creating a duplicate. Google is written to one at a time on purpose -
+    // this is somebody's real calendar - but the local rows go back in one go.
     const unsynced = await this.prisma.client.event.findMany({
       where: { userId, source: 'atlas', startAt: { gte: timeMin, lte: timeMax } },
       take: MAX_PUSH_PER_SYNC,
     });
 
+    const pushed: { id: string; externalId: string }[] = [];
     for (const event of unsynced) {
       try {
         const created = await connector.createEvent(ctx, this.toEventInput(event));
-        await this.prisma.client.event.update({
-          where: { id: event.id },
-          data: { source: CONNECTOR_ID, externalId: created.id },
-        });
-        result.pushed++;
+        pushed.push({ id: event.id, externalId: created.id });
       } catch (err) {
         result.errors.push(
           `push ${event.id}: ${err instanceof Error ? err.message : 'unknown error'}`,
         );
       }
+    }
+    if (pushed.length > 0) {
+      await this.prisma.client.$transaction(
+        pushed.map((p) =>
+          this.prisma.client.event.update({
+            where: { id: p.id },
+            data: { source: CONNECTOR_ID, externalId: p.externalId },
+          }),
+        ),
+      );
+      result.pushed = pushed.length;
+    }
+
+    // ONE timeline row for the sync, not one per event.
+    //
+    // The old code wrote an `event.imported` row for every event, which the
+    // canvas then discarded as noise (CANVAS_NOISE_TYPES) - 234 writes at 384ms
+    // each, to be thrown away. It also drowned the compact cross-domain log the
+    // AI reads: a first sync is one action a person took, not two hundred.
+    if (result.imported + result.updated + result.deleted > 0) {
+      await this.timeline.write({
+        userId,
+        type: 'calendar.synced',
+        source: CONNECTOR_ID,
+        title: `Google Calendar: ${result.imported} added, ${result.updated} updated, ${result.deleted} removed`,
+      });
     }
 
     await this.connectors.saveCredentialMeta(userId, CONNECTOR_ID, {
@@ -317,7 +460,7 @@ export class GoogleSyncService {
    * where Atlas's own pushes land, and reading a calendar Atlas writes to is
    * what stops it pushing the same event again on the next run.
    */
-  private async calendarsToSync(userId: string): Promise<{ id: string; primary: boolean }[]> {
+  private async calendarsToSync(userId: string): Promise<SyncCalendar[]> {
     const ctx = this.connectors.contextFor(userId, CONNECTOR_ID);
     const all: GoogleCalendarSummary[] = await this.connector().listCalendars(ctx);
     const chosen = await this.chosenIds(userId);
@@ -328,6 +471,40 @@ export class GoogleSyncService {
     const primary = all.find((c) => c.primary);
     if (primary && !wanted.some((c) => c.primary)) wanted.unshift(primary);
     return wanted.slice(0, MAX_CALENDARS).map((c) => ({ id: c.id, primary: Boolean(c.primary) }));
+  }
+
+  /** The row fields an event maps to, or null when Google gave unusable times. */
+  private toRowData(gEvent: GoogleEvent, calendar: SyncCalendar): RemoteEventData | null {
+    const startAt = parseGoogleDate(gEvent.start);
+    const endAt = parseGoogleDate(gEvent.end);
+    // Google can return events without usable times (rare, but they exist).
+    // Skipping beats writing a row that violates endAt >= startAt.
+    if (!startAt || !endAt || endAt < startAt) return null;
+    return {
+      title: gEvent.summary?.trim() || '(untitled)',
+      description: gEvent.description ?? null,
+      location: gEvent.location ?? null,
+      startAt,
+      endAt,
+      allDay: isAllDay(gEvent),
+      // Primary stays null, matching every row written before this column
+      // existed. Writing 'primary' for some and the account's own address for
+      // others would make one calendar look like two.
+      sourceCalendarId: calendar.primary ? null : calendar.id,
+    };
+  }
+
+  /** Google wins, but only write when something actually differs. */
+  private differs(row: Event, data: RemoteEventData): boolean {
+    return (
+      row.title !== data.title ||
+      row.description !== data.description ||
+      row.location !== data.location ||
+      row.startAt.getTime() !== data.startAt.getTime() ||
+      row.endAt.getTime() !== data.endAt.getTime() ||
+      row.allDay !== data.allDay ||
+      row.sourceCalendarId !== data.sourceCalendarId
+    );
   }
 
   private async applyRemoteDeletion(userId: string, googleId: string): Promise<number> {

@@ -4,7 +4,7 @@
  * eyeballed through the UI.
  */
 import type { EventDTO } from '@atlas/shared';
-import { addDays, localDayKey, startOfDay } from './dates';
+import { addDays, fmt, localDayKey, startOfDay } from './dates';
 
 /** Duration chips offered in the composer, in minutes. */
 /**
@@ -169,7 +169,7 @@ export function isLive(e: EventDTO, now: Date): boolean {
 
 /** "Mon" · "Tue" … single-letter variants are ambiguous (T/T, S/S). */
 export function weekdayShort(d: Date): string {
-  return d.toLocaleDateString(undefined, { weekday: 'short' });
+  return d.toLocaleDateString('en-US', fmt({ weekday: 'short' }));
 }
 
 /** "July 2026", or "Jun – Jul 2026" when the visible week straddles months. */
@@ -178,10 +178,10 @@ export function rangeLabel(days: Date[]): string {
   const first = days[0]!;
   const last = days[days.length - 1]!;
   if (first.getMonth() === last.getMonth() && first.getFullYear() === last.getFullYear()) {
-    return first.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    return first.toLocaleDateString('en-US', fmt({ month: 'long', year: 'numeric' }));
   }
-  const a = first.toLocaleDateString(undefined, { month: 'short' });
-  const b = last.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+  const a = first.toLocaleDateString('en-US', fmt({ month: 'short' }));
+  const b = last.toLocaleDateString('en-US', fmt({ month: 'short', year: 'numeric' }));
   return `${a} – ${b}`;
 }
 

@@ -46,8 +46,14 @@ export function useGoogleSync() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: GoogleApi.sync,
-    // Sync writes into the events table.
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.events }),
+    // Everything, not just ['events'].
+    //
+    // A sync can add, move and delete events, which changes the day canvas, the
+    // week grid, the timeline feed and every rollup computed from them. Scoping
+    // the refresh to the events key left Today and Looking back showing the old
+    // picture, so the events "did not appear until you restarted the app" —
+    // when in fact they had arrived and only the screen had not been told.
+    onSuccess: () => qc.invalidateQueries(),
   });
 }
 
