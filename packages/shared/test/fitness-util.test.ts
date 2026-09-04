@@ -21,6 +21,8 @@ const set = (over: Partial<WorkoutSetDTO> = {}): WorkoutSetDTO => ({
   reps: 8,
   durationSec: null,
   distanceM: null,
+  setType: 'normal',
+  rpe: null,
   warmup: false,
   completedAt: '2026-07-25T10:00:00.000Z',
   ...over,

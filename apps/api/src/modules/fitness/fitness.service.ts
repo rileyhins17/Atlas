@@ -11,6 +11,7 @@ import type {
   Equipment,
   MuscleTarget,
   MuscleGroup,
+  SetType,
   StartWorkoutInput,
   WorkoutDTO,
   WorkoutSetDTO,
@@ -18,6 +19,7 @@ import type {
 import {
   bestE1rm,
   bestWeightGrams,
+  isSetType,
   // Pure training maths lives in @atlas/shared so the logger UI and the API
   // compute volume, records and set labels from ONE implementation.
   countWorkingSets,
@@ -73,6 +75,8 @@ function toSetDto(s: {
   durationSec: number | null;
   distanceM: number | null;
   warmup: boolean;
+  setType: string;
+  rpe: number | null;
   completedAt: Date;
 }): WorkoutSetDTO {
   return {
@@ -86,6 +90,8 @@ function toSetDto(s: {
     durationSec: s.durationSec,
     distanceM: s.distanceM,
     warmup: s.warmup,
+    setType: isSetType(s.setType) ? s.setType : 'normal',
+    rpe: s.rpe,
     completedAt: s.completedAt.toISOString(),
   };
 }
@@ -277,6 +283,11 @@ export class FitnessService {
 
     // Sets of the same exercise share its position, so the logger's per-exercise
     // blocks stay in the order the exercises were started.
+    // `setType` wins when given, because it is the more specific statement;
+    // otherwise it is derived from the boolean, so an older client that only
+    // knows about `warmup` still writes a consistent row.
+    const setType: SetType = input.setType ?? (input.warmup ? 'warmup' : 'normal');
+
     const samePosition = workout.sets.find((s) => s.exerciseId === input.exerciseId)?.position;
     const position =
       samePosition ?? workout.sets.reduce((max, s) => Math.max(max, s.position + 1), 0);
@@ -291,7 +302,13 @@ export class FitnessService {
         reps: input.reps,
         durationSec: input.durationSec,
         distanceM: input.distanceM,
-        warmup: input.warmup,
+        // ONE writer keeps the two in step. `warmup` stays the column every
+        // existing screen and every volume/record calculation reads; `setType`
+        // is the richer field beside it. A caller may say either, and whichever
+        // it says decides both — they can never disagree in the database.
+        warmup: setType === 'warmup',
+        setType,
+        rpe: input.rpe ?? null,
       },
     });
     return toWorkoutDto(await this.ownedWorkout(userId, workoutId));

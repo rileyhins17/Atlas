@@ -33,6 +33,11 @@ export function ActiveWorkout({
   const [restKey, setRestKey] = useState(0);
   const [skipped, setSkipped] = useState<string[]>([]);
   const finish = useFinishWorkout(workout.id);
+  // `Workout.notes` has had a column, a DTO and a place in the finish input
+  // since fitness shipped, and no field anywhere ever set it — the same shape
+  // as displayName. How a session felt is the part you cannot reconstruct from
+  // the numbers, and it was the one thing there was nowhere to put.
+  const [notes, setNotes] = useState('');
   const history = useWorkoutHistory();
   const unit = useWeightUnit();
   const templates = useWorkoutTemplates();
@@ -84,7 +89,7 @@ export function ActiveWorkout({
               const done = { ...workout };
               const past = history.data ?? [];
               finish.mutate(
-                {},
+                notes.trim() ? { notes: notes.trim() } : {},
                 {
                   onSuccess: () =>
                     onFinished(
@@ -98,6 +103,18 @@ export function ActiveWorkout({
             Finish
           </Button>
         </header>
+
+        <label className="fit-notes">
+          <span className="fit-notes-label">How did it go?</span>
+          <textarea
+            className="fit-notes-input"
+            rows={2}
+            maxLength={5_000}
+            placeholder="Felt heavy, left knee grumbling, bar speed good on the last two…"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
+        </label>
         <RestTimer key={restKey} />
       </Card>
 

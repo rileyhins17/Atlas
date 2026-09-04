@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { RPE_MAX_TENTHS, RPE_MIN_TENTHS, RPE_STEP_TENTHS, SET_TYPES } from './set-effort.js';
 
 /**
  * Fitness DTOs.
@@ -142,6 +143,17 @@ export const LogSetInput = z
     durationSec: z.number().int().min(0).max(86_400).optional(),
     distanceM: z.number().int().min(0).max(1_000_000).optional(),
     warmup: z.boolean().default(false),
+    /** What kind of set. Warm-up stays expressible both ways — see SetType. */
+    setType: z.enum(SET_TYPES).optional(),
+    /** RPE in tenths: 75 is 7.5. Null/absent means it was not recorded. */
+    rpe: z
+      .number()
+      .int()
+      .min(RPE_MIN_TENTHS)
+      .max(RPE_MAX_TENTHS)
+      .refine((n) => (n - RPE_MIN_TENTHS) % RPE_STEP_TENTHS === 0, 'RPE moves in halves')
+      .nullable()
+      .optional(),
   })
   .refine(
     (v) =>
@@ -164,6 +176,8 @@ export const WorkoutSetDTO = z.object({
   durationSec: z.number().int().nullable(),
   distanceM: z.number().int().nullable(),
   warmup: z.boolean(),
+  setType: z.enum(SET_TYPES).default('normal'),
+  rpe: z.number().int().nullable().default(null),
   completedAt: z.string(),
 });
 export type WorkoutSetDTO = z.infer<typeof WorkoutSetDTO>;

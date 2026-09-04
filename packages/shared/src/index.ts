@@ -33,3 +33,5 @@ export * from './dto/mood-patterns.js';
 export * from './dto/mood-windows.js';
 export * from './dto/exercise-taxonomy.js';
 export * from './dto/exercise-records.js';
+export * from './dto/set-effort.js';
+export * from './dto/plates.js';

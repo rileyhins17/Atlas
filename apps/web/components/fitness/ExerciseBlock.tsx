@@ -2,7 +2,15 @@
 
 import { useState } from 'react';
 import {
+  RPE_CHOICES,
+  SET_TYPES,
+  SET_TYPE_LABELS,
+  SET_TYPE_MARKS,
+  describeEffort,
+  describePlates,
   describeRecord,
+  formatRpe,
+  platesFor,
   describeSet,
   exerciseRecords,
   gramsToUnit,
@@ -10,6 +18,8 @@ import {
   stepFor,
   unitToGrams,
   type ExerciseDTO,
+  type SetType,
+  type WeightUnit,
   type WorkoutDTO,
 } from '@atlas/shared';
 import { Check, Trophy, X } from 'lucide-react';
@@ -65,7 +75,15 @@ export function ExerciseBlock({
     seed?.weightGrams != null ? String(gramsToUnit(seed.weightGrams, unit)) : '',
   );
   const [reps, setReps] = useState(seed?.reps != null ? String(seed.reps) : '');
-  const [warmup, setWarmup] = useState(false);
+  // What KIND of set, rather than a warm-up boolean. A drop set and a set taken
+  // to failure are both work and both different from an ordinary one, and a
+  // tracker that cannot say which knows less than the person using it.
+  const [setType, setSetType] = useState<SetType>('normal');
+  // How hard it was. Two sets of 100kg x 5 are not the same session if one was
+  // comfortable and the other was everything you had — that difference is the
+  // signal a programme is steered by, and Atlas recorded none of it.
+  const [rpe, setRpe] = useState<number | null>(null);
+  const [showPlates, setShowPlates] = useState(false);
 
   const previousBest = last.data?.bestWeightGrams ?? null;
   const lastLine =
@@ -81,6 +99,8 @@ export function ExerciseBlock({
                 kind,
                 position: 0,
                 warmup: false,
+                setType: 'normal',
+                rpe: null,
                 completedAt: '',
               },
               kind,
@@ -109,9 +129,23 @@ export function ExerciseBlock({
           ? { weightGrams: unitToGrams(parsedWeight, unit) }
           : {}),
         reps: parsedReps!,
-        warmup,
+        setType,
+        warmup: setType === 'warmup',
+        rpe,
       },
-      { onSuccess: onLogged },
+      {
+        onSuccess: () => {
+          // Both reset. Effort and kind belong to the set they were logged
+          // with, and a control left armed writes a value nobody chose onto the
+          // next one — a set silently recorded as "to failure" because it was
+          // tapped three sets ago is wrong data, and wrong data is worse than
+          // one more tap. Carrying the type would suit drop sets, which come in
+          // runs; it is not worth the class of error it opens.
+          setRpe(null);
+          setSetType('normal');
+          onLogged();
+        },
+      },
     );
   }
 
@@ -130,11 +164,6 @@ export function ExerciseBlock({
       {sets.length > 0 && (
         <ol className="fit-sets">
           {sets.map((s, i) => {
-            // Compare against everything before it — previous SESSIONS (which
-            // is all `previousBest` knows about) *and* the earlier sets of this
-            // one. Without the in-session part, a first-ever exercise badges
-            // every ascending set as a PR, which is exactly the noise that
-            // teaches people to ignore the word.
             // Compared against everything BEFORE this set — previous sessions
             // (all `previousBest` knows) plus the earlier sets of this one.
             // Without the in-session half, a first-ever exercise badges every
@@ -152,8 +181,15 @@ export function ExerciseBlock({
             const claim = describeRecord(recordsBrokenBy(s, before));
             return (
               <li key={s.id} className={`fit-set ${s.warmup ? 'warmup' : ''}`}>
-                <span className="fit-set-n">{s.warmup ? 'W' : i + 1}</span>
-                <span className="fit-set-body">{describeSet(s, kind, unit)}</span>
+                <span className="fit-set-n" title={SET_TYPE_LABELS[s.setType]}>
+                  {SET_TYPE_MARKS[s.setType] || i + 1}
+                </span>
+                <span className="fit-set-body">
+                  {describeSet(s, kind, unit)}
+                  {s.rpe !== null && (
+                    <span className="fit-set-rpe">{describeEffort(s.rpe)}</span>
+                  )}
+                </span>
                 {claim && (
                   <span className="fit-pr" title={claim}>
                     <Trophy size={11} aria-hidden /> {claim === 'Heaviest ever' ? 'PR' : claim}
@@ -240,19 +276,91 @@ export function ExerciseBlock({
             </button>
           </div>
         </div>
-        <button
-          type="button"
-          className={`fit-warmup ${warmup ? 'on' : ''}`}
-          aria-pressed={warmup}
-          onClick={() => setWarmup((v) => !v)}
-          title="Warm-up sets are excluded from volume and records"
-        >
-          Warm-up
-        </button>
         <Button type="submit" disabled={!valid || log.isPending}>
           <Check size={14} aria-hidden /> Log set
         </Button>
       </form>
+
+      <div className="fit-opts">
+        <div className="fit-chips" role="group" aria-label={`Set type for ${exerciseName}`}>
+          {SET_TYPES.map((t) => (
+            <button
+              key={t}
+              type="button"
+              className={`chip ${setType === t ? 'active' : ''}`}
+              aria-pressed={setType === t}
+              title={
+                t === 'warmup' ? 'Warm-ups are excluded from volume and records' : undefined
+              }
+              onClick={() => setSetType(setType === t && t !== 'normal' ? 'normal' : t)}
+            >
+              {SET_TYPE_LABELS[t]}
+            </button>
+          ))}
+        </div>
+
+        {/* Optional, and silent when unused. A required effort field turns every
+            set into a small exam; a null RPE means "not recorded", which is not
+            the same as easy. */}
+        <div className="fit-chips" role="group" aria-label={`How hard for ${exerciseName}`}>
+          <span className="fit-opts-label">RPE</span>
+          {RPE_CHOICES.map((r) => (
+            <button
+              key={r}
+              type="button"
+              className={`chip ${rpe === r ? 'active' : ''}`}
+              aria-pressed={rpe === r}
+              title={describeEffort(r)}
+              onClick={() => setRpe(rpe === r ? null : r)}
+            >
+              {formatRpe(r)}
+            </button>
+          ))}
+        </div>
+
+        {needsWeight && parsedWeight !== null && parsedWeight > 0 && (
+          <div className="fit-plates">
+            <button
+              type="button"
+              className="fit-plates-toggle"
+              aria-expanded={showPlates}
+              onClick={() => setShowPlates((v) => !v)}
+            >
+              What goes on the bar?
+            </button>
+            {showPlates && <PlateHint target={parsedWeight} unit={unit} />}
+          </div>
+        )}
+      </div>
     </section>
+  );
+}
+
+/**
+ * What to actually put on the bar.
+ *
+ * The one piece of arithmetic a lifter does under fatigue, and getting it wrong
+ * means a set logged at a weight that was never on the bar — which quietly
+ * poisons every record and trend built on it. It reports a weight the gym
+ * cannot make rather than rounding to one that never existed.
+ */
+function PlateHint({ target, unit }: { target: number; unit: WeightUnit }) {
+  const load = platesFor(target, unit);
+
+  if (load.belowBar) {
+    return <p className="fit-plates-out">That is under an empty {unit === 'kg' ? '20kg' : '45lb'} bar.</p>;
+  }
+
+  return (
+    <p className="fit-plates-out">
+      <strong>{describePlates(load.perSide, unit)}</strong> per side
+      {load.shortfallBy !== 0 && (
+        <span className="fit-plates-short">
+          {' '}
+          — makes {load.achievable}
+          {unit}, {load.shortfallBy > 0 ? `${load.shortfallBy}${unit} short` : 'over'}
+        </span>
+      )}
+    </p>
   );
 }

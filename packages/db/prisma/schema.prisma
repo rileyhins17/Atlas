@@ -414,7 +414,20 @@ model WorkoutSet {
   durationSec Int?
   distanceM  Int?
   // A warm-up set counts toward neither volume nor a personal record.
+  // Kept as a real column: volume, records and every existing screen read it,
+  // and rewriting all of that to derive from `setType` would be risk with no
+  // payoff. `setType` below is the richer field alongside it, and the service
+  // keeps the two in step at write time so there is one writer and no drift.
   warmup     Boolean  @default(false)
+  // normal | warmup | drop | failure | amrap. What KIND of set this was —
+  // a drop set and a set taken to failure are both work, and both are
+  // different from an ordinary one.
+  setType    String   @default("normal")
+  // Rate of perceived exertion, in TENTHS: 75 is RPE 7.5. Integer because the
+  // value only ever lands on a half, and a float column for that is an
+  // invitation to 7.499999 — the same reasoning as weight being stored in
+  // grams. Null means it was not recorded, which is not the same as easy.
+  rpe        Int?
   completedAt DateTime @default(now())
 
   @@index([workoutId, position])
