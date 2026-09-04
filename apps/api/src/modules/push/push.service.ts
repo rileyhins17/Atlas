@@ -89,6 +89,8 @@ export class PushService {
     const subs = await this.prisma.client.pushSubscription.findMany({ where: { userId } });
     const body = JSON.stringify(payload);
     let sent = 0;
+    /** Endpoints the push service says are gone; removed once, after the sends. */
+    const dead: string[] = [];
     await Promise.all(
       subs.map(async (s) => {
         try {
@@ -100,7 +102,9 @@ export class PushService {
         } catch (err) {
           const status = (err as { statusCode?: number }).statusCode;
           if (status === 404 || status === 410) {
-            await this.prisma.client.pushSubscription.delete({ where: { id: s.id } }).catch(() => undefined);
+            // Collected, not deleted here: one delete per dead device inside
+            // the send loop is a round trip per device.
+            dead.push(s.id);
           } else {
             this.logger.warn(
               `Push to subscription ${s.id} failed: ${err instanceof Error ? err.message : 'unknown error'}`,
@@ -109,6 +113,11 @@ export class PushService {
         }
       }),
     );
+    if (dead.length > 0) {
+      await this.prisma.client.pushSubscription
+        .deleteMany({ where: { id: { in: dead } } })
+        .catch(() => undefined);
+    }
     return sent;
   }
 }

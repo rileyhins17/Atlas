@@ -229,25 +229,26 @@ export class GoogleSyncService {
     const dropped = (previous ?? available.filter((c) => c.selected !== false).map((c) => c.id))
       .filter((id) => !unique.includes(id));
 
+    // One delete for every de-selected calendar, not one each. Primary is
+    // folded in as the null/'primary' case because rows written before the
+    // sourceCalendarId column existed carry neither.
+    const droppedPrimary = dropped.some((id) => available.find((c) => c.id === id)?.primary);
+    const nonPrimary = dropped.filter((id) => !available.find((c) => c.id === id)?.primary);
     let removed = 0;
-    for (const id of dropped) {
-      const isPrimary = Boolean(available.find((c) => c.id === id)?.primary);
+    if (dropped.length > 0) {
       const { count } = await this.prisma.client.event.deleteMany({
         where: {
           userId,
           source: CONNECTOR_ID,
-          ...(isPrimary
-            ? {
-                OR: [
-                  { sourceCalendarId: id },
-                  { sourceCalendarId: null },
-                  { sourceCalendarId: PRIMARY },
-                ],
-              }
-            : { sourceCalendarId: id }),
+          OR: [
+            ...(nonPrimary.length > 0 ? [{ sourceCalendarId: { in: nonPrimary } }] : []),
+            ...(droppedPrimary
+              ? [{ sourceCalendarId: null }, { sourceCalendarId: PRIMARY }]
+              : []),
+          ],
         },
       });
-      removed += count;
+      removed = count;
     }
 
     await this.connectors.saveCredentialMeta(userId, CONNECTOR_ID, {

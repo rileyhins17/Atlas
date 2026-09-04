@@ -19,6 +19,7 @@ function makeService(subs: Sub[]) {
   const pushSubscription = {
     findMany: vi.fn().mockResolvedValue(subs),
     delete: vi.fn().mockResolvedValue({}),
+    deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
   };
   const prisma = { client: { pushSubscription } };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -57,6 +58,8 @@ describe('PushService.sendToUser', () => {
     const sent = await service.sendToUser('u1', { title: 'T', body: 'B' });
 
     expect(sent).toBe(1);
-    expect(pushSubscription.delete).toHaveBeenCalledWith({ where: { id: 's2' } });
+    // Pruned in ONE delete after the sends, not one per dead device: a delete
+    // inside the send loop is a round trip per subscription.
+    expect(pushSubscription.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ['s2'] } } });
   });
 });

@@ -23,6 +23,30 @@ const DEFAULT_MODEL = 'deepseek-chat';
  * NOTE: `chat()` actually spends money. All production callers must go
  * through the cost guard in @atlas/ai, never call this directly.
  */
+/**
+ * How long to wait for the model before giving up.
+ *
+ * There was no timeout at all: `signal` was accepted and no production caller
+ * ever passed one, so a hung connection held the HTTP request open for as long
+ * as Node's defaults allowed — multiplied by up to six tool-loop iterations,
+ * and with a user watching a spinner the whole time.
+ *
+ * Ninety seconds is generous for a reasoning model with tools attached and well
+ * inside the proxy's own ceiling, so the app decides its own failure rather than
+ * having a 504 decided for it.
+ */
+const REQUEST_TIMEOUT_MS = 90_000;
+
+/**
+ * The caller's signal if it gave one, otherwise a timeout. When both exist,
+ * whichever fires first wins — an abandoned request should not sit waiting out
+ * the full ninety seconds.
+ */
+function withTimeout(signal: AbortSignal | undefined): AbortSignal {
+  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  return signal ? AbortSignal.any([signal, timeout]) : timeout;
+}
+
 export class DeepSeekConnector implements Connector {
   readonly id = 'deepseek';
   readonly label = 'DeepSeek (direct)';
@@ -71,7 +95,7 @@ export class DeepSeekConnector implements Connector {
         max_tokens: opts.maxTokens,
         tools: opts.tools,
       }),
-      signal: opts.signal,
+      signal: withTimeout(opts.signal),
     });
 
     if (!res.ok) {

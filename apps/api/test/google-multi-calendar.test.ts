@@ -183,8 +183,9 @@ describe('GoogleSyncService.setCalendars', () => {
       meta: { syncedCalendarIds: ['me@example.com', 'work@example.com'] },
     });
     const res = await service.setCalendars('u1', ['me@example.com']);
+    // One delete covering every de-selected calendar, not one each.
     expect(deleteArgs).toHaveLength(1);
-    expect(deleteArgs[0]).toMatchObject({ sourceCalendarId: 'work@example.com' });
+    expect(JSON.stringify(deleteArgs[0])).toContain('work@example.com');
     expect(res.removed).toBe(3);
   });
 

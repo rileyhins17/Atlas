@@ -14,6 +14,7 @@ import { ConnectorsService } from '../../core/connectors.service.js';
 import { loadEnv } from '../../config/env.js';
 
 /** A user cannot have more days in their split than this. */
+const MAX_EXERCISES_PER_TEMPLATE = 30;
 const MAX_TEMPLATES = 20;
 
 const WITH_EXERCISES = {
@@ -273,45 +274,86 @@ export class WorkoutTemplatesService {
     userId: string,
     templates: { name: string; exercises: { exerciseId: string | null; name: string }[] }[],
   ): Promise<WorkoutTemplateDTO[]> {
-    const out: WorkoutTemplateDTO[] = [];
+    const wanted = templates.slice(0, MAX_TEMPLATES);
 
-    for (const t of templates.slice(0, MAX_TEMPLATES)) {
+    // Every movement the proposal names, resolved in TWO queries rather than
+    // two per exercise.
+    //
+    // This used to look each one up and create it individually, inside the
+    // per-day loop. A five-day split of eight movements is ~80 sequential round
+    // trips, and a warm round trip to the hosted database measures 384ms —
+    // about thirty seconds of spinner for the one action that turns a pasted
+    // program into a usable split. Same class as the Google Calendar sync,
+    // which went from 305 seconds to under seven the same way.
+    //
+    // Title-cased first: the text came from something typed in a hurry
+    // ("incline db press") and becomes a permanent catalog entry sitting next
+    // to properly-cased seeded names.
+    const needed = new Set<string>();
+    for (const t of wanted) {
+      for (const ex of t.exercises.slice(0, MAX_EXERCISES_PER_TEMPLATE)) {
+        if (ex.exerciseId) continue;
+        const name = titleCase(ex.name.trim().slice(0, 120));
+        if (name) needed.add(name);
+      }
+    }
+
+    const byName = new Map<string, string>();
+    if (needed.size > 0) {
+      const found = await this.prisma.client.exercise.findMany({
+        where: { name: { in: [...needed] }, OR: [{ userId: null }, { userId }] },
+        select: { id: true, name: true },
+      });
+      for (const row of found) byName.set(row.name, row.id);
+
+      // Deduplicated by name before writing, so two days naming the same new
+      // movement create it once. `skipDuplicates` covers the race where the
+      // same proposal is accepted twice at the same moment.
+      const missing = [...needed].filter((n) => !byName.has(n));
+      if (missing.length > 0) {
+        await this.prisma.client.exercise.createMany({
+          data: missing.map((name) => ({ userId, name, muscle: 'other', kind: 'weight_reps' })),
+          skipDuplicates: true,
+        });
+        // createMany returns no rows, so read back the ids it just assigned.
+        const created = await this.prisma.client.exercise.findMany({
+          where: { name: { in: missing }, OR: [{ userId: null }, { userId }] },
+          select: { id: true, name: true },
+        });
+        for (const row of created) byName.set(row.name, row.id);
+      }
+    }
+
+    // Which of these days already exist, in one query rather than one per day.
+    const dayNames = wanted.map((t) => t.name.trim().slice(0, 60) || 'My workout');
+    const existingDays = new Map(
+      (
+        await this.prisma.client.workoutTemplate.findMany({
+          where: { userId, name: { in: dayNames } },
+          select: { id: true, name: true },
+        })
+      ).map((row) => [row.name, row.id]),
+    );
+
+    const out: WorkoutTemplateDTO[] = [];
+    for (const [i, t] of wanted.entries()) {
       const ids: string[] = [];
-      for (const ex of t.exercises.slice(0, 30)) {
+      for (const ex of t.exercises.slice(0, MAX_EXERCISES_PER_TEMPLATE)) {
         if (ex.exerciseId) {
           ids.push(ex.exerciseId);
           continue;
         }
-        // Title-case it: the raw text came from something the user typed in a
-        // hurry ("incline db press"), and it becomes a permanent catalog entry
-        // shown next to properly-cased seeded names.
-        const name = titleCase(ex.name.trim().slice(0, 120));
-        if (!name) continue;
-        // upsert-by-name: two proposals naming the same new movement must not
-        // create two exercises.
-        const existing = await this.prisma.client.exercise.findFirst({
-          where: { name, OR: [{ userId: null }, { userId }] },
-          select: { id: true },
-        });
-        if (existing) {
-          ids.push(existing.id);
-          continue;
-        }
-        const created = await this.prisma.client.exercise.create({
-          data: { userId, name, muscle: 'other', kind: 'weight_reps' },
-          select: { id: true },
-        });
-        ids.push(created.id);
+        const id = byName.get(titleCase(ex.name.trim().slice(0, 120)));
+        if (id) ids.push(id);
       }
 
-      const name = t.name.trim().slice(0, 60) || 'My workout';
-      const existing = await this.prisma.client.workoutTemplate.findFirst({
-        where: { userId, name },
-        select: { id: true },
-      });
+      const name = dayNames[i]!;
+      const existing = existingDays.get(name);
+      // create/update stay per day: each is a nested write Prisma already wraps
+      // in its own transaction, and there are at most MAX_TEMPLATES of them.
       out.push(
         existing
-          ? await this.update(userId, existing.id, { exerciseIds: ids })
+          ? await this.update(userId, existing, { exerciseIds: ids })
           : await this.create(userId, { name, exerciseIds: ids }),
       );
     }

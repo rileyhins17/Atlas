@@ -15,7 +15,10 @@ function makeService(opts: { tasks?: unknown[]; timezone?: string } = {}) {
     task: { findMany, updateMany },
     user: { findUnique: vi.fn().mockResolvedValue({ timezone: opts.timezone ?? 'UTC' }) },
   };
-  const timeline = { write: vi.fn().mockResolvedValue(undefined) };
+  const timeline = {
+    write: vi.fn().mockResolvedValue(undefined),
+    writeMany: vi.fn().mockResolvedValue(undefined),
+  };
   return {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     service: new TasksService({ client } as any, timeline as any),
@@ -89,21 +92,37 @@ describe('rollForward', () => {
     });
     expect(updateMany).not.toHaveBeenCalled();
     expect(timeline.write).not.toHaveBeenCalled();
+    expect(timeline.writeMany).not.toHaveBeenCalled();
   });
 
+  /**
+   * Still one row per task — that is per-task knowledge the AI reads — but in
+   * ONE round trip. Twenty tasks used to mean twenty sequential inserts, which
+   * against a database 384ms away is eight seconds for a button.
+   */
   it('records one timeline row per task, so the AI can learn what you keep dropping', async () => {
     const { service, timeline } = makeService({ tasks: [task('t1', 'Call the bank'), task('t2')] });
     await service.rollForward('u1', ['t1', 't2'], 'drop');
-    expect(timeline.write).toHaveBeenCalledTimes(2);
-    const first = timeline.write.mock.calls[0]![0];
-    expect(first.type).toBe('task.dropped');
-    expect(first.title).toContain('Call the bank');
-    expect(first.refId).toBe('t1');
+    expect(timeline.writeMany).toHaveBeenCalledTimes(1);
+    const rows = timeline.writeMany.mock.calls[0]![0];
+    expect(rows).toHaveLength(2);
+    expect(rows[0].type).toBe('task.dropped');
+    expect(rows[0].title).toContain('Call the bank');
+    expect(rows[0].refId).toBe('t1');
+  });
+
+  it('does not fall back to a write per task', async () => {
+    const { service, timeline } = makeService({
+      tasks: Array.from({ length: 20 }, (_, i) => task(`t${i}`)),
+    });
+    await service.rollForward('u1', Array.from({ length: 20 }, (_, i) => `t${i}`), 'today');
+    expect(timeline.write).not.toHaveBeenCalled();
+    expect(timeline.writeMany).toHaveBeenCalledTimes(1);
   });
 
   it('distinguishes a roll from a drop in the log', async () => {
     const { service, timeline } = makeService({ tasks: [task('t1')] });
     await service.rollForward('u1', ['t1'], 'today');
-    expect(timeline.write.mock.calls[0]![0].type).toBe('task.rolled_forward');
+    expect(timeline.writeMany.mock.calls[0]![0][0].type).toBe('task.rolled_forward');
   });
 });

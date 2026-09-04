@@ -168,8 +168,12 @@ export class TasksService {
 
     // One row per task, not one for the batch: the AI reads this log to learn
     // what you actually keep putting off, and that is per-task knowledge.
-    for (const task of tasks) {
-      await this.timeline.write({
+    //
+    // Written in ONE round trip all the same. Twenty tasks meant twenty
+    // sequential inserts, which against a database 384ms away is eight seconds
+    // for a button that should feel instant.
+    await this.timeline.writeMany(
+      tasks.map((task) => ({
         userId,
         type: action === 'today' ? 'task.rolled_forward' : 'task.dropped',
         source: 'tasks',
@@ -179,8 +183,8 @@ export class TasksService {
             : `Decided against: ${task.title}`,
         refType: 'task',
         refId: task.id,
-      });
-    }
+      })),
+    );
     return { action, count: ids.length };
   }
 
