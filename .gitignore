@@ -41,3 +41,5 @@ playwright/.cache/
 # Docker volumes (if bind-mounted locally)
 infra/data/
 infra/health.log
+.db-moves/
+.env.bak-*
