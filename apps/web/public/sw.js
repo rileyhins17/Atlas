@@ -17,7 +17,7 @@
  * Navigations are network-first with an offline fallback; static assets are
  * stale-while-revalidate.
  */
-const CACHE = 'atlas-v2';
+const CACHE = 'atlas-v3';
 const PRECACHE = ['/offline.html', '/icon.svg'];
 
 self.addEventListener('install', (event) => {
@@ -94,7 +94,28 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: serve cached immediately, refresh in the background.
+  // Anything with a query string is a DYNAMIC read, never a static asset.
+  //
+  // This is what took the live site down with "a client-side exception has
+  // occurred". The App Router fetches its React payloads as ordinary GETs —
+  // `/today?_rsc=1a2b3c` — which are same-origin, not /api/, and not a
+  // navigation, so they fell into the stale-while-revalidate branch below and
+  // were cached by URL. Deploy a new build and the SAME url now answers with a
+  // payload from a build whose chunks no longer exist, `cached || network`
+  // hands the old one straight back, and React throws on the mismatch. Serving
+  // yesterday's payload is not a cache hit, it is a wrong answer.
+  if (url.search) return;
+
+  // Only real static files are worth caching, and only the immutable ones.
+  // `/_next/static/*` is content-hashed, so a cached copy can never be stale:
+  // a changed file is a changed URL. Everything else goes to the network.
+  const immutable = url.pathname.startsWith('/_next/static/');
+  const asset = /\.(js|css|woff2?|ttf|otf|png|jpe?g|gif|svg|webp|avif|ico|webmanifest)$/i.test(
+    url.pathname,
+  );
+  if (!immutable && !asset) return;
+
+  // Serve cached immediately, refresh in the background.
   event.respondWith(
     caches.match(request).then((cached) => {
       const network = fetch(request)
