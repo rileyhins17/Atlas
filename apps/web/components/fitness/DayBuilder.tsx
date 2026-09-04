@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { ExerciseDTO, WorkoutTemplateDTO } from '@atlas/shared';
+import { describeExercise, type ExerciseDTO, type WorkoutTemplateDTO } from '@atlas/shared';
 import { Check, GripVertical, Plus, Search, X } from 'lucide-react';
 import { Button, Card, Input } from '@/components/ui';
 import {
@@ -11,6 +11,7 @@ import {
   useUpdateTemplate,
 } from '@/lib/hooks/fitness';
 import { useSubmitLatch } from '@/lib/hooks/submit-latch';
+import { MuscleFilter, NO_FILTER, type MuscleFilterValue } from './MuscleFilter';
 
 const NO_EXERCISES: ExerciseDTO[] = [];
 
@@ -45,6 +46,7 @@ export function DayBuilder({
     editing ? editing.exercises.map((e) => e.exerciseId) : [],
   );
   const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<MuscleFilterValue>(NO_FILTER);
 
   // Stable identity: a fresh `[]` fallback would re-run both memos every render.
   const all = useMemo(() => exercises.data ?? NO_EXERCISES, [exercises.data]);
@@ -52,10 +54,22 @@ export function DayBuilder({
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const pool = q ? all.filter((e) => e.name.toLowerCase().includes(q)) : all;
+    // Same narrowing as the mid-workout picker, and for a sharper reason. This
+    // is where a split gets built, so it is browsed rather than searched: you
+    // are deciding what a Leg Day should contain, not looking up a name you
+    // already have. Unfiltered, it showed sixty movements out of three hundred
+    // in whatever order the API returned them, which is what made building a
+    // split feel arbitrary.
+    const scoped = all.filter(
+      (e) =>
+        (!filter.target || e.target === filter.target) &&
+        (!filter.equipment || e.equipment === filter.equipment),
+    );
+    const pool = q ? scoped.filter((e) => e.name.toLowerCase().includes(q)) : scoped;
     // Chosen movements are shown in the list above; offering them again is noise.
-    return pool.filter((e) => !chosen.includes(e.id)).slice(0, q ? 20 : 60);
-  }, [all, query, chosen]);
+    const narrowed = q || filter.target || filter.equipment;
+    return pool.filter((e) => !chosen.includes(e.id)).slice(0, narrowed ? 40 : 60);
+  }, [all, query, chosen, filter]);
 
   const busy = create.isPending || update.isPending;
 
@@ -142,6 +156,8 @@ export function DayBuilder({
         />
       </div>
 
+      <MuscleFilter exercises={all} value={filter} onChange={setFilter} />
+
       <div className="day-options" role="listbox" aria-label="Exercises to add">
         {results.map((e) => (
           <button
@@ -154,12 +170,16 @@ export function DayBuilder({
           >
             <Plus size={13} aria-hidden />
             <span className="day-option-name">{e.name}</span>
-            <span className="fit-picker-muscle">{e.muscle}</span>
+            {/* The specific muscle and the equipment. "Legs" on forty rows
+                tells you nothing about which one to pick. */}
+            <span className="fit-picker-muscle">{describeExercise(e)}</span>
           </button>
         ))}
         {results.length === 0 && (
           <p className="prog-muted" style={{ padding: '8px 2px', margin: 0 }}>
-            {query.trim() ? 'Nothing matches that.' : 'Everything is already in this day.'}
+            {query.trim() || filter.target || filter.equipment
+              ? 'Nothing matches that.'
+              : 'Everything is already in this day.'}
           </p>
         )}
       </div>

@@ -331,9 +331,14 @@ test('a workout logs sets, badges a real PR, and lands in history when finished'
   await expect(page.locator('.fit-active')).toBeVisible();
 
   // Search-first picker: the catalog is long, scrolling it mid-workout is slow.
+  //
+  // Named exactly. The catalog carries six lateral raises — dumbbell, cable,
+  // machine, banded, leaning, Egyptian — so a substring that used to identify
+  // one movement now identifies a family, and the rest of this spec asserts on
+  // set rows belonging to a specific one.
   await page.getByRole('button', { name: /Add exercise/i }).click();
-  await page.getByLabel('Search exercises').fill('lateral');
-  await page.getByRole('option', { name: /Lateral Raise/ }).click();
+  await page.getByLabel('Search exercises').fill('lateral raise (dumbbell)');
+  await page.getByRole('option', { name: /^Lateral Raise \(Dumbbell\)/ }).click();
   await expect(page.locator('.fit-block')).toBeVisible();
 
   // Pounds by default now — the field, its label and the set lines all agree.
@@ -717,12 +722,16 @@ test('a workout day is built by tapping exercises', async ({ page }) => {
   // Tapping a list is obvious; describing a split in prose is not.
   await page.getByRole('button', { name: /New workout day/ }).click();
   await page.getByLabel('Workout day name').fill('Arms Day');
-  await page.getByLabel('Search exercises to add').fill('bicep curl');
+  await page.getByLabel('Search exercises to add').fill('bicep curl (dumbbell)');
   await page.locator('.day-option').first().click();
   await expect(page.locator('.day-chosen-row')).toHaveCount(1);
 
   // A chosen movement leaves the "to add" list — offering it twice is noise.
-  await expect(page.locator('.day-option').filter({ hasText: 'Bicep Curl' })).toHaveCount(0);
+  // Scoped to the one that was added: the catalog also holds barbell and EZ-bar
+  // curls, and those SHOULD still be on offer.
+  await expect(
+    page.locator('.day-option').filter({ hasText: 'Bicep Curl (Dumbbell)' }),
+  ).toHaveCount(0);
 
   // Order is the order the session opens in, so it has to be changeable.
   await page.getByLabel('Search exercises to add').fill('hammer curl');

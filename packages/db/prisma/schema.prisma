@@ -301,8 +301,17 @@ model Exercise {
   userId    String?
   user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String
-  // Primary muscle group: chest | back | legs | shoulders | arms | core | other
+  // Primary muscle group: chest | back | legs | shoulders | arms | core |
+  // cardio | other. Coarse on purpose — it is what the muscle-balance chart is
+  // built on, and every row already stores it.
   muscle    String   @default("other")
+  // The SPECIFIC muscle, and what you do it with. Both nullable: a user's own
+  // addition should be loggable without classifying it first, and every row
+  // that existed before these columns is genuinely unclassified rather than
+  // wrongly classified. Searching "legs" could not find a hip abduction
+  // machine, which is what these are for.
+  target    String?
+  equipment String?
   // How a set of this movement is measured, which decides what the logger asks
   // for: weight_reps | reps | duration | distance.
   kind      String   @default("weight_reps")

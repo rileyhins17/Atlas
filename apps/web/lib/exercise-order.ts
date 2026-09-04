@@ -2,10 +2,10 @@
  * What order the exercise picker offers movements in.
  *
  * The whole point of saved workout days: mid-set, you should find the movement
- * you do every week at the top of the list, not by scrolling a 32-item catalog.
+ * you do every week at the top of the list, not by scrolling a three-hundred-item catalog.
  * Pure so the ordering is unit-tested rather than eyeballed through the UI.
  */
-import type { ExerciseDTO, WorkoutTemplateDTO } from '@atlas/shared';
+import type { Equipment, ExerciseDTO, MuscleTarget, WorkoutTemplateDTO } from '@atlas/shared';
 
 export interface PickerSection {
   /** Heading, or null for the ungrouped remainder. */
@@ -27,16 +27,28 @@ export function pickerSections({
   recentExerciseIds,
   alreadyInWorkout = [],
   query = '',
+  target = null,
+  equipment = null,
 }: {
   exercises: ExerciseDTO[];
   template: WorkoutTemplateDTO | null;
   recentExerciseIds: string[];
   alreadyInWorkout?: string[];
   query?: string;
+  /** Narrow to one specific muscle — the axis "legs" was too coarse for. */
+  target?: MuscleTarget | null;
+  equipment?: Equipment | null;
 }): PickerSection[] {
   const q = query.trim().toLowerCase();
+  // Filters apply BEFORE anything else, including before the "searching means
+  // one flat list" branch below. Picking a muscle and then typing has to narrow
+  // twice; a search that quietly ignored the chips would be the opposite of the
+  // point, and it is the sort of thing that reads as the filter being broken.
+  const filtered = exercises.filter(
+    (e) => (!target || e.target === target) && (!equipment || e.equipment === equipment),
+  );
   const matches = (e: ExerciseDTO) => e.name.toLowerCase().includes(q);
-  const pool = q ? exercises.filter(matches) : exercises;
+  const pool = q ? filtered.filter(matches) : filtered;
 
   // Searching is an explicit act: honour it with one flat, ranked list rather
   // than scattering hits across three headings the user has to scan.
@@ -55,6 +67,14 @@ export function pickerSections({
       return a.name.localeCompare(b.name);
     });
     return [{ title: null, exercises: ranked }];
+  }
+
+  // A filter is as explicit an act as a search: with one on, the whole answer
+  // is "everything that matches", not three headings built from the unfiltered
+  // catalog. Recent and template sections would otherwise show movements the
+  // filter just excluded.
+  if (target || equipment) {
+    return [{ title: null, exercises: [...pool].sort((a, b) => a.name.localeCompare(b.name)) }];
   }
 
   const byId = new Map(exercises.map((e) => [e.id, e]));

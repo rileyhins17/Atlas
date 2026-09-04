@@ -6,6 +6,8 @@ import type {
   FinishWorkoutInput,
   LastPerformanceDTO,
   LogSetInput,
+  Equipment,
+  MuscleTarget,
   MuscleGroup,
   StartWorkoutInput,
   WorkoutDTO,
@@ -40,6 +42,12 @@ function toExerciseDto(e: Exercise): ExerciseDTO {
     id: e.id,
     name: e.name,
     muscle: e.muscle as MuscleGroup,
+    // Null rather than a guess. A row written before these columns existed, or
+    // a user's own addition, is genuinely unclassified — and the picker's
+    // filters have to be able to say "not filed" rather than quietly filing it
+    // somewhere wrong.
+    target: (e.target as MuscleTarget | null) ?? null,
+    equipment: (e.equipment as Equipment | null) ?? null,
     kind: e.kind as ExerciseKind,
     custom: e.userId !== null,
   };
@@ -106,17 +114,37 @@ export class FitnessService {
   async seedCatalog(): Promise<number> {
     const existing = await this.prisma.client.exercise.findMany({
       where: { userId: null },
-      select: { name: true },
+      select: { id: true, name: true, target: true, equipment: true },
     });
-    const have = new Set(existing.map((e) => e.name));
-    const missing = EXERCISE_CATALOG.filter((e) => !have.has(e.name));
-    if (missing.length === 0) return 0;
+    const byName = new Map(existing.map((e) => [e.name, e]));
 
-    const result = await this.prisma.client.exercise.createMany({
-      data: missing.map((e) => ({ ...e, userId: null })),
-      skipDuplicates: true,
-    });
-    return result.count;
+    const missing = EXERCISE_CATALOG.filter((e) => !byName.has(e.name));
+    let added = 0;
+    if (missing.length > 0) {
+      const result = await this.prisma.client.exercise.createMany({
+        data: missing.map((e) => ({ ...e, userId: null })),
+        skipDuplicates: true,
+      });
+      added = result.count;
+    }
+
+    // Classify the entries that were seeded before `target` and `equipment`
+    // existed. Without this the forty-eight original movements stay unfiled
+    // forever, so the very exercises everybody already uses are the ones the
+    // new filters cannot find — which would be a worse first impression than
+    // not having the filters. Shared rows only: a user's own additions are
+    // theirs to describe, and overwriting them would be presumptuous.
+    const stale = EXERCISE_CATALOG.map((e) => {
+      const row = byName.get(e.name);
+      if (!row || (row.target !== null && row.equipment !== null)) return null;
+      return this.prisma.client.exercise.update({
+        where: { id: row.id },
+        data: { target: e.target, equipment: e.equipment, muscle: e.muscle },
+      });
+    }).filter((x): x is NonNullable<typeof x> => x !== null);
+    if (stale.length > 0) await this.prisma.client.$transaction(stale);
+
+    return added;
   }
 
   /** The shared catalog plus this user's own additions, alphabetical. */

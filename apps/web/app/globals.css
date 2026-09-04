@@ -5376,3 +5376,28 @@ label:has(> input[type='checkbox']) {
 .pal-card.on .pal-name { color: var(--brand-on-tint); }
 .pal-check { flex: none; }
 .pal-hint { font-size: 12px; line-height: 1.35; color: var(--text-muted); }
+
+/* ── browse the exercise catalog by muscle ────────────────────────────────
+   Three hundred movements is only usable if it can be narrowed, and search
+   alone answers only "where is the thing I can already name". These rows are
+   the other path: group, then the specific muscle, then the equipment.
+   Horizontally scrollable rather than wrapped to four lines — on a phone the
+   list itself is what should own the height. */
+.fit-browse {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 8px 0 4px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.fit-chips {
+  display: flex; gap: 6px;
+  overflow-x: auto; scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.fit-chips::-webkit-scrollbar { display: none; }
+.fit-chips .chip { flex: none; }
+.fit-clear {
+  align-self: flex-start; min-height: 24px;
+  border: 0; background: none; padding: 2px 0;
+  color: var(--brand); font: inherit; font-size: 12.5px; cursor: pointer;
+  text-decoration: underline;
+}

@@ -1,16 +1,27 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { type ExerciseDTO, type WorkoutTemplateDTO } from '@atlas/shared';
-import { Plus, Search, X } from 'lucide-react';
+import { describeExercise, type ExerciseDTO, type WorkoutTemplateDTO } from '@atlas/shared';
+import { Plus, Search, SlidersHorizontal, X } from 'lucide-react';
 import { useCreateExercise, useExercises, useWorkoutHistory } from '@/lib/hooks/fitness';
 import { pickerSections, recentExerciseIds } from '@/lib/exercise-order';
 import { IconButton, ListSkeleton } from '@/components/ui';
 import { NO_EXERCISES } from './helpers';
+import { MuscleFilter, NO_FILTER, type MuscleFilterValue } from './MuscleFilter';
 
 /**
- * Pick a movement. Search-first because the catalog is long and scrolling a
- * list mid-workout is the slowest possible interaction.
+ * Pick a movement.
+ *
+ * Search-first, because mid-workout you know the name and scrolling is the
+ * slowest possible interaction. But search alone only answers "where is the
+ * thing I can already name", and the catalog is now three hundred movements
+ * deep — the harder case is building a split, where you know the MUSCLE and
+ * want to see what there is. That case is why hip abduction was unfindable: a
+ * machine in every gym, filed under "legs" next to squats.
+ *
+ * So browsing is a first-class path: pick a group, pick the specific muscle,
+ * optionally pick the equipment. The filters are hidden behind a toggle by
+ * default so the fast path stays one text field.
  */
 export function ExercisePicker({
   onPick,
@@ -25,6 +36,8 @@ export function ExercisePicker({
   alreadyInWorkout: string[];
 }) {
   const [query, setQuery] = useState('');
+  const [browsing, setBrowsing] = useState(false);
+  const [filter, setFilter] = useState<MuscleFilterValue>(NO_FILTER);
   const exercises = useExercises();
   const history = useWorkoutHistory();
   const create = useCreateExercise();
@@ -42,9 +55,13 @@ export function ExercisePicker({
         recentExerciseIds: recent,
         alreadyInWorkout,
         query,
+        target: filter.target,
+        equipment: filter.equipment,
       }),
-    [all, template, recent, alreadyInWorkout, query],
+    [all, template, recent, alreadyInWorkout, query, filter],
   );
+
+  const filtersOn = filter.target !== null || filter.equipment !== null;
   // Offer to create only when the search genuinely matches nothing.
   const canCreate = q.length > 1 && !all.some((e) => e.name.toLowerCase() === q);
 
@@ -64,10 +81,18 @@ export function ExercisePicker({
             if (e.key === 'Escape') onClose();
           }}
         />
+        <IconButton
+          label={browsing ? 'Hide muscle filters' : 'Browse by muscle'}
+          onClick={() => setBrowsing((b) => !b)}
+        >
+          <SlidersHorizontal size={15} aria-hidden />
+        </IconButton>
         <IconButton label="Close exercise picker" onClick={onClose}>
           <X size={15} aria-hidden />
         </IconButton>
       </div>
+
+      {browsing && <MuscleFilter exercises={all} value={filter} onChange={setFilter} />}
 
       {exercises.isPending ? (
         <ListSkeleton rows={4} circle={false} />
@@ -90,7 +115,10 @@ export function ExercisePicker({
                   onClick={() => onPick(e)}
                 >
                   <span className="fit-picker-name">{e.name}</span>
-                  <span className="fit-picker-muscle">{e.muscle}</span>
+                  {/* The specific muscle and the equipment, not the coarse
+                      group: "Legs" on forty rows tells you nothing, and which
+                      of six rows is the cable one is the actual question. */}
+                  <span className="fit-picker-muscle">{describeExercise(e)}</span>
                 </button>
               ))}
             </div>
@@ -111,9 +139,9 @@ export function ExercisePicker({
               Add &ldquo;{query.trim()}&rdquo;
             </button>
           )}
-          {sections.length === 0 && !canCreate && (
+          {sections.every((s) => s.exercises.length === 0) && !canCreate && (
             <p className="prog-muted" style={{ padding: '10px 2px' }}>
-              No exercises match that.
+              {filtersOn ? 'Nothing matches those filters.' : 'No exercises match that.'}
             </p>
           )}
         </div>

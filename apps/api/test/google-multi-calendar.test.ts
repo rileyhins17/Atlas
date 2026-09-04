@@ -78,7 +78,9 @@ function makeService(opts: {
     saveCredentialMeta: vi.fn(async () => {}),
     saveCredential: vi.fn(async () => {}),
   };
-  const timeline = { write: vi.fn(async () => {}) };
+  // Typed argument so the call tuple is not inferred as empty — asserting on
+  // calls[0][0] is the point of the timeline tests below.
+  const timeline = { write: vi.fn(async (_row: Record<string, unknown>) => {}) };
 
   const service = new GoogleSyncService(
     prisma as never,

@@ -14,6 +14,15 @@ import { z } from 'zod';
 export const ExerciseKind = z.enum(['weight_reps', 'reps', 'duration', 'distance']);
 export type ExerciseKind = z.infer<typeof ExerciseKind>;
 
+/**
+ * The coarse grouping, unchanged.
+ *
+ * It is what the muscle-balance chart is built on and what every existing row
+ * already stores, so it stays exactly as it was. It is also too blunt to search
+ * with: "legs" is quads, hamstrings, glutes, calves, adductors AND abductors,
+ * which is why someone looking for a hip abduction machine could not find one.
+ * That is what `MuscleTarget` below is for.
+ */
 export const MuscleGroup = z.enum([
   'chest',
   'back',
@@ -21,13 +30,91 @@ export const MuscleGroup = z.enum([
   'shoulders',
   'arms',
   'core',
+  'cardio',
   'other',
 ]);
 export type MuscleGroup = z.infer<typeof MuscleGroup>;
 
+/**
+ * The specific muscle a movement is for.
+ *
+ * Finer than the group and deliberately the vocabulary people actually use when
+ * they think about training — you do not plan "an arms day", you plan to hit
+ * long-head triceps. Nullable on the record, because a user's own additions
+ * need not be classified before they can be logged.
+ */
+export const MuscleTarget = z.enum([
+  // Chest
+  'upper_chest',
+  'mid_chest',
+  'lower_chest',
+  // Back
+  'lats',
+  'upper_back',
+  'traps',
+  'lower_back',
+  'rear_delts',
+  // Shoulders
+  'front_delts',
+  'side_delts',
+  'rotator_cuff',
+  // Arms
+  'biceps',
+  'triceps',
+  'forearms',
+  // Legs
+  'quads',
+  'hamstrings',
+  'glutes',
+  'calves',
+  'adductors',
+  'abductors',
+  'hip_flexors',
+  'tibialis',
+  // Core
+  'abs',
+  'obliques',
+  'lower_abs',
+  // Other
+  'neck',
+  'full_body',
+  'cardio',
+  'other',
+]);
+export type MuscleTarget = z.infer<typeof MuscleTarget>;
+
+/**
+ * What you do the movement with.
+ *
+ * The other half of making a catalog searchable: "row" matches thirty things,
+ * "dumbbell row" matches one. It is also the filter that matters in a gym where
+ * the cable station is taken.
+ */
+export const Equipment = z.enum([
+  'barbell',
+  'dumbbell',
+  'machine',
+  'cable',
+  'bodyweight',
+  'kettlebell',
+  'band',
+  'smith',
+  'ez_bar',
+  'trap_bar',
+  'plate',
+  'sled',
+  'suspension',
+  'medicine_ball',
+  'cardio_machine',
+  'other',
+]);
+export type Equipment = z.infer<typeof Equipment>;
+
 export const CreateExerciseInput = z.object({
   name: z.string().min(1).max(120),
   muscle: MuscleGroup.default('other'),
+  target: MuscleTarget.optional(),
+  equipment: Equipment.optional(),
   kind: ExerciseKind.default('weight_reps'),
 });
 export type CreateExerciseInput = z.infer<typeof CreateExerciseInput>;
@@ -36,6 +123,9 @@ export const ExerciseDTO = z.object({
   id: z.string(),
   name: z.string(),
   muscle: MuscleGroup,
+  /** Null on a user's own addition that was never classified. */
+  target: MuscleTarget.nullable().default(null),
+  equipment: Equipment.nullable().default(null),
   kind: ExerciseKind,
   /** False for the shared seeded catalog, true for the user's own additions. */
   custom: z.boolean(),
