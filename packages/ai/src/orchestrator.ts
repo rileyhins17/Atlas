@@ -60,6 +60,40 @@ export interface ToolLoopParams {
 const DEFAULT_MAX_ITERATIONS = 4;
 
 /**
+ * How many tools one turn may ask for.
+ *
+ * Iterations were capped and calls per iteration were not, so a single turn
+ * returning fifty tool calls executed all fifty — and with the iteration cap
+ * that is up to 300 writes from one message. Nothing legitimate needs more than
+ * a handful, and a turn that asks for more has lost the plot rather than found
+ * a lot of work to do.
+ */
+const MAX_CALLS_PER_TURN = 8;
+
+/**
+ * A tool call reduced to what makes it the same call.
+ *
+ * Arguments are re-serialised with sorted keys, because the model does not emit
+ * them in a stable order and `{"a":1,"b":2}` is the same request as
+ * `{"b":2,"a":1}`.
+ */
+function callFingerprint(name: string, rawArgs: string | undefined): string {
+  let normalised = rawArgs ?? '';
+  try {
+    const parsed: unknown = rawArgs ? JSON.parse(rawArgs) : {};
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const entries = Object.entries(parsed as Record<string, unknown>).sort(([a], [b]) =>
+        a.localeCompare(b),
+      );
+      normalised = JSON.stringify(entries);
+    }
+  } catch {
+    // Unparseable arguments fail later anyway; fingerprint the raw string.
+  }
+  return `${name}::${normalised}`;
+}
+
+/**
  * Provider-agnostic multi-turn tool-calling loop: send messages, and if the
  * model responds with tool calls, run them and feed results back until it
  * produces a final answer (or the iteration cap is hit). No NestJS/DB here —
@@ -75,8 +109,31 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
   let completionTokens = 0;
   let cachedPromptTokens = 0;
 
+  // Identical calls already made in THIS loop, so the same write is not
+  // applied twice. A model that repeats `tasks.create` with the same title on
+  // four consecutive turns used to make four rows, and the user saw four rows
+  // appear from one sentence with no idea why.
+  const alreadyRun = new Map<string, string>();
+
   for (let i = 0; i < maxIterations; i++) {
-    const res = await chat(messages, openAiTools);
+    let res: ChatResult;
+    try {
+      res = await chat(messages, openAiTools);
+    } catch (err) {
+      // The provider failed mid-loop. Writes already applied are still applied,
+      // and throwing here threw `toolExecutions` away with them — so "What
+      // Atlas changed" never rendered and the undo for a real database write
+      // was unreachable. Report what happened instead of losing it.
+      const message = err instanceof Error ? err.message : 'the model stopped responding';
+      return {
+        content:
+          toolExecutions.length > 0
+            ? `I ran into a problem partway through (${message}), but the changes below were already made.`
+            : `I could not finish that: ${message}`,
+        usage: { promptTokens, completionTokens, cachedPromptTokens },
+        toolExecutions,
+      };
+    }
     promptTokens += res.usage.promptTokens;
     completionTokens += res.usage.completionTokens;
     cachedPromptTokens += res.usage.cachedPromptTokens ?? 0;
@@ -92,12 +149,41 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
 
     messages.push({ role: 'assistant', content: res.content ?? '', tool_calls: calls });
 
-    for (const call of calls) {
+    for (const [index, call] of calls.entries()) {
       const name = fromWireToolName(call.function.name);
       let ok = true;
       let resultText: string;
       let summary: string | null = null;
       let undo: ToolUndo | null = null;
+
+      // Over the cap: answer the call so the conversation stays well-formed —
+      // a tool_call with no matching tool message is a protocol error — but
+      // run nothing.
+      if (index >= MAX_CALLS_PER_TURN) {
+        const refusal = JSON.stringify({
+          error: `Too many tools in one turn (limit ${MAX_CALLS_PER_TURN}). This one was not run. Do the most important few, then continue.`,
+        });
+        messages.push({
+          role: 'tool',
+          content: refusal,
+          tool_call_id: call.id,
+          name: call.function.name,
+        });
+        continue;
+      }
+
+      const fingerprint = callFingerprint(name, call.function.arguments);
+      const seen = alreadyRun.get(fingerprint);
+      if (seen !== undefined) {
+        messages.push({
+          role: 'tool',
+          content: seen,
+          tool_call_id: call.id,
+          name: call.function.name,
+        });
+        continue;
+      }
+
       try {
         let args: unknown = {};
         try {
@@ -123,6 +209,9 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
         summary,
         undo,
       });
+      // Only a call that actually ran is remembered, so a transient failure can
+      // legitimately be retried on the next turn.
+      if (ok) alreadyRun.set(fingerprint, resultText);
       // Echo back the same (wire-safe) name the provider used for this call.
       messages.push({ role: 'tool', content: resultText, tool_call_id: call.id, name: call.function.name });
     }

@@ -164,6 +164,11 @@ describe('runToolLoop', () => {
 
     expect(chat).toHaveBeenCalledTimes(2);
     expect(result.content).toContain('iteration limit');
-    expect(result.toolExecutions).toHaveLength(2);
+    // ONE execution, not two. This is the same call — same tool, same arguments
+    // — asked for on both iterations, and running it twice is how a model
+    // repeating itself turned one sentence into duplicate rows. The loop still
+    // stops at the iteration limit; it just stops applying the write again.
+    expect(result.toolExecutions).toHaveLength(1);
+    expect(executeTool).toHaveBeenCalledTimes(1);
   });
 });
