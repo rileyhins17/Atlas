@@ -41,9 +41,27 @@ const MAX_MEMORY_DISTANCE = 0.9;
 
 const CHAT_SYSTEM_PROMPT =
   'You are Atlas, a personal life assistant with cross-domain context over the ' +
-  "user's tasks, calendar, habits, journal and notes. Be concise and warm. " +
+  "user's tasks, calendar, habits, journal, notes, fitness, finance, goals and " +
+  'daily routine. Be concise and warm. ' +
   'Use the provided tools to actually create/update records when the user asks ' +
-  'you to (e.g. "add a task", "log my workout") rather than just describing what to do.';
+  'you to (e.g. "add a task", "log my workout") rather than just describing what ' +
+  'to do.\n\n' +
+  // The brief and the weekly review have carried honesty rules since they
+  // shipped; chat, which is the highest-volume and most open-ended surface,
+  // had none at all. A confident wrong answer about someone's own week is
+  // worse than no answer, because they cannot tell it apart from a right one.
+  'Being right matters more than sounding helpful:\n' +
+  '- The "Now" block at the end of the user\'s message is the ONLY authority on ' +
+  'the current date, time and timezone. Resolve every relative reference ' +
+  '("today", "this afternoon", "tonight", "tomorrow") against it, and never ' +
+  'against anything you remember. If you are about to say when something is, ' +
+  'check that block first.\n' +
+  '- Only state things the context actually contains. If it is not there, say ' +
+  'you do not have it rather than guessing — and if a section is marked as ' +
+  'missing from the context, say so instead of concluding the user has nothing.\n' +
+  '- Two entries are not a trend. Do not describe a pattern from thin data.\n' +
+  '- Never invent a task, event, workout or number. Amounts, times and titles ' +
+  'come from the context verbatim or not at all.';
 
 const BRAIN_DUMP_SYSTEM_PROMPT =
   "You are Atlas's intake parser. The user types in plain language; turn it into " +
@@ -217,8 +235,40 @@ export class OrchestratorService {
   }
 
   private async buildSystemChunk(userId: string): Promise<string> {
+    return (await this.buildContextFor(userId)).text;
+  }
+
+  /**
+   * The module context, with a note saying what did not fit.
+   *
+   * `buildContext` has always reported which domains it dropped or cut short,
+   * and every caller threw that away. When one talkative domain ate the budget
+   * and Calendar was dropped, the model was handed a context with no calendar
+   * in it and no way to tell that apart from an empty calendar — so it said
+   * "you have nothing scheduled" with complete confidence. Silence about a gap
+   * is what turns a missing section into a false statement.
+   */
+  private async buildContextFor(userId: string): Promise<{ text: string; missing: string[] }> {
     const chunks = await this.registry.collectContext(userId);
-    return buildContext(chunks, CONTEXT_TOKEN_BUDGET).text;
+    const built = buildContext(chunks, CONTEXT_TOKEN_BUDGET);
+    const missing = [...built.droppedSources, ...built.trimmedSources];
+    if (missing.length === 0) return { text: built.text, missing };
+    const dropped = built.droppedSources.length
+      ? `Not included at all: ${built.droppedSources.join(', ')}.`
+      : '';
+    const trimmed = built.trimmedSources.length
+      ? `Included but cut short: ${built.trimmedSources.join(', ')}.`
+      : '';
+    return {
+      text: `${built.text}
+
+## Missing from this context
+${[dropped, trimmed].filter(Boolean).join(' ')}
+You were NOT given the full picture for the sections named above. Do not treat
+them as empty, and do not answer questions about them from what is here — say
+you cannot see that part right now.`,
+      missing,
+    };
   }
 
   /**
@@ -317,14 +367,24 @@ ${moduleText}`, activityText };
    * instead measures ~92% cached.
    */
   async chat(userId: string, message: string, history: ChatMessage[] = []): Promise<ToolLoopResult> {
-    const [contextText, recall] = await Promise.all([
-      this.buildSystemChunk(userId),
+    const [context, recall, nowText] = await Promise.all([
+      this.buildContextFor(userId),
       this.recallText(userId, message),
+      this.nowBlock(userId),
     ]);
     const messages: ChatMessage[] = [
-      { role: 'system', content: `${CHAT_SYSTEM_PROMPT}\n\n${contextText}` },
+      { role: 'system', content: `${CHAT_SYSTEM_PROMPT}\n\n${context.text}` },
       ...history,
-      { role: 'user', content: `${message}${recall}` },
+      // The Now block rides with the message, NOT in the system prompt.
+      //
+      // Chat had no Now block at all, which is why it answered "this afternoon"
+      // about a meeting happening at that moment and could not name the day.
+      // Every other path puts it at the front — but those are one-shot calls,
+      // and this one is not: the block carries the minute, so at the front it
+      // would differ on every message and take the prefix cache from ~92% to
+      // zero. At the end it changes only the volatile tail, exactly like
+      // recall, and the model still gets an authoritative clock.
+      { role: 'user', content: `${message}${recall}\n\n${nowText}` },
     ];
     const tools = this.registry.collectToolSpecs();
     return runToolLoop({
