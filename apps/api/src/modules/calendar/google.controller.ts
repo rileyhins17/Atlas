@@ -1,13 +1,17 @@
 import {
+  Body,
   Controller,
   Get,
   Post,
+  Put,
   Query,
   Res,
   UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import type { SyncResult } from '@atlas/connectors';
+import { SetGoogleCalendarsInput, type GoogleCalendarChoiceDTO } from '@atlas/shared';
+import { ZodValidationPipe } from '../../common/zod.pipe.js';
 import { SessionGuard } from '../../auth/session.guard.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
 import type { AuthedUser } from '../../auth/auth.service.js';
@@ -88,6 +92,26 @@ export class GoogleController {
 
     await this.google.completeOAuth(user.id, code);
     res.redirect(`${webOrigin}/settings?google=connected`);
+  }
+
+  /**
+   * Every calendar this Google account keeps, and whether Atlas reads it.
+   *
+   * Separate from `status` because it costs a Google round-trip, and status is
+   * polled by a page that only wants to know whether the button says Connect.
+   */
+  @Get('calendars')
+  calendars(@CurrentUser() user: AuthedUser): Promise<GoogleCalendarChoiceDTO[]> {
+    return this.google.listCalendars(user.id);
+  }
+
+  /** Choose which of them sync. Unticking one removes the events it brought in. */
+  @Put('calendars')
+  setCalendars(
+    @CurrentUser() user: AuthedUser,
+    @Body(new ZodValidationPipe(SetGoogleCalendarsInput)) body: SetGoogleCalendarsInput,
+  ): Promise<{ removed: number }> {
+    return this.google.setCalendars(user.id, body.calendarIds);
   }
 
   /** Run a two-way sync now. */

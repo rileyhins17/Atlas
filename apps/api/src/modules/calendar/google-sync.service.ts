@@ -1,8 +1,10 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import {
+  ConnectorScopeError,
   isAllDay,
   parseGoogleDate,
   type GoogleCalendarConnector,
+  type GoogleCalendarSummary,
   type GoogleEvent,
   type SyncResult,
 } from '@atlas/connectors';
@@ -18,6 +20,25 @@ const WINDOW_PAST_DAYS = 30;
 const WINDOW_FUTURE_DAYS = 365;
 /** Safety rail: never push a huge historical backlog into someone's real calendar. */
 const MAX_PUSH_PER_SYNC = 50;
+/**
+ * Ceiling on calendars read in one sync.
+ *
+ * A Google account can be subscribed to dozens - every national holiday feed, a
+ * football fixture list, four colleagues' shared calendars. Each is a paged
+ * request, so an unbounded loop turns one "sync now" into minutes of API calls.
+ */
+const MAX_CALENDARS = 25;
+/** Null in the column means primary, which is what every pre-existing row is. */
+const PRIMARY = 'primary';
+
+/** One calendar as Settings needs to show it. */
+export interface GoogleCalendarChoice {
+  id: string;
+  summary: string;
+  primary: boolean;
+  colour: string | null;
+  syncing: boolean;
+}
 
 /**
  * Two-way sync between Atlas `events` and Google Calendar.
@@ -96,6 +117,92 @@ export class GoogleSyncService {
     return { ok: true };
   }
 
+  /**
+   * The calendars Atlas will read, and how they are presented in Settings.
+   *
+   * Selection lives in the credential's `meta` rather than a table of its own:
+   * it is a handful of ids belonging to one connection, and it should die with
+   * that connection - disconnecting and reconnecting a different Google account
+   * must not silently inherit the last account's choices.
+   *
+   * With nothing chosen yet, the default is what Google itself shows: every
+   * calendar the user has ticked in their own UI. Someone subscribed to a
+   * holidays feed they never look at did not ask Atlas for it either.
+   */
+  async listCalendars(userId: string): Promise<GoogleCalendarChoice[]> {
+    const ctx = this.connectors.contextFor(userId, CONNECTOR_ID);
+    const calendars = await this.connector().listCalendars(ctx);
+    const chosen = await this.chosenIds(userId);
+    return calendars
+      // freeBusyReader can only see THAT you are busy, never what by, so an
+      // event from one would import as an untitled block. Not worth offering.
+      .filter((c) => c.accessRole !== 'freeBusyReader')
+      .map((c) => ({
+        id: c.id,
+        summary: c.summary || c.id,
+        primary: Boolean(c.primary),
+        colour: c.backgroundColor ?? null,
+        syncing: chosen ? chosen.includes(c.id) : c.selected !== false,
+      }));
+  }
+
+  /** The explicit choice, or null when the user has never made one. */
+  private async chosenIds(userId: string): Promise<string[] | null> {
+    const cred = await this.prisma.client.credential.findUnique({
+      where: { userId_connector_label: { userId, connector: CONNECTOR_ID, label: 'default' } },
+      select: { meta: true },
+    });
+    const meta = (cred?.meta as Record<string, unknown> | null) ?? null;
+    const ids = meta?.['syncedCalendarIds'];
+    return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string') : null;
+  }
+
+  /**
+   * Choose which calendars sync.
+   *
+   * Turning one OFF removes the events it brought in. That is what "stop
+   * syncing this" means - leaving six hundred fixtures behind and never
+   * updating them again would be a worse answer than either syncing or not. It
+   * is reversible: ticking the calendar again re-imports on the next sync.
+   *
+   * Rows from before this column existed have a null sourceCalendarId and are
+   * read as primary, so unticking primary does clear them.
+   */
+  async setCalendars(userId: string, calendarIds: string[]): Promise<{ removed: number }> {
+    const unique = [...new Set(calendarIds)];
+    const ctx = this.connectors.contextFor(userId, CONNECTOR_ID);
+    const available = await this.connector().listCalendars(ctx);
+    const previous = await this.chosenIds(userId);
+    const dropped = (previous ?? available.filter((c) => c.selected !== false).map((c) => c.id))
+      .filter((id) => !unique.includes(id));
+
+    let removed = 0;
+    for (const id of dropped) {
+      const isPrimary = Boolean(available.find((c) => c.id === id)?.primary);
+      const { count } = await this.prisma.client.event.deleteMany({
+        where: {
+          userId,
+          source: CONNECTOR_ID,
+          ...(isPrimary
+            ? {
+                OR: [
+                  { sourceCalendarId: id },
+                  { sourceCalendarId: null },
+                  { sourceCalendarId: PRIMARY },
+                ],
+              }
+            : { sourceCalendarId: id }),
+        },
+      });
+      removed += count;
+    }
+
+    await this.connectors.saveCredentialMeta(userId, CONNECTOR_ID, {
+      syncedCalendarIds: unique,
+    });
+    return { removed };
+  }
+
   private toEventInput(event: Event) {
     return {
       title: event.title,
@@ -124,21 +231,49 @@ export class GoogleSyncService {
     const timeMin = new Date(now - WINDOW_PAST_DAYS * 86_400_000);
     const timeMax = new Date(now + WINDOW_FUTURE_DAYS * 86_400_000);
 
-    const remote = await connector.listEvents(ctx, { timeMin, timeMax });
+    // Every calendar the user keeps, not just `primary` - "Work", "Climbing",
+    // the shared family one. An account connected before Atlas asked for the
+    // calendar-list scope answers 403; that is not a failure, it is an older
+    // grant, so the sync carries on with primary and says what would fix it.
+    let calendars: { id: string; primary: boolean }[];
+    try {
+      calendars = await this.calendarsToSync(userId);
+    } catch (err) {
+      if (err instanceof ConnectorScopeError) {
+        calendars = [{ id: PRIMARY, primary: true }];
+        result.errors.push(err.message);
+      } else {
+        throw err;
+      }
+    }
 
-    for (const gEvent of remote) {
+    for (const calendar of calendars) {
+      let remote: GoogleEvent[];
       try {
-        if (gEvent.status === 'cancelled') {
-          result.deleted += await this.applyRemoteDeletion(userId, gEvent.id);
-          continue;
-        }
-        const applied = await this.applyRemoteEvent(userId, gEvent);
-        if (applied === 'imported') result.imported++;
-        else if (applied === 'updated') result.updated++;
+        remote = await connector.listEvents(ctx, { timeMin, timeMax, calendarId: calendar.id });
       } catch (err) {
+        // One unreadable calendar - unshared since the list was fetched, say -
+        // must not abandon the others.
         result.errors.push(
-          `event ${gEvent.id}: ${err instanceof Error ? err.message : 'unknown error'}`,
+          `calendar ${calendar.id}: ${err instanceof Error ? err.message : 'unknown error'}`,
         );
+        continue;
+      }
+
+      for (const gEvent of remote) {
+        try {
+          if (gEvent.status === 'cancelled') {
+            result.deleted += await this.applyRemoteDeletion(userId, gEvent.id);
+            continue;
+          }
+          const applied = await this.applyRemoteEvent(userId, gEvent, calendar);
+          if (applied === 'imported') result.imported++;
+          else if (applied === 'updated') result.updated++;
+        } catch (err) {
+          result.errors.push(
+            `event ${gEvent.id}: ${err instanceof Error ? err.message : 'unknown error'}`,
+          );
+        }
       }
     }
 
@@ -175,6 +310,26 @@ export class GoogleSyncService {
     return result;
   }
 
+  /**
+   * Which calendars this sync reads, capped.
+   *
+   * Primary is always included even when the user unticked it in Google: it is
+   * where Atlas's own pushes land, and reading a calendar Atlas writes to is
+   * what stops it pushing the same event again on the next run.
+   */
+  private async calendarsToSync(userId: string): Promise<{ id: string; primary: boolean }[]> {
+    const ctx = this.connectors.contextFor(userId, CONNECTOR_ID);
+    const all: GoogleCalendarSummary[] = await this.connector().listCalendars(ctx);
+    const chosen = await this.chosenIds(userId);
+    const wanted = all.filter((c) => {
+      if (c.accessRole === 'freeBusyReader') return false;
+      return chosen ? chosen.includes(c.id) : c.selected !== false;
+    });
+    const primary = all.find((c) => c.primary);
+    if (primary && !wanted.some((c) => c.primary)) wanted.unshift(primary);
+    return wanted.slice(0, MAX_CALENDARS).map((c) => ({ id: c.id, primary: Boolean(c.primary) }));
+  }
+
   private async applyRemoteDeletion(userId: string, googleId: string): Promise<number> {
     const { count } = await this.prisma.client.event.deleteMany({
       where: { userId, source: CONNECTOR_ID, externalId: googleId },
@@ -195,6 +350,7 @@ export class GoogleSyncService {
   private async applyRemoteEvent(
     userId: string,
     gEvent: GoogleEvent,
+    calendar: { id: string; primary: boolean } = { id: PRIMARY, primary: true },
   ): Promise<'imported' | 'updated' | 'skipped'> {
     const startAt = parseGoogleDate(gEvent.start);
     const endAt = parseGoogleDate(gEvent.end);
@@ -209,6 +365,10 @@ export class GoogleSyncService {
       startAt,
       endAt,
       allDay: isAllDay(gEvent),
+      // Primary stays null, matching every row written before this column
+      // existed. Writing 'primary' for some and the account's own address for
+      // others would make one calendar look like two.
+      sourceCalendarId: calendar.primary ? null : calendar.id,
     };
 
     const existing = await this.prisma.client.event.findUnique({
@@ -241,7 +401,8 @@ export class GoogleSyncService {
       existing.location === data.location &&
       existing.startAt.getTime() === data.startAt.getTime() &&
       existing.endAt.getTime() === data.endAt.getTime() &&
-      existing.allDay === data.allDay
+      existing.allDay === data.allDay &&
+      existing.sourceCalendarId === data.sourceCalendarId
     ) {
       return 'skipped';
     }

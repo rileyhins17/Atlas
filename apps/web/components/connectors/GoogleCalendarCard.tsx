@@ -9,6 +9,7 @@ import {
   useGoogleSync,
 } from '@/lib/hooks/google';
 import { Button, Card, ErrorState, Skeleton } from '@/components/ui';
+import { GoogleCalendarPicker } from './GoogleCalendarPicker';
 
 /**
  * Connect / sync / disconnect Google Calendar.
@@ -227,6 +228,13 @@ export function GoogleCalendarCard({
           </p>
           <code>{status.redirectUri}</code>
         </details>
+      )}
+
+      {/* Only on the full card. The inline row on /calendar exists precisely so
+          setup does not push the week's events below the fold, and a list of
+          calendars there would undo that. */}
+      {status?.configured && status.connected && !compact && (
+        <GoogleCalendarPicker connected />
       )}
 
       {result && (

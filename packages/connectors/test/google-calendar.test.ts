@@ -65,9 +65,20 @@ describe('GoogleCalendarConnector.authUrl', () => {
     expect(url.searchParams.get('redirect_uri')).toBe(CONFIG.redirectUri);
   });
 
-  it('asks only for the events scope, not full calendar access', () => {
+  /**
+   * Two narrow scopes, never the broad one. `calendar.events` reads and writes
+   * events; `calendar.calendarlist.readonly` is what lets Atlas ENUMERATE the
+   * calendars someone made ("Work", "Climbing") rather than seeing `primary`
+   * alone. Neither permits changing calendar settings, sharing or subscriptions,
+   * and `auth/calendar` — which permits all of it — must never appear here.
+   */
+  it('asks for events and the calendar list, never full calendar access', () => {
     const url = new URL(new GoogleCalendarConnector(CONFIG).authUrl('s'));
-    expect(url.searchParams.get('scope')).toBe('https://www.googleapis.com/auth/calendar.events');
+    const scopes = (url.searchParams.get('scope') ?? '').split(' ');
+    expect(scopes).toContain('https://www.googleapis.com/auth/calendar.events');
+    expect(scopes).toContain('https://www.googleapis.com/auth/calendar.calendarlist.readonly');
+    expect(scopes).not.toContain('https://www.googleapis.com/auth/calendar');
+    expect(scopes).not.toContain('https://www.googleapis.com/auth/calendar.readonly');
   });
 });
 

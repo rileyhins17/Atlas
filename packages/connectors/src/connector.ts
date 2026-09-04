@@ -107,3 +107,24 @@ export class ConnectorAuthExpiredError extends Error {
     this.connectorId = connectorId;
   }
 }
+
+/**
+ * The stored grant is valid, but does not cover what was asked for.
+ *
+ * A third remedy again: the connection works, the token is fine, and the user
+ * simply consented to less than the code now needs — which is the position
+ * every already-connected account is in the moment a scope is added. Google
+ * answers 403, and reporting that as an error would tell someone whose calendar
+ * is syncing perfectly well that something is broken. The honest message is
+ * "reconnect to get the new thing", and the sync should carry on doing what it
+ * still can.
+ */
+export class ConnectorScopeError extends Error {
+  readonly connectorId: string;
+
+  constructor(connectorId: string, message: string) {
+    super(message);
+    this.name = 'ConnectorScopeError';
+    this.connectorId = connectorId;
+  }
+}

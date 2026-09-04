@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   ConnectorAuthExpiredError,
   ConnectorNotConfiguredError,
+  ConnectorScopeError,
   type Connector,
   type ConnectorContext,
 } from './connector.js';
@@ -43,6 +44,28 @@ export interface GoogleEvent {
   updated?: string;
 }
 
+/**
+ * One entry from the user's calendar list.
+ *
+ * `selected` is whether the calendar is ticked in Google's own UI, and it is
+ * the honest default for what to sync: someone subscribed to a national
+ * holidays feed and three sports schedules did not ask Atlas for any of it, and
+ * a first sync that drags in six hundred fixtures makes the app worse. The user
+ * can still turn any of them on.
+ */
+export interface GoogleCalendarSummary {
+  id: string;
+  summary: string;
+  description?: string;
+  primary?: boolean;
+  selected?: boolean;
+  deleted?: boolean;
+  /** owner | writer | reader | freeBusyReader. Writing needs owner or writer. */
+  accessRole?: string;
+  backgroundColor?: string;
+  timeZone?: string;
+}
+
 export interface EventInput {
   title: string;
   description?: string | null;
@@ -54,9 +77,27 @@ export interface EventInput {
 
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
-const CALENDAR_URL = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
-/** Events-only: enough to read/write events, but not to touch calendar settings or other scopes. */
-const SCOPE = 'https://www.googleapis.com/auth/calendar.events';
+const API_BASE = 'https://www.googleapis.com/calendar/v3';
+const CALENDAR_LIST_URL = `${API_BASE}/users/me/calendarList`;
+
+/** The events endpoint for one calendar. Ids are email-shaped, so encode them. */
+function eventsUrl(calendarId: string): string {
+  return `${API_BASE}/calendars/${encodeURIComponent(calendarId)}/events`;
+}
+
+/**
+ * Still as narrow as it can be.
+ *
+ * `calendar.events` reads and writes events on calendars the user has already
+ * granted, but it cannot ENUMERATE them — listing "Work", "Climbing", the
+ * shared family calendar — so Atlas could only ever see `primary`. The second
+ * scope is the granular read-only one for exactly that list, and nothing else:
+ * it does not permit changing calendar settings, sharing, or subscriptions.
+ */
+const SCOPE = [
+  'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
+].join(' ');
 /** Refresh a bit early so a token can't expire mid-request. */
 const EXPIRY_SKEW_MS = 60_000;
 const MAX_PAGES = 10;
@@ -213,6 +254,16 @@ export class GoogleCalendarConnector implements Connector {
     });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
+      // A 403 naming the scope means the stored grant is older than the
+      // permission being asked for — everyone who connected before Atlas could
+      // read the calendar LIST is in exactly this position. It is fixed by
+      // reconnecting, not by retrying, and it must not read as a server fault.
+      if (res.status === 403 && /insufficient|scope|ACCESS_TOKEN_SCOPE/i.test(text)) {
+        throw new ConnectorScopeError(
+          'google-calendar',
+          'Reconnect Google Calendar to let Atlas see your other calendars.',
+        );
+      }
       throw new Error(`Google Calendar API ${res.status}: ${text.slice(0, 300)}`);
     }
     return (await res.json()) as T;
@@ -220,11 +271,39 @@ export class GoogleCalendarConnector implements Connector {
 
   async verify(ctx: ConnectorContext): Promise<boolean> {
     try {
-      await this.call(ctx, `${CALENDAR_URL}?maxResults=1`);
+      await this.call(ctx, `${eventsUrl('primary')}?maxResults=1`);
       return true;
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Every calendar this Google account can see — not just `primary`.
+   *
+   * Deleted entries are dropped; everything else is returned WITH its `selected`
+   * and `accessRole` intact so the caller can decide. Deciding here would hide
+   * the choice from the user, and "why is my climbing calendar missing" is a
+   * question the answer to should be visible in Settings.
+   *
+   * Throws ConnectorScopeError when the stored grant predates the calendar-list
+   * scope, which is the case for everyone who connected before this existed.
+   */
+  async listCalendars(ctx: ConnectorContext): Promise<GoogleCalendarSummary[]> {
+    const calendars: GoogleCalendarSummary[] = [];
+    let pageToken: string | undefined;
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const params = new URLSearchParams({ maxResults: '250', showDeleted: 'false' });
+      if (pageToken) params.set('pageToken', pageToken);
+      const data = await this.call<{
+        items?: GoogleCalendarSummary[];
+        nextPageToken?: string;
+      }>(ctx, `${CALENDAR_LIST_URL}?${params.toString()}`);
+      calendars.push(...(data.items ?? []).filter((c) => !c.deleted));
+      if (!data.nextPageToken) break;
+      pageToken = data.nextPageToken;
+    }
+    return calendars;
   }
 
   /**
@@ -234,8 +313,9 @@ export class GoogleCalendarConnector implements Connector {
    */
   async listEvents(
     ctx: ConnectorContext,
-    opts: { timeMin: Date; timeMax: Date },
+    opts: { timeMin: Date; timeMax: Date; calendarId?: string },
   ): Promise<GoogleEvent[]> {
+    const url = eventsUrl(opts.calendarId ?? 'primary');
     const events: GoogleEvent[] = [];
     let pageToken: string | undefined;
     for (let page = 0; page < MAX_PAGES; page++) {
@@ -250,7 +330,7 @@ export class GoogleCalendarConnector implements Connector {
       if (pageToken) params.set('pageToken', pageToken);
       const data = await this.call<{ items?: GoogleEvent[]; nextPageToken?: string }>(
         ctx,
-        `${CALENDAR_URL}?${params.toString()}`,
+        `${url}?${params.toString()}`,
       );
       events.push(...(data.items ?? []));
       if (!data.nextPageToken) break;
@@ -259,8 +339,13 @@ export class GoogleCalendarConnector implements Connector {
     return events;
   }
 
-  async createEvent(ctx: ConnectorContext, input: EventInput): Promise<GoogleEvent> {
-    return this.call<GoogleEvent>(ctx, CALENDAR_URL, {
+  /** Writes land on `primary` unless a calendar is named. */
+  async createEvent(
+    ctx: ConnectorContext,
+    input: EventInput,
+    calendarId = 'primary',
+  ): Promise<GoogleEvent> {
+    return this.call<GoogleEvent>(ctx, eventsUrl(calendarId), {
       method: 'POST',
       body: JSON.stringify({
         summary: input.title,
@@ -272,8 +357,13 @@ export class GoogleCalendarConnector implements Connector {
     });
   }
 
-  async updateEvent(ctx: ConnectorContext, eventId: string, input: EventInput): Promise<GoogleEvent> {
-    return this.call<GoogleEvent>(ctx, `${CALENDAR_URL}/${encodeURIComponent(eventId)}`, {
+  async updateEvent(
+    ctx: ConnectorContext,
+    eventId: string,
+    input: EventInput,
+    calendarId = 'primary',
+  ): Promise<GoogleEvent> {
+    return this.call<GoogleEvent>(ctx, `${eventsUrl(calendarId)}/${encodeURIComponent(eventId)}`, {
       method: 'PUT',
       body: JSON.stringify({
         summary: input.title,

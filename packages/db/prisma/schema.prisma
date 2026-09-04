@@ -224,6 +224,16 @@ model Event {
   // Provenance for two-way sync (e.g. Google Calendar event id + connector).
   source      String    @default("atlas")
   externalId  String?
+  // WHICH calendar at the source this came from — Google's "Work", "Climbing",
+  // a shared family calendar. Null means primary, which is what every row
+  // written before Atlas could see past `primary` actually is.
+  //
+  // Deliberately NOT part of the unique key. A meeting you are invited to
+  // carries the SAME Google event id on every calendar it appears on, so
+  // keying on it as well would import that meeting twice and show it twice on
+  // the same day. One row per event is the truthful shape; this column records
+  // where it was found, so turning a calendar off can take its events with it.
+  sourceCalendarId String?
   // RRULE for a repeating series; the row itself is the first occurrence.
   // Google sends `singleEvents=true` instances, so synced rows stay null.
   recurrence  String?

@@ -77,3 +77,26 @@ export const EventDTO = z.object({
   createdAt: z.string(),
 });
 export type EventDTO = z.infer<typeof EventDTO>;
+
+/**
+ * One Google calendar, as Settings shows it.
+ *
+ * Atlas reads every calendar the account keeps, not only `primary` - "Work",
+ * "Climbing", the shared family one - so the user needs to see which of them it
+ * is actually pulling from, and be able to say no.
+ */
+export const GoogleCalendarChoiceDTO = z.object({
+  id: z.string(),
+  summary: z.string(),
+  primary: z.boolean(),
+  /** Google's own colour for the calendar, so the list looks like theirs. */
+  colour: z.string().nullable(),
+  syncing: z.boolean(),
+});
+export type GoogleCalendarChoiceDTO = z.infer<typeof GoogleCalendarChoiceDTO>;
+
+/** Which calendars to sync. Primary is always read, whatever this says. */
+export const SetGoogleCalendarsInput = z.object({
+  calendarIds: z.array(z.string().min(1).max(320)).max(50),
+});
+export type SetGoogleCalendarsInput = z.infer<typeof SetGoogleCalendarsInput>;
