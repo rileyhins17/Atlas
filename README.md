@@ -1,37 +1,181 @@
-# Atlas — Personal Life OS
+# Atlas — a personal Life OS
 
-One unified data layer for tasks, calendar, habits, journal, and finance, with a cheap cross-domain AI (DeepSeek) that briefs, auto-organizes, nudges, and asks you questions to fill its own gaps. Self-hosted, phone + laptop, AI budget < $5/mo (measured: ~$0.00005 per chat).
+One data layer for tasks, calendar, habits, journal, notes, goals, finance,
+fitness and your own daily trackers — plus a cheap cross-domain AI that briefs
+you, files messy input, plans your day, and interviews you to fill its own gaps.
 
-> **Working on this repo (human or Claude)? Read [`CLAUDE.md`](./CLAUDE.md) first** — it is the living context anchor: current status, the exact next action, and every gotcha already solved. Keep it and [`docs/GOTCHAS.md`](./docs/GOTCHAS.md) updated at the end of each work session.
+**The hook is the join.** A habit tracker knows you trained. A journal knows you
+felt like a 2. Only something holding both can notice that your 2s cluster on
+the days you did not. Nothing else you use knows your sleep schedule, your
+training volume and your overdue tasks at the same time.
 
-## Status
-**Phases 0–3 built; 0–2 + Google Calendar verified end-to-end.** Monorepo builds green; DB migrated; auth, tasks, habits, journal, notes and calendar all work over HTTP and in the browser. The AI brain is live: chat with tool-calling, brain-dump auto-organize, daily briefs, AI-generated questions, and local semantic memory (pgvector). **Google Calendar** two-way sync is verified live (2026-07-19). **Phase 3 (Finance)** is code-complete: a provider-agnostic finance domain + a **Plaid** connector (Canadian banks) — pull-only bank sync, `/finance` page, Settings connect card — with all tests green; it awaits a live sandbox verify once Plaid keys are added. Next: Plaid sandbox verify, then Phase 4 (proactive nudges) + the productization track. See `CLAUDE.md` → "Current status" / "NEXT ACTION" and `docs/roadmap.md`.
+Live at **[atlaslife.app](https://atlaslife.app)**. Private beta — sign-up is
+gated by an invite code.
 
-> Local dev DB is **Neon** (cloud Postgres) because Docker Desktop is broken on the dev machine; the VPS uses Docker Postgres. See `docs/adr/0002-neon-for-local-dev.md`.
+---
+
+## Read this before you change anything
+
+| If you are… | Start here |
+|---|---|
+| Claude Code | [`CLAUDE.md`](./CLAUDE.md) |
+| Codex, Cursor, Gemini CLI, or any other agent | [`AGENTS.md`](./AGENTS.md) |
+| A human | this file, then [`CLAUDE.md`](./CLAUDE.md) |
+| Picking this up cold | [`HANDOFF.md`](./HANDOFF.md) — current state, open work, what is blocked on a person |
+
+Both agent files describe **what Atlas is now**, not how it got here — git
+history is the changelog. [`docs/GOTCHAS.md`](./docs/GOTCHAS.md) is the list of
+traps already paid for; read it before debugging anything, because most
+surprising behaviour in this repo is already written down there.
+
+---
 
 ## Stack
-TypeScript monorepo (pnpm workspaces + Turborepo, ESM). API: NestJS 11 (built with `tsc`). DB: Postgres + pgvector via Prisma 6. Web: Next.js 15 PWA. Deploy: Docker Compose + Caddy on a VPS; Cloudflare DNS.
 
-## Layout
-- `packages/db` — Prisma schema (core data model) + client. Import DB only via `@atlas/db`.
-- `packages/shared` — zod DTOs, enums, AI contracts (browser-safe).
-- `packages/connectors` — `Connector` interface + DeepSeek client (chat).
-- `packages/ai` — pricing, cost guard, context builder, tool loop, local embedder.
-- `apps/api` — NestJS (core, auth, modules/{tasks,habits,journal,notes,calendar,ai}).
-- `apps/web` — Next.js PWA (auth + Today).
-- `infra` — Docker Compose, Caddy, Dockerfiles (TODO).
-- `docs` — architecture, data model, roadmap, guides, ADRs, GOTCHAS.
+TypeScript monorepo, pnpm workspaces + Turborepo, ESM throughout.
 
-## Quickstart (local, once infra exists)
-```bash
-pnpm install
-cp .env.example .env            # then fill SESSION_SECRET + APP_ENCRYPTION_KEY (64 hex each)
-docker compose -f infra/docker-compose.yml up -d db
-pnpm --filter @atlas/db prisma migrate dev --name init
-pnpm build
-pnpm --filter @atlas/api dev    # http://localhost:4000
-pnpm --filter @atlas/web dev    # http://localhost:3000
+| Layer | Choice | Note |
+|---|---|---|
+| API | NestJS 11 | Built with **`tsc`**, never `tsx` — DI needs `emitDecoratorMetadata` |
+| Web | Next.js 15 (App Router, PWA) | |
+| DB | Postgres + pgvector via Prisma 6 | Supabase in production |
+| AI | DeepSeek direct | ~$0.00005 per chat, capped per user |
+| Embeddings | `Xenova/bge-base-en-v1.5` | Local and in-process — no key, no per-call cost |
+| Node | >= 20 (CI uses 24) | pnpm 11.13.1, pinned via `packageManager` |
+
+```
+packages/db          Prisma schema + client. Import the DB only via @atlas/db.
+packages/shared      zod DTOs, enums, AI contracts, and PURE domain logic
+                     (recurrence, fitness maths, markdown, trackers).
+                     Browser-safe.
+packages/connectors  Connector interface, DeepSeek, Google Calendar, Plaid.
+packages/ai          pricing, CostGuard, context builder, tool loop, embedder.
+apps/api             NestJS. core/ + auth/ + modules/{tasks,habits,trackers,
+                     journal,notes,calendar,finance,fitness,routine,stats,
+                     timeline,push,settings,account,ai}.
+apps/web             Next 15. app/ routes, components/, lib/.
+infra/               Caddyfile, docker-compose, start/health/backup scripts.
+docs/                architecture, data model, roadmap, guides, ADRs, GOTCHAS.
 ```
 
-## Architecture in one breath
-Module = life-domain (self-registers into the AI brain). Connector = external API key (encrypted). Every mutation writes a `timeline_events` row the AI reads. The AI writes back `insights` + `ai_questions`. Spend is capped by a daily token guard. Full detail in `CLAUDE.md` and `docs/`.
+**Two architectural rules that are easy to break, and expensive when broken:**
+
+1. **Module = life domain.** Each implements `DomainModule` (`aiContext` +
+   `getToolSpecs`) and self-registers. Adding a domain means copying the shape
+   of `modules/tasks/`; core never changes.
+2. **Pure logic lives in `packages/shared`, not in an app.** The fitness maths
+   and the recurrence engine are shared so the UI and the API compute
+   identically from one implementation.
+
+---
+
+## Local setup
+
+```bash
+pnpm install
+cp .env.example .env
+```
+
+Then fill in `.env`. The two that must be generated rather than invented:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"   # SESSION_SECRET
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"   # APP_ENCRYPTION_KEY (must be 64 hex chars)
+```
+
+Start a database with the pgvector extension available — the first migration
+runs `CREATE EXTENSION vector`, so a plain `postgres` image will fail:
+
+```bash
+docker compose -f infra/docker-compose.yml up -d db
+```
+
+Then:
+
+```bash
+pnpm --filter @atlas/db generate
+pnpm --filter @atlas/db migrate:deploy
+pnpm build
+pnpm --filter @atlas/api dev     # http://localhost:4000
+pnpm --filter @atlas/web dev     # http://localhost:3000
+```
+
+Atlas runs without an AI key. Capture falls back to a local parser and the
+fitness split builder matches free text against the catalog locally, so a
+brand-new account works before anyone has pasted a DeepSeek key. **A feature
+that needs an API key to work at all is broken for every new account** — treat
+that as a rule, not a nicety.
+
+---
+
+## The checks
+
+```bash
+pnpm build
+pnpm typecheck --force     # --force: turbo will otherwise report a cached green
+pnpm lint
+pnpm test                  # 1275 unit tests
+pnpm --filter @atlas/web exec playwright test    # 48 e2e (Playwright + axe)
+```
+
+CI (`.github/workflows/ci.yml`) runs lint → build → typecheck → test on one job,
+and a second job that stands up a `pgvector/pgvector:pg16` service, applies
+migrations, and runs the full Playwright suite. **Nothing merges without both.**
+
+Two things about this that have caught people:
+
+- `pnpm typecheck` can report green from the turbo cache. Use `--force` before
+  claiming green on anything CI re-checks from scratch.
+- Typecheck covers test files too (`tsc && tsc -p tsconfig.test.json`), so a
+  bare `tsc --noEmit` is not the same check.
+
+---
+
+## How it is deployed
+
+Not Docker, and not a VPS. **atlaslife.app is served from Riley's PC through a
+Cloudflare Tunnel**: Cloudflare terminates TLS → tunnel → local Caddy
+(`infra/Caddyfile.tunnel`) → `/api/*` to the API on :4000, everything else to
+Next on :3000. One origin, which is what makes the session cookie work.
+
+The stack is started **by hand** from `infra/Atlas Server.cmd`. It refuses to
+start on a half-configured `.env` — placeholders, or a `DATABASE_URL` still
+pointing at localhost, and it names the offending keys and starts nothing,
+because booting with dev values would put an empty database behind the public
+domain and quietly accept real signups into it.
+
+`infra/atlas-health.ps1` runs every two minutes as a scheduled task and restarts
+whatever died. It exists because the public origin depends on four local
+processes and the app gives no sign when one of them stops.
+
+**Anything that polls on a timer must not touch the database.** A health check
+that ran `SELECT 1` plus an embedding sweep that scanned every sixty seconds
+kept Neon's compute from ever suspending and burned a monthly quota in about a
+week — after which it refused every query, reads included. The rule now is that
+an idle API makes no database calls. See `docs/GOTCHAS.md`.
+
+Moving to a VPS is `docker compose --profile full up -d` plus one DNS change —
+see [`docs/ship-to-iphone.md`](./docs/ship-to-iphone.md).
+
+---
+
+## Where the work is
+
+- [`docs/master-plan.md`](./docs/master-plan.md) — the commercial plan, four
+  phases, with an explicit "do not build" list. **Read before proposing
+  features.**
+- [`docs/production-readiness.md`](./docs/production-readiness.md) — the
+  authoritative list of known gaps, ordered by what blocks shipping, written
+  from a 154-assertion API stress pass. It says what was measured rather than
+  what was assumed.
+- [`docs/GOTCHAS.md`](./docs/GOTCHAS.md) — solved traps. Read it before
+  debugging.
+- [`docs/architecture.md`](./docs/architecture.md),
+  [`docs/data-model.md`](./docs/data-model.md),
+  [`docs/module-guide.md`](./docs/module-guide.md) — how to add a domain.
+
+---
+
+## Licence
+
+None yet. Private repository; all rights reserved.
