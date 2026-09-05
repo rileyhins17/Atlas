@@ -63,6 +63,13 @@ a verified dump of the current database sits in `.db-moves/`, and
 `infra/db-move.py` does dump/restore with credentials in `PG*` env vars rather
 than argv.
 
+**`.db-moves/` is gitignored and exists only on the machine that made it.** That
+is not an oversight to fix by uploading it somewhere: the file is a full
+production dump containing three real people's journal entries, finance
+transactions and fitness logs. It must never reach CI, an artifact store, a
+GitHub secret, or any environment an agent can read. Anything that needs to
+prove a restore path works must generate its own synthetic dump.
+
 Remaining, and only the owner can run the first line because it prompts for a
 password:
 
