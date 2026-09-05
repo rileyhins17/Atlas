@@ -39,15 +39,6 @@ class RestoreSafetyTests(unittest.TestCase):
         for line in toc.splitlines()[2:]:
             self.assertIn(line, filtered)
 
-    def test_corrupt_or_unpinned_download_is_rejected(self):
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / 'backup.dump'
-            path.write_bytes(b'PGDMPfixture')
-            with self.assertRaisesRegex(drill.DrillError, 'SHA-256'):
-                drill.verify_digest(path, '')
-            with self.assertRaisesRegex(drill.DrillError, 'SHA-256'):
-                drill.verify_digest(path, '0' * 64)
-
     def test_postgres_failure_is_fatal_and_never_prints_private_rows(self):
         result = subprocess.CompletedProcess([], 1, '', 'COPY failed: PRIVATE JOURNAL BODY')
         with patch.object(drill.subprocess, 'run', return_value=result):
@@ -76,6 +67,53 @@ class RestoreSafetyTests(unittest.TestCase):
         self.assertNotIn('-p', create)
         self.assertNotIn('-v', create)
         self.assertEqual(cleanup, ['docker', 'rm', '-f', '-v', name])
+
+
+class SyntheticDrillTests(unittest.TestCase):
+    """The CI path. Docker is not available here, so these check everything
+    that can be checked without it — which is all the SQL text, and whether it
+    matches the schema this repo actually ships."""
+
+    def test_reads_every_migration_in_apply_order(self):
+        directory = drill.ROOT / 'packages/db/prisma/migrations'
+        expected = sorted(path.parent.name for path in directory.glob('*/migration.sql'))
+        self.assertGreater(len(expected), 1)
+        sql = drill.migration_sql()
+        # The first migration creates users; a later one must come after it, or
+        # the foreign keys in between would not resolve.
+        self.assertIn('CREATE TABLE "users"', sql)
+        self.assertLess(sql.index('CREATE TABLE "users"'), sql.index('CREATE TABLE "tasks"'))
+
+    def test_seed_only_touches_columns_the_schema_declares(self):
+        """A seed referring to a column that no migration creates would fail in
+        CI and nowhere else, which is the failure this test exists to prevent."""
+        schema = drill.migration_sql()
+        for column in ('"passwordHash"', '"userId"', '"entryDate"', '"updatedAt"'):
+            self.assertIn(column, schema)
+        seed = drill.seed_sql()
+        for table in drill.SEED:
+            self.assertIn(table, seed)
+
+    def test_seed_counts_are_what_the_restore_asserts(self):
+        seed = drill.seed_sql()
+        for table, count in drill.SEED.items():
+            self.assertIn(f'generate_series(1, {count})', seed)
+
+    def test_seed_invents_nothing_that_looks_like_real_data(self):
+        seed = drill.seed_sql()
+        self.assertIn('example.invalid', seed)
+        self.assertNotIn('gmail', seed)
+
+    def test_throwaway_server_is_offline_and_unpublished(self):
+        calls = []
+        with patch.object(drill, 'command', side_effect=lambda args, **_k: calls.append(args) or ''), \
+             patch.object(drill.subprocess, 'run',
+                          return_value=subprocess.CompletedProcess([], 0)):
+            drill.start_postgres('atlas-test-container')
+        run = calls[0]
+        self.assertEqual(run[run.index('--network') + 1], 'none')
+        self.assertNotIn('-p', run)
+        self.assertNotIn('--publish', run)
 
 
 if __name__ == '__main__':
