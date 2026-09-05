@@ -78,6 +78,10 @@ origin** unless you have verified otherwise.
 | `pnpm test` | yes — every unit test mocks Prisma |
 | `pnpm --filter @atlas/web exec playwright test` | **no** — needs a database and a running app |
 
+A Codex cloud environment is prepared by [`infra/codex-setup.sh`](./infra/codex-setup.sh).
+Everything that downloads happens there, because internet access is available
+during setup and may not be afterwards.
+
 To run the e2e suite you need Postgres **with pgvector** (the first migration
 runs `CREATE EXTENSION vector`, so the stock `postgres` image fails), plus the
 env vars. Copy exactly what CI does — see the `e2e` job in
