@@ -189,6 +189,22 @@ the identical request. Cross-check any number against the API's own
 `durationMs` log line. `PRISMA_LOG_QUERIES=1` prints every statement and its
 duration, which is how the two findings above were found.
 
+**`await this.prisma` inside a loop is guarded by a test now**
+(`apps/api/test/no-n-plus-one.test.ts`). It reads the source, so it cannot prove
+absence — what it does is make a new one loud the moment it is written. Three
+loops are allow-listed BY REASON rather than by line number: chunked id lookups
+in the Google sync (that loop IS the batching), one Plaid remote call per item
+(a network call that cannot be batched), and one nested write per workout day
+(bounded by MAX_TEMPLATES). Watched red against a reintroduced N+1 before being
+trusted.
+
+**The account export streams.** It used to read fourteen unbounded tables into
+memory and `JSON.stringify` the lot — the whole account, twice, in a
+single-process API. It now pages each table by id and writes JSON fragments, so
+memory is one page whatever the account holds. Headers go out with the first
+chunk, so a mid-stream failure destroys the socket rather than pretending to be
+a 500: a truncated document that looks complete is the worse outcome.
+
 ### Known gaps — tracked, not hidden
 **`docs/production-readiness.md` is the authoritative list**, written from a 154-assertion API stress
 pass and a full-route UI pass. It is ordered by what blocks shipping and says what was measured
