@@ -376,3 +376,31 @@ fallback, so a brand-new account's first capture writes nothing — the most
 expensive bug this project has shipped, arriving by a new route. The guard is
 `if (toolExecutions.length === 0) throw err;` and three e2e specs fail without
 it.
+
+## Switching DATABASE_URL without restoring takes the site down silently
+
+The region move is two steps — point `.env` at the new project, and restore the
+data into it — and doing only the first leaves a state that looks fine from
+every angle except the one that matters.
+
+`supabase-connect.ps1 -WriteOnly` rewrote `.env` to `ca-central-1`. The restore
+was never run, so that project had no `public` schema at all. What followed:
+
+- The site kept serving, because the running API held its connection from boot.
+  It only broke when the process restarted hours later — so the failure appeared
+  disconnected in time from the change that caused it.
+- `/api/health` reported `db: ok` throughout. It tests that the connection
+  works, not that the tables exist, and the connection was perfect.
+- Every sign-in returned **500**, not 401 — `public.users does not exist` is an
+  infrastructure error, not a credentials one, so it never reached the auth
+  logic that would have said "invalid password".
+- The 03:30 backup dumped the empty project and logged `ok`.
+
+Recovery is a pointer, not a migration: `supabase-connect.ps1` writes
+`.env.bak.<timestamp>` before it edits, and that file differs from the current
+one **only** in the two DB URLs. Copy those two lines back, restart, done — the
+data was never touched.
+
+Two rules follow. Restore and verify counts BEFORE switching the pointer, never
+after. And if the site is up but every login 500s, check which database `.env`
+names before looking at anything in the auth code.
