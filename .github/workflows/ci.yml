@@ -29,17 +29,49 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter @atlas/db generate
 
-      - name: Lint
-        run: pnpm lint
-
       - name: Build
         run: pnpm build
 
       - name: Typecheck
-        run: pnpm typecheck
+        run: pnpm typecheck --force
+
+      - name: Lint
+        run: pnpm lint
 
       - name: Test
         run: pnpm test
+
+      - name: Test restore safety contracts
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+
+  restore-drill:
+    name: Prove a backup restores
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # Synthetic, deliberately.
+      #
+      # This builds a database from the repo's OWN migrations, seeds known row
+      # counts, dumps it, and restores that dump into a second throwaway
+      # server — so it proves the mechanism against the schema Atlas actually
+      # ships, including pgvector and the embeddings column type.
+      #
+      # It does not restore the production dump. That file holds three people's
+      # journal entries, finance transactions and fitness logs, and fetching it
+      # into a hosted runner would widen who can read it from one person to
+      # everyone with write access to this repository — a poor trade for a
+      # check that synthetic data makes equally well. Proving THAT dump is good
+      # is a local drill, run where the file already lives:
+      # `powershell -File infra/atlas-backup.ps1 -Drill`.
+      - name: Restore drill
+        run: python3 .github/scripts/restore_backup.py --synthetic
 
   e2e:
     runs-on: ubuntu-latest
