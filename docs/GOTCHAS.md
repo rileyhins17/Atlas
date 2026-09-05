@@ -507,3 +507,28 @@ the client is measuring its own DNS.
 
 Always benchmark against `127.0.0.1`, and cross-check against the API's own
 `durationMs` log line before believing a number.
+
+## The account export was one object in memory, on a single-process API
+
+`GET /account/export` read fourteen unbounded tables into one `Promise.all`,
+built a single object, and handed it to `JSON.stringify(…, null, 2)`. Peak
+memory was the whole account, twice, plus indentation — in an API that is one
+Node process serving every user. The people most likely to want an export are
+the ones whose export is largest, so the failure mode was "one person exports
+their data and the origin dies for everybody".
+
+It streams now, paging each table by id with a stable cursor, so memory is one
+page whatever the account holds. Two things that are easy to get wrong when
+turning a `JSON.stringify` into text:
+
+- **The commas.** A section with exactly one row is where a naive
+  `join(',')` breaks. `account-export.test.ts` covers empty, one row, and 1201
+  rows across three pages, and asserts the result still `JSON.parse`s.
+- **The status code is gone before the data is.** Headers go out with the first
+  chunk, so a failure halfway cannot become a 500. The handler destroys the
+  socket instead, because a truncated JSON document that looks finished is
+  worse than a broken download.
+
+`res.write()` returning false is honoured with a `drain` wait. Without that, a
+fast database and a slow client buffer the whole export in the socket, which is
+the memory problem the streaming was meant to remove.
