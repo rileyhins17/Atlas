@@ -205,6 +205,15 @@ memory is one page whatever the account holds. Headers go out with the first
 chunk, so a mid-stream failure destroys the socket rather than pretending to be
 a 500: a truncated document that looks complete is the worse outcome.
 
+**Four things could be created without limit, and every one of them is read
+whole somewhere.** Routine blocks are now capped at 200, open AI questions at
+20, custom exercises at 200, and the goals quota throws a 400 rather than the
+404 that made the UI say a goal could not be found. The routine cap is the one
+that matters most: `routine.add_block` is a tool the MODEL can call and the
+routine is fed back into its context on the next call, so uncapped it inflates
+its own future prompt. When adding an unpaginated `findMany`, the question is
+not "should this paginate" but "what stops this list growing forever".
+
 ### Known gaps — tracked, not hidden
 **`docs/production-readiness.md` is the authoritative list**, written from a 154-assertion API stress
 pass and a full-route UI pass. It is ordered by what blocks shipping and says what was measured

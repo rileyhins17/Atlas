@@ -43,6 +43,13 @@ type WorkoutWithSets = Prisma.WorkoutGetPayload<{
 
 const MAX_PAGE = 100;
 /** How many sessions of one movement its detail screen shows. */
+/**
+ * Movements one person can add on top of the seeded catalog. Generous — a
+ * specialised gym has a lot of machines — and finite, because the picker
+ * reads all of them on every open.
+ */
+const MAX_CUSTOM_EXERCISES = 200;
+
 const MAX_EXERCISE_SESSIONS = 30;
 /** Ceiling on the rows read to build it. Records are computed from all of them. */
 const MAX_EXERCISE_SETS = 600;
@@ -194,6 +201,19 @@ export class FitnessService {
     // Adding a movement that already exists should hand back the existing one
     // rather than 409 — from the user's side they asked for it to be there.
     if (existing) return toExerciseDto(existing);
+
+    // The catalog ships ~310 movements and `GET /fitness/exercises` returns the
+    // seeded ones plus every custom one this user has made, on every load of
+    // the picker. Custom exercises are also created as a side effect of
+    // importing a split, so the count climbs without anyone deciding to add
+    // one.
+    const custom = await this.prisma.client.exercise.count({ where: { userId } });
+    if (custom >= MAX_CUSTOM_EXERCISES) {
+      throw new BadRequestException(
+        `You have ${MAX_CUSTOM_EXERCISES} custom exercises, which is the limit. ` +
+          'Delete one to add another.',
+      );
+    }
 
     const created = await this.prisma.client.exercise.create({
       data: { userId, name: input.name, muscle: input.muscle, kind: input.kind },

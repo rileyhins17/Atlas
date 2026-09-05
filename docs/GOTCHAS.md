@@ -532,3 +532,30 @@ turning a `JSON.stringify` into text:
 `res.write()` returning false is honoured with a `drain` wait. Without that, a
 fast database and a slow client buffer the whole export in the socket, which is
 the memory problem the streaming was meant to remove.
+
+## Every list this app reads whole needs a ceiling on what can be written into it
+
+Not "pagination on every endpoint" — a cap on what can be CREATED, because the
+read side is deliberately unpaginated in several places and that is fine as long
+as the write side is bounded. Four were not:
+
+| what | why it grew | cap |
+|---|---|---|
+| routine blocks | `routine.add_block` is a tool the MODEL can call | 200 |
+| AI questions | generated on every brief; nothing forces an answer | 20 open |
+| custom exercises | created as a side effect of importing a split | 200 |
+| goals | had a cap, but threw the wrong error | 100 |
+
+The routine one is the interesting case. The routine is part of the context the
+model is handed on the NEXT call, and the model can add to it — so uncapped, a
+chatty brain-dump inflates its own future context, costs tokens on every request
+afterwards, and slowly crowds the other domains out of the budget. A quota on a
+tool the model can call is not the same kind of limit as a quota on a button.
+
+And the goals one is a reminder that the status code is part of the message:
+`NotFoundException('Too many goals')` rendered in the UI as the goal not being
+FOUND. A quota is a 400.
+
+When adding a `findMany` with no `take`, the question to answer is not "should
+this paginate" but "what stops this list from growing forever, and is that thing
+written down".
