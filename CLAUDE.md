@@ -194,15 +194,32 @@ The short version of what is STILL open:
   **PostgreSQL 17 is now installed**, so the blocking step is done. What remains is
   `powershell -File infra/atlas-backup.ps1 -Register`, an off-machine destination, and a restore
   drill — an unrestored backup is a hypothesis.
-- **Moving to `ca-central-1` is half done.** 383ms per round trip from Oregon is the single largest
-  cause of the app feeling slow. The new Supabase project exists (`dieyrvswjgvocauixvwi`) and a full
-  dump of us-west-2 is taken and verified (2,194 tasks, 636 journal entries, 2,698 timeline rows,
-  147 workouts, in `.db-moves/`). `infra/db-move.py` does the dump and restore with credentials in
-  PG* env vars rather than argv — `db-switch.ps1` only moves the POINTER, which is right for an
-  empty target and very wrong here. Remaining: `supabase-connect.ps1 -ProjectRef
-  dieyrvswjgvocauixvwi -Region ca-central-1 -WriteOnly` (prompts for the password without echoing
-  it), restore, compare `db-move.py counts` on both hosts, then switch. A running origin holds its
-  DB config in memory, so it keeps serving the old host throughout — the move needs no downtime.
+- ~~Moving to `ca-central-1`~~ — **done, 5 Sep 2026, and it is also why the
+  connection string changed shape.** Restored with `db-move.py`, all 27 tables
+  compared row-for-row against us-west-2 before the switch, `verify.mjs` green
+  on the new host (pgvector 0.8.2, `embeddings.embedding` really a `vector`,
+  19/19 migrations). Measured, same machine, same minute:
+
+  | connection | round trip |
+  |---|---|
+  | us-west-2, pooled (6543) | **387 ms** |
+  | ca-central-1, pooled (6543) | 135 ms |
+  | ca-central-1, session (5432) | **26 ms** |
+
+  `DATABASE_URL` now points at the **session** endpoint, not the transaction
+  pooler, with `connection_limit=10`. Supavisor's transaction pooler exists to
+  share a small number of Postgres connections between many short-lived clients;
+  Atlas is one long-lived API process with Prisma's own pool, so it was buying
+  nothing and costing 109 ms on every query. API endpoints went 540 ms → 310 ms
+  from that change alone, on top of the region move.
+  **The pgvector trap is real and bit here:** us-west-2 has the extension in
+  `public`, so the dump declares `public.vector(768)`. Creating it in
+  `extensions` on the target — which is where Supabase puts it by default, and
+  where `pgcrypto` already was — makes `pg_restore` fail on the `embeddings`
+  table with `type "public.vector" does not exist` while every other table
+  restores fine. Create the extension in the schema the SOURCE used.
+  The old project still holds the data as of the switch; do not delete it until
+  the new one has been running for a while.
 - **Rotate the Plaid production secret** — it was pasted into a chat transcript. Needs Riley's Plaid
   login; nobody else can do it.
 - **`SENTRY_DSN` is unset**, so the error reporting that is now wired in reports nothing.
