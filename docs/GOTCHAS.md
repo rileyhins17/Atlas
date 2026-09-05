@@ -315,3 +315,64 @@ perfect; what was wrong was how often they ran when nobody was there, and
 nothing in a green suite, a healthy watchdog log or a working screen showed it.
 `apps/api/test/idle-db.test.ts` asserts the negative directly — thirty health
 polls and sixty sweep ticks against an idle API, zero queries.
+
+## Service worker: never cache a URL that carries a query string
+
+The App Router fetches its React payloads as ordinary same-origin GETs —
+`/today?_rsc=1a2b3c`. They are not `/api/*` and not navigations, so they fell
+into `sw.js`'s stale-while-revalidate branch and were cached BY URL. Ship a new
+build and that same URL has to answer with a payload whose chunks no longer
+exist; `cached || network` hands the stale one back first, and React throws
+`Application error: a client-side exception has occurred` on a black screen —
+in a home-screen PWA with no URL bar to reload from.
+
+Rule: the worker caches only `/_next/static/*` (content-hashed, so a changed
+file is a changed URL) plus real static assets by extension. **Anything with a
+query string goes to the network, always.** `app/global-error.tsx` is the second
+line: it clears caches, unregisters the worker and reloads once per session.
+
+## Every AI domain summary must carry the row id
+
+`calendar.delete` and `calendar.update` were unusable from the day they shipped,
+and it looked like the model being unhelpful. The tools were fine; the CONTEXT
+was not. `CalendarService.summarize` rendered `- Dentist — 2026-09-05 23:00`
+with no id, so the model could name an event and had no way to address one.
+Tasks, habits and goals all render `[id]` — each with a comment saying why —
+and calendar was the only one that did not.
+
+The same three lines had a second bug: `toISOString()` is **UTC**. A 7pm Toronto
+event reached the model as `23:00` and was read straight back to the user as
+11pm. Every summary that prints a time must format it in the user's timezone and
+say which timezone that is.
+
+If you add a domain, its summary needs `[id]` and local times, or half its tools
+are decorative.
+
+## An input under 16px makes the whole app pan, not just zoom
+
+Known: iOS zooms the page when a field under 16px takes focus. The part that is
+not obvious is what that looks like afterwards — the visual viewport stays
+zoomed, so every later swipe PANS the page, including `position: fixed`
+elements. Reported as "the display of the app moves around like it's a bigger
+page", on screens with no overflow at all. Measured: zero horizontal overflow on
+all thirteen routes while it was happening.
+
+Fix the fields, not the viewport: pinning `maximumScale` stops the zoom and
+fails WCAG 1.4.4 for everyone. `html, body` also carry `overflow-x: hidden` and
+`overscroll-behavior-x: none`, and every `overflow-x: auto` container carries
+`overscroll-behavior-x: contain` so a chip row or the week grid cannot drag the
+page with it.
+
+## runToolLoop must not swallow a failure that happened before any tool ran
+
+The loop catches provider failures so that writes already applied keep their
+`toolExecutions` — without that, "What Atlas changed" never renders and the undo
+for a real deletion is unreachable.
+
+But catching the FIRST call is a different thing: nothing has happened, the
+error is the whole answer, and absorbing it turns a 424 "Atlas AI needs an API
+key" into a 200 with an apology in it. That silently disarms the local capture
+fallback, so a brand-new account's first capture writes nothing — the most
+expensive bug this project has shipped, arriving by a new route. The guard is
+`if (toolExecutions.length === 0) throw err;` and three e2e specs fail without
+it.

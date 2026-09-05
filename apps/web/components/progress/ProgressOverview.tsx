@@ -8,7 +8,8 @@ import { Sparkline } from '@/components/ui';
 import { ActivityCalendar } from './ActivityCalendar';
 import { HabitConsistency } from './HabitConsistency';
 import { MoodPatterns } from './MoodPatterns';
-import { ProgressCard } from './ProgressCard';
+import { NothingYet, ProgressCard, hasNothing } from './ProgressCard';
+import { TrackerTrends } from './TrackerTrends';
 import { WeeklyReviewCard } from './WeeklyReviewCard';
 import { WhatChanged } from './WhatChanged';
 
@@ -72,34 +73,52 @@ export function ProgressOverview({ data, days }: { data: StatsDTO; days: number 
             {/* Every one of these now states its own latest value, because a
                 line with no axis is a shape, not a number. */}
             <ProgressCard title="Tasks finished" hint="per week">
-              <Sparkline
-                points={derived.tasksWeekly}
-                label="Tasks completed per week"
-                width={320}
-                height={88}
-                min={0}
-                fill
-              />
-              <p className="prog-muted">
-                {data.totals.current.tasksCompleted} in {days} days · peak{' '}
-                {Math.max(0, ...derived.tasksWeekly)} in a week
-              </p>
+              {hasNothing(derived.tasksWeekly) ? (
+                <NothingYet>
+                  Nothing finished in the last {days} days. Tick one off and this fills in.
+                </NothingYet>
+              ) : (
+                <>
+                  <Sparkline
+                    points={derived.tasksWeekly}
+                    label="Tasks completed per week"
+                    width={320}
+                    height={88}
+                    min={0}
+                    fill
+                  />
+                  <p className="prog-muted">
+                    {data.totals.current.tasksCompleted} in {days} days · peak{' '}
+                    {Math.max(0, ...derived.tasksWeekly)} in a week
+                  </p>
+                </>
+              )}
             </ProgressCard>
 
             <ProgressCard title="Habit check-ins" hint="per week">
-              <Sparkline
-                points={derived.habitsWeekly}
-                label="Habit check-ins per week"
-                width={320}
-                height={88}
-                min={0}
-                fill
-              />
-              <p className="prog-muted">
-                {data.totals.current.habitChecks} in {days} days · peak{' '}
-                {Math.max(0, ...derived.habitsWeekly)} in a week
-              </p>
+              {hasNothing(derived.habitsWeekly) ? (
+                <NothingYet>
+                  No check-ins in the last {days} days. Check one in and this fills in.
+                </NothingYet>
+              ) : (
+                <>
+                  <Sparkline
+                    points={derived.habitsWeekly}
+                    label="Habit check-ins per week"
+                    width={320}
+                    height={88}
+                    min={0}
+                    fill
+                  />
+                  <p className="prog-muted">
+                    {data.totals.current.habitChecks} in {days} days · peak{' '}
+                    {Math.max(0, ...derived.habitsWeekly)} in a week
+                  </p>
+                </>
+              )}
             </ProgressCard>
+
+            <TrackerTrends />
 
             <ProgressCard title="Mood" hint="1 to 5, over time">
               {derived.mood.length >= 2 ? (

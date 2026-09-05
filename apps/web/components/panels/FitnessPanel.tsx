@@ -92,34 +92,19 @@ export function FitnessPanel() {
         />
       ) : (
         <Card stack className="fit-start">
-          <form
-            className="row"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (start.isPending) return;
-              start.mutate({ title: title.trim() || undefined }, { onSuccess: () => setTitle('') });
-            }}
-          >
-            <Input
-              placeholder="Name it (optional)"
-              aria-label="Workout name"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-            <Button type="submit" disabled={start.isPending}>
-              <Dumbbell size={15} aria-hidden /> Start
-            </Button>
-          </form>
-
-          {/* Saved days first: starting one loads its movements as blocks, so
-              the session opens ready to log instead of empty. */}
-          {suggested.length > 0 ? (
+          {/* The day you are most likely to be here to do, as one big target.
+              This card used to LEAD with "Name it (optional)" and a Start
+              button, which put the rarest action first: almost nobody starts an
+              untitled blank session, and almost everybody starts the day they
+              have left the longest. Naming a workout is now the quiet option at
+              the bottom, where the rare thing belongs. */}
+          {suggested.length > 0 && (
             <div className="fit-quick" role="group" aria-label="Start a saved day">
-              {suggested.map((t) => (
-                <span key={t.id} className="fit-day-wrap">
+              {suggested.map((t, i) => (
+                <span key={t.id} className={`fit-day-wrap ${i === 0 ? 'hero' : ''}`}>
                   <button
                     type="button"
-                    className="fit-day-chip"
+                    className={`fit-day-chip ${i === 0 ? 'hero' : ''}`}
                     disabled={start.isPending}
                     /* Without this its accessible name is the whole chip —
                        "Push Day3 moves · 4 days ago" — which is what a screen
@@ -127,6 +112,11 @@ export function FitnessPanel() {
                     aria-label={`Start ${t.name}`}
                     onClick={() => start.mutate({ templateId: t.id })}
                   >
+                    {i === 0 && (
+                      <span className="fit-day-lead" aria-hidden>
+                        <Dumbbell size={13} /> Up next
+                      </span>
+                    )}
                     <span className="fit-day-name">{t.name}</span>
                     <span className="fit-day-meta">
                       {t.exercises.length} moves · {sinceLabel(t.lastPerformedAt)}
@@ -143,7 +133,9 @@ export function FitnessPanel() {
                 </span>
               ))}
             </div>
-          ) : (
+          )}
+
+          {suggested.length === 0 && (
             <div className="fit-quick" role="group" aria-label="Quick start">
               {QUICK_STARTS.map((name) => (
                 <button
@@ -158,6 +150,25 @@ export function FitnessPanel() {
               ))}
             </div>
           )}
+
+          <form
+            className="fit-blank"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (start.isPending) return;
+              start.mutate({ title: title.trim() || undefined }, { onSuccess: () => setTitle('') });
+            }}
+          >
+            <Input
+              placeholder="Name a one-off session"
+              aria-label="Workout name"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+            <Button variant="ghost" type="submit" disabled={start.isPending}>
+              <Dumbbell size={15} aria-hidden /> Start
+            </Button>
+          </form>
 
           <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
             <button

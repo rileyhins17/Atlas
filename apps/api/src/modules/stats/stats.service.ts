@@ -1,18 +1,31 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@atlas/db';
 import {
+  MIN_DAYS_FOR_CONTRAST,
   MIN_DAYS_FOR_PATTERNS,
   MOOD_FACTORS,
   PACKED_DAY_EVENTS,
   describeMoodContrast,
+  describeTrackerContrast,
   findMoodContrasts,
+  findTrackerContrasts,
   type MoodDay,
   type MoodPatternsDTO,
   type StatsDTO,
+  type TrackerDay,
+  type TrackerPatternsDTO,
 } from '@atlas/shared';
 import { PrismaService } from '../../core/prisma.service.js';
 import { dayKeyInTz, localDayStartUtc } from '../ai/time.util.js';
 import { assembleStats, type MetricRow, type StatsMetric } from './stats.assemble.js';
+
+/** A day where none of the tracked factors happened. Frozen so it is shared. */
+const EMPTY_DAY: Record<string, boolean> = Object.freeze({
+  trained: false,
+  keptAHabit: false,
+  finishedTasks: false,
+  packedDay: false,
+});
 
 /**
  * Cross-domain rollups, bucketed by the USER'S local day (Postgres
@@ -137,6 +150,134 @@ export class StatsService {
   }
 
   /** Compact 30-day summary for the weekly review — the correlation payoff. */
+  /**
+   * The same day-factors the mood contrasts use.
+   *
+   * Shared rather than copied so the two engines can never disagree about what
+   * "a day you trained" means — and bucketed in the user's local day, in SQL,
+   * with the timezone BOUND. A UTC comparison would file an evening workout
+   * under tomorrow for anyone east of Greenwich and shuffle both sides of every
+   * contrast.
+   */
+  private async factorsFor(
+    userId: string,
+    tz: string,
+    from: Date,
+  ): Promise<Map<string, Record<string, boolean>>> {
+    const q = <T>(sql: Prisma.Sql) => this.prisma.client.$queryRaw<T[]>(sql);
+    const [trained, habits, tasks, packed] = await Promise.all([
+      q<{ day: string }>(Prisma.sql`
+        SELECT DISTINCT ((("endedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${tz})::date)::text AS day
+        FROM workouts
+        WHERE "userId" = ${userId} AND "endedAt" IS NOT NULL AND "endedAt" >= ${from}`),
+      q<{ day: string }>(Prisma.sql`
+        SELECT DISTINCT ((("loggedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${tz})::date)::text AS day
+        FROM habit_logs
+        WHERE "userId" = ${userId} AND "loggedAt" >= ${from}`),
+      q<{ day: string }>(Prisma.sql`
+        SELECT DISTINCT ((("completedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${tz})::date)::text AS day
+        FROM tasks
+        WHERE "userId" = ${userId} AND "completedAt" IS NOT NULL AND "completedAt" >= ${from}`),
+      q<{ day: string }>(Prisma.sql`
+        SELECT ((("startAt" AT TIME ZONE 'UTC') AT TIME ZONE ${tz})::date)::text AS day
+        FROM events
+        WHERE "userId" = ${userId} AND "allDay" = false AND "startAt" >= ${from}
+        GROUP BY 1
+        HAVING COUNT(*) >= ${PACKED_DAY_EVENTS}`),
+    ]);
+
+    const set = (rows: { day: string }[]) => new Set(rows.map((r) => r.day));
+    const trainedDays = set(trained);
+    const habitDays = set(habits);
+    const taskDays = set(tasks);
+    const packedDays = set(packed);
+
+    const days = new Set([...trainedDays, ...habitDays, ...taskDays, ...packedDays]);
+    const out = new Map<string, Record<string, boolean>>();
+    for (const day of days) {
+      out.set(day, {
+        trained: trainedDays.has(day),
+        keptAHabit: habitDays.has(day),
+        finishedTasks: taskDays.has(day),
+        packedDay: packedDays.has(day),
+      });
+    }
+    return out;
+  }
+
+  /**
+   * What the days you rate highest have in common.
+   *
+   * The reason a personal tracker belongs in Atlas rather than in a symptom
+   * diary: a diary can tell you that you were a 7 on Tuesday, and only
+   * something holding the rest of your life can notice that your 7s are the
+   * days you trained.
+   *
+   * Counting, not a model. Asked "why is he bloated?", a language model always
+   * produces a confident sentence and there is no way to tell a real pattern
+   * from a fluent one. Every line here is the observation and never the cause.
+   */
+  async trackerPatterns(userId: string): Promise<TrackerPatternsDTO> {
+    const tz = await this.timezone(userId);
+    const from = new Date(
+      localDayStartUtc(tz, new Date()).getTime() - PATTERN_WINDOW_DAYS * 86_400_000,
+    );
+
+    const trackers = await this.prisma.client.tracker.findMany({
+      where: { userId, active: true },
+      orderBy: { position: 'asc' },
+      take: 8,
+      select: { id: true, name: true },
+    });
+    if (trackers.length === 0) return { daysNeeded: MIN_DAYS_FOR_CONTRAST, trackers: [] };
+
+    const fromKey = dayKeyInTz(from, tz);
+    const [factors, entries] = await Promise.all([
+      this.factorsFor(userId, tz, from),
+      this.prisma.client.trackerEntry.findMany({
+        where: { userId, dayKey: { gte: fromKey }, trackerId: { in: trackers.map((t) => t.id) } },
+        select: { trackerId: true, dayKey: true, value: true },
+      }),
+    ]);
+
+    const byTracker = new Map<string, TrackerDay[]>();
+    for (const e of entries) {
+      const list = byTracker.get(e.trackerId) ?? [];
+      // A day with no factors recorded still counts — the empty object means
+      // "nothing was true", not "nothing is known", because every factor here
+      // is a by-product of using Atlas rather than an answer the user gave.
+      list.push({ dayKey: e.dayKey, value: e.value, factors: factors.get(e.dayKey) ?? EMPTY_DAY });
+      byTracker.set(e.trackerId, list);
+    }
+
+    return {
+      daysNeeded: MIN_DAYS_FOR_CONTRAST,
+      trackers: trackers.map((t) => {
+        const days = byTracker.get(t.id) ?? [];
+        return {
+          id: t.id,
+          name: t.name,
+          daysLogged: days.length,
+          patterns: findTrackerContrasts(days).map((c) => ({
+            factor: c.factor,
+            line: describeTrackerContrast(
+              t.name,
+              c,
+              // The same phrasings the mood contrasts use, so "you trained"
+              // reads identically wherever it appears.
+              (MOOD_FACTORS as Record<string, string>)[c.factor] ?? c.factor,
+            ),
+            withMean: c.withMean,
+            withoutMean: c.withoutMean,
+            withDays: c.withDays,
+            withoutDays: c.withoutDays,
+            delta: c.delta,
+          })),
+        };
+      }),
+    };
+  }
+
   /**
    * What the user's better days have in common.
    *

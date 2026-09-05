@@ -21,7 +21,13 @@ import type {
   EventDTO,
   ExerciseDTO,
   ExerciseHistoryDTO,
+  CreateTrackerInput,
   HabitDTO,
+  LogTrackerInput,
+  TrackerDTO,
+  TrackerEntryDTO,
+  TrackerPatternsDTO,
+  UpdateTrackerInput,
   LastPerformanceDTO,
   GoalDTO,
   GoogleCalendarChoiceDTO,
@@ -203,6 +209,41 @@ export const HabitsApi = {
   log: (id: string) => request<HabitDTO>(`/habits/${id}/log`, { method: 'POST', body: '{}' }),
   remove: (id: string) => request<{ ok: true }>(`/habits/${id}`, { method: 'DELETE' }),
 };
+
+/**
+ * Anything the user has decided to watch, rated once a day.
+ *
+ * `overview` returns each tracker WITH its points and its sentence in one
+ * response rather than one call per tracker — the Progress page renders all of
+ * them at once, and a call each is the request waterfall this codebase keeps
+ * finding.
+ */
+export const TrackersApi = {
+  list: () => request<TrackerDTO[]>('/trackers'),
+  overview: (days = 60) =>
+    request<TrackerOverviewRow[]>(`/trackers/overview?days=${days}`),
+  create: (input: CreateTrackerInput) =>
+    request<TrackerDTO>('/trackers', { method: 'POST', body: JSON.stringify(input) }),
+  update: (id: string, patch: UpdateTrackerInput) =>
+    request<TrackerDTO>(`/trackers/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+  log: (id: string, input: LogTrackerInput) =>
+    request<TrackerEntryDTO>(`/trackers/${id}/log`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  /** What the days you rate highest have in common. Counting, never a model. */
+  patterns: () => request<TrackerPatternsDTO>('/stats/tracker-patterns'),
+  history: (id: string, days = 120) =>
+    request<TrackerEntryDTO[]>(`/trackers/${id}/history?days=${days}`),
+  /** Archives. The ratings are the point, so nothing here deletes them. */
+  archive: (id: string) => request<{ ok: true }>(`/trackers/${id}`, { method: 'DELETE' }),
+};
+
+export interface TrackerOverviewRow {
+  tracker: TrackerDTO;
+  points: { dayKey: string; value: number }[];
+  sentence: string | null;
+}
 
 export const JournalApi = {
   list: () => request<JournalDTO[]>('/journal'),

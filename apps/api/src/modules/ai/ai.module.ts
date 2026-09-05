@@ -3,6 +3,7 @@ import { LocalEmbedder } from '@atlas/ai';
 import { AuthModule } from '../../auth/auth.module.js';
 import { TasksModule } from '../tasks/tasks.module.js';
 import { HabitsModule } from '../habits/habits.module.js';
+import { TrackersModule } from '../trackers/trackers.module.js';
 import { JournalModule } from '../journal/journal.module.js';
 import { NotesModule } from '../notes/notes.module.js';
 import { CalendarModule } from '../calendar/calendar.module.js';
@@ -24,7 +25,7 @@ import { ProactiveService } from './proactive.service.js';
  * already declared the tool names each module handles).
  */
 @Module({
-  imports: [AuthModule, TasksModule, HabitsModule, JournalModule, NotesModule, CalendarModule, FitnessModule, RoutineModule, GoalsModule, PushModule, StatsModule],
+  imports: [AuthModule, TasksModule, HabitsModule, TrackersModule, JournalModule, NotesModule, CalendarModule, FitnessModule, RoutineModule, GoalsModule, PushModule, StatsModule],
   controllers: [AiController],
   providers: [
     AiQuestionsService,

@@ -68,6 +68,14 @@ function expandSeries(event: Event, from: Date, to: Date): EventDTO[] {
   return out;
 }
 
+/**
+ * How many upcoming events the AI is shown.
+ *
+ * Five was too few to act on: asking to move or cancel something later in the
+ * week routinely referred to an event the model had never been told about.
+ */
+const SUMMARY_EVENTS = 12;
+
 @Injectable()
 export class CalendarService {
   constructor(
@@ -261,14 +269,42 @@ export class CalendarService {
     return { ok: true };
   }
 
-  /** Compact summary for the AI: the next few events. */
+  /**
+   * Compact summary for the AI: the next few events, each ADDRESSABLE.
+   *
+   * Two bugs lived in this function, and both were invisible from the outside
+   * because the model simply behaved as if the feature did not exist.
+   *
+   * It carried no id. Every other domain's summary does — tasks, habits and
+   * goals all render `[id]` with a comment saying the id is what makes update
+   * and delete usable — and calendar was the one that did not. So `calendar.
+   * delete` and `calendar.update` had nothing to be called with: "cancel my
+   * dentist appointment" could name the event and never address it.
+   *
+   * And it rendered times with `toISOString()`, which is UTC. A 7pm Toronto
+   * event reached the model as 23:00 and came back to the user as 11pm.
+   */
   async summarize(userId: string): Promise<string> {
-    const upcoming = await this.list(userId, { from: new Date(), limit: 5 });
+    const [upcoming, user] = await Promise.all([
+      this.list(userId, { from: new Date(), limit: SUMMARY_EVENTS }),
+      this.prisma.client.user.findUnique({ where: { id: userId }, select: { timezone: true } }),
+    ]);
     if (upcoming.length === 0) return 'No upcoming events.';
-    const lines = upcoming.map((e) => {
-      const when = new Date(e.startAt);
-      return `- ${e.title} — ${when.toISOString().slice(0, 16).replace('T', ' ')}`;
+
+    const tz = safeTz(user?.timezone || 'UTC');
+    const when = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
     });
-    return `Next ${upcoming.length} event(s):\n${lines.join('\n')}`;
+
+    const lines = upcoming.map(
+      (e) =>
+        `- [${e.id}] ${e.title} — ${e.allDay ? 'all day' : when.format(new Date(e.startAt))}`,
+    );
+    return `Next ${upcoming.length} event(s), times in ${tz}:\n${lines.join('\n')}`;
   }
 }

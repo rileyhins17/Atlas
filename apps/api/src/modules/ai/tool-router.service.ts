@@ -8,6 +8,7 @@ import {
   CreateNoteInput,
   CreateTaskInput,
   LogHabitInput,
+  LogTrackerInput,
   RoutineBlockInput,
   StartWorkoutInput,
   UpdateGoalInput,
@@ -18,6 +19,7 @@ import {
 import type { ToolOutcome, ToolUndo } from '@atlas/ai';
 import { TasksService } from '../tasks/tasks.service.js';
 import { HabitsService } from '../habits/habits.service.js';
+import { TrackersService } from '../trackers/trackers.service.js';
 import { JournalService } from '../journal/journal.service.js';
 import { NotesService } from '../notes/notes.service.js';
 import { CalendarService } from '../calendar/calendar.service.js';
@@ -78,6 +80,12 @@ const HabitLogInput = z.object({
   id: z.string(),
   value: z.number().optional(),
   note: z.string().optional(),
+});
+
+const TrackerLogInput = z.object({
+  trackerId: z.string().min(1).max(64),
+  value: z.number().int().min(1).max(10),
+  note: z.string().max(500).nullish(),
 });
 const AiTaskPatch = UpdateTaskInput.extend({ id: z.string().min(1).max(64) });
 const AiNotePatch = UpdateNoteInput.extend({ id: z.string().min(1).max(64) });
@@ -141,6 +149,7 @@ export class ToolRouterService {
   constructor(
     private readonly tasks: TasksService,
     private readonly habits: HabitsService,
+    private readonly trackers: TrackersService,
     private readonly journal: JournalService,
     private readonly notes: NotesService,
     private readonly calendar: CalendarService,
@@ -247,6 +256,21 @@ export class ToolRouterService {
         // A check-in has no delete endpoint, so it is honestly not undoable
         // rather than offered with an inverse that would not work.
         return { result: habit, summary: `Checked in "${habit.name}"`, undo: null };
+      }
+
+      // ── Personal trackers ────────────────────────────────────────────────
+      case 'trackers.log': {
+        const { trackerId, ...rest } = TrackerLogInput.parse(args);
+        const entry = await this.trackers.log(userId, trackerId, LogTrackerInput.parse(rest));
+        const tracker = await this.trackers.owned(userId, trackerId);
+        // Re-rating a day overwrites it, so there is no inverse that restores
+        // the previous number — offering one that silently did nothing would be
+        // worse than saying it cannot be undone.
+        return {
+          result: entry,
+          summary: `Rated ${tracker.name} ${entry.value}/10`,
+          undo: null,
+        };
       }
 
       // ── Notes ────────────────────────────────────────────────────────────

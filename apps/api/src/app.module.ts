@@ -6,6 +6,7 @@ import { CoreModule } from './core/core.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { TasksModule } from './modules/tasks/tasks.module.js';
 import { HabitsModule } from './modules/habits/habits.module.js';
+import { TrackersModule } from './modules/trackers/trackers.module.js';
 import { JournalModule } from './modules/journal/journal.module.js';
 import { NotesModule } from './modules/notes/notes.module.js';
 import { GoalsModule } from './modules/goals/goals.module.js';
@@ -38,6 +39,7 @@ import { ActivityMiddleware } from './common/activity.middleware.js';
     AuthModule,
     TasksModule,
     HabitsModule,
+    TrackersModule,
     JournalModule,
     NotesModule,
     GoalsModule,

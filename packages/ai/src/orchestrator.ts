@@ -120,16 +120,23 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
     try {
       res = await chat(messages, openAiTools);
     } catch (err) {
-      // The provider failed mid-loop. Writes already applied are still applied,
-      // and throwing here threw `toolExecutions` away with them — so "What
-      // Atlas changed" never rendered and the undo for a real database write
-      // was unreachable. Report what happened instead of losing it.
+      // ONLY absorb a failure once work has actually been applied.
+      //
+      // Writes already made are still made, and throwing threw `toolExecutions`
+      // away with them — so "What Atlas changed" never rendered and the undo
+      // for a real database write was unreachable. That is worth catching.
+      //
+      // A failure on the FIRST call is a different thing entirely: nothing has
+      // happened, and the error is the whole answer. Swallowing it turns a 424
+      // "Atlas AI needs an API key" into a 200 with an apology in it — which
+      // silently disarms the local capture fallback, so a brand-new account's
+      // first capture writes nothing at all. Rethrow, and let the typed errors
+      // reach the boundary that knows what to do with them.
+      if (toolExecutions.length === 0) throw err;
+
       const message = err instanceof Error ? err.message : 'the model stopped responding';
       return {
-        content:
-          toolExecutions.length > 0
-            ? `I ran into a problem partway through (${message}), but the changes below were already made.`
-            : `I could not finish that: ${message}`,
+        content: `I ran into a problem partway through (${message}), but the changes below were already made.`,
         usage: { promptTokens, completionTokens, cachedPromptTokens },
         toolExecutions,
       };

@@ -10,6 +10,7 @@ import { ProactiveSettingsCard } from './ProactiveSettingsCard';
 import { PlaidCard } from './PlaidCard';
 import { RoutineEditor } from './RoutineEditor';
 import { SettingsSection } from './SettingsSection';
+import { TrackerManager } from '@/components/trackers/TrackerManager';
 import { PaletteSettingsCard } from './PaletteSettingsCard';
 import { TrainingSettingsCard } from './TrainingSettingsCard';
 import { GoogleCalendarCard } from '@/components/connectors/GoogleCalendarCard';
@@ -34,6 +35,14 @@ export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
 
       <SettingsSection id="ai" title="Atlas AI" hint="model key and usage">
         <AiSettingsCard />
+      </SettingsSection>
+
+      <SettingsSection
+        id="trackers"
+        title="Daily check-ins"
+        hint="rate anything on a 1–10 scale"
+      >
+        <TrackerManager />
       </SettingsSection>
 
       <SettingsSection id="training" title="Training" hint="weight units">

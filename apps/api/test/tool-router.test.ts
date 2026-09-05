@@ -21,6 +21,10 @@ function makeRouter() {
     log: vi.fn().mockResolvedValue({ id: 'habit_1', name: 'Meditate' }),
     create: vi.fn().mockResolvedValue({ id: 'habit_1', name: 'Meditate' }),
   };
+  const trackers = {
+    log: vi.fn().mockResolvedValue({ id: 'trk_e1', trackerId: 'trk_1', value: 7 }),
+    owned: vi.fn().mockResolvedValue({ id: 'trk_1', name: 'Bloating' }),
+  };
   const journal = { create: vi.fn().mockResolvedValue({ id: 'journal_1' }) };
   const notes = {
     create: vi.fn().mockResolvedValue({ id: 'note_1', title: null }),
@@ -63,6 +67,7 @@ function makeRouter() {
   const router = new ToolRouterService(
     tasks as any,
     habits as any,
+    trackers as any,
     journal as any,
     notes as any,
     calendar as any,
@@ -72,7 +77,19 @@ function makeRouter() {
     memory as any,
   );
   /* eslint-enable @typescript-eslint/no-explicit-any */
-  return { router, tasks, habits, journal, notes, calendar, fitness, routine, goals, memory };
+  return {
+    router,
+    tasks,
+    habits,
+    trackers,
+    journal,
+    notes,
+    calendar,
+    fitness,
+    routine,
+    goals,
+    memory,
+  };
 }
 
 describe('ToolRouterService', () => {

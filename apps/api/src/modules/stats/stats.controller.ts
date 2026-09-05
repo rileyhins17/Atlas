@@ -1,5 +1,6 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { StatsQuery, type MoodPatternsDTO, type StatsDTO } from '@atlas/shared';
+import { StatsQuery, type MoodPatternsDTO,
+  type TrackerPatternsDTO, type StatsDTO } from '@atlas/shared';
 import { ZodValidationPipe } from '../../common/zod.pipe.js';
 import { SessionGuard } from '../../auth/session.guard.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
@@ -21,6 +22,11 @@ export class StatsController {
 
   /** What the user's better days have in common. Takes no window — the
    *  comparison needs all the history it can get, and the service caps it. */
+  @Get('tracker-patterns')
+  trackerPatterns(@CurrentUser() user: AuthedUser): Promise<TrackerPatternsDTO> {
+    return this.stats.trackerPatterns(user.id);
+  }
+
   @Get('patterns')
   patterns(@CurrentUser() user: AuthedUser): Promise<MoodPatternsDTO> {
     return this.stats.moodPatterns(user.id);

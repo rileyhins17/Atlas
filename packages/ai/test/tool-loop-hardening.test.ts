@@ -175,16 +175,24 @@ describe('a provider failure does not lose what was already done', () => {
     expect(res.content).toContain('503');
   });
 
-  it('says plainly that it could not finish when nothing was done', async () => {
-    const res = await runToolLoop({
-      messages: [],
-      tools: TOOLS,
-      chat: async () => {
-        throw new Error('DeepSeek error 429');
-      },
-      executeTool: async () => ({ result: {} }),
-    });
-    expect(res.toolExecutions).toHaveLength(0);
-    expect(res.content).toContain('could not finish');
+  /**
+   * A failure before anything ran is the whole answer, and it has to reach the
+   * boundary. Swallowing it turns a 424 "Atlas AI needs an API key" into a 200
+   * with an apology in it — which disarms the local capture fallback, so a
+   * brand-new account's very first capture writes nothing at all. That is the
+   * most expensive bug this project has shipped, and this is what stops it
+   * coming back through the tool loop.
+   */
+  it('rethrows when nothing had been applied, so typed errors survive', async () => {
+    await expect(
+      runToolLoop({
+        messages: [],
+        tools: TOOLS,
+        chat: async () => {
+          throw new Error('Atlas AI needs an API key');
+        },
+        executeTool: async () => ({ result: {} }),
+      }),
+    ).rejects.toThrow(/needs an API key/);
   });
 });

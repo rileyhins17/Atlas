@@ -14,6 +14,7 @@ import { formatClock } from '@/lib/dates';
 import { NowNext } from './NowNext';
 import { RunningLate } from './RunningLate';
 import { MoodCheckIn } from './MoodCheckIn';
+import { TrackerCheckIn } from '@/components/trackers/TrackerCheckIn';
 import { FreeTime } from './FreeTime';
 import { SlippedTasks } from './SlippedTasks';
 import { TodayChecklist } from './TodayChecklist';
@@ -101,6 +102,7 @@ export function DayOverviewView({
           from use, so it is asked for before the day is shown rather than after
           — a question below the fold is a question nobody answers. */}
       {isToday && <MoodCheckIn />}
+      {isToday && <TrackerCheckIn />}
 
       {/* Today only: "push the rest of the day" has nothing to push from on a
           date that has already happened or has not started. */}

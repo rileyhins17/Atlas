@@ -8,10 +8,16 @@ import { IconButton, Kbd } from '@/components/ui';
 import { useAtlasUi } from './AtlasUiProvider';
 import { Markdown } from './Markdown';
 
-/** What Atlas did in response to one message, shown with that message. */
+/**
+ * What Atlas did in response to one message, shown with that message.
+ *
+ * Appended in the same order as the assistant replies and matched by counting
+ * them, rather than carrying an index into `messages`. The index version
+ * computed `at: m.length` INSIDE a `setMessages` updater — a side effect in a
+ * function React is allowed to call more than once, which duplicated the entry
+ * whenever it did.
+ */
 interface Turn {
-  /** Index into `messages` of the assistant reply these belong to. */
-  at: number;
   actions: string[];
   failed: boolean;
 }
@@ -117,31 +123,21 @@ export function ChatRail() {
         {
           onSuccess: (res) => {
             const ok = res.toolExecutions.filter((t) => t.ok);
-            setMessages((m) => {
-              // Attach the actions to THIS reply, by its index. The old UI put
-              // them in a single strip under the whole conversation, so after a
-              // second question you could no longer tell what caused what.
-              setTurns((t) => [
-                ...t,
-                { at: m.length, actions: ok.map((x) => x.summary || x.name), failed: false },
-              ]);
-              return [...m, { role: 'assistant', content: res.content }];
-            });
+            // Two plain appends. The old UI put every action in one strip under
+            // the whole conversation, so after a second question you could no
+            // longer tell what had caused what.
+            setTurns((t) => [...t, { actions: ok.map((x) => x.summary || x.name), failed: false }]);
+            setMessages((m) => [...m, { role: 'assistant', content: res.content }]);
             recordChanges(
               ok.map((t) => ({ summary: t.summary || t.name, undo: t.undo ? [t.undo] : [] })),
             );
           },
           onError: (err) => {
-            setMessages((m) => {
-              setTurns((t) => [...t, { at: m.length, actions: [], failed: true }]);
-              return [
-                ...m,
-                {
-                  role: 'assistant',
-                  content: errorMessage(err, 'Atlas could not answer that'),
-                },
-              ];
-            });
+            setTurns((t) => [...t, { actions: [], failed: true }]);
+            setMessages((m) => [
+              ...m,
+              { role: 'assistant', content: errorMessage(err, 'Atlas could not answer that') },
+            ]);
           },
         },
       );
@@ -225,7 +221,17 @@ export function ChatRail() {
 
   if (!chatOpen) return null;
 
-  const turnFor = (i: number) => turns.find((t) => t.at === i);
+  /**
+   * The turn belonging to the assistant message at `i` — the Nth assistant
+   * message takes the Nth turn. Counting rather than storing an index means a
+   * transcript restored from anywhere still lines up, and there is no number to
+   * keep in step.
+   */
+  const turnFor = (i: number) => {
+    let n = -1;
+    for (let k = 0; k <= i; k += 1) if (messages[k]!.role === 'assistant') n += 1;
+    return n >= 0 ? turns[n] : undefined;
+  };
 
   return (
     <aside className="chat-rail" aria-label="Atlas chat">
@@ -329,10 +335,10 @@ export function ChatRail() {
                       className="chat-act"
                       onClick={() => {
                         // Drop the failed exchange before retrying, so the
-                        // history sent to the model does not contain the error
+                        // history sent to the model does not carry the error
                         // message as if Atlas had said it.
                         setMessages((prev) => prev.slice(0, -2));
-                        setTurns((t) => t.filter((x) => x.at < messages.length - 1));
+                        setTurns((t) => t.slice(0, -1));
                         send(lastSent);
                       }}
                     >

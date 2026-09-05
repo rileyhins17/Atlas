@@ -73,6 +73,8 @@ model User {
   insights       Insight[]
   aiQuestions    AiQuestion[]
   aiUsage        AiUsage[]
+  trackers       Tracker[]
+  trackerEntries TrackerEntry[]
 
   @@map("users")
 }
@@ -661,4 +663,60 @@ model AiUsage {
   @@index([day])
   @@index([userId, day])
   @@map("ai_usage")
+}
+
+/// Something the user has decided to watch, rated once a day on a 1-10 scale.
+///
+/// Generic on purpose. The request that produced it was for a bloating rating,
+/// and the next one will be soreness or anxiety or skin — so the thing to store
+/// is the primitive, not any one of them.
+model Tracker {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  /// One emoji, or null. Purely so a list of six is scannable.
+  emoji     String?
+  /// higher_better | lower_better | neutral. Without it a tracker cannot be
+  /// summarised: "up 2 points" is good news for energy and bad news for pain,
+  /// and rendering both the same is worse than rendering neither.
+  direction String   @default("neutral")
+  /// What 1 and 10 mean, in the user's own words.
+  lowLabel  String?
+  highLabel String?
+  /// Archived rather than deleted, so the history it collected survives.
+  active    Boolean  @default(true)
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  entries TrackerEntry[]
+
+  /// One "Bloating" per person.
+  @@unique([userId, name])
+  @@index([userId, position])
+  @@map("trackers")
+}
+
+/// One day's rating.
+///
+/// Keyed by LOCAL day rather than by timestamp: a rating is a statement about a
+/// day, and which day that is depends on the user's timezone, not on UTC. The
+/// unique constraint is what makes re-rating an edit instead of a second row.
+model TrackerEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trackerId String
+  tracker   Tracker  @relation(fields: [trackerId], references: [id], onDelete: Cascade)
+  /// YYYY-MM-DD in the user's timezone.
+  dayKey    String
+  value     Int
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([trackerId, dayKey])
+  @@index([userId, dayKey])
+  @@map("tracker_entries")
 }

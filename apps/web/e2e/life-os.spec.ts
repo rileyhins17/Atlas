@@ -1818,3 +1818,94 @@ test('a superset is one round, and the rest timer waits for the end of it', asyn
   // every spec that runs after this one.
   await page.getByRole('button', { name: 'Finish' }).click();
 });
+
+/**
+ * Rate anything, once a day.
+ *
+ * The generic answer to a specific request — someone asked for a bloating
+ * rating, and the next person wants soreness or anxiety. What this pins is the
+ * part that makes it a tracker rather than a notes field: one rating per day,
+ * so rating again is an EDIT. Two rows for one day would silently double a
+ * day's vote in every average and contrast built on it.
+ */
+test('a daily tracker records one rating per day, and correcting it is an edit', async ({
+  page,
+}) => {
+  // An origin first: a credentialed same-origin fetch needs one, and the very
+  // first evaluate in a spec runs on about:blank.
+  await go(page, '/today');
+
+  // Own baseline. The first-run wizard owns the screen until an account has
+  // something in it, and a tracker deliberately does not count — the wizard
+  // exists to write a routine.
+  await page.evaluate(async () => {
+    const base = window.location.hostname === 'localhost' ? 'http://localhost:4000' : '/api';
+    await fetch(`${base}/routine/blocks`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        label: 'Sleep',
+        kind: 'sleep',
+        days: 127,
+        startMin: 1380,
+        endMin: 420,
+      }),
+    });
+  });
+
+  // Nothing set up: Today must not nag about a feature nobody asked for.
+  // Re-loaded so the assertion lands on the real overview rather than on the
+  // wizard, where it would pass without meaning anything.
+  await go(page, '/today');
+  await expect(page.locator('.ov-block').first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.trk-card')).toHaveCount(0);
+
+  await go(page, '/settings');
+  await page.getByRole('button', { name: /Daily check-ins/i }).click();
+  // A suggestion, because "track anything" is a blank page and a blank page is
+  // why generic tools go unused.
+  await page.getByRole('button', { name: /Soreness/ }).click();
+  await expect(page.locator('.trk-manage-row')).toContainText('Soreness', { timeout: 20_000 });
+
+  await go(page, '/today');
+  const card = page.locator('.trk-card');
+  await expect(card).toBeVisible({ timeout: 20_000 });
+  await expect(card).toContainText('Soreness');
+
+  await page.getByRole('radio', { name: 'Soreness: 7 out of 10' }).click();
+  await expect(page.locator('.trk-answered')).toHaveText('7/10', { timeout: 20_000 });
+
+  // Change your mind. This is the assertion the feature turns on.
+  await page.getByRole('radio', { name: 'Soreness: 3 out of 10' }).click();
+  await expect(page.locator('.trk-answered')).toHaveText('3/10', { timeout: 20_000 });
+
+  const stored = await page.evaluate(async () => {
+    const base = window.location.hostname === 'localhost' ? 'http://localhost:4000' : '/api';
+    const list = (await (
+      await fetch(`${base}/trackers`, { credentials: 'include' })
+    ).json()) as { id: string; name: string; todayValue: number | null }[];
+    const soreness = list.find((t) => t.name === 'Soreness')!;
+    const history = (await (
+      await fetch(`${base}/trackers/${soreness.id}/history`, { credentials: 'include' })
+    ).json()) as unknown[];
+    return { today: soreness.todayValue, rows: history.length };
+  });
+  // ONE row for the day, holding the corrected number.
+  expect(stored).toEqual({ today: 3, rows: 1 });
+
+  // And it survives a reload rather than only living in the button state.
+  await go(page, '/today');
+  await expect(page.locator('.trk-answered')).toHaveText('3/10', { timeout: 20_000 });
+
+  // Leave nothing behind: this account is shared with every spec after it.
+  await page.evaluate(async () => {
+    const base = window.location.hostname === 'localhost' ? 'http://localhost:4000' : '/api';
+    const list = (await (
+      await fetch(`${base}/trackers`, { credentials: 'include' })
+    ).json()) as { id: string }[];
+    for (const t of list) {
+      await fetch(`${base}/trackers/${t.id}`, { method: 'DELETE', credentials: 'include' });
+    }
+  });
+});

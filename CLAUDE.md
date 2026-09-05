@@ -72,7 +72,7 @@ packages/shared      zod DTOs, enums, AI contracts, and PURE domain logic
 packages/connectors  Connector interface, DeepSeek, Google Calendar, Plaid.
 packages/ai          pricing, CostGuard, context-builder, wire-safe tool names,
                      runToolLoop, LocalEmbedder.
-apps/api             NestJS. core/ + auth/ + modules/{tasks,habits,journal,notes,
+apps/api             NestJS. core/ + auth/ + modules/{tasks,habits,trackers,journal,notes,
                      calendar,finance,fitness,routine,stats,timeline,push,
                      settings,account,ai}.
 apps/web             Next 15. app/ routes, components/{canvas,panels,atlas,ui,
@@ -129,7 +129,23 @@ of the design work in v10 came from reading those PNGs, not the source.
 
 ## Current state
 
-Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **757 unit tests** · **e2e 44/44** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop.
+Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **1275 unit tests** · **e2e 47/47** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop.
+
+**Trackers are the eighth domain.** "Rate anything, once a day, on a 1-10 scale"
+— the generic answer to a request for a bloating rating, because the next person
+wants soreness or anxiety and a feature for any one of them is too niche to
+build and too reasonable to refuse. Archived rather than deleted (the ratings
+are the point), keyed by LOCAL day so re-rating is an edit, and it feeds the
+same counting engine as the mood patterns: "Bloating averaged 6.8 on days you
+trained and 3.1 on days you did not", stated as the observation and never as the
+cause.
+
+**The chat rail renders markdown**, through a parser in `packages/shared` that
+returns NODES rather than an HTML string — so React renders them, there is no
+`dangerouslySetInnerHTML`, and model output cannot inject markup by
+construction. That matters here more than anywhere else: it is text that has
+been through a language model and can quote whatever the user's notes contain.
+`javascript:` and `data:` links are dropped, keeping their words.
 
 **"axe clean" means zero violations, not zero serious ones, and it means every route.** The scans
 used to filter to `serious`/`critical`, which silently discarded `meta-viewport` — a real WCAG 1.4.4
@@ -175,10 +191,18 @@ The short version of what is STILL open:
 - **Supabase free takes no backups.** This is the biggest single risk to real data (journal,
   finance, fitness). `infra/atlas-backup.ps1` is written and tested — nightly `pg_dump --format=custom`,
   14 daily + 8 weekly retention, credentials passed as PG* env vars so no password reaches argv.
-  It needs **one human step**: `winget install -e --id PostgreSQL.PostgreSQL.17` (the server is
-  PG 17.6 and pg_dump refuses to dump a newer server than itself). Then
-  `powershell -File infratlas-backup.ps1 -Register`. Still outstanding after that: an
-  off-machine destination, and a restore drill — an unrestored backup is a hypothesis.
+  **PostgreSQL 17 is now installed**, so the blocking step is done. What remains is
+  `powershell -File infra/atlas-backup.ps1 -Register`, an off-machine destination, and a restore
+  drill — an unrestored backup is a hypothesis.
+- **Moving to `ca-central-1` is half done.** 383ms per round trip from Oregon is the single largest
+  cause of the app feeling slow. The new Supabase project exists (`dieyrvswjgvocauixvwi`) and a full
+  dump of us-west-2 is taken and verified (2,194 tasks, 636 journal entries, 2,698 timeline rows,
+  147 workouts, in `.db-moves/`). `infra/db-move.py` does the dump and restore with credentials in
+  PG* env vars rather than argv — `db-switch.ps1` only moves the POINTER, which is right for an
+  empty target and very wrong here. Remaining: `supabase-connect.ps1 -ProjectRef
+  dieyrvswjgvocauixvwi -Region ca-central-1 -WriteOnly` (prompts for the password without echoing
+  it), restore, compare `db-move.py counts` on both hosts, then switch. A running origin holds its
+  DB config in memory, so it keeps serving the old host throughout — the move needs no downtime.
 - **Rotate the Plaid production secret** — it was pasted into a chat transcript. Needs Riley's Plaid
   login; nobody else can do it.
 - **`SENTRY_DSN` is unset**, so the error reporting that is now wired in reports nothing.

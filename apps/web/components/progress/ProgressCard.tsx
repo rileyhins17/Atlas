@@ -25,3 +25,22 @@ export function ProgressCard({
     </section>
   );
 }
+
+/**
+ * What a chart shows when it has nothing to show.
+ *
+ * A flat line pinned to zero under the caption "0 in 30 days · peak 0 in a
+ * week" is not a chart, it is a full-size card saying nothing — and it reads as
+ * broken rather than as empty. Reported from a phone as "this page is ugly".
+ *
+ * One sentence naming the one action that would fill it in is both smaller and
+ * more useful than the shape it replaces.
+ */
+export function NothingYet({ children }: { children: React.ReactNode }) {
+  return <p className="prog-nothing">{children}</p>;
+}
+
+/** True when a series has no signal at all — every bucket empty. */
+export function hasNothing(points: number[]): boolean {
+  return points.length === 0 || points.every((n) => n === 0);
+}

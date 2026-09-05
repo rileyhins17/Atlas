@@ -35,4 +35,7 @@ export const qk = {
   activeWorkout: ['fitness', 'active'] as const,
   workouts: ['fitness', 'workouts'] as const,
   lastPerformance: (exerciseId: string) => ['fitness', 'last', exerciseId] as const,
+  trackers: ['trackers'] as const,
+  trackerOverview: (days: number) => ['trackers', 'overview', days] as const,
+  trackerPatterns: ['trackers', 'patterns'] as const,
 };
