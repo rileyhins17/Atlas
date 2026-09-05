@@ -118,12 +118,14 @@ pnpm test                  # 1275 unit tests
 pnpm --filter @atlas/web exec playwright test    # 48 e2e (Playwright + axe)
 ```
 
-CI (`.github/workflows/ci.yml`) runs build → typecheck --force → lint → test on one job,
-and a second job that stands up a `pgvector/pgvector:pg16` service, applies
-migrations, and runs the full Playwright suite. A third job restores the private
-backup into disposable pgvector and asserts exact snapshot counts; see
-[`docs/backup-restore-drill.md`](./docs/backup-restore-drill.md) for private archive
-setup. Missing backup access fails that gate. **Nothing merges without all three.**
+CI (`.github/workflows/ci.yml`) runs three jobs, and **nothing merges without all
+three**: build → typecheck → lint → test; a Playwright job against a
+`pgvector/pgvector:pg16` service; and a restore drill that builds a database
+from this repo's own migrations, dumps it, and restores it — proving the shipped
+schema round-trips through `pg_dump`, pgvector column included. The drill is
+synthetic on purpose; see
+[`docs/backup-restore-drill.md`](./docs/backup-restore-drill.md) for why the real
+backup is verified locally instead.
 
 Two things about this that have caught people:
 

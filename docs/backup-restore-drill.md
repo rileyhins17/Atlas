@@ -1,76 +1,96 @@
-# Proving the September 2026 backup
+# The restore drill
 
-The `Prove private backup restores` CI job restores the private snapshot into
-`pgvector/pgvector:pg17` and checks exact `COUNT(*)` results:
+An unrestored backup is a hypothesis. This is how Atlas tests it, and why the
+test is split in two.
 
-| Table | Expected rows |
-| --- | ---: |
-| tasks | 2,194 |
-| journal_entries | 636 |
-| timeline_events | 2,698 |
-| workouts | 147 |
+There are two different questions here, and conflating them is how you end up
+either with a check that proves nothing or with three people's journals on a
+CI runner:
 
-These are the snapshot counts recorded in HANDOFF.md, not new measurements of
-production. A green run is the evidence that this archive actually restores.
-The manifest lives in `.github/restore-counts.json`. For a replacement snapshot,
-review its independently captured counts and checksum together; never change
-the manifest merely to make an unexpected restore result pass.
+| Question | Answered by | Runs |
+|---|---|---|
+| Can a dump of Atlas's schema be restored at all? | a **synthetic** drill | CI, every push |
+| Is *this particular backup* good? | a **local** drill on the real dump | the machine holding it |
 
-## Supply the private archive
+---
 
-`.db-moves/` must remain gitignored. CI cannot receive these files from checkout.
-Put the existing dump in owner-controlled private HTTPS storage, then configure:
-
-- Actions secret `ATLAS_RESTORE_DUMP_URL`: a read-only HTTPS download URL for the
-  dump (a signed URL is supported; renew it before it expires).
-- Actions variable `ATLAS_RESTORE_DUMP_SHA256`: its SHA-256 checksum, computed
-  locally with `Get-FileHash -Algorithm SHA256 <path-to-dump>`.
-
-Never put the URL, backup bytes, production database credentials or encryption
-key in a commit, PR, log or artifact. The runner downloads the archive as
-`.db-moves/ci-snapshot.dump` and checks the checksum before restoring it. A
-missing secret, inaccessible download, expired URL or checksum mismatch fails
-the job. Fork PRs do not receive secrets and therefore cannot satisfy this gate;
-maintainers must review and run a trusted branch in the private repository.
-Do not use `pull_request_target` to run untrusted code with backup access.
-
-## What the drill proves
-
-The runner creates a unique container with `--network none`, no published ports
-and no host mounts. It copies the archive in, creates a fresh database from
-`template0`, restores using `--exit-on-error --single-transaction --no-owner
---no-privileges`, then checks exact counts and the real vector column type.
-It never reads `.env`, accepts a database URL, runs migrations or starts Atlas.
-It removes only its newly created container and anonymous volume in `finally`;
-CI also removes the downloaded file, including after failure.
-
-The fresh database already has the `public` schema, so the restore list omits
-only that schema's creation entry. Every table, data and constraint entry is
-retained. Public-only Supabase dumps can reference an extension they did not
-include; the drill provisions pgvector in `extensions` or `public` according to
-the archive's schema before restoring. PostgreSQL 17 matches the dump tooling
-documented in HANDOFF.md; the existing e2e job keeps its own PostgreSQL 16.
-
-The log contains only archive numbers, exact counts and status. Raw database
-errors are deliberately withheld because a failed COPY can include private
-row contents. A failure is never converted to success based on stderr text.
-
-To run against local archives on a machine with Docker available:
+## The CI drill — synthetic, every push
 
 ```bash
-python .github/scripts/restore_backup.py
+python3 .github/scripts/restore_backup.py --synthetic
 ```
 
-Every `.db-moves/*.dump` gets its own fresh container and must match the manifest.
-Do not mix snapshots with different expected counts in this drill directory.
-The command without `--download` does not use the storage secret or change the
-source dumps. To test the safety contracts without Docker or private data:
+It builds a database from this repository's own migrations, seeds known row
+counts, dumps it, restores that dump into a second throwaway server, and asserts
+every row came back — plus that pgvector is present and `embeddings.embedding`
+really is a `vector` column, because a "successful" restore that quietly leaves
+that column as `bytea` is the failure mode that matters here.
+
+Reading the real migrations rather than a hand-written fixture is the point: a
+drill against a schema nobody ships proves nothing about the schema everybody
+does. If a migration ever produces something that cannot round-trip through
+`pg_dump`, this goes red on the commit that introduced it.
+
+It needs no secrets, so it works on a fork, and it is deterministic.
+
+**Why it does not restore the production dump.** That file holds three people's
+journal entries, finance transactions and fitness logs. Fetching it into a
+GitHub-hosted runner would widen who can read it from one person to everyone
+with write access to this repository — anyone who can add a workflow can print a
+secret — plus GitHub's own infrastructure. That is a poor trade for a check that
+synthetic data makes equally well. The real dump never leaves the machine that
+made it.
+
+There is a second, practical reason. Asserting exact row counts against a live
+database means the gate goes red the next time somebody adds a task. A check
+that is permanently failing for a boring reason is a check everybody learns to
+ignore.
+
+---
+
+## The local drill — the real dump, where it lives
+
+The nightly backup already refuses to call a dump a backup unless it contains
+the tables:
 
 ```bash
-python -m unittest discover -s .github/scripts -p 'test_*.py'
+powershell -File infra/atlas-backup.ps1
 ```
 
-This proves recovery of a specific snapshot. It does not register the nightly
-backup task, select an off-machine retention policy, prove newer data is backed
-up, or prove encrypted connector credentials can be decrypted without the
-separately retained production encryption key.
+It counts `TABLE DATA public` entries in the archive and fails below 15. This
+exists because the alternative happened: with `DATABASE_URL` pointed at an
+empty project mid-migration, the 03:30 run dumped it happily, wrote 0.2 MB, and
+logged `ok`. Not one application table was in it, and the 14-day rotation would
+have replaced every good backup with that.
+
+Counting tables is not the same as restoring, though, so the full drill is still
+outstanding and still needs a person:
+
+```bash
+# With Docker available:
+python3 .github/scripts/restore_backup.py
+
+# Reads .db-moves/*.dump, restores each into a disposable offline container,
+# and asserts the counts in .github/restore-counts.json.
+```
+
+**Both are currently blocked on this machine**: Docker Desktop does not start
+here, and the locally installed PostgreSQL 17 server needs a superuser password
+that is not in `.env`. Until one of those is resolved, the real dump has been
+verified by *inspection* (`pg_restore --list` shows 27 `public` tables) and not
+by restoration. Say that accurately; do not describe it as drilled.
+
+`.github/restore-counts.json` holds the counts to assert. Update it when the
+real numbers move, or the local drill will fail for the wrong reason.
+
+---
+
+## What the drill will not do
+
+- It never reads `.env` and never accepts a database URL, so it cannot be
+  pointed at production by accident.
+- The throwaway container runs with `--network none` and no published port.
+- Postgres output is captured, never logged: a failing `COPY` line contains the
+  row it choked on, which here means journal text or a password hash.
+- It removes only the container it created, with its anonymous volume. It runs
+  no `DROP` against anything it did not make.
