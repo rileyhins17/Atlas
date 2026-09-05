@@ -12,8 +12,9 @@ import {
 } from '@atlas/shared';
 import type { Tracker, TrackerEntry } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
+import { UserTimezoneService } from '../../core/user-timezone.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
-import { dayKeyInTz, safeTz } from '../ai/time.util.js';
+import { dayKeyInTz } from '../ai/time.util.js';
 
 /**
  * Anything the user has decided to watch, rated once a day.
@@ -34,14 +35,11 @@ export class TrackersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly timeline: TimelineService,
+    private readonly timezones: UserTimezoneService,
   ) {}
 
   private async timezoneOf(userId: string): Promise<string> {
-    const user = await this.prisma.client.user.findUnique({
-      where: { id: userId },
-      select: { timezone: true },
-    });
-    return safeTz(user?.timezone || 'UTC');
+    return this.timezones.get(userId);
   }
 
   /** Ownership-scoped read, shared with the AI tool router. */

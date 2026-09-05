@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthService, type AuthedUser } from './auth.service.js';
+import { UserTimezoneService } from '../core/user-timezone.service.js';
 
 export const SESSION_COOKIE = 'atlas_session';
 
@@ -20,7 +21,10 @@ export interface AuthedRequest extends Request {
  */
 @Injectable()
 export class SessionGuard implements CanActivate {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly timezones: UserTimezoneService,
+  ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const req = ctx.switchToHttp().getRequest<AuthedRequest>();
@@ -29,6 +33,10 @@ export class SessionGuard implements CanActivate {
     const user = await this.auth.userFromToken(token);
     if (!user) throw new UnauthorizedException('Session invalid or expired');
     req.user = user;
+    // The session query already read the timezone, so seeding the cache
+    // here costs nothing and keeps it correct: every authenticated request
+    // refreshes it from the authoritative row, so it cannot go stale.
+    this.timezones.prime(user.id, user.timezone);
     return true;
   }
 }

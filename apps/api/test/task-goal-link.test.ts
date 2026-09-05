@@ -50,7 +50,8 @@ function makeService() {
   const prisma = { client: { task, goal } };
   const timeline = { write: vi.fn().mockResolvedValue(undefined) };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const service = new TasksService(prisma as any, timeline as any);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const service = new TasksService(prisma as any, timeline as any, { get: async () => 'America/Toronto', prime() {}, forget() {} } as any);
   return { service, task, goal };
 }
 

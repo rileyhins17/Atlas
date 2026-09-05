@@ -9,8 +9,9 @@ import {
 } from '@atlas/shared';
 import type { Task } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
+import { UserTimezoneService } from '../../core/user-timezone.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
-import { localDayStartUtc, safeTz } from '../ai/time.util.js';
+import { localDayStartUtc } from '../ai/time.util.js';
 
 function toDto(t: Task): TaskDTO {
   return {
@@ -35,6 +36,7 @@ export class TasksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly timeline: TimelineService,
+    private readonly timezones: UserTimezoneService,
   ) {}
 
   /** Ownership-scoped read, shared with the AI tool router so it can capture
@@ -105,11 +107,7 @@ export class TasksService {
 
   /** Local midnight for this user, from the one clock the whole app buckets by. */
   private async dayStart(userId: string): Promise<Date> {
-    const user = await this.prisma.client.user.findUnique({
-      where: { id: userId },
-      select: { timezone: true },
-    });
-    return localDayStartUtc(safeTz(user?.timezone ?? 'UTC'));
+    return localDayStartUtc(await this.timezones.get(userId));
   }
 
   /**

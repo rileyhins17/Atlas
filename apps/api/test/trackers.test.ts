@@ -62,7 +62,11 @@ function makeService(opts: { timezone?: string } = {}) {
       },
     },
   };
-  const service = new TrackersService(prisma as never, { write: vi.fn(async () => {}) } as never);
+  const service = new TrackersService(
+    prisma as never,
+    { write: vi.fn(async () => {}) } as never,
+    { get: async () => opts.timezone ?? 'America/Toronto', prime() {}, forget() {} } as never,
+  );
   return { service, prisma, upserts, tracker };
 }
 

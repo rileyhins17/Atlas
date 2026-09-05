@@ -68,6 +68,7 @@ function makeOrchestrator(chunks: ReturnType<typeof chunk>[] = []) {
     embeddings as never,
     {} as never,
     { estimates: vi.fn(async () => []), energy: vi.fn(async () => null) } as never,
+    { get: async () => 'America/Toronto', prime() {}, forget() {} } as never,
   );
   return { service, seen };
 }

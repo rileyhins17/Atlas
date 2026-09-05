@@ -173,6 +173,22 @@ in light. The rule to apply when writing it is *whenever a `color-mix` of `--bra
 background, the text on it is `--brand-on-tint`* — the sibling `.cal-day` rule guards the same
 combination with `:not(.on)`.
 
+**Every authenticated request costs two round trips, and it used to cost four.**
+`SessionGuard` resolves the session with one hand-written join
+(`AuthService.userFromToken`) rather than `include: { user: true }`, which
+Prisma issues as two queries — measured 27ms + 28ms on endpoints whose own work
+is ~56ms. And `UserTimezoneService` (in `core/`, `@Global`) holds the user's
+timezone, which six services were each re-reading with their own
+`SELECT timezone FROM users`. The guard primes that cache from the session row
+on every request, so it refreshes itself from the authoritative read and cannot
+go stale; Settings invalidates it on write. Endpoints measure ~55ms warm.
+
+**Benchmark against `127.0.0.1`, never `localhost`.** On this machine curl
+resolves `localhost` to `::1`, waits, and falls back — 218ms versus 60ms for
+the identical request. Cross-check any number against the API's own
+`durationMs` log line. `PRISMA_LOG_QUERIES=1` prints every statement and its
+duration, which is how the two findings above were found.
+
 ### Known gaps — tracked, not hidden
 **`docs/production-readiness.md` is the authoritative list**, written from a 154-assertion API stress
 pass and a full-route UI pass. It is ordered by what blocks shipping and says what was measured

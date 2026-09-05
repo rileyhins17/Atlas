@@ -21,7 +21,7 @@ function makeService(opts: { tasks?: unknown[]; timezone?: string } = {}) {
   };
   return {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    service: new TasksService({ client } as any, timeline as any),
+    service: new TasksService({ client } as any, timeline as any, { get: async () => 'America/Toronto', prime() {}, forget() {} } as any),
     findMany,
     updateMany,
     timeline,

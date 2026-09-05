@@ -2,6 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { CostGuard } from '@atlas/ai';
 import { ActivityService } from './activity.service.js';
 import { PrismaService } from './prisma.service.js';
+import { UserTimezoneService } from './user-timezone.service.js';
 import { CryptoService } from './crypto.service.js';
 import { TimelineService } from './timeline.service.js';
 import { MemoryService } from './memory.service.js';
@@ -20,6 +21,7 @@ import { SchemaCheckService } from './schema-check.service.js';
   controllers: [HealthController],
   providers: [
     ActivityService,
+    UserTimezoneService,
     SchemaCheckService,
     PrismaService,
     CryptoService,
@@ -31,6 +33,7 @@ import { SchemaCheckService } from './schema-check.service.js';
   ],
   exports: [
     ActivityService,
+    UserTimezoneService,
     SchemaCheckService,
     PrismaService,
     CryptoService,
