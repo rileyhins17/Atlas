@@ -217,9 +217,12 @@ export class PlaidSyncService {
         );
       }
 
-      for (const removedId of sync.removed) {
+      // One statement, not one per id. `sync.removed` is a whole Plaid page of
+      // removals, so a delete each was a round trip each — hundreds of them on
+      // the first sync of an account with any history behind it.
+      if (sync.removed.length > 0) {
         const { count } = await this.prisma.client.transaction.deleteMany({
-          where: { userId, source: CONNECTOR_ID, externalId: removedId },
+          where: { userId, source: CONNECTOR_ID, externalId: { in: sync.removed } },
         });
         result.deleted += count;
       }

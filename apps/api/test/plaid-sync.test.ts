@@ -101,9 +101,14 @@ describe('PlaidSyncService.sync', () => {
     expect(createArg.data.merchantName).toBe('Cafe');
     expect(createArg.data.category).toBe('Food');
 
-    // Removed transaction deleted by external id.
+    // Removed transactions deleted by external id, in ONE statement rather than
+    // one per id: `sync.removed` is a whole Plaid page, so a delete each was a
+    // round trip each.
+    expect(transaction.deleteMany).toHaveBeenCalledTimes(1);
     expect(transaction.deleteMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ externalId: 'tGone', source: 'plaid' }) }),
+      expect.objectContaining({
+        where: expect.objectContaining({ externalId: { in: ['tGone'] }, source: 'plaid' }),
+      }),
     );
 
     // Cursor from the stored meta was used, and the new cursor persisted for item-1.
