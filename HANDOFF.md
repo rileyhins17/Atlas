@@ -51,36 +51,30 @@ The guard is now `if (toolExecutions.length === 0) throw err;`. Do not remove it
 
 ## Open work, in priority order
 
-### 1. The 383ms tax — half done, needs one human command
+### 1. ~~The 383ms tax~~ — done
 
-Every database round trip is **383ms**, measured, because the database is in
-`aws-0-us-west-2` (Oregon) and the user is in Toronto. `/today` fires 14 calls
-and still shows skeletons after 2.6 seconds. This is the single largest reason
-the app feels slow, and it touches no application code.
+`atlaslife.app` now runs on `ca-central-1`. Measured on the same machine within
+the same minute: a round trip was **387 ms** to us-west-2 through the
+transaction pooler, and is **26 ms** to ca-central-1 through the session
+endpoint. API endpoints measured 540 ms → 310 ms from moving off the pooler
+alone.
 
-Already done: the target project exists (`dieyrvswjgvocauixvwi`, `ca-central-1`),
-a verified dump of the current database sits in `.db-moves/`, and
-`infra/db-move.py` does dump/restore with credentials in `PG*` env vars rather
-than argv.
+Two things worth keeping from how it went:
 
-**`.db-moves/` is gitignored and exists only on the machine that made it.** That
-is not an oversight to fix by uploading it somewhere: the file is a full
-production dump containing three real people's journal entries, finance
-transactions and fitness logs. It must never reach CI, an artifact store, a
-GitHub secret, or any environment an agent can read. Anything that needs to
-prove a restore path works must generate its own synthetic dump.
+- **Use the session endpoint (5432), not the transaction pooler (6543).**
+  The pooler is for many short-lived clients sharing few connections. Atlas is
+  one long-lived process with Prisma's own pool, so Supavisor was pure overhead
+  — 135 ms versus 26 ms for the identical query against the identical database.
+  `connection_limit=10` is pinned on the URL so Prisma does not open more
+  session connections than a free tier wants.
+- **Create pgvector in the schema the SOURCE used.** us-west-2 has it in
+  `public`, so the dump says `public.vector(768)`. Putting it in `extensions` on
+  the target — Supabase's default, and where `pgcrypto` already lived — fails
+  only the `embeddings` table, with `type "public.vector" does not exist`, while
+  the other 26 restore cleanly. That looks like a corrupt dump and is not one.
 
-Remaining, and only the owner can run the first line because it prompts for a
-password:
-
-```bash
-powershell -File infra/supabase-connect.ps1 -ProjectRef dieyrvswjgvocauixvwi -Region ca-central-1 -WriteOnly
-python infra/db-move.py restore DATABASE_URL
-python infra/db-move.py counts DATABASE_URL      # compare against the old host
-```
-
-A running origin holds its DB config in memory, so it keeps serving the old host
-throughout — the move needs no downtime.
+The us-west-2 project still holds the data as of the switch. Leave it until the
+new host has some runtime behind it.
 
 ### 2. Known gaps
 

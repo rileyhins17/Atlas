@@ -404,3 +404,69 @@ data was never touched.
 Two rules follow. Restore and verify counts BEFORE switching the pointer, never
 after. And if the site is up but every login 500s, check which database `.env`
 names before looking at anything in the auth code.
+
+## pg_restore: `type "public.vector" does not exist` on one table only
+
+Moving a Supabase database, 26 of 27 tables restore cleanly and `embeddings`
+fails with:
+
+```
+ERROR:  type "public.vector" does not exist
+LINE 8:     embedding public.vector(768),
+```
+
+It looks like a corrupt dump. It is not. `pg_dump` writes the type
+schema-qualified as the SOURCE has it, and us-west-2 has pgvector installed in
+`public`. Creating the extension on the target with
+`CREATE EXTENSION vector WITH SCHEMA extensions` — which is Supabase's default
+and where `pgcrypto` already sits — puts the type somewhere the dump does not
+reference.
+
+Create it where the source had it:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;
+```
+
+Then `pg_restore --table embeddings` the one table that failed, rather than
+re-running the whole restore, which would duplicate the 26 that worked.
+
+`packages/db/scripts/verify.mjs` is what confirms the result: it checks the
+extension exists AND that `embeddings.embedding` is really typed `vector`, which
+a clean `migrate deploy` does not.
+
+## Supabase's transaction pooler costs ~110ms a query, for nothing Atlas needs
+
+Measured on one machine within one minute, same database, same query:
+
+| endpoint | round trip |
+|---|---|
+| `…pooler.supabase.com:6543` (transaction) | 135 ms |
+| `…pooler.supabase.com:5432` (session) | 26 ms |
+
+Supavisor's transaction pooler exists so that many short-lived clients —
+serverless functions, per-request lambdas — can share a small number of Postgres
+connections. Atlas is one long-lived NestJS process with Prisma's own connection
+pool, so the pooler adds a hop and solves a problem the app does not have. API
+endpoints measured 540 ms → 310 ms purely from moving `DATABASE_URL` to 5432.
+
+Pin `?connection_limit=10` when you do, or Prisma defaults to cores × 2 + 1 and
+opens more session connections than a free tier is happy to hand out.
+
+## `pg_restore --table` leaves the indexes behind
+
+Recovering one table from a dump with `--table embeddings` restores the table
+and its rows and **not** its primary key, unique indexes or foreign keys —
+those are separate TOC entries and `--table` does not select them.
+
+Nothing complains. Row counts match, reads work, `verify.mjs` passes. The first
+symptom is a 500 on the first write that needs a constraint: `embedding.upsert`
+requires `embeddings_ownerType_ownerId_key`, so after the ca-central-1 move
+every journal entry, note and mood check-in failed while the rest of the app
+looked perfect. Three e2e specs caught it; the row-count comparison did not,
+because the rows were all there.
+
+`python infra/db-move.py verify <src-key> <dst-key>` compares every index and
+constraint in `public` between two hosts and exits non-zero on a difference.
+Run it after any partial restore, not just after a full one. Matching row counts
+are not a matching database.
