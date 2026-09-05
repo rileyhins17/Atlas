@@ -118,9 +118,12 @@ pnpm test                  # 1275 unit tests
 pnpm --filter @atlas/web exec playwright test    # 48 e2e (Playwright + axe)
 ```
 
-CI (`.github/workflows/ci.yml`) runs lint → build → typecheck → test on one job,
+CI (`.github/workflows/ci.yml`) runs build → typecheck --force → lint → test on one job,
 and a second job that stands up a `pgvector/pgvector:pg16` service, applies
-migrations, and runs the full Playwright suite. **Nothing merges without both.**
+migrations, and runs the full Playwright suite. A third job restores the private
+backup into disposable pgvector and asserts exact snapshot counts; see
+[`docs/backup-restore-drill.md`](./docs/backup-restore-drill.md) for private archive
+setup. Missing backup access fails that gate. **Nothing merges without all three.**
 
 Two things about this that have caught people:
 

@@ -42,4 +42,5 @@ playwright/.cache/
 infra/data/
 infra/health.log
 .db-moves/
+__pycache__/
 .env.bak-*

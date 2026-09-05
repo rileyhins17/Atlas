@@ -29,17 +29,46 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter @atlas/db generate
 
-      - name: Lint
-        run: pnpm lint
-
       - name: Build
         run: pnpm build
 
       - name: Typecheck
-        run: pnpm typecheck
+        run: pnpm typecheck --force
+
+      - name: Lint
+        run: pnpm lint
 
       - name: Test
         run: pnpm test
+
+      - name: Test restore safety contracts
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+
+  restore-backup:
+    name: Prove private backup restores
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # .db-moves is deliberately gitignored. Never replace this with a seed
+      # dump or an empty-database test: neither proves the real data is safe.
+      # Missing secrets (including fork PRs) FAIL instead of silently skipping.
+      - name: Download private snapshot and prove restore
+        env:
+          ATLAS_RESTORE_DUMP_URL: ${{ secrets.ATLAS_RESTORE_DUMP_URL }}
+          ATLAS_RESTORE_DUMP_SHA256: ${{ vars.ATLAS_RESTORE_DUMP_SHA256 }}
+        run: python3 .github/scripts/restore_backup.py --download
+
+      - name: Remove downloaded snapshot
+        if: always()
+        shell: bash
+        run: rm -f -- .db-moves/ci-snapshot.dump
 
   e2e:
     runs-on: ubuntu-latest

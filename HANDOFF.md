@@ -95,6 +95,15 @@ work on UI consistency, run the sweep rather than trusting the checklist.
 
 These cannot be done by an agent and are listed so nobody re-discovers them:
 
+**Phase 0 restore gate:** CI now has a private-snapshot restore drill; setup and
+its limits are in [`docs/backup-restore-drill.md`](./docs/backup-restore-drill.md).
+The fresh checkout contains no `.db-moves/*.dump`, and Actions had no configured
+secrets or variables when inspected. The job deliberately fails until the
+existing snapshot is supplied through private HTTPS storage and its checksum is
+configured. The code and safety tests do not establish a successful restore;
+do not start the correctness, architecture, UI or performance phases until the
+Phase 0 PR has an observed green restore job and the remaining CI checks pass.
+
 1. **Nightly backups are not running.** `infra/atlas-backup.ps1` is written and
    tested, and PostgreSQL 17 is now installed, so the blocker is gone. Someone
    needs to run `powershell -File infra/atlas-backup.ps1 -Register`, choose an
