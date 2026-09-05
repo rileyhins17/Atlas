@@ -52,6 +52,7 @@ function makeService(rows: ReturnType<typeof evRow>[]) {
   const service = new CalendarService(
     anyCast({ client: { event: { findMany, update }, $transaction } }),
     anyCast({ write }),
+    anyCast({ get: async () => 'America/Toronto', prime() {}, forget() {} }),
   );
   return { service, findMany, update, $transaction, write };
 }

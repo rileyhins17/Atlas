@@ -8,7 +8,8 @@ import type {
 } from '@atlas/shared';
 import type { RoutineBlock } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
-import { dayKeyInTz, safeTz } from '../ai/time.util.js';
+import { UserTimezoneService } from '../../core/user-timezone.service.js';
+import { dayKeyInTz } from '../ai/time.util.js';
 
 function toDto(b: RoutineBlock): RoutineBlockDTO {
   return {
@@ -40,14 +41,13 @@ function shiftDay(day: string, delta: number): string {
 
 @Injectable()
 export class RoutineService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly timezones: UserTimezoneService,
+  ) {}
 
   private async today(userId: string): Promise<string> {
-    const user = await this.prisma.client.user.findUnique({
-      where: { id: userId },
-      select: { timezone: true },
-    });
-    return dayKeyInTz(new Date(), safeTz(user?.timezone ?? 'UTC'));
+    return dayKeyInTz(new Date(), await this.timezones.get(userId));
   }
 
   /**

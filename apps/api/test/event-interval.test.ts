@@ -49,6 +49,8 @@ function makeService(stored: { startAt: Date; endAt: Date }) {
     { client } as any,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     timeline as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    { get: async () => 'America/Toronto', prime() {}, forget() {} } as any,
   );
   return { service, update };
 }

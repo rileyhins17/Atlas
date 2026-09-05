@@ -470,3 +470,40 @@ because the rows were all there.
 constraint in `public` between two hosts and exits non-zero on a difference.
 Run it after any partial restore, not just after a full one. Matching row counts
 are not a matching database.
+
+## `include: { user: true }` is two queries, not one
+
+Prisma's default relation strategy fetches the parent, then fetches the
+relation in a second round trip. It reads as one query and bills as two.
+
+That matters most on the hottest path in the app. `SessionGuard` runs on every
+authenticated request and called
+`session.findUnique({ where: { tokenHash }, include: { user: true } })`, which
+measured 27ms + 28ms against ca-central-1 — on endpoints whose own useful work
+is around 56ms. A third of every response was spent resolving the session.
+
+It is now one hand-written join in `AuthService.userFromToken`. The
+`relationJoins` preview feature fixes the same thing generally, but a preview
+flag on the path that gates the whole API is a worse trade than four lines of
+SQL. The explicit column list is a second win: `include: { user: true }` was
+loading `passwordHash` into memory on every single request.
+
+Check with `PRISMA_LOG_QUERIES=1` before assuming a query count.
+
+## Measuring HTTP on `localhost` from Windows adds ~155ms of nothing
+
+`curl http://localhost:4000/...` resolves `localhost` to `::1` first, waits,
+and falls back to `127.0.0.1`. Measured on this machine, same endpoint, same
+moment:
+
+| target | time |
+|---|---|
+| `http://localhost:4000/tasks` | 218 ms |
+| `http://127.0.0.1:4000/tasks` | 60 ms |
+
+The request logger said `durationMs: 56` throughout, which is what gave it
+away: if the handler and the client disagree by 150ms on a loopback request,
+the client is measuring its own DNS.
+
+Always benchmark against `127.0.0.1`, and cross-check against the API's own
+`durationMs` log line before believing a number.

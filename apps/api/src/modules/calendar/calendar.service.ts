@@ -11,6 +11,7 @@ import {
 } from '@atlas/shared';
 import type { Event } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
+import { UserTimezoneService } from '../../core/user-timezone.service.js';
 import { dayKeyInTz, safeTz } from '../ai/time.util.js';
 import { TimelineService } from '../../core/timeline.service.js';
 
@@ -81,6 +82,7 @@ export class CalendarService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly timeline: TimelineService,
+    private readonly timezones: UserTimezoneService,
   ) {}
 
   /** Ownership-scoped read, shared with the AI tool router so it can capture
@@ -285,13 +287,11 @@ export class CalendarService {
    * event reached the model as 23:00 and came back to the user as 11pm.
    */
   async summarize(userId: string): Promise<string> {
-    const [upcoming, user] = await Promise.all([
+    const [upcoming, tz] = await Promise.all([
       this.list(userId, { from: new Date(), limit: SUMMARY_EVENTS }),
-      this.prisma.client.user.findUnique({ where: { id: userId }, select: { timezone: true } }),
+      this.timezones.get(userId),
     ]);
     if (upcoming.length === 0) return 'No upcoming events.';
-
-    const tz = safeTz(user?.timezone || 'UTC');
     const when = new Intl.DateTimeFormat('en-US', {
       timeZone: tz,
       weekday: 'short',
