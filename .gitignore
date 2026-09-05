@@ -43,3 +43,4 @@ infra/data/
 infra/health.log
 .db-moves/
 .env.bak-*
+backups/

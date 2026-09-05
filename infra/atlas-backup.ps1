@@ -139,9 +139,38 @@ finally {
 
 if (-not (Test-Path $file)) { Fail 'pg_dump reported success but wrote no file.' }
 $sizeMb = [math]::Round((Get-Item $file).Length / 1MB, 2)
-# A dump far smaller than the last one is the shape a silent failure takes, so
-# the size is recorded every night rather than only when something breaks.
-Note "ok  $([System.IO.Path]::GetFileName($file))  ${sizeMb} MB"
+
+# ── Prove the dump contains Atlas, not just a reachable database ─────────────
+#
+# This check exists because the alternative happened. DATABASE_URL was pointed
+# at a freshly created, EMPTY project while a migration was half-finished, and
+# the 03:30 run dumped it perfectly happily: pg_dump succeeded, a 0.2 MB file
+# appeared, and the log recorded "ok". It contained Supabase's own auth and
+# storage schemas and NOT ONE application table. Left alone, the 14-day
+# rotation would have quietly replaced every good backup with that.
+#
+# "The dump is the right size" is not the check — an empty database still
+# produces a plausible-looking file. The check is that the tables holding the
+# data are in there.
+$restore = Join-Path (Split-Path -Parent $pgDump) 'pg_restore.exe'
+if (Test-Path $restore) {
+  $toc = & $restore -l $file 2>&1
+  $publicTables = @($toc | Select-String -Pattern 'TABLE DATA public' -SimpleMatch).Count
+  # Deliberately low. The point is to catch "none of it", not to break the
+  # backup every time a migration adds or removes a table.
+  $minTables = 15
+  if ($publicTables -lt $minTables) {
+    Note "FAIL  $([System.IO.Path]::GetFileName($file))  ${sizeMb} MB  only $publicTables public tables"
+    Fail ("The dump holds $publicTables application tables, expected at least $minTables. " +
+          "It is being kept as $file for inspection, but it is NOT a usable backup — " +
+          "check that DIRECT_DATABASE_URL in .env points at the database Atlas is actually serving.")
+  }
+  Note "ok  $([System.IO.Path]::GetFileName($file))  ${sizeMb} MB  $publicTables tables"
+}
+else {
+  # Still record it, and say why it was not verified, rather than implying it was.
+  Note "ok  $([System.IO.Path]::GetFileName($file))  ${sizeMb} MB  (unverified: pg_restore not found)"
+}
 
 # ── Retention ────────────────────────────────────────────────────────────────
 #
