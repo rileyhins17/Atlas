@@ -7,6 +7,8 @@ import { HabitsService } from './habits.service.js';
 @Injectable()
 export class HabitsAiAdapter implements DomainModule, OnModuleInit {
   readonly id = 'habits';
+  /** See DEFAULT_CONTEXT_PRIORITY for what this ordering is for. */
+  readonly contextPriority = 50;
 
   constructor(
     private readonly habits: HabitsService,

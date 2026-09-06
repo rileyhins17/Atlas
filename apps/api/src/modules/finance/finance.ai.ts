@@ -7,6 +7,8 @@ import { FinanceService } from './finance.service.js';
 @Injectable()
 export class FinanceAiAdapter implements DomainModule, OnModuleInit {
   readonly id = 'finance';
+  /** See DEFAULT_CONTEXT_PRIORITY for what this ordering is for. */
+  readonly contextPriority = 100;
 
   constructor(
     private readonly finance: FinanceService,

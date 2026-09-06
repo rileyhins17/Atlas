@@ -214,6 +214,23 @@ routine is fed back into its context on the next call, so uncapped it inflates
 its own future prompt. When adding an unpaginated `findMany`, the question is
 not "should this paginate" but "what stops this list growing forever".
 
+**Which domain the AI stops being able to see is a DECISION now.** Every
+`DomainModule` declares `contextPriority`, and `collectContext` returns them
+lowest-first: routine, calendar, tasks, notes, habits, goals, trackers, fitness,
+journal, finance. `buildContext` fills a fixed budget in the order it is handed
+and trims or drops the rest, so this used to be settled by where a line sat in
+`app.module.ts` — a chatty domain early in the import list could push Calendar
+out entirely, after which the model answered "you have nothing scheduled" with
+complete confidence. A domain that forgets to declare one lands in the middle;
+a test fails if any real domain omits it or two claim the same number.
+
+**Phase 0 of the audit is done and re-verified against the code**, not assumed:
+the token cap is per-user, `/ai/dry-run` bills under an unbilled purpose,
+`DailyTokenCapError` maps to a real status, the push upsert can no longer rebind
+another user's row, the Plaid cursor only advances past a page that was fully
+written, the proactive sweep is gated on `ActivityService`, and `pnpm audit`
+reports **no known vulnerabilities** (it was 24).
+
 ### Known gaps — tracked, not hidden
 **`docs/production-readiness.md` is the authoritative list**, written from a 154-assertion API stress
 pass and a full-route UI pass. It is ordered by what blocks shipping and says what was measured

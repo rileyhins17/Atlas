@@ -7,6 +7,8 @@ import { TrackersService } from './trackers.service.js';
 @Injectable()
 export class TrackersAiAdapter implements DomainModule, OnModuleInit {
   readonly id = 'trackers';
+  /** See DEFAULT_CONTEXT_PRIORITY for what this ordering is for. */
+  readonly contextPriority = 70;
 
   constructor(
     private readonly trackers: TrackersService,

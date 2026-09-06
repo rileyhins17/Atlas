@@ -12,6 +12,8 @@ import { RoutineService } from './routine.service.js';
 @Injectable()
 export class RoutineAiAdapter implements DomainModule, OnModuleInit {
   readonly id = 'routine';
+  /** See DEFAULT_CONTEXT_PRIORITY for what this ordering is for. */
+  readonly contextPriority = 10;
 
   constructor(
     private readonly routine: RoutineService,

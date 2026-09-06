@@ -7,6 +7,8 @@ import { CalendarService } from './calendar.service.js';
 @Injectable()
 export class CalendarAiAdapter implements DomainModule, OnModuleInit {
   readonly id = 'calendar';
+  /** See DEFAULT_CONTEXT_PRIORITY for what this ordering is for. */
+  readonly contextPriority = 20;
 
   constructor(
     private readonly calendar: CalendarService,

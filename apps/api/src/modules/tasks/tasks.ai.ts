@@ -11,6 +11,8 @@ import { TasksService } from './tasks.service.js';
 @Injectable()
 export class TasksAiAdapter implements DomainModule, OnModuleInit {
   readonly id = 'tasks';
+  /** See DEFAULT_CONTEXT_PRIORITY for what this ordering is for. */
+  readonly contextPriority = 30;
 
   constructor(
     private readonly tasks: TasksService,

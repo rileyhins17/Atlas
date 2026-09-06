@@ -559,3 +559,28 @@ FOUND. A quota is a 400.
 When adding a `findMany` with no `take`, the question to answer is not "should
 this paginate" but "what stops this list from growing forever, and is that thing
 written down".
+
+## The AI's context order was an accident of `app.module.ts`
+
+`buildContext` fills a fixed token budget in the order it is handed and trims or
+drops whatever does not fit. `ModuleRegistryService.collectContext` returned
+modules in NestJS registration order — which is the order of the import list —
+so which domain the model could still SEE under a tight budget was decided by
+where a line sat in a file.
+
+The failure that produces is quiet and confident: Calendar gets dropped, the
+model is handed a context with no calendar in it and no way to tell that apart
+from an empty calendar, and it answers "you have nothing scheduled".
+
+Every `DomainModule` now declares `contextPriority`, lowest first:
+
+    routine 10 · calendar 20 · tasks 30 · notes 40 · habits 50
+    goals 60 · trackers 70 · fitness 80 · journal 90 · finance 100
+
+The ordering answers one question — if the model can only be told SOME of this,
+what does it need to answer "what should I do now" without being wrong? Routine
+first, because without it "2pm is free" is a guess.
+
+A domain that omits it defaults to the middle, and `context-priority.test.ts`
+fails if any shipped domain forgets or if two claim the same number. Fetching
+stays parallel; only the result is ordered.
