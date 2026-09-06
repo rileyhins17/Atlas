@@ -1,8 +1,32 @@
+import { appendFileSync, mkdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { expect, type Page } from '@playwright/test';
+
+/**
+ * Where each throwaway address is recorded, so `global-teardown` can delete
+ * exactly the accounts this run created and nothing else. An exact list rather
+ * than a pattern is the whole point: an address that looked like test junk once
+ * held the only live Google Calendar credential.
+ */
+export const ACCOUNT_LEDGER = join(process.cwd(), 'test-results', '.e2e-accounts');
+
+/** Where the API lives, for the few places that talk to it directly. */
+export function apiBase(): string {
+  return process.env.E2E_API_URL ?? 'http://127.0.0.1:4000';
+}
 
 /** A fresh throwaway account per test so specs never collide on data. */
 export function uniqueEmail(): string {
-  return `e2e-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`;
+  const email = `e2e-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`;
+  try {
+    mkdirSync(dirname(ACCOUNT_LEDGER), { recursive: true });
+    appendFileSync(ACCOUNT_LEDGER, `${email}
+`);
+  } catch {
+    // A run that cannot record is a run that leaves rows behind, which is the
+    // status quo — not a reason to fail the test that was about to happen.
+  }
+  return email;
 }
 
 export const TEST_PASSWORD = 'e2e-password-123';

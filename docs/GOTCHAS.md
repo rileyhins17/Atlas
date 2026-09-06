@@ -584,3 +584,39 @@ first, because without it "2pm is free" is a guess.
 A domain that omits it defaults to the middle, and `context-priority.test.ts`
 fails if any shipped domain forgets or if two claim the same number. Fetching
 stays parallel; only the result is ordered.
+
+## The e2e suite left ~30 accounts behind every run
+
+The database reached 181 rows of which three were real people, and every attempt
+to tidy that by hand runs into this project's hard rule: an address that looked
+like test junk once held the only live Google Calendar credential.
+
+`e2e/global-teardown.ts` now deletes what the run created — by an EXACT LIST,
+never a pattern. `uniqueEmail()` appends each address to
+`test-results/.e2e-accounts`; teardown reads that file, logs in as each with the
+suite's own password, and deletes. An account it did not create is an account it
+cannot name, so it cannot touch it.
+
+Two things worth knowing if it ever stops working:
+
+- `POST /account/delete` requires `confirm: 'DELETE'` as well as the password.
+  That is an intent guard on the endpoint, and a request that omits it gets a
+  400 that reads like a credentials problem.
+- Teardown reports failures and does not throw. A green suite followed by a red
+  teardown reads as a failed run, and a few leftover rows is a much smaller
+  problem than making people distrust the result.
+
+Measured: a run that registers two accounts now leaves the user count exactly
+where it found it.
+
+## Phase 7's parallelism stopped being worth it
+
+The audit proposed bypassing the sign-up throttle in tests so Playwright could
+run `fullyParallel`, on the basis that the suite took 8.5 minutes. Moving the
+database to ca-central-1 took it to 2.4 without touching a test.
+
+What remains on the table is roughly a minute, in exchange for giving 48 tests
+their own accounts — and the audit's own warning applies: "a spec that passes in
+a full run and fails alone is the dangerous shape, because it hides in green".
+Adding a throttle bypass to a production codebase for that trade is not worth
+it. Revisit if the suite grows past five minutes again.

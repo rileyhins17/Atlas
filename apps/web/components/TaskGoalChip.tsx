@@ -62,7 +62,10 @@ export function TaskGoalChip({
 
   // Nothing to link to and nothing linked: stay out of the way entirely rather
   // than advertising a feature that would open an empty menu.
-  if (!linked && (compact || choices.length === 0)) return null;
+  // While the query is in flight `choices` is empty, which is not the same as
+  // having no goals — so the "nothing to link to" branch waits for an answer
+  // rather than treating pending as empty.
+  if (!linked && (compact || (goals.isSuccess && choices.length === 0))) return null;
 
   return (
     <span className="task-goal" ref={wrap}>
@@ -81,7 +84,9 @@ export function TaskGoalChip({
 
       {open && (
         <div className="task-goal-menu">
-          {choices.length === 0 ? (
+          {!goals.isSuccess ? (
+            <p className="task-goal-empty">Loading your goals…</p>
+          ) : choices.length === 0 ? (
             <p className="task-goal-empty">No active goals yet.</p>
           ) : (
             <ul>

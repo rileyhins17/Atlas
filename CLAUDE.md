@@ -231,6 +231,33 @@ another user's row, the Plaid cursor only advances past a page that was fully
 written, the proactive sweep is gated on `ActivityService`, and `pnpm audit`
 reports **no known vulnerabilities** (it was 24).
 
+**Phase 6 of the audit has findings behind it now.** It had never been run.
+The sweep found fifteen classNames with no CSS rule — five of them the SOLE
+class on their element, so the onboarding's explanatory paragraphs and the
+Google card's status message were rendering at browser defaults. It also found
+two components stating something false while a query was still pending:
+Settings said "not connected" for Google Calendar until the status arrived, and
+the goal picker said "No active goals yet". Both are now three-state.
+
+Two tests keep it that way: `class-has-a-rule.test.ts` fails on a className with
+no rule (markers and e2e hooks are allow-listed BY REASON), and
+`pending-is-not-an-answer.test.tsx` pins that a pending query is never rendered
+as a negative answer. At 390px across all thirteen routes in both themes the
+sweep now reports zero overflow, zero tap target under 24x24, and zero
+text input under 16px.
+
+**The e2e suite cleans up after itself.** `uniqueEmail()` records every address
+it hands out and `e2e/global-teardown.ts` deletes exactly those — by list, never
+by pattern. It works with the 5/min delete throttle rather than around it:
+anything it cannot remove stays in the ledger for the next run. Measured: a full
+48-test run leaves the user count where it found it.
+
+**Phase 7's parallelism was dropped on purpose.** Its premise was an 8.5-minute
+suite; the database move made it 2.4 without touching a test. The remaining
+minute is not worth giving 48 coupled specs their own accounts, and it is
+certainly not worth adding a sign-up-throttle bypass to a production codebase.
+Revisit past five minutes.
+
 ### Known gaps — tracked, not hidden
 **`docs/production-readiness.md` is the authoritative list**, written from a 154-assertion API stress
 pass and a full-route UI pass. It is ordered by what blocks shipping and says what was measured
