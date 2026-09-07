@@ -69,7 +69,9 @@ jobs:
       # everyone with write access to this repository — a poor trade for a
       # check that synthetic data makes equally well. Proving THAT dump is good
       # is a local drill, run where the file already lives:
-      # `powershell -File infra/atlas-backup.ps1 -Drill`.
+      # `python .github/scripts/restore_backup.py` (needs Docker).
+      # Note there is no `-Drill` switch on atlas-backup.ps1; that script backs
+      # up and verifies the dump's table count, it does not restore.
       - name: Restore drill
         run: python3 .github/scripts/restore_backup.py --synthetic
 

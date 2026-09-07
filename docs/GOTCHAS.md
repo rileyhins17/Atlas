@@ -620,3 +620,43 @@ their own accounts — and the audit's own warning applies: "a spec that passes 
 a full run and fails alone is the dangerous shape, because it hides in green".
 Adding a throttle bypass to a production codebase for that trade is not worth
 it. Revisit if the suite grows past five minutes again.
+
+## `.gitignore` does not untrack what is already staged
+
+On 5 September 2026 three production database dumps — journals, finance rows,
+email addresses and password hashes — were committed and pushed to what turned
+out to be a **public** GitHub repository, where they were readable for about
+seventeen hours.
+
+Every ingredient was already documented as forbidden. `.github/scripts/restore_backup.py`,
+`.github/workflows/ci.yml` and `docs/backup-restore-drill.md` all say in prose that
+the real dumps never leave the machine. `.gitignore` contained `backups/`. The
+commit that shipped them is titled *"prove the restore mechanism without shipping
+anyone's journal to CI"*.
+
+Three things combined:
+
+1. **`infra/atlas-backup.ps1` defaulted its destination to `<repo>\backups`** — a
+   backup directory inside a working tree is one careless `git add -A` away from
+   being published.
+2. **`.gitignore` only ignores UNTRACKED files.** Adding the pattern after the
+   files were staged changes nothing; `git add -A` had already picked them up.
+3. **`CLAUDE.md` asserted the remote was private.** It was public from creation.
+   A written claim about a security property is not a security property.
+
+Fixes, all of them enforcement rather than prose:
+
+- Default destination is now `%LOCALAPPDATA%\Atlas\backups`, outside git's reach.
+- `infra/hooks/pre-commit` refuses any staged `*.dump`, `*.sql`, `*.sqlite`, `*.db`,
+  `*.bak`, or anything under `backups/` or `.db-moves/`. Install with
+  `pnpm run hooks:install`. Watched refusing a real staged dump before being trusted.
+- `CLAUDE.md` now says to verify visibility with `gh repo view` rather than
+  asserting it.
+
+Worth knowing for the post-mortem: `SESSION_SECRET` was **not** compromised — it
+signs Google OAuth state (`google.controller.ts:49`) and never touched `.env` in
+git. Session tokens in the dump are SHA-256 hashes of 32 random bytes and are not
+reversible, so sessions did not need invalidating. `APP_ENCRYPTION_KEY` was never
+committed either, so the AES-256-GCM connector credentials stayed encrypted. What
+genuinely leaked was personal data and `passwordHash` (Node `scrypt` defaults,
+N=16384 — crackable offline).

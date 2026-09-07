@@ -50,6 +50,14 @@ ignore.
 
 ## The local drill — the real dump, where it lives
 
+Backups are written to `%LOCALAPPDATA%\Atlasackups`, **outside the repository**.
+That default used to be `<repo>ackups`, and on 5 September 2026 a `git add -A`
+put three production dumps into a commit that was pushed to a public GitHub
+repo, where they sat for seventeen hours. `.gitignore` contained `backups/` and
+did nothing, because gitignore does not untrack what is already staged.
+`infra/hooks/pre-commit` now refuses to commit any `*.dump` — install it with
+`pnpm run hooks:install`.
+
 The nightly backup already refuses to call a dump a backup unless it contains
 the tables:
 

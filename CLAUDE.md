@@ -4,7 +4,18 @@
 
 > Owner: Riley (rileyhinsperger@gmail.com). The global CLAUDE.md forces **caveman mode** for chat replies — terse. Code, comments, commits and PRs are always normal English.
 >
-> **Remote:** `origin` = https://github.com/rileyhins17/Atlas (private). Work on `claude/session-check-in-mbo5om`, keep `main` fast-forwarded to it, push both. `.env` is gitignored — never commit it.
+> **Remote:** `origin` = https://github.com/rileyhins17/Atlas. Work on `main`. `.env` is gitignored — never commit it.
+>
+> **It was PUBLIC until 6 Sep 2026, and this file said it was private.** That
+> wrong belief is what made the incident below thinkable: three production dumps
+> — journals, finance rows, emails and password hashes — were committed by a
+> `git add -A` and pushed, and sat publicly readable for seventeen hours. History
+> was rewritten to purge them and the repo is private now. **Verify visibility
+> before trusting any statement about it, including this one:**
+> `gh repo view rileyhins17/Atlas --json isPrivate`.
+>
+> Backups live in `%LOCALAPPDATA%\Atlasackups`, never in the tree, and
+> `infra/hooks/pre-commit` refuses to commit a `*.dump` (`pnpm run hooks:install`).
 
 ---
 

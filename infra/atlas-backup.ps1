@@ -25,9 +25,22 @@
   sensitive as the database itself.
 #>
 param(
-  # Where dumps are written. Prefer a different physical drive to this one; a
-  # backup that dies with the disk it was protecting against is not a backup.
-  [string]$Dest = (Join-Path (Split-Path -Parent $PSScriptRoot) 'backups'),
+  # Where dumps are written. OUTSIDE the repository, deliberately.
+  #
+  # This defaulted to <repo>\backups, and on 5 Sep 2026 a `git add -A` put three
+  # production dumps — journals, finance rows, emails and password hashes — into
+  # a commit that was pushed to a PUBLIC GitHub repository. `.gitignore` had
+  # `backups/` in it and did nothing, because gitignore does not untrack what is
+  # already staged. The dumps sat there for seventeen hours.
+  #
+  # A backup destination inside a working tree is one careless `git add` away
+  # from being published, however many comments forbid it. The default is now
+  # somewhere git cannot reach, and `infra/hooks/pre-commit` refuses to commit a
+  # dump even if someone points -Dest back inside the repo.
+  #
+  # Still worth doing: point this at a DIFFERENT PHYSICAL DRIVE. A backup that
+  # dies with the disk it was protecting against is not a backup.
+  [string]$Dest = (Join-Path $env:LOCALAPPDATA 'Atlas\backups'),
   [switch]$Register,
   [switch]$Unregister
 )
@@ -182,9 +195,25 @@ $all = @(Get-ChildItem $Dest -Filter 'atlas-*.dump' | Sort-Object LastWriteTime 
 $keep = [System.Collections.Generic.HashSet[string]]::new()
 $now = Get-Date
 foreach ($f in $all) { if (($now - $f.LastWriteTime).TotalDays -le 14) { [void]$keep.Add($f.FullName) } }
+# `w` is NOT a .NET custom format specifier, so `.ToString('yyyy-ww')` returned
+# the literal string "2026-ww" for every date ever passed to it. Every dump older
+# than 14 days therefore landed in ONE group, `-First 8` selected that single
+# group, and only its newest member survived. Real retention was 14 daily plus
+# exactly one — almost precisely the failure the comment above warns against.
+# Verified on this machine: '2026-09-06' -> '2026-ww'; the calendar call below
+# gives '2026-36'.
+$weekKey = {
+  param($date)
+  $cal = [System.Globalization.CultureInfo]::InvariantCulture.Calendar
+  $week = $cal.GetWeekOfYear(
+    $date,
+    [System.Globalization.CalendarWeekRule]::FirstFourDayWeek,
+    [System.DayOfWeek]::Monday)
+  '{0:d4}-{1:d2}' -f $date.Year, $week
+}
 $weeklies = $all |
   Where-Object { ($now - $_.LastWriteTime).TotalDays -gt 14 } |
-  Group-Object { (Get-Date $_.LastWriteTime).ToString('yyyy-ww') } |
+  Group-Object { & $weekKey $_.LastWriteTime } |
   Select-Object -First 8
 foreach ($week in $weeklies) { [void]$keep.Add(($week.Group | Sort-Object LastWriteTime -Descending)[0].FullName) }
 
