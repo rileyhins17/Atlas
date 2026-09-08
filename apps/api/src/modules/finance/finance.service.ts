@@ -178,7 +178,7 @@ export class FinanceService {
     const lines = accounts.map((a) => {
       const bal = (Number(a.balanceMinor) / 100).toFixed(2);
       const where = a.institution ? ` (${a.institution}${a.mask ? ` ••${a.mask}` : ''})` : '';
-      return `- ${a.name}${where}: ${bal} ${a.currency}`;
+      return `- [${a.id}] ${a.name}${where}: ${bal} ${a.currency}`;
     });
     const flow = `Last 7 days: out ${(outMinor / 100).toFixed(2)}, in ${(inMinor / 100).toFixed(2)}.`;
     return `Accounts (${accounts.length}):\n${lines.join('\n')}\n${flow}`;

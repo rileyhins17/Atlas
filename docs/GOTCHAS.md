@@ -1,5 +1,18 @@
 # GOTCHAS — solved once, never rediscover
 
+## The calendar was not the only summary missing record ids
+
+The September correctness sweep reproduced the same addressability bug in
+notes, trackers, finance accounts, journal entries and workouts. Journal,
+fitness, tasks and goals also derived displayed dates from UTC strings: an
+entry at 02:30Z on July 16 belongs to July 15 for a Toronto user. Seven service
+regressions were watched failing before the fix in `domain-summaries.test.ts`.
+
+Every individually described row now includes `[id]`. Date-bearing summaries
+use the owner's `UserTimezoneService` and name the timezone. Journal summaries
+render each of their seven bounded entries so an aggregate mood does not hide
+the ids. Totals such as finance cash flow remain aggregates, not fabricated rows.
+
 Append every new setup/build snag here (root cause + fix) so no future thread wastes tokens re-hitting it. The canonical short list also lives in `../CLAUDE.md`; this file is the long form.
 
 ## Toolchain / install

@@ -11,7 +11,7 @@ import type { Task } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { UserTimezoneService } from '../../core/user-timezone.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
-import { localDayStartUtc } from '../ai/time.util.js';
+import { dayKeyInTz, localDayStartUtc } from '../ai/time.util.js';
 
 function toDto(t: Task): TaskDTO {
   return {
@@ -322,11 +322,12 @@ export class TasksService {
       }),
     ]);
     if (open === 0) return 'No open tasks.';
+    const tz = await this.timezones.get(userId);
     // The id is what makes tasks.update / tasks.delete usable at all — without
     // it the model can name a task but cannot address one.
     const lines = dueSoon.map(
-      (t) => `- [${t.id}] ${t.title}${t.dueAt ? ` (due ${t.dueAt.toISOString().slice(0, 10)})` : ''}`,
+      (t) => `- [${t.id}] ${t.title}${t.dueAt ? ` (due ${dayKeyInTz(t.dueAt, tz)})` : ''}`,
     );
-    return `${open} open task(s). Next up:\n${lines.join('\n') || '(none with due dates)'}`;
+    return `${open} open task(s). Dates in ${tz}. Next up:\n${lines.join('\n') || '(none with due dates)'}`;
   }
 }
