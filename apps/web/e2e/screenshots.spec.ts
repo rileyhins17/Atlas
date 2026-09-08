@@ -268,6 +268,28 @@ test('capture the Life-OS screens', async ({ page }) => {
     writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
     await page.screenshot({ path: `${OUT}/settings-actions-${theme}.png`, fullPage: true });
   }
+  // Session/config failures use synthetic responses, never another registration.
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.route('http://localhost:4000/auth/me', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.goto('/today');
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Could not load your session' })).toBeVisible();
+    measurements.push(await measureScreen(page, '/today:session-failure', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/session-failure-${theme}.png`, fullPage: true });
+    await page.unroute('http://localhost:4000/auth/me');
+    await page.route('http://localhost:4000/auth/me', (route) => route.fulfill({ status: 401, contentType: 'application/json', body: '{}' }));
+    await page.route('http://localhost:4000/auth/config', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ inviteRequired: true }) }));
+    await page.reload();
+    await page.getByRole('button', { name: 'Show the create account form' }).click();
+    await expect(page.getByLabel('Invite code', { exact: true })).toBeVisible();
+    measurements.push(await measureScreen(page, '/today:invite-sign-up', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/invite-sign-up-${theme}.png`, fullPage: true });
+    await page.unroute('http://localhost:4000/auth/me');
+    await page.unroute('http://localhost:4000/auth/config');
+  }
   const failures = measurements.flatMap(screenFailures);
   expect(failures, failures.join('\n')).toEqual([]);
 

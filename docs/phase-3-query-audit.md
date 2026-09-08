@@ -7,8 +7,8 @@ assertions. No component is marked fully audited from source indicators alone.
 
 | Component | Query-backed hooks | Evidence located / work remaining |
 | --- | --- | --- |
-| AppShell.tsx | useMe | Newly included root-level component; pending state/recovery audit |
-| AuthGate.tsx | useAuthConfig | Newly included root-level component; pending auth configuration state/recovery audit |
+| AppShell.tsx | useMe | session-read-recovery: failed read avoids false sign-out and offers Retry; confirmed signed-out landmark; browser recovery pending |
+| AuthGate.tsx | useAuthConfig | auth-config-recovery: registration waits for known config, Retry, credentials retained, sign-in independent; browser config recovery pending |
 | TaskGoalChip.tsx | useGoals | Newly included root-level component; errors currently render as loading; old copied-expression tests are not component evidence |
 | TaskRow.tsx | useTaskDurations | Newly included root-level component; pending duration-hint state/recovery audit |
 | atlas/AsksPanel.tsx | useAiQuestions | context-query-states: questions pending, failure, empty |

@@ -2589,3 +2589,46 @@ test('tracker setup recovers reads and saves without losing drafts in both theme
     expect(failures, failures.join('\n')).toEqual([]);
   }
 });
+
+
+test('session and invite configuration failures recover without losing credentials in both themes', async ({ page }) => {
+  const task = await page.request.post('http://localhost:4000/tasks', { data: { title: `Session recovery ${Date.now()}` } });
+  expect(task.status()).toBe(201);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const meUrl = 'http://localhost:4000/auth/me';
+  const configUrl = 'http://localhost:4000/auth/config';
+  for (const theme of ['light', 'dark'] as const) {
+    await page.route(meUrl, (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.goto('/today');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Could not load your session' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Show the sign in form' })).toHaveCount(0);
+    let failures = screenFailures(await measureScreen(page, '/today:session-failure', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await page.unroute(meUrl);
+    await page.getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(page.getByRole('region', { name: 'Quick capture' })).toBeVisible();
+    await page.route(meUrl, (route) => route.fulfill({ status: 401, contentType: 'application/json', body: '{}' }));
+    await page.route(configUrl, (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeEnabled();
+    await page.getByRole('button', { name: 'Show the create account form' }).click();
+    await expect(page.getByText('Sign-up requirements could not be loaded.')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole('button', { name: 'Create account', exact: true })).toBeDisabled();
+    const email = page.getByLabel('Email', { exact: true });
+    const password = page.getByLabel('Password', { exact: true });
+    await email.click(); await email.pressSequentially('synthetic@example.com');
+    await password.click(); await password.pressSequentially('synthetic-password-123');
+    await page.unroute(configUrl);
+    await page.route(configUrl, (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ inviteRequired: true }) }));
+    await page.getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(page.getByLabel('Invite code', { exact: true })).toBeVisible();
+    await expect(email).toHaveValue('synthetic@example.com');
+    await expect(password).toHaveValue('synthetic-password-123');
+    failures = screenFailures(await measureScreen(page, '/today:invite-recovery', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await page.unroute(configUrl);
+    await page.unroute(meUrl);
+  }
+});
