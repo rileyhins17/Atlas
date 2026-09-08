@@ -1,14 +1,13 @@
+import { pairTemplateExercises, proposeWorkoutTemplates } from '@atlas/shared';
 import { workoutTemplateTitleCase as titleCase, type WorkoutTemplateRecord as TemplateRow } from '@atlas/shared';
 import { serializeWorkoutTemplate as toDto } from '@atlas/shared';
 import { readCollection } from '../../core/collection-pages.js';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
-  matchExercise,
   normaliseGroups,
   parseSplitText,
   type CreateWorkoutTemplateInput,
   type PlanSplitResultDTO,
-  type ProposedTemplateDTO,
   type UpdateWorkoutTemplateInput,
   type WorkoutTemplateDTO,
 } from '@atlas/shared';
@@ -91,16 +90,7 @@ export class WorkoutTemplatesService {
     ids: string[],
     supersetGroups: (number | null)[] | undefined,
   ): Promise<{ exerciseId: string; supersetGroup: number | null }[]> {
-    const paired = ids.map((exerciseId, i) => ({
-      exerciseId,
-      supersetGroup: supersetGroups?.[i] ?? null,
-    }));
-    const seen = new Set<string>();
-    const unique = paired.filter((e) => {
-      if (seen.has(e.exerciseId)) return false;
-      seen.add(e.exerciseId);
-      return true;
-    });
+    const unique = pairTemplateExercises(ids, supersetGroups);
     await this.resolveExerciseIds(userId, unique.map((e) => e.exerciseId));
     // Renumber from zero here too: the client normalises before sending, but
     // the AI split path and any other caller do not, and the number is shown.
@@ -211,15 +201,7 @@ export class WorkoutTemplatesService {
       }
     }
 
-    const templates: ProposedTemplateDTO[] = days.map((day) => ({
-      name: day.name,
-      exercises: day.items.map((item) => {
-        const hit = matchExercise(item, catalog);
-        return hit
-          ? { exerciseId: hit.candidate.id, name: hit.candidate.name, match: hit.match }
-          : { exerciseId: null, name: item, match: 'new' as const };
-      }),
-    }));
+    const templates = proposeWorkoutTemplates(days, catalog);
 
     return { templates, usedAi, note };
   }

@@ -332,3 +332,19 @@ export function placeDayEvents(
   }
   return out;
 }
+
+/** Layout data shared by calendar renderers; the caller supplies its clock. */
+export function weekGridLayout(days: Date[], events: EventDTO[], now: Date) {
+  const window = visibleHourRange(events);
+  const hours = Array.from({ length: window.endHour - window.startHour }, (_, i) => window.startHour + i);
+  const placed = days.map((d) => placeDayEvents(events, d, window));
+  const todayKey = localDayKey(now);
+  const winStart = window.startHour * 60;
+  const winSpan = (window.endHour - window.startHour) * 60;
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const nowFraction = (nowMin - winStart) / winSpan;
+  const showNow = nowFraction >= 0 && nowFraction <= 1;
+  const allDay = days.map((d) => events.filter((e) => e.allDay && localDayKey(new Date(e.startAt)) === localDayKey(d)));
+  const hasAllDay = allDay.some((list) => list.length > 0);
+  return { window, hours, placed, todayKey, winStart, winSpan, nowFraction, showNow, allDay, hasAllDay };
+}

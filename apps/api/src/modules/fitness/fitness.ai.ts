@@ -1,3 +1,4 @@
+import { fitnessToolSpecs } from '@atlas/shared';
 import { Injectable } from '@nestjs/common';
 import type { AiToolSpec } from '@atlas/shared';
 import { RegisteredDomainModule, ModuleRegistryService } from '../../core/domain-module.js';
@@ -26,24 +27,6 @@ export class FitnessAiAdapter extends RegisteredDomainModule {
    * is harmless and is the friction that actually matters ("I'm at the gym").
    */
   getToolSpecs(): AiToolSpec[] {
-    return [
-      {
-        name: 'fitness.start_workout',
-        description:
-          'Start a training session for the user, e.g. when they say they are at the gym ' +
-          'or starting a workout. Returns the open session; sets are logged by the user in ' +
-          'the app, not by you.',
-        parameters: {
-          type: 'object',
-          properties: {
-            title: {
-              type: 'string',
-              description: 'Optional name, e.g. "Push day" or "Legs". Defaults to "Workout".',
-            },
-          },
-          required: [],
-        },
-      },
-    ];
+    return fitnessToolSpecs();
   }
 }

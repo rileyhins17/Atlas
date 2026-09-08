@@ -10,7 +10,7 @@
  */
 import type { EventDTO } from './index.js';
 import { addDays, localDayKey } from './local-dates.js';
-import { combineLocal, minutesBetween, nextSlot, toTimeValue } from './calendar-view.js';
+import { findOverlaps, combineLocal, minutesBetween, nextSlot, toTimeValue } from './calendar-view.js';
 
 export type Draft = {
   id: string | null;
@@ -104,4 +104,11 @@ export function draftToPayload(draft: Draft): EventPayload | null {
     location: draft.location.trim() || undefined,
     allDay: draft.allDay,
   };
+}
+
+export function draftOverlaps(draft: Draft | null, events: EventDTO[]): EventDTO[] {
+  if (!draft || draft.allDay || !draft.title.trim()) return [];
+  const start = combineLocal(draft.day, draft.startTime);
+  const end = new Date(start.getTime() + draft.durationMin * 60_000);
+  return findOverlaps(events, start, end, draft.id ?? undefined);
 }

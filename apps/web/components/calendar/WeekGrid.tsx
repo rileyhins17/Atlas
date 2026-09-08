@@ -1,11 +1,11 @@
 'use client';
 
-import { calendarHourLabel } from '@atlas/shared';
+import { calendarHourLabel, weekGridLayout } from '@atlas/shared';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { EventDTO } from '@atlas/shared';
 import { fmt, formatClock, localDayKey, displayTimezone } from '@/lib/dates';
-import { placeDayEvents, visibleHourRange, weekdayShort } from '@/lib/calendar-view';
+import { weekdayShort } from '@/lib/calendar-view';
 
 function hourLabel(hour: number): string {
   return calendarHourLabel(hour, new Date(), displayTimezone());
@@ -52,28 +52,10 @@ export function WeekGrid({
     return () => clearInterval(id);
   }, []);
 
-  const window = useMemo(() => visibleHourRange(events), [events]);
-  const hours = useMemo(
-    () => Array.from({ length: window.endHour - window.startHour }, (_, i) => window.startHour + i),
-    [window],
+  const { window, hours, placed, todayKey, winStart, winSpan, nowFraction, showNow, allDay, hasAllDay } = useMemo(
+    () => weekGridLayout(days, events, now),
+    [days, events, now],
   );
-  const placed = useMemo(
-    () => days.map((d) => placeDayEvents(events, d, window)),
-    [days, events, window],
-  );
-
-  const todayKey = localDayKey(now);
-  const winStart = window.startHour * 60;
-  const winSpan = (window.endHour - window.startHour) * 60;
-  const nowMin = now.getHours() * 60 + now.getMinutes();
-  const nowFraction = (nowMin - winStart) / winSpan;
-  const showNow = nowFraction >= 0 && nowFraction <= 1;
-
-  const allDay = useMemo(
-    () => days.map((d) => events.filter((e) => e.allDay && localDayKey(new Date(e.startAt)) === localDayKey(d))),
-    [days, events],
-  );
-  const hasAllDay = allDay.some((list) => list.length > 0);
 
   // Open on the working day, not on whatever hour the window happens to start.
   //

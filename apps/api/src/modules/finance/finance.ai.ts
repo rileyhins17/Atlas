@@ -1,3 +1,4 @@
+import { financeToolSpecs } from '@atlas/shared';
 import { Injectable } from '@nestjs/common';
 import type { AiToolSpec } from '@atlas/shared';
 import { RegisteredDomainModule, ModuleRegistryService } from '../../core/domain-module.js';
@@ -23,6 +24,6 @@ export class FinanceAiAdapter extends RegisteredDomainModule {
    * see the plan's "AI reads money, doesn't move it" decision.
    */
   getToolSpecs(): AiToolSpec[] {
-    return [];
+    return financeToolSpecs();
   }
 }

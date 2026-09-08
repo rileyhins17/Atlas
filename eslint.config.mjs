@@ -69,6 +69,22 @@ export default tseslint.config(
     },
   },
 
+  // Shared domain code cannot depend back on a runtime adapter or framework.
+  {
+    files: ['packages/shared/src/**/*.{ts,tsx,js,mjs}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [{
+          group: ['@prisma/client', '@prisma/client/**', '@atlas/db', '@atlas/db/**',
+            '@atlas/ai', '@atlas/ai/**', '@atlas/connectors', '@atlas/connectors/**',
+            '@nestjs/**', 'next', 'next/**', 'react', 'react/**', 'react-dom', 'react-dom/**',
+            '**/apps/**'],
+          message: 'Shared domain code must remain independent of database, framework and runtime adapters.',
+        }],
+      }],
+    },
+  },
+
   // Browser code.
   {
     files: ['apps/web/**/*.{ts,tsx}'],

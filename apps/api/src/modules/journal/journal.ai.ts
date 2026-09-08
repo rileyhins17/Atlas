@@ -1,3 +1,4 @@
+import { journalToolSpecs } from '@atlas/shared';
 import { Injectable } from '@nestjs/common';
 import type { AiToolSpec } from '@atlas/shared';
 import { RegisteredDomainModule, ModuleRegistryService } from '../../core/domain-module.js';
@@ -18,19 +19,6 @@ export class JournalAiAdapter extends RegisteredDomainModule {
   }
 
   getToolSpecs(): AiToolSpec[] {
-    return [
-      {
-        name: 'journal.add',
-        description: 'Append a journal entry for the user (optionally with a 1-5 mood).',
-        parameters: {
-          type: 'object',
-          properties: {
-            body: { type: 'string' },
-            mood: { type: 'number', description: '1 (low) to 5 (great)' },
-          },
-          required: ['body'],
-        },
-      },
-    ];
+    return journalToolSpecs();
   }
 }

@@ -1,3 +1,4 @@
+import { buildAiEventPatch } from '@atlas/shared';
 import {
   AiByIdInput as ByIdInput,
   AiEventPatch,
@@ -239,19 +240,7 @@ export class ToolRouterService {
       case 'calendar.update': {
         const parsed = AiEventPatch.parse(args);
         const before = await this.calendar.owned(userId, parsed.id);
-        const start = parsed.startAt ?? before.startAt;
-        const end =
-          parsed.endAt ??
-          (parsed.durationMinutes
-            ? new Date(start.getTime() + parsed.durationMinutes * 60_000)
-            : // Keep the original length when only the start moved.
-              new Date(start.getTime() + (before.endAt.getTime() - before.startAt.getTime())));
-        const event = await this.calendar.update(userId, parsed.id, {
-          ...(parsed.title ? { title: parsed.title } : {}),
-          ...(parsed.location !== undefined ? { location: parsed.location } : {}),
-          startAt: start,
-          endAt: end,
-        });
+        const event = await this.calendar.update(userId, parsed.id, buildAiEventPatch(parsed, before));
         return {
           result: event,
           summary: `Moved "${event.title}"`,

@@ -2,7 +2,7 @@
 
 ## F1 — Exercise history combines sessions when reporting best session volume
 
-Status: corrected in the Phase 1 session-volume follow-up; CI verification pending.
+Status: corrected in PR #29 at `040d6b9`; CI run `34186858208` passed.
 
 `assembleExerciseHistory` (formerly the inline calculation in
 `FitnessService.exerciseHistory`) supplies every fetched set as one session to

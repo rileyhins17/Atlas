@@ -80,3 +80,6 @@ export * from './ai-budget.js';
 export * from './chart-calculations.js';
 export * from './domain-summaries.js';
 export * from './history-calculations.js';
+export * from './domain-tools.js';
+export * from './timeline-page.js';
+export * from './workout-proposals.js';

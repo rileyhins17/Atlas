@@ -110,3 +110,20 @@ export function pickUndoFields(row: Record<string, unknown>, keys: string[]): Re
   }
   return out;
 }
+
+/** Preserve an event's duration when moving only its start. An explicit end wins. */
+export function buildAiEventPatch(parsed: z.infer<typeof AiEventPatch>, before: { startAt: Date; endAt: Date }) {
+  const start = parsed.startAt ?? before.startAt;
+  const end =
+    parsed.endAt ??
+    (parsed.durationMinutes
+      ? new Date(start.getTime() + parsed.durationMinutes * 60_000)
+      : // Keep the original length when only the start moved.
+        new Date(start.getTime() + (before.endAt.getTime() - before.startAt.getTime())));
+  return {
+    ...(parsed.title ? { title: parsed.title } : {}),
+    ...(parsed.location !== undefined ? { location: parsed.location } : {}),
+    startAt: start,
+    endAt: end,
+  };
+}
