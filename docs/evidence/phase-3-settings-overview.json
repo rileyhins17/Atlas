@@ -1,0 +1,2430 @@
+{
+  "commit": "7e83b4724a2a4b013408bc7ea92070927374812c",
+  "run": 34263454287,
+  "measurements": [
+    {
+      "route": "/today:first-use",
+      "resolvedUrl": "http://localhost:3000/today",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 844,
+      "controlCount": 6,
+      "undersizedTargets": [],
+      "textInputCount": 1,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/today:first-use",
+      "resolvedUrl": "http://localhost:3000/today",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 844,
+      "controlCount": 6,
+      "undersizedTargets": [],
+      "textInputCount": 1,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/today",
+      "resolvedUrl": "http://localhost:3000/today",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1877,
+      "controlCount": 32,
+      "undersizedTargets": [],
+      "textInputCount": 1,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [
+        {
+          "target": "span.nownext-eyebrow",
+          "text": "Now \u00b7 6:37 PM",
+          "foreground": {
+            "r": 136,
+            "g": 49,
+            "b": 22,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 246,
+              "g": 230,
+              "b": 226,
+              "a": 255
+            },
+            {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            }
+          ],
+          "method": "conservative RGB bounds across computed gradient stops",
+          "unsupported": null,
+          "minimumRatio": 6.940418085671311
+        },
+        {
+          "target": "h2.nownext-title",
+          "text": "Training",
+          "foreground": {
+            "r": 37,
+            "g": 31,
+            "b": 29,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 246,
+              "g": 230,
+              "b": 226,
+              "a": 255
+            },
+            {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            }
+          ],
+          "method": "conservative RGB bounds across computed gradient stops",
+          "unsupported": null,
+          "minimumRatio": 13.41341660795105
+        },
+        {
+          "target": "span.nownext-sub",
+          "text": "until 7:00 PM \u00b7 23 min left",
+          "foreground": {
+            "r": 89,
+            "g": 74,
+            "b": 70,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 246,
+              "g": 230,
+              "b": 226,
+              "a": 255
+            },
+            {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            }
+          ],
+          "method": "conservative RGB bounds across computed gradient stops",
+          "unsupported": null,
+          "minimumRatio": 6.9544458030319225
+        },
+        {
+          "target": "span.nownext-next-label",
+          "text": "Next",
+          "foreground": {
+            "r": 89,
+            "g": 74,
+            "b": 70,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 246,
+              "g": 230,
+              "b": 226,
+              "a": 255
+            },
+            {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            }
+          ],
+          "method": "conservative RGB bounds across computed gradient stops",
+          "unsupported": null,
+          "minimumRatio": 6.9544458030319225
+        },
+        {
+          "target": "span.nownext-next-title",
+          "text": "Deep work block",
+          "foreground": {
+            "r": 37,
+            "g": 31,
+            "b": 29,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 246,
+              "g": 230,
+              "b": 226,
+              "a": 255
+            },
+            {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            }
+          ],
+          "method": "conservative RGB bounds across computed gradient stops",
+          "unsupported": null,
+          "minimumRatio": 13.41341660795105
+        },
+        {
+          "target": "span.nownext-next-meta",
+          "text": "7:36 PM",
+          "foreground": {
+            "r": 89,
+            "g": 74,
+            "b": 70,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 246,
+              "g": 230,
+              "b": 226,
+              "a": 255
+            },
+            {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            }
+          ],
+          "method": "conservative RGB bounds across computed gradient stops",
+          "unsupported": null,
+          "minimumRatio": 6.9544458030319225
+        },
+        {
+          "target": "span.runlate-label",
+          "text": "Running late",
+          "foreground": {
+            "r": 89,
+            "g": 74,
+            "b": 70,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 246,
+              "g": 230,
+              "b": 226,
+              "a": 255
+            },
+            {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            }
+          ],
+          "method": "conservative RGB bounds across computed gradient stops",
+          "unsupported": null,
+          "minimumRatio": 6.9544458030319225
+        },
+        {
+          "target": "button.runlate-btn",
+          "text": "+15m",
+          "foreground": {
+            "r": 37,
+            "g": 31,
+            "b": 29,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            }
+          ],
+          "method": "solid ancestor",
+          "unsupported": null,
+          "minimumRatio": 16.2488491616575
+        },
+        {
+          "target": "button.runlate-btn",
+          "text": "+30m",
+          "foreground": {
+            "r": 37,
+            "g": 31,
+            "b": 29,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            }
+          ],
+          "method": "solid ancestor",
+          "unsupported": null,
+          "minimumRatio": 16.2488491616575
+        },
+        {
+          "target": "button.runlate-btn",
+          "text": "+60m",
+          "foreground": {
+            "r": 37,
+            "g": 31,
+            "b": 29,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            }
+          ],
+          "method": "solid ancestor",
+          "unsupported": null,
+          "minimumRatio": 16.2488491616575
+        }
+      ],
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              ".nownext-eyebrow"
+            ],
+            [
+              ".nownext-title"
+            ],
+            [
+              ".nownext-sub"
+            ],
+            [
+              ".nownext-next-label"
+            ],
+            [
+              ".nownext-next-title"
+            ],
+            [
+              ".nownext-next-meta"
+            ],
+            [
+              ".runlate-label"
+            ]
+          ],
+          "nodes": [
+            {
+              "target": [
+                ".nownext-eyebrow"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient",
+              "checks": [
+                {
+                  "id": "color-contrast",
+                  "message": "Element's background color could not be determined due to a background gradient",
+                  "data": {
+                    "contrastRatio": 0,
+                    "fontSize": "9.8pt (13px)",
+                    "fontWeight": "bold",
+                    "messageKey": "bgGradient",
+                    "expectedContrastRatio": "4.5:1"
+                  }
+                }
+              ]
+            },
+            {
+              "target": [
+                ".nownext-title"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient",
+              "checks": [
+                {
+                  "id": "color-contrast",
+                  "message": "Element's background color could not be determined due to a background gradient",
+                  "data": {
+                    "contrastRatio": 0,
+                    "fontSize": "17.3pt (23px)",
+                    "fontWeight": "bold",
+                    "messageKey": "bgGradient",
+                    "expectedContrastRatio": "3:1"
+                  }
+                }
+              ]
+            },
+            {
+              "target": [
+                ".nownext-sub"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient",
+              "checks": [
+                {
+                  "id": "color-contrast",
+                  "message": "Element's background color could not be determined due to a background gradient",
+                  "data": {
+                    "contrastRatio": 0,
+                    "fontSize": "10.9pt (14.5px)",
+                    "fontWeight": "normal",
+                    "messageKey": "bgGradient",
+                    "expectedContrastRatio": "4.5:1"
+                  }
+                }
+              ]
+            },
+            {
+              "target": [
+                ".nownext-next-label"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient",
+              "checks": [
+                {
+                  "id": "color-contrast",
+                  "message": "Element's background color could not be determined due to a background gradient",
+                  "data": {
+                    "contrastRatio": 0,
+                    "fontSize": "9.0pt (12px)",
+                    "fontWeight": "bold",
+                    "messageKey": "bgGradient",
+                    "expectedContrastRatio": "4.5:1"
+                  }
+                }
+              ]
+            },
+            {
+              "target": [
+                ".nownext-next-title"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient",
+              "checks": [
+                {
+                  "id": "color-contrast",
+                  "message": "Element's background color could not be determined due to a background gradient",
+                  "data": {
+                    "contrastRatio": 0,
+                    "fontSize": "12.4pt (16.5px)",
+                    "fontWeight": "normal",
+                    "messageKey": "bgGradient",
+                    "expectedContrastRatio": "4.5:1"
+                  }
+                }
+              ]
+            },
+            {
+              "target": [
+                ".nownext-next-meta"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient",
+              "checks": [
+                {
+                  "id": "color-contrast",
+                  "message": "Element's background color could not be determined due to a background gradient",
+                  "data": {
+                    "contrastRatio": 0,
+                    "fontSize": "10.1pt (13.5px)",
+                    "fontWeight": "normal",
+                    "messageKey": "bgGradient",
+                    "expectedContrastRatio": "4.5:1"
+                  }
+                }
+              ]
+            },
+            {
+              "target": [
+                ".runlate-label"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient",
+              "checks": [
+                {
+                  "id": "color-contrast",
+                  "message": "Element's background color could not be determined due to a background gradient",
+                  "data": {
+                    "contrastRatio": 0,
+                    "fontSize": "9.8pt (13px)",
+                    "fontWeight": "bold",
+                    "messageKey": "bgGradient",
+                    "expectedContrastRatio": "4.5:1"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/tasks",
+      "resolvedUrl": "http://localhost:3000/tasks",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1240,
+      "controlCount": 39,
+      "undersizedTargets": [],
+      "textInputCount": 2,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/calendar",
+      "resolvedUrl": "http://localhost:3000/calendar",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 844,
+      "controlCount": 26,
+      "undersizedTargets": [],
+      "textInputCount": 1,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/goals",
+      "resolvedUrl": "http://localhost:3000/goals",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 844,
+      "controlCount": 17,
+      "undersizedTargets": [],
+      "textInputCount": 2,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/habits",
+      "resolvedUrl": "http://localhost:3000/habits",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 982,
+      "controlCount": 21,
+      "undersizedTargets": [],
+      "textInputCount": 2,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/journal",
+      "resolvedUrl": "http://localhost:3000/journal",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 971,
+      "controlCount": 21,
+      "undersizedTargets": [],
+      "textInputCount": 2,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/notes",
+      "resolvedUrl": "http://localhost:3000/notes",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 971,
+      "controlCount": 21,
+      "undersizedTargets": [],
+      "textInputCount": 2,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/fitness",
+      "resolvedUrl": "http://localhost:3000/fitness",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1028,
+      "controlCount": 19,
+      "undersizedTargets": [],
+      "textInputCount": 2,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/finance",
+      "resolvedUrl": "http://localhost:3000/finance",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1000,
+      "controlCount": 12,
+      "undersizedTargets": [],
+      "textInputCount": 1,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/progress",
+      "resolvedUrl": "http://localhost:3000/progress",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1664,
+      "controlCount": 48,
+      "undersizedTargets": [],
+      "textInputCount": 1,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [
+        {
+          "target": "span.prog-habit-pct",
+          "text": "3",
+          "foreground": {
+            "r": 37,
+            "g": 31,
+            "b": 29,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            }
+          ],
+          "method": "solid ancestor",
+          "unsupported": null,
+          "minimumRatio": 16.2488491616575
+        },
+        {
+          "target": "span.prog-habit-pct",
+          "text": "0",
+          "foreground": {
+            "r": 37,
+            "g": 31,
+            "b": 29,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            }
+          ],
+          "method": "solid ancestor",
+          "unsupported": null,
+          "minimumRatio": 16.2488491616575
+        },
+        {
+          "target": "span.prog-habit-pct",
+          "text": "0",
+          "foreground": {
+            "r": 37,
+            "g": 31,
+            "b": 29,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            }
+          ],
+          "method": "solid ancestor",
+          "unsupported": null,
+          "minimumRatio": 16.2488491616575
+        }
+      ],
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              "div[aria-label=\"Gym: 3% of days\"] > .ring-center > .prog-habit-pct"
+            ],
+            [
+              "div[aria-label=\"Read: 0% of days\"] > .ring-center > .prog-habit-pct"
+            ],
+            [
+              "div[aria-label=\"Water: 0% of days\"] > .ring-center > .prog-habit-pct"
+            ]
+          ],
+          "nodes": [
+            {
+              "target": [
+                "div[aria-label=\"Gym: 3% of days\"] > .ring-center > .prog-habit-pct"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element content is too short to determine if it is actual text content",
+              "checks": [
+                {
+                  "id": "color-contrast",
+                  "message": "Element content is too short to determine if it is actual text content",
+                  "data": {
+                    "contrastRatio": 0,
+                    "fontSize": "9.4pt (12.5px)",
+                    "fontWeight": "bold",
+                    "messageKey": "shortTextContent",
+                    "expectedContrastRatio": "4.5:1"
+                  }
+                }
+              ]
+            },
+            {
+              "target": [
+                "div[aria-label=\"Read: 0% of days\"] > .ring-center > .prog-habit-pct"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element content is too short to determine if it is actual text content",
+              "checks": [
+                {
+                  "id": "color-contrast",
+                  "message": "Element content is too short to determine if it is actual text content",
+                  "data": {
+                    "contrastRatio": 0,
+                    "fontSize": "9.4pt (12.5px)",
+                    "fontWeight": "bold",
+                    "messageKey": "shortTextContent",
+                    "expectedContrastRatio": "4.5:1"
+                  }
+                }
+              ]
+            },
+            {
+              "target": [
+                "div[aria-label=\"Water: 0% of days\"] > .ring-center > .prog-habit-pct"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element content is too short to determine if it is actual text content",
+              "checks": [
+                {
+                  "id": "color-contrast",
+                  "message": "Element content is too short to determine if it is actual text content",
+                  "data": {
+                    "contrastRatio": 0,
+                    "fontSize": "9.4pt (12.5px)",
+                    "fontWeight": "bold",
+                    "messageKey": "shortTextContent",
+                    "expectedContrastRatio": "4.5:1"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/everything",
+      "resolvedUrl": "http://localhost:3000/everything",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1039,
+      "controlCount": 18,
+      "undersizedTargets": [],
+      "textInputCount": 1,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/week",
+      "resolvedUrl": "http://localhost:3000/week",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 993,
+      "controlCount": 28,
+      "undersizedTargets": [],
+      "textInputCount": 1,
+      "undersizedInputs": [],
+      "overflowingElements": [
+        {
+          "tag": "div",
+          "className": "wk-inner",
+          "name": "Mon7Tue8Wed9Thu10Fri11Sat12Sun137 AM8 AM9 AM10 AM11 AM12 PM1 PM2 PM3 PM4 PM5 PM6 PM7 PM8 PM9 PM10 PM",
+          "left": -9,
+          "right": 651
+        },
+        {
+          "tag": "div",
+          "className": "wk-head",
+          "name": "Mon7Tue8Wed9Thu10Fri11Sat12Sun13",
+          "left": -9,
+          "right": 651
+        },
+        {
+          "tag": "button",
+          "className": "wk-day  ",
+          "name": "Thu10",
+          "left": 303.5625,
+          "right": 390.421875
+        },
+        {
+          "tag": "button",
+          "className": "wk-day  ",
+          "name": "Fri11",
+          "left": 390.421875,
+          "right": 477.28125
+        },
+        {
+          "tag": "span",
+          "className": "wk-day-name",
+          "name": "Fri",
+          "left": 423.4375,
+          "right": 443.25
+        },
+        {
+          "tag": "span",
+          "className": "wk-day-num",
+          "name": "11",
+          "left": 422.34375,
+          "right": 444.34375
+        },
+        {
+          "tag": "button",
+          "className": "wk-day  ",
+          "name": "Sat12",
+          "left": 477.28125,
+          "right": 564.140625
+        },
+        {
+          "tag": "span",
+          "className": "wk-day-name",
+          "name": "Sat",
+          "left": 508.296875,
+          "right": 532.109375
+        },
+        {
+          "tag": "span",
+          "className": "wk-day-num",
+          "name": "12",
+          "left": 509.703125,
+          "right": 530.703125
+        },
+        {
+          "tag": "button",
+          "className": "wk-day  ",
+          "name": "Sun13",
+          "left": 564.140625,
+          "right": 650.984375
+        },
+        {
+          "tag": "span",
+          "className": "wk-day-name",
+          "name": "Sun",
+          "left": 594.15625,
+          "right": 620.96875
+        },
+        {
+          "tag": "span",
+          "className": "wk-day-num",
+          "name": "13",
+          "left": 597.0625,
+          "right": 618.0625
+        },
+        {
+          "tag": "div",
+          "className": "wk-body",
+          "name": "7 AM8 AM9 AM10 AM11 AM12 PM1 PM2 PM3 PM4 PM5 PM6 PM7 PM8 PM9 PM10 PMTeam standup4:36 PMDeep work blo",
+          "left": -9,
+          "right": 651
+        },
+        {
+          "tag": "div",
+          "className": "wk-col  clickable",
+          "name": "Thursday, September 10",
+          "left": 303.5625,
+          "right": 390.421875
+        },
+        {
+          "tag": "div",
+          "className": "wk-col  clickable",
+          "name": "Friday, September 11",
+          "left": 390.421875,
+          "right": 477.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-col  clickable",
+          "name": "Saturday, September 12",
+          "left": 477.28125,
+          "right": 564.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-col  clickable",
+          "name": "Sunday, September 13",
+          "left": 564.140625,
+          "right": 650.984375
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 564.140625,
+          "right": 650.984375
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 564.140625,
+          "right": 650.984375
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 564.140625,
+          "right": 650.984375
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 564.140625,
+          "right": 650.984375
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 564.140625,
+          "right": 650.984375
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 564.140625,
+          "right": 650.984375
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 564.140625,
+          "right": 650.984375
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 564.140625,
+          "right": 650.984375
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 564.140625,
+          "right": 650.984375
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 564.140625,
+          "right": 650.984375
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 564.140625,
+          "right": 650.984375
+        }
+      ],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/settings",
+      "resolvedUrl": "http://localhost:3000/settings",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1598,
+      "controlCount": 23,
+      "undersizedTargets": [],
+      "textInputCount": 1,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/today",
+      "resolvedUrl": "http://localhost:3000/today",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1877,
+      "controlCount": 32,
+      "undersizedTargets": [],
+      "textInputCount": 1,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [
+        {
+          "target": "span.nownext-eyebrow",
+          "text": "Now \u00b7 6:37 PM",
+          "foreground": {
+            "r": 239,
+            "g": 177,
+            "b": 159,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 66,
+              "g": 49,
+              "b": 44,
+              "a": 255
+            },
+            {
+              "r": 42,
+              "g": 38,
+              "b": 37,
+              "a": 255
+            }
+          ],
+          "method": "conservative RGB bounds across computed gradient stops",
+          "unsupported": null,
+          "minimumRatio": 6.71196562007768
+        },
+        {
+          "target": "h2.nownext-title",
+          "text": "Training",
+          "foreground": {
+            "r": 241,
+            "g": 239,
+            "b": 238,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 66,
+              "g": 49,
+              "b": 44,
+              "a": 255
+            },
+            {
+              "r": 42,
+              "g": 38,
+              "b": 37,
+              "a": 255
+            }
+          ],
+          "method": "conservative RGB bounds across computed gradient stops",
+          "unsupported": null,
+          "minimumRatio": 10.730909040792124
+        },
+        {
+          "target": "span.nownext-sub",
+          "text": "until 7:00 PM \u00b7 23 min left",
+          "foreground": {
+            "r": 201,
+            "g": 190,
+            "b": 186,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 66,
+              "g": 49,
+              "b": 44,
+              "a": 255
+            },
+            {
+              "r": 42,
+              "g": 38,
+              "b": 37,
+              "a": 255
+            }
+          ],
+          "method": "conservative RGB bounds across computed gradient stops",
+          "unsupported": null,
+          "minimumRatio": 6.769526615979399
+        },
+        {
+          "target": "span.nownext-next-label",
+          "text": "Next",
+          "foreground": {
+            "r": 201,
+            "g": 190,
+            "b": 186,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 66,
+              "g": 49,
+              "b": 44,
+              "a": 255
+            },
+            {
+              "r": 42,
+              "g": 38,
+              "b": 37,
+              "a": 255
+            }
+          ],
+          "method": "conservative RGB bounds across computed gradient stops",
+          "unsupported": null,
+          "minimumRatio": 6.769526615979399
+        },
+        {
+          "target": "span.nownext-next-title",
+          "text": "Deep work block",
+          "foreground": {
+            "r": 241,
+            "g": 239,
+            "b": 238,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 66,
+              "g": 49,
+              "b": 44,
+              "a": 255
+            },
+            {
+              "r": 42,
+              "g": 38,
+              "b": 37,
+              "a": 255
+            }
+          ],
+          "method": "conservative RGB bounds across computed gradient stops",
+          "unsupported": null,
+          "minimumRatio": 10.730909040792124
+        },
+        {
+          "target": "span.nownext-next-meta",
+          "text": "7:36 PM",
+          "foreground": {
+            "r": 201,
+            "g": 190,
+            "b": 186,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 66,
+              "g": 49,
+              "b": 44,
+              "a": 255
+            },
+            {
+              "r": 42,
+              "g": 38,
+              "b": 37,
+              "a": 255
+            }
+          ],
+          "method": "conservative RGB bounds across computed gradient stops",
+          "unsupported": null,
+          "minimumRatio": 6.769526615979399
+        },
+        {
+          "target": "span.runlate-label",
+          "text": "Running late",
+          "foreground": {
+            "r": 201,
+            "g": 190,
+            "b": 186,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 66,
+              "g": 49,
+              "b": 44,
+              "a": 255
+            },
+            {
+              "r": 42,
+              "g": 38,
+              "b": 37,
+              "a": 255
+            }
+          ],
+          "method": "conservative RGB bounds across computed gradient stops",
+          "unsupported": null,
+          "minimumRatio": 6.769526615979399
+        },
+        {
+          "target": "button.runlate-btn",
+          "text": "+15m",
+          "foreground": {
+            "r": 241,
+            "g": 239,
+            "b": 238,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 42,
+              "g": 38,
+              "b": 37,
+              "a": 255
+            }
+          ],
+          "method": "solid ancestor",
+          "unsupported": null,
+          "minimumRatio": 13.064221090456714
+        },
+        {
+          "target": "button.runlate-btn",
+          "text": "+30m",
+          "foreground": {
+            "r": 241,
+            "g": 239,
+            "b": 238,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 42,
+              "g": 38,
+              "b": 37,
+              "a": 255
+            }
+          ],
+          "method": "solid ancestor",
+          "unsupported": null,
+          "minimumRatio": 13.064221090456714
+        },
+        {
+          "target": "button.runlate-btn",
+          "text": "+60m",
+          "foreground": {
+            "r": 241,
+            "g": 239,
+            "b": 238,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 42,
+              "g": 38,
+              "b": 37,
+              "a": 255
+            }
+          ],
+          "method": "solid ancestor",
+          "unsupported": null,
+          "minimumRatio": 13.064221090456714
+        }
+      ],
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              ".nownext-eyebrow"
+            ],
+            [
+              ".nownext-title"
+            ],
+            [
+              ".nownext-sub"
+            ],
+            [
+              ".nownext-next-label"
+            ],
+            [
+              ".nownext-next-title"
+            ],
+            [
+              ".nownext-next-meta"
+            ],
+            [
+              ".runlate-label"
+            ]
+          ],
+          "nodes": [
+            {
+              "target": [
+                ".nownext-eyebrow"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient",
+              "checks": [
+                {
+                  "id": "color-contrast",
+                  "message": "Element's background color could not be determined due to a background gradient",
+                  "data": {
+                    "contrastRatio": 0,
+                    "fontSize": "9.8pt (13px)",
+                    "fontWeight": "bold",
+                    "messageKey": "bgGradient",
+                    "expectedContrastRatio": "4.5:1"
+                  }
+                }
+              ]
+            },
+            {
+              "target": [
+                ".nownext-title"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient",
+              "checks": [
+                {
+                  "id": "color-contrast",
+                  "message": "Element's background color could not be determined due to a background gradient",
+                  "data": {
+                    "contrastRatio": 0,
+                    "fontSize": "17.3pt (23px)",
+                    "fontWeight": "bold",
+                    "messageKey": "bgGradient",
+                    "expectedContrastRatio": "3:1"
+                  }
+                }
+              ]
+            },
+            {
+              "target": [
+                ".nownext-sub"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient",
+              "checks": [
+                {
+                  "id": "color-contrast",
+                  "message": "Element's background color could not be determined due to a background gradient",
+                  "data": {
+                    "contrastRatio": 0,
+                    "fontSize": "10.9pt (14.5px)",
+                    "fontWeight": "normal",
+                    "messageKey": "bgGradient",
+                    "expectedContrastRatio": "4.5:1"
+                  }
+                }
+              ]
+            },
+            {
+              "target": [
+                ".nownext-next-label"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient",
+              "checks": [
+                {
+                  "id": "color-contrast",
+                  "message": "Element's background color could not be determined due to a background gradient",
+                  "data": {
+                    "contrastRatio": 0,
+                    "fontSize": "9.0pt (12px)",
+                    "fontWeight": "bold",
+                    "messageKey": "bgGradient",
+                    "expectedContrastRatio": "4.5:1"
+                  }
+                }
+              ]
+            },
+            {
+              "target": [
+                ".nownext-next-title"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient",
+              "checks": [
+                {
+                  "id": "color-contrast",
+                  "message": "Element's background color could not be determined due to a background gradient",
+                  "data": {
+                    "contrastRatio": 0,
+                    "fontSize": "12.4pt (16.5px)",
+                    "fontWeight": "normal",
+                    "messageKey": "bgGradient",
+                    "expectedContrastRatio": "4.5:1"
+                  }
+                }
+              ]
+            },
+            {
+              "target": [
+                ".nownext-next-meta"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient",
+              "checks": [
+                {
+                  "id": "color-contrast",
+                  "message": "Element's background color could not be determined due to a background gradient",
+                  "data": {
+                    "contrastRatio": 0,
+                    "fontSize": "10.1pt (13.5px)",
+                    "fontWeight": "normal",
+                    "messageKey": "bgGradient",
+                    "expectedContrastRatio": "4.5:1"
+                  }
+                }
+              ]
+            },
+            {
+              "target": [
+                ".runlate-label"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient",
+              "checks": [
+                {
+                  "id": "color-contrast",
+                  "message": "Element's background color could not be determined due to a background gradient",
+                  "data": {
+                    "contrastRatio": 0,
+                    "fontSize": "9.8pt (13px)",
+                    "fontWeight": "bold",
+                    "messageKey": "bgGradient",
+                    "expectedContrastRatio": "4.5:1"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/tasks",
+      "resolvedUrl": "http://localhost:3000/tasks",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1240,
+      "controlCount": 39,
+      "undersizedTargets": [],
+      "textInputCount": 2,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/calendar",
+      "resolvedUrl": "http://localhost:3000/calendar",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 844,
+      "controlCount": 26,
+      "undersizedTargets": [],
+      "textInputCount": 1,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/goals",
+      "resolvedUrl": "http://localhost:3000/goals",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 844,
+      "controlCount": 17,
+      "undersizedTargets": [],
+      "textInputCount": 2,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/habits",
+      "resolvedUrl": "http://localhost:3000/habits",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 982,
+      "controlCount": 21,
+      "undersizedTargets": [],
+      "textInputCount": 2,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/journal",
+      "resolvedUrl": "http://localhost:3000/journal",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 971,
+      "controlCount": 21,
+      "undersizedTargets": [],
+      "textInputCount": 2,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/notes",
+      "resolvedUrl": "http://localhost:3000/notes",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 971,
+      "controlCount": 21,
+      "undersizedTargets": [],
+      "textInputCount": 2,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/fitness",
+      "resolvedUrl": "http://localhost:3000/fitness",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1028,
+      "controlCount": 19,
+      "undersizedTargets": [],
+      "textInputCount": 2,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/finance",
+      "resolvedUrl": "http://localhost:3000/finance",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1000,
+      "controlCount": 12,
+      "undersizedTargets": [],
+      "textInputCount": 1,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/progress",
+      "resolvedUrl": "http://localhost:3000/progress",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1664,
+      "controlCount": 48,
+      "undersizedTargets": [],
+      "textInputCount": 1,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [
+        {
+          "target": "span.prog-habit-pct",
+          "text": "3",
+          "foreground": {
+            "r": 241,
+            "g": 239,
+            "b": 238,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 42,
+              "g": 38,
+              "b": 37,
+              "a": 255
+            }
+          ],
+          "method": "solid ancestor",
+          "unsupported": null,
+          "minimumRatio": 13.064221090456714
+        },
+        {
+          "target": "span.prog-habit-pct",
+          "text": "0",
+          "foreground": {
+            "r": 241,
+            "g": 239,
+            "b": 238,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 42,
+              "g": 38,
+              "b": 37,
+              "a": 255
+            }
+          ],
+          "method": "solid ancestor",
+          "unsupported": null,
+          "minimumRatio": 13.064221090456714
+        },
+        {
+          "target": "span.prog-habit-pct",
+          "text": "0",
+          "foreground": {
+            "r": 241,
+            "g": 239,
+            "b": 238,
+            "a": 255
+          },
+          "backgrounds": [
+            {
+              "r": 42,
+              "g": 38,
+              "b": 37,
+              "a": 255
+            }
+          ],
+          "method": "solid ancestor",
+          "unsupported": null,
+          "minimumRatio": 13.064221090456714
+        }
+      ],
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              "div[aria-label=\"Gym: 3% of days\"] > .ring-center > .prog-habit-pct"
+            ],
+            [
+              "div[aria-label=\"Read: 0% of days\"] > .ring-center > .prog-habit-pct"
+            ],
+            [
+              "div[aria-label=\"Water: 0% of days\"] > .ring-center > .prog-habit-pct"
+            ]
+          ],
+          "nodes": [
+            {
+              "target": [
+                "div[aria-label=\"Gym: 3% of days\"] > .ring-center > .prog-habit-pct"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element content is too short to determine if it is actual text content",
+              "checks": [
+                {
+                  "id": "color-contrast",
+                  "message": "Element content is too short to determine if it is actual text content",
+                  "data": {
+                    "contrastRatio": 0,
+                    "fontSize": "9.4pt (12.5px)",
+                    "fontWeight": "bold",
+                    "messageKey": "shortTextContent",
+                    "expectedContrastRatio": "4.5:1"
+                  }
+                }
+              ]
+            },
+            {
+              "target": [
+                "div[aria-label=\"Read: 0% of days\"] > .ring-center > .prog-habit-pct"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element content is too short to determine if it is actual text content",
+              "checks": [
+                {
+                  "id": "color-contrast",
+                  "message": "Element content is too short to determine if it is actual text content",
+                  "data": {
+                    "contrastRatio": 0,
+                    "fontSize": "9.4pt (12.5px)",
+                    "fontWeight": "bold",
+                    "messageKey": "shortTextContent",
+                    "expectedContrastRatio": "4.5:1"
+                  }
+                }
+              ]
+            },
+            {
+              "target": [
+                "div[aria-label=\"Water: 0% of days\"] > .ring-center > .prog-habit-pct"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element content is too short to determine if it is actual text content",
+              "checks": [
+                {
+                  "id": "color-contrast",
+                  "message": "Element content is too short to determine if it is actual text content",
+                  "data": {
+                    "contrastRatio": 0,
+                    "fontSize": "9.4pt (12.5px)",
+                    "fontWeight": "bold",
+                    "messageKey": "shortTextContent",
+                    "expectedContrastRatio": "4.5:1"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/everything",
+      "resolvedUrl": "http://localhost:3000/everything",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1039,
+      "controlCount": 18,
+      "undersizedTargets": [],
+      "textInputCount": 1,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/week",
+      "resolvedUrl": "http://localhost:3000/week",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 993,
+      "controlCount": 28,
+      "undersizedTargets": [],
+      "textInputCount": 1,
+      "undersizedInputs": [],
+      "overflowingElements": [
+        {
+          "tag": "div",
+          "className": "wk-inner",
+          "name": "Mon7Tue8Wed9Thu10Fri11Sat12Sun137 AM8 AM9 AM10 AM11 AM12 PM1 PM2 PM3 PM4 PM5 PM6 PM7 PM8 PM9 PM10 PM",
+          "left": -9,
+          "right": 651
+        },
+        {
+          "tag": "div",
+          "className": "wk-head",
+          "name": "Mon7Tue8Wed9Thu10Fri11Sat12Sun13",
+          "left": -9,
+          "right": 651
+        },
+        {
+          "tag": "button",
+          "className": "wk-day  ",
+          "name": "Thu10",
+          "left": 303.5625,
+          "right": 390.421875
+        },
+        {
+          "tag": "button",
+          "className": "wk-day  ",
+          "name": "Fri11",
+          "left": 390.421875,
+          "right": 477.28125
+        },
+        {
+          "tag": "span",
+          "className": "wk-day-name",
+          "name": "Fri",
+          "left": 423.4375,
+          "right": 443.25
+        },
+        {
+          "tag": "span",
+          "className": "wk-day-num",
+          "name": "11",
+          "left": 422.34375,
+          "right": 444.34375
+        },
+        {
+          "tag": "button",
+          "className": "wk-day  ",
+          "name": "Sat12",
+          "left": 477.28125,
+          "right": 564.140625
+        },
+        {
+          "tag": "span",
+          "className": "wk-day-name",
+          "name": "Sat",
+          "left": 508.296875,
+          "right": 532.109375
+        },
+        {
+          "tag": "span",
+          "className": "wk-day-num",
+          "name": "12",
+          "left": 509.703125,
+          "right": 530.703125
+        },
+        {
+          "tag": "button",
+          "className": "wk-day  ",
+          "name": "Sun13",
+          "left": 564.140625,
+          "right": 650.984375
+        },
+        {
+          "tag": "span",
+          "className": "wk-day-name",
+          "name": "Sun",
+          "left": 594.15625,
+          "right": 620.96875
+        },
+        {
+          "tag": "span",
+          "className": "wk-day-num",
+          "name": "13",
+          "left": 597.0625,
+          "right": 618.0625
+        },
+        {
+          "tag": "div",
+          "className": "wk-body",
+          "name": "7 AM8 AM9 AM10 AM11 AM12 PM1 PM2 PM3 PM4 PM5 PM6 PM7 PM8 PM9 PM10 PMTeam standup4:36 PMDeep work blo",
+          "left": -9,
+          "right": 651
+        },
+        {
+          "tag": "div",
+          "className": "wk-col  clickable",
+          "name": "Thursday, September 10",
+          "left": 303.5625,
+          "right": 390.421875
+        },
+        {
+          "tag": "div",
+          "className": "wk-col  clickable",
+          "name": "Friday, September 11",
+          "left": 390.421875,
+          "right": 477.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 390.421875,
+          "right": 476.28125
+        },
+        {
+          "tag": "div",
+          "className": "wk-col  clickable",
+          "name": "Saturday, September 12",
+          "left": 477.28125,
+          "right": 564.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 477.28125,
+          "right": 563.140625
+        },
+        {
+          "tag": "div",
+          "className": "wk-col  clickable",
+          "name": "Sunday, September 13",
+          "left": 564.140625,
+          "right": 650.984375
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 564.140625,
+          "right": 650.984375
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 564.140625,
+          "right": 650.984375
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 564.140625,
+          "right": 650.984375
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 564.140625,
+          "right": 650.984375
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 564.140625,
+          "right": 650.984375
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 564.140625,
+          "right": 650.984375
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 564.140625,
+          "right": 650.984375
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 564.140625,
+          "right": 650.984375
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 564.140625,
+          "right": 650.984375
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 564.140625,
+          "right": 650.984375
+        },
+        {
+          "tag": "div",
+          "className": "wk-hour",
+          "name": "",
+          "left": 564.140625,
+          "right": 650.984375
+        }
+      ],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/settings",
+      "resolvedUrl": "http://localhost:3000/settings",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1598,
+      "controlCount": 23,
+      "undersizedTargets": [],
+      "textInputCount": 1,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    }
+  ]
+}
