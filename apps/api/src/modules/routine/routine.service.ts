@@ -1,3 +1,4 @@
+import { readCollection } from '../../core/collection-pages.js';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type {
   ReplaceRoutineInput,
@@ -63,10 +64,11 @@ export class RoutineService {
    */
   async list(userId: string): Promise<RoutineBlockDTO[]> {
     const from = shiftDay(await this.today(userId), -1);
-    const blocks = await this.prisma.client.routineBlock.findMany({
+    const blocks = await readCollection((page) => this.prisma.client.routineBlock.findMany({
+      take: page.take, cursor: page.cursor, skip: page.skip,
       where: { userId, OR: [{ onDate: null }, { onDate: { gte: from } }] },
-      orderBy: [{ onDate: 'asc' }, { startMin: 'asc' }],
-    });
+      orderBy: [{ onDate: 'asc' }, { startMin: 'asc' }, { id: 'asc' }],
+    }));
     return blocks.map(toDto);
   }
 

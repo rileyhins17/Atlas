@@ -1,3 +1,4 @@
+import { readCollection } from '../../core/collection-pages.js';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   matchExercise,
@@ -71,11 +72,12 @@ export class WorkoutTemplatesService {
   ) {}
 
   async list(userId: string): Promise<WorkoutTemplateDTO[]> {
-    const rows = await this.prisma.client.workoutTemplate.findMany({
+    const rows = await readCollection((page) => this.prisma.client.workoutTemplate.findMany({
+      take: page.take, cursor: page.cursor, skip: page.skip,
       where: { userId },
-      orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+      orderBy: [{ position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
       include: WITH_EXERCISES,
-    });
+    }));
 
     // One grouped query rather than one per template.
     const last = await this.prisma.client.workout.groupBy({
@@ -93,6 +95,7 @@ export class WorkoutTemplatesService {
     if (ids.length === 0) return [];
     const found = await this.prisma.client.exercise.findMany({
       where: { id: { in: ids }, OR: [{ userId: null }, { userId }] },
+      take: new Set(ids).size,
       select: { id: true },
     });
     const allowed = new Set(found.map((e) => e.id));
@@ -213,10 +216,12 @@ export class WorkoutTemplatesService {
    * movements — "my usual upper day" — which is the minority.
    */
   async planSplit(userId: string, text: string): Promise<PlanSplitResultDTO> {
-    const catalog = await this.prisma.client.exercise.findMany({
+    const catalog = await readCollection((page) => this.prisma.client.exercise.findMany({
+      take: page.take, cursor: page.cursor, skip: page.skip,
+      orderBy: { id: 'asc' },
       where: { OR: [{ userId: null }, { userId }] },
       select: { id: true, name: true },
-    });
+    }));
 
     let days = parseSplitText(text);
     let usedAi = false;
@@ -332,10 +337,12 @@ export class WorkoutTemplatesService {
 
     const byName = new Map<string, string>();
     if (needed.size > 0) {
-      const found = await this.prisma.client.exercise.findMany({
+      const found = await readCollection((page) => this.prisma.client.exercise.findMany({
+        take: page.take, cursor: page.cursor, skip: page.skip,
+        orderBy: { id: 'asc' },
         where: { name: { in: [...needed] }, OR: [{ userId: null }, { userId }] },
         select: { id: true, name: true },
-      });
+      }));
       for (const row of found) byName.set(row.name, row.id);
 
       // Deduplicated by name before writing, so two days naming the same new
@@ -348,10 +355,12 @@ export class WorkoutTemplatesService {
           skipDuplicates: true,
         });
         // createMany returns no rows, so read back the ids it just assigned.
-        const created = await this.prisma.client.exercise.findMany({
+        const created = await readCollection((page) => this.prisma.client.exercise.findMany({
+          take: page.take, cursor: page.cursor, skip: page.skip,
+          orderBy: { id: 'asc' },
           where: { name: { in: missing }, OR: [{ userId: null }, { userId }] },
           select: { id: true, name: true },
-        });
+        }));
         for (const row of created) byName.set(row.name, row.id);
       }
     }
@@ -360,10 +369,12 @@ export class WorkoutTemplatesService {
     const dayNames = wanted.map((t) => t.name.trim().slice(0, 60) || 'My workout');
     const existingDays = new Map(
       (
-        await this.prisma.client.workoutTemplate.findMany({
+        await readCollection((page) => this.prisma.client.workoutTemplate.findMany({
+          take: page.take, cursor: page.cursor, skip: page.skip,
+          orderBy: { id: 'asc' },
           where: { userId, name: { in: dayNames } },
           select: { id: true, name: true },
-        })
+        }))
       ).map((row) => [row.name, row.id]),
     );
 
