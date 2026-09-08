@@ -201,8 +201,8 @@ jobs:
       - name: Verify collection pagination independently
         run: pnpm --filter @atlas/web exec playwright test e2e/life-os.spec.ts --grep "exercise collections retain the final page"
 
-      - name: Verify Today regressions independently
-        run: pnpm --filter @atlas/web exec playwright test e2e/life-os.spec.ts --grep "day planning works without AI|Today keeps actions first"
+      - name: Verify Today and exercise-entry regressions independently
+        run: pnpm --filter @atlas/web exec playwright test e2e/life-os.spec.ts --grep "day planning works without AI|Today keeps actions first|fitness: set up a split"
 
       - name: Capture synthetic UI baseline
         env:

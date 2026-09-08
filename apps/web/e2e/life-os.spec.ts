@@ -554,6 +554,8 @@ test('calendar: navigating weeks reaches the past and comes back', async ({ page
 });
 
 test('fitness: set up a split, then train it', async ({ page }) => {
+  const baselineUnit = await page.request.patch('http://localhost:4000/settings', { data: { weightUnit: 'lb' } });
+  expect(baselineUnit.ok()).toBe(true);
   await go(page, '/fitness');
 
   // Describe the split once. Matching is local, so this works with no API key.
@@ -611,6 +613,40 @@ test('fitness: set up a split, then train it', async ({ page }) => {
 
   await bench.getByRole('button', { name: 'Log set' }).click();
   await expect(bench.locator('.fit-set-body')).toContainText('185 lb × 5');
+
+  // A late unit preference must not reinterpret a pounds-prefilled number as kg.
+  const preference = await page.request.patch('http://localhost:4000/settings', { data: { weightUnit: 'kg' } });
+  expect(preference.ok()).toBe(true);
+  let releaseSettings!: () => void;
+  const heldSettings = new Promise<void>((resolve) => { releaseSettings = resolve; });
+  let sawSettings!: () => void;
+  const requestedSettings = new Promise<void>((resolve) => { sawSettings = resolve; });
+  await page.route('http://localhost:4000/settings', async (route) => {
+    sawSettings();
+    await heldSettings;
+    await route.continue();
+  });
+  await page.reload();
+  await requestedSettings;
+  await expect(page.getByRole('button', { name: 'Log set', exact: true })).toHaveCount(0);
+  releaseSettings();
+  const kilograms = bench.getByLabel(/^Weight in kg/);
+  await expect(kilograms).toBeVisible();
+  await kilograms.click();
+  await kilograms.press('ControlOrMeta+a');
+  await kilograms.pressSequentially('100');
+  await expect(kilograms).toHaveValue('100');
+  await bench.getByRole('button', { name: 'Log set' }).click();
+  await expect(bench.locator('.fit-set-body').last()).toContainText('100 kg × 5');
+  const savedWorkout = await page.request.get('http://localhost:4000/fitness/workouts/active');
+  expect(savedWorkout.ok()).toBe(true);
+  expect((await savedWorkout.json()).sets).toEqual(expect.arrayContaining([
+    expect.objectContaining({ weightGrams: 100000, reps: 5 }),
+  ]));
+  await page.unroute('http://localhost:4000/settings');
+  const restoredUnit = await page.request.patch('http://localhost:4000/settings', { data: { weightUnit: 'lb' } });
+  expect(restoredUnit.ok()).toBe(true);
+
 });
 
 test('the nav is three destinations, and every old route still resolves', async ({ page }) => {

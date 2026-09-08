@@ -20,14 +20,15 @@ import {
   stepFor,
   unitToGrams,
   type ExerciseDTO,
+  type LastPerformanceDTO,
   type SetType,
   type WeightUnit,
   type WorkoutDTO,
 } from '@atlas/shared';
 import { Check, Trophy, X } from 'lucide-react';
 import { useDeleteSet, useLastPerformance, useLogSet } from '@/lib/hooks/fitness';
-import { useWeightUnit } from '@/lib/hooks/settings';
-import { Button, IconButton, Input } from '@/components/ui';
+import { useSettings } from '@/lib/hooks/settings';
+import { Button, ErrorState, IconButton, Input, ListSkeleton } from '@/components/ui';
 
 
 /**
@@ -36,29 +37,52 @@ import { Button, IconButton, Input } from '@/components/ui';
  * the overwhelmingly common case is repeating or slightly beating it, so the
  * default action is one tap with no typing at all.
  */
-export function ExerciseBlock({
-  workoutId,
-  exerciseId,
-  exerciseName,
-  kind,
-  sets,
-  onLogged,
-  onSkip,
-}: {
+interface ExerciseBlockProps {
   workoutId: string;
   exerciseId: string;
   exerciseName: string;
   kind: ExerciseDTO['kind'];
   sets: WorkoutDTO['sets'];
   onLogged: () => void;
-  /** Present only on a not-yet-started block — lets you drop a movement you
-   *  are not doing today without editing the saved day. */
   onSkip?: () => void;
-}) {
-  const last = useLastPerformance(exerciseId);
+}
+
+export function ExerciseBlock(props: ExerciseBlockProps) {
+  const settings = useSettings();
+  const last = useLastPerformance(props.exerciseId);
+  const failed = [settings, last].filter((query) => query.isError);
+  const error = failed.length > 0 ? <ErrorState message="Exercise entry could not be loaded safely." onRetry={() => {
+    for (const query of failed) void query.refetch();
+  }} /> : null;
+  if (settings.data === undefined || last.data === undefined) {
+    return error ?? <ListSkeleton rows={2} circle={false} />;
+  }
+  return (
+    <>
+      {error}
+      <fieldset disabled={failed.length > 0} style={{ margin: 0, padding: 0, border: 0, minWidth: 0 }}>
+        <ReadyExerciseBlock
+          key={`${props.workoutId}:${props.exerciseId}`}
+          {...props}
+          initialUnit={settings.data.weightUnit}
+          lastData={last.data}
+          canLog={failed.length === 0}
+        />
+      </fieldset>
+    </>
+  );
+}
+
+function ReadyExerciseBlock({
+  workoutId, exerciseId, exerciseName, kind, sets, onLogged, onSkip,
+  initialUnit, lastData, canLog,
+}: ExerciseBlockProps & { initialUnit: WeightUnit; lastData: LastPerformanceDTO | null; canLog: boolean }) {
   const log = useLogSet(workoutId);
   const removeSet = useDeleteSet(workoutId);
-  const unit = useWeightUnit();
+  // A draft keeps its explicit unit. A preference refresh must not reinterpret
+  // a number the user has already entered; a new exercise adopts the new unit.
+  const [unit] = useState(initialUnit);
+  const last = { data: lastData };
 
   // Seed from this session's most recent set, else last session's, else blank.
   const seed = sets.at(-1) ?? last.data?.sets.at(-1) ?? null;
@@ -112,7 +136,7 @@ export function ExerciseBlock({
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!valid || log.isPending) return;
+    if (!canLog || !valid || log.isPending) return;
     log.mutate(
       {
         exerciseId,

@@ -232,3 +232,25 @@ returns pounds when settings are unavailable, and ExerciseBlock passes that unit
 to `unitToGrams()` on submission. Its comment claiming that the temporary default
 cannot affect stored data is not sufficient evidence. The exercise-entry flow
 needs a regression and a read-state gate before fitness state coverage is complete.
+
+
+## Fitness entry: a late unit changed the meaning of an existing number
+
+The direct regression failed with expected `100` and received `220.5` in a field
+labelled kilograms after a 100000g set mounted before settings arrived. The form
+had initialized its number using the pounds fallback; the later unit changed the
+label and submission conversion without updating that number. Two additional red
+cases showed the form could submit with pending or failed preferences.
+
+Exercise entry now waits for settings and previous-set reads before initializing.
+A mounted draft retains its explicit unit. Failed refreshes disable entry without
+losing the draft, with retry outside the disabled controls. New exercise/workout
+forms adopt the current preference. The six focused cases pass, including a
+100000g round trip and retained input after failure. The read-only unit helper's
+comment no longer claims its fallback is safe for writes.
+
+The existing fitness browser journey now delays settings, types 100kg through
+real keystrokes and asserts 100000 grams in the persisted workout. It is included
+in the independent regression group as well as the full suite. The final local gate passed: build 6/6, forced typecheck 10/10, lint zero errors
+with three existing warnings, and 1501 unit tests. Current-head CI verification
+remains pending.
