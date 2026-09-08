@@ -1,4 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import { Prisma } from '@atlas/db';
 import {
   PlaidApiError,
   mapPlaidAccountType,
@@ -14,6 +16,7 @@ import { TimelineService } from '../../core/timeline.service.js';
 import { ConnectorsService } from '../../core/connectors.service.js';
 
 const CONNECTOR_ID = 'plaid';
+const WRITE_BATCH_SIZE = 250;
 
 export interface PlaidItemSummary {
   itemId: string;
@@ -168,13 +171,10 @@ export class PlaidSyncService {
     };
 
     // 1) Upsert accounts, building plaid account_id → Atlas account id map.
-    const acctMap = new Map<string, string>();
+    let acctMap: Map<string, string>;
     try {
       const { accounts } = await connector.getAccounts(ctx);
-      for (const pAcct of accounts) {
-        const atlasId = await this.upsertAccount(userId, pAcct, institution);
-        acctMap.set(pAcct.account_id, atlasId);
-      }
+      acctMap = await this.upsertAccounts(userId, accounts, institution);
     } catch (err) {
       result.errors.push(`accounts: ${errText(err)}`);
       return result; // no accounts → can't place transactions
@@ -200,16 +200,16 @@ export class PlaidSyncService {
       // recorded, and the cursor is held back so the next sync sees the page
       // again once the account exists.
       const dropped: string[] = [];
+      const writable: Array<{ accountId: string; transaction: PlaidTransaction }> = [];
       for (const t of [...sync.added, ...sync.modified]) {
         const accountId = acctMap.get(t.account_id);
         if (!accountId) {
           dropped.push(t.account_id);
           continue;
         }
-        const existed = await this.upsertTransaction(userId, accountId, t);
-        if (existed) result.updated++;
-        else result.imported++;
+        writable.push({ accountId, transaction: t });
       }
+      await this.upsertTransactions(userId, writable, result);
       if (dropped.length > 0) {
         const accounts = [...new Set(dropped)];
         result.errors.push(
@@ -260,56 +260,83 @@ export class PlaidSyncService {
     return result;
   }
 
-  private async upsertAccount(
+  private async upsertAccounts(
     userId: string,
-    p: PlaidAccount,
+    accounts: PlaidAccount[],
     institution: string | null,
-  ): Promise<string> {
-    const currency = plaidCurrency(p.balances);
-    const balance = p.balances.current ?? p.balances.available ?? 0;
-    const data = {
-      name: p.official_name ?? p.name,
-      type: mapPlaidAccountType(p.type, p.subtype),
-      currency,
-      balanceMinor: BigInt(Math.round(balance * 100)),
-      mask: p.mask ?? null,
-      institution,
-    };
-    const account = await this.prisma.client.account.upsert({
-      where: { userId_source_externalId: { userId, source: CONNECTOR_ID, externalId: p.account_id } },
-      create: { userId, source: CONNECTOR_ID, externalId: p.account_id, ...data },
-      update: data,
-    });
-    return account.id;
+  ): Promise<Map<string, string>> {
+    const unique = [...new Map(accounts.map(account => [account.account_id, account])).values()];
+    const mapping = new Map<string, string>();
+    // Sequential bounded pages keep the connection load fixed. There is no
+    // per-account query; each statement returns all ids needed by that page.
+    for (let offset = 0; offset < unique.length; offset += WRITE_BATCH_SIZE) {
+      const values = unique.slice(offset, offset + WRITE_BATCH_SIZE).map(p => Prisma.sql`(
+        ${randomUUID()}, ${userId}, ${p.official_name ?? p.name},
+        ${mapPlaidAccountType(p.type, p.subtype)}, ${plaidCurrency(p.balances)},
+        ${BigInt(Math.round((p.balances.current ?? p.balances.available ?? 0) * 100))},
+        ${CONNECTOR_ID}, ${p.account_id}, ${p.mask ?? null}, ${institution}, CURRENT_TIMESTAMP
+      )`);
+      const rows = await this.writeAccounts(values);
+      for (const row of rows) mapping.set(row.externalId, row.id);
+    }
+    return mapping;
   }
 
-  /** Returns true if the transaction already existed (an update), false if new. */
-  private async upsertTransaction(
+  private writeAccounts(values: Prisma.Sql[]): Promise<Array<{ id: string; externalId: string }>> {
+    return this.prisma.client.$queryRaw(Prisma.sql`
+      INSERT INTO accounts (id, "userId", name, type, currency, "balanceMinor",
+        source, "externalId", mask, institution, "updatedAt")
+      VALUES ${Prisma.join(values)}
+      ON CONFLICT ("userId", source, "externalId") DO UPDATE SET
+        name = EXCLUDED.name, type = EXCLUDED.type, currency = EXCLUDED.currency,
+        "balanceMinor" = EXCLUDED."balanceMinor", mask = EXCLUDED.mask,
+        institution = EXCLUDED.institution, "updatedAt" = EXCLUDED."updatedAt"
+      RETURNING id, "externalId"
+    `);
+  }
+
+  private async upsertTransactions(
     userId: string,
-    accountId: string,
-    t: PlaidTransaction,
-  ): Promise<boolean> {
-    const existing = await this.prisma.client.transaction.findUnique({
-      where: { userId_source_externalId: { userId, source: CONNECTOR_ID, externalId: t.transaction_id } },
-    });
-    const data = {
-      accountId,
-      amountMinor: BigInt(plaidAmountToMinor(t.amount)),
-      currency: plaidCurrency(t),
-      description: t.name,
-      merchantName: t.merchant_name ?? null,
-      category: t.category?.[0] ?? null,
-      postedAt: new Date(t.date),
-      pending: t.pending,
-    };
-    if (existing) {
-      await this.prisma.client.transaction.update({ where: { id: existing.id }, data });
-      return true;
+    entries: Array<{ accountId: string; transaction: PlaidTransaction }>,
+    result: SyncResult,
+  ): Promise<void> {
+    const occurrences = new Map<string, number>();
+    for (const { transaction: t } of entries) {
+      occurrences.set(t.transaction_id, (occurrences.get(t.transaction_id) ?? 0) + 1);
     }
-    await this.prisma.client.transaction.create({
-      data: { userId, source: CONNECTOR_ID, externalId: t.transaction_id, ...data },
-    });
-    return false;
+    // An added record may also appear in modified. Last input wins, as in the
+    // previous sequential reconciler; never send duplicate conflict keys in SQL.
+    const unique = [...new Map(entries.map(entry => [entry.transaction.transaction_id, entry])).values()];
+    for (let offset = 0; offset < unique.length; offset += WRITE_BATCH_SIZE) {
+      const candidates = new Set<string>();
+      const values = unique.slice(offset, offset + WRITE_BATCH_SIZE).map(({ accountId, transaction: t }) => {
+        const id = randomUUID();
+        candidates.add(id);
+        return Prisma.sql`(${id}, ${userId}, ${accountId}, ${BigInt(plaidAmountToMinor(t.amount))},
+          ${plaidCurrency(t)}, ${t.name}, ${t.merchant_name ?? null}, ${t.category?.[0] ?? null},
+          ${new Date(t.date)}, ${t.pending}, ${CONNECTOR_ID}, ${t.transaction_id})`;
+      });
+      const rows = await this.writeTransactions(values);
+      for (const row of rows) {
+        const imported = candidates.has(row.id) ? 1 : 0;
+        result.imported += imported;
+        result.updated += (occurrences.get(row.externalId) ?? 1) - imported;
+      }
+    }
+  }
+
+  private writeTransactions(values: Prisma.Sql[]): Promise<Array<{ id: string; externalId: string }>> {
+    return this.prisma.client.$queryRaw(Prisma.sql`
+      INSERT INTO transactions (id, "userId", "accountId", "amountMinor", currency,
+        description, "merchantName", category, "postedAt", pending, source, "externalId")
+      VALUES ${Prisma.join(values)}
+      ON CONFLICT ("userId", source, "externalId") DO UPDATE SET
+        "accountId" = EXCLUDED."accountId", "amountMinor" = EXCLUDED."amountMinor",
+        currency = EXCLUDED.currency, description = EXCLUDED.description,
+        "merchantName" = EXCLUDED."merchantName", category = EXCLUDED.category,
+        "postedAt" = EXCLUDED."postedAt", pending = EXCLUDED.pending
+      RETURNING id, "externalId"
+    `);
   }
 
   /** Stop syncing an item (or all of them) and invalidate the Plaid token. */
