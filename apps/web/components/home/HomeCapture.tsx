@@ -97,6 +97,12 @@ export function HomeCapture({
     const payload = context ? `${trimmed} (${context.hint})` : trimmed;
     brainDump.mutate(payload, {
       onSuccess: (res) => {
+        if (res.source === 'local') {
+          recordChanges([{ summary: res.content, undo: [] }]);
+          setText('');
+          onClearContext?.();
+          return;
+        }
         const changes = res.toolExecutions.filter((t) => t.ok);
         const ran = changes.map((t) => t.name);
         // Prefer the server's plain-language summary; fall back to the domain
@@ -162,6 +168,7 @@ export function HomeCapture({
           <button
             type="button"
             className="capture-context-clear"
+            disabled={brainDump.isPending}
             aria-label="Clear time window"
             onClick={() => onClearContext?.()}
           >
@@ -195,7 +202,11 @@ export function HomeCapture({
           rows={1}
           autoFocus={autoFocus}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          readOnly={brainDump.isPending}
+          onChange={(e) => {
+            if (brainDump.isError) brainDump.reset();
+            setText(e.target.value);
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
@@ -212,10 +223,12 @@ export function HomeCapture({
           {brainDump.isPending ? <Loader2 size={18} className="spin" aria-hidden /> : <Send size={18} aria-hidden />}
         </button>
       </form>
+      {brainDump.isError && <p className="capture-save-status" role="alert">Capture was not confirmed. Your text is kept.</p>}
+      {brainDump.isPending && <p className="capture-save-status" role="status">Saving your capture…</p>}
       {examples && examples.length > 0 && (
         <div className="home-capture-examples">
           {examples.map((ex) => (
-            <button key={ex} type="button" className="capture-chip" onClick={() => pick(ex)}>
+            <button key={ex} disabled={brainDump.isPending} type="button" className="capture-chip" onClick={() => pick(ex)}>
               {ex}
             </button>
           ))}
