@@ -39,11 +39,14 @@ export function SettingsSection({
   // A deep link (/settings#routine) must open the section it points at,
   // otherwise the link lands on a collapsed header and looks broken.
   useEffect(() => {
-    if (window.location.hash === `#${id}`) {
+    const reveal = () => {
+      if (window.location.hash !== `#${id}`) return;
       setOpen(true);
-      // Let it expand before scrolling, or we scroll to the collapsed height.
       requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: 'start' }));
-    }
+    };
+    reveal();
+    window.addEventListener('hashchange', reveal);
+    return () => window.removeEventListener('hashchange', reveal);
   }, [id]);
 
   function toggle() {
@@ -66,11 +69,9 @@ export function SettingsSection({
         <span className="set-title">{title}</span>
         {hint && <span className="set-hint">{hint}</span>}
       </button>
-      {open && (
-        <div className="set-body" id={`${id}-body`}>
-          {children}
-        </div>
-      )}
+      <div className="set-body" id={`${id}-body`} hidden={!open}>
+        {open && children}
+      </div>
     </section>
   );
 }

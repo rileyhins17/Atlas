@@ -28,6 +28,9 @@ export const RegisterInput = z.object({
 });
 export type RegisterInput = z.infer<typeof RegisterInput>;
 
+export const RedeemInviteInput = z.object({ inviteCode: z.string().min(1).max(200) });
+export type RedeemInviteInput = z.infer<typeof RedeemInviteInput>;
+
 /** Public, unauthenticated: lets the sign-up form know whether to ask for a code. */
 export const AuthConfigDTO = z.object({
   inviteRequired: z.boolean(),
