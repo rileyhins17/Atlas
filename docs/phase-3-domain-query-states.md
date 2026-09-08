@@ -23,3 +23,11 @@ and dark. Browser results remain pending until observed in CI.
 
 This is a Phase 3 slice depending on unmerged PR #42 through e6d91bb. No runtime
 dependencies, migrations, credentials or production changes are included.
+
+CI run 34273089295 passed build/unit and synthetic restore jobs. The full
+browser suite reported 61 passed, 1 skipped and 2 failed. The new detail-read
+recovery case passed. An older goal-creation case used a label-only locator
+that now matched both the input and the newly named submit button; it now
+selects the textbox by role and types through real keystrokes. The other
+failure is the inherited notification permission fixture, corrected here with
+an explicit permission-read stub. Corrected CI remains pending.

@@ -721,7 +721,9 @@ test('goals split into short and long term', async ({ page }) => {
   // "nothing linked yet" forever and its bar could not fill.
   await expect(page.locator('.goal-meta').first()).toContainText('nothing linked yet');
   await page.locator('.goal-open').first().click();
-  await page.getByLabel(/Add a task toward/).fill('Run 5k without stopping');
+  const stepInput = page.getByRole('textbox', { name: /Add a task toward/ });
+  await stepInput.click();
+  await stepInput.pressSequentially('Run 5k without stopping');
   await page.locator('.goal-tasks button[type=submit]').click();
   await expect(page.locator('.goal-task span').first()).toContainText('Run 5k');
   // The count is computed server-side, so this also pins that a task mutation
@@ -2242,11 +2244,11 @@ test('goals and habits recover missing detail reads in both themes', async ({ pa
   }
 });
 
-test('settings recover notification status and failed weight saves in both themes', async ({ page, context }) => {
-  // Headless Chromium may deny notifications by default; this case exercises a
-  // registration read failure, so establish its own browser permission baseline.
-  await context.grantPermissions(['notifications']);
+test('settings recover notification status and failed weight saves in both themes', async ({ page }) => {
   await page.addInitScript(() => {
+    // Stub this browser boundary: the case proves status-read recovery, not
+    // Chromium permission grants or delivery through a push provider.
+    Object.defineProperty(Notification, 'permission', { configurable: true, get: () => 'default' });
     let first = true;
     Object.defineProperty(navigator.serviceWorker, 'getRegistration', { configurable: true, value: async () => {
       if (first) { first = false; throw new Error('Synthetic registration read failure'); }
