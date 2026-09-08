@@ -1,25 +1,13 @@
+import { summarizeJournal } from '@atlas/shared';
+import { journalSnippet as snippet } from '@atlas/shared';
+import { serializeJournal as toDto } from '@atlas/shared';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { CreateJournalInput, JournalDTO, UpdateJournalInput } from '@atlas/shared';
 import type { JournalEntry } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
 import { MemoryService } from '../../core/memory.service.js';
-
-function toDto(e: JournalEntry): JournalDTO {
-  return {
-    id: e.id,
-    entryDate: e.entryDate.toISOString(),
-    body: e.body,
-    mood: e.mood,
-    tags: e.tags,
-    createdAt: e.createdAt.toISOString(),
-  };
-}
-
-function snippet(text: string, n = 80): string {
-  const s = text.trim().replace(/\s+/g, ' ');
-  return s.length > n ? `${s.slice(0, n)}…` : s;
-}
+import { UserTimezoneService } from '../../core/user-timezone.service.js';
 
 @Injectable()
 export class JournalService {
@@ -27,6 +15,7 @@ export class JournalService {
     private readonly prisma: PrismaService,
     private readonly timeline: TimelineService,
     private readonly memory: MemoryService,
+    private readonly timezones: UserTimezoneService,
   ) {}
 
   async create(userId: string, input: CreateJournalInput): Promise<JournalDTO> {
@@ -137,12 +126,8 @@ export class JournalService {
       orderBy: { entryDate: 'desc' },
       take: 7,
     });
-    if (recent.length === 0) return 'No journal entries yet.';
-    const moods = recent.map((e) => e.mood).filter((m): m is number => m != null);
-    const avg = moods.length ? (moods.reduce((a, b) => a + b, 0) / moods.length).toFixed(1) : 'n/a';
-    const last = recent[0];
-    return `${recent.length} recent entr(ies). Avg mood: ${avg}/5. Latest (${last!.entryDate
-      .toISOString()
-      .slice(0, 10)}): "${snippet(last!.body, 120)}"`;
+    if (recent.length === 0) return summarizeJournal(recent, 'UTC');
+    const tz = await this.timezones.get(userId);
+    return summarizeJournal(recent, tz);
   }
 }

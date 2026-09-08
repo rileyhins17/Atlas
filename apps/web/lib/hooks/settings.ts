@@ -27,9 +27,8 @@ export function useUpdateSettings() {
 /**
  * The user's weight unit, defaulting to lb while settings load.
  *
- * Storage is always integer grams, so this only decides what is rendered and
- * what the entry field means — it is safe for this to be briefly wrong during
- * the first paint, because no value is ever written in display units.
+ * This fallback is for read-only display. Entry forms must wait for settings
+ * and retain the unit associated with their draft before converting to grams.
  */
 export function useWeightUnit(): WeightUnit {
   const settings = useSettings();

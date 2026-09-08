@@ -1,5 +1,6 @@
 import type {
   AccountDTO,
+  CreateAccountInput,
   AiQuestionDTO,
   AiUndoStepDTO,
   AuthConfigDTO,
@@ -462,6 +463,8 @@ export const PlaidApi = {
 
 export const FinanceApi = {
   accounts: () => request<AccountDTO[]>('/finance/accounts'),
+  createAccount: (input: CreateAccountInput) =>
+    request<AccountDTO>('/finance/accounts', { method: 'POST', body: JSON.stringify(input) }),
   transactions: (opts: { accountId?: string; limit?: number; offset?: number } = {}) => {
     const params = new URLSearchParams();
     if (opts.accountId) params.set('accountId', opts.accountId);
