@@ -177,7 +177,7 @@ export function DayOverviewView({
         />
       )}
 
-      {planNote && proposals?.length === 0 && <p className="plan-note">{planNote}</p>}
+      {planNote && <p className="plan-note">{planNote}</p>}
 
       {proposals && proposals.length > 0 && (
         <section className="ov-block plan-proposals" aria-label="Proposed plan">

@@ -1,3 +1,4 @@
+import { buildLocalDayPlan } from '@atlas/shared';
 import { serializeInsight as toInsightDto } from '@atlas/shared';
 import { Injectable, Logger } from '@nestjs/common';
 import type { ChatMessage } from '@atlas/connectors';
@@ -450,15 +451,23 @@ Propose a plan.`,
       },
     ];
 
-    const reply = await this.chatCall(
-      userId,
-      'plan_day',
-      messages,
-      undefined,
-      PLAN_RESPONSE_TOKENS,
-    );
+    const localPlan = () => buildLocalDayPlan(open, gaps, learned, new Date());
+    let reply;
+    try {
+      reply = await this.chatCall(
+        userId,
+        'plan_day',
+        messages,
+        undefined,
+        PLAN_RESPONSE_TOKENS,
+      );
+    } catch {
+      // Provider configuration, quota and network failures must not block planning.
+      // The fallback proposes existing owner tasks and performs no writes.
+      return localPlan();
+    }
     const parsed = parsePlanReply(reply.content ?? '');
-    if (!parsed) return { proposals: [], note: 'Could not put a plan together just now.' };
+    if (!parsed) return localPlan();
 
     // Match every proposal back to a real task. Anything that doesn't match is
     // a hallucination and is dropped rather than shown.

@@ -29,14 +29,16 @@ export function DayPager({
       <button type="button" className="day-pager-arrow" aria-label="Previous day" onClick={() => onPage(-1)}>
         <ChevronLeft size={18} aria-hidden />
       </button>
-      <button
-        type="button"
-        className={`day-pager-title ${isToday ? 'is-today' : ''}`}
-        onClick={onToday}
-        title={isToday ? undefined : 'Back to today'}
-      >
-        {dayTitle(day, new Date())}
-      </button>
+      <h1 className="day-pager-heading">
+        <button
+          type="button"
+          className={`day-pager-title ${isToday ? 'is-today' : ''}`}
+          onClick={onToday}
+          title={isToday ? undefined : 'Back to today'}
+        >
+          {dayTitle(day, new Date())}
+        </button>
+      </h1>
       <button type="button" className="day-pager-arrow" aria-label="Next day" onClick={() => onPage(1)}>
         <ChevronRight size={18} aria-hidden />
       </button>

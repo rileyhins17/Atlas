@@ -1980,3 +1980,33 @@ test('exercise collections retain the final page of the real catalog', async ({ 
   expect(result.ids).toContain(result.createdId);
   expect(new Set(result.ids).size).toBe(result.ids.length);
 });
+
+test('day planning works without AI and accepted blocks retain their task link', async ({ page }) => {
+  const origin = 'http://localhost:4000';
+  const title = `Local planning ${Date.now()}`;
+  // The fixed historical due date puts this spec's own task in the bounded
+  // candidate set, independently of work left by the rest of the shared suite.
+  const created = await page.request.post(`${origin}/tasks`, { data: {
+    title, priority: 'URGENT', dueAt: '1900-01-01T12:00:00.000Z',
+  } });
+  expect(created.ok()).toBe(true);
+  const task = await created.json();
+  const startAt = new Date(Date.now() + 3_600_000).toISOString();
+  const endAt = new Date(Date.now() + 7_200_000).toISOString();
+  const planned = await page.request.post(`${origin}/ai/plan-day`, { data: { gaps: [{ startAt, endAt }] } });
+  expect(planned.ok()).toBe(true);
+  const result = await planned.json();
+  const proposal = result.proposals.find((p: { taskId: string }) => p.taskId === task.id);
+  expect(proposal, 'the no-provider plan must contain this real task').toBeDefined();
+  expect(new Date(proposal.startAt).getTime()).toBeGreaterThanOrEqual(new Date(startAt).getTime());
+  expect(new Date(proposal.endAt).getTime()).toBeLessThanOrEqual(new Date(endAt).getTime());
+  const accepted = await page.request.post(`${origin}/events`, { data: {
+    taskId: proposal.taskId, title: proposal.title, startAt: proposal.startAt, endAt: proposal.endAt,
+  } });
+  expect(accepted.ok()).toBe(true);
+  const event = await accepted.json();
+  expect(event).toMatchObject({ taskId: task.id, title, startAt: proposal.startAt, endAt: proposal.endAt });
+  const events = await page.request.get(`${origin}/events`);
+  expect(events.ok()).toBe(true);
+  expect(await events.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: event.id, taskId: task.id })]));
+});

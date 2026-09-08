@@ -83,3 +83,4 @@ export * from './history-calculations.js';
 export * from './domain-tools.js';
 export * from './timeline-page.js';
 export * from './workout-proposals.js';
+export * from './local-day-plan.js';

@@ -85,7 +85,7 @@ The expanded rig records all thirteen routes at 390px in light and dark, with
 strict zero document overflow, targets at least 24x24, inputs/selects at least
 16px and every axe violation included without tag/impact filtering. It writes
 per-route diagnostics before asserting, so one failure cannot hide the rest.
-These numeric measurements are pending; the dimensions above come from PNGs.
+The initial PNG dimensions are supplemented by the completed numeric baseline below.
 
 A source inventory found 38 query-backed hook functions and 44 component files
 using them, including the direct admin query. This is a review checklist, not
@@ -97,3 +97,42 @@ Implementation will proceed in coherent journeys on the Phase 3 branch, with
 regression evidence, all four local checks and observed CI. No Phase 4 begins
 until the full Phase 3 gate is green. The aggregate Today endpoint and measured
 performance comparison remain separate outstanding work.
+
+## Measured baseline — 8 September 2026
+
+The stricter test at `63b8fe2` was observed failing in PR run `34218063336`.
+It collected all 26 route/theme combinations before failing. The full existing
+browser suite still passed (50 passed, one skipped), as did the two independent
+regressions. The new measurement assertion exposed the previously uncovered
+states/rules. See [baseline data](./evidence/phase-3-baseline.json).
+
+| Measurement | Light | Dark |
+| --- | ---: | ---: |
+| Routes measured at 390px | 13 | 13 |
+| Routes with document overflow | 0 | 0 |
+| Controls below 24x24 | 2 | 2 |
+| Inputs/selects below 16px | 6 | 6 |
+| Axe rule findings across routes | 26 | 26 |
+
+Today `slipped-later` was 55x16. Week's compact event was about 85.86x23.
+The six routine kind selectors were 14px. Every route had the moderate
+`page-has-heading-one` and `region` findings; the region target was the capture
+textarea. No impact or tag filter was used. Incomplete axe checks are retained
+in the evidence file for manual review, not silently counted as passes.
+
+Settings had zero document scroll overflow, but its `set-hint` spans extended
+from x=45 to x=395. The CSS gave them a 100% flex basis plus a 25px left margin.
+That explains the wider painted bounds seen in the original screenshot and is
+being corrected separately from the already-zero document-overflow metric.
+
+## First working-journey change
+
+The existing day planner threw when an AI provider was unavailable. The new
+service regression was observed failing with `No AI provider configured` before
+the fix. A shared deterministic fallback now uses real owner tasks, supplied
+free windows and measured durations (or an explicit 30-minute starting estimate).
+It merges overlapping windows, avoids duplicate/overlapping proposals and does
+not shrink a task merely to make it fit. It makes no writes. Existing AI planning
+remains available, and accepting a proposal still uses the calendar endpoint.
+The new API-to-persistence regression must pass in CI both in the full suite and
+independently before this change is considered verified end to end.
