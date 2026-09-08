@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PlaidApiError } from '@atlas/connectors';
 import { PlaidSyncService } from '../src/modules/finance/plaid-sync.service.js';
+import { mockPlaidWrites } from './helpers/plaid-writes.js';
 
 function makeService() {
   const account = { upsert: vi.fn().mockResolvedValue({ id: 'atlas-a1' }) };
@@ -16,7 +17,8 @@ function makeService() {
     count: vi.fn(),
     deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
   };
-  const prisma = { client: { account, transaction, credential } };
+  const writes = mockPlaidWrites();
+  const prisma = { client: { account, transaction, credential, $queryRaw: writes.query } };
   const timeline = { write: vi.fn().mockResolvedValue(undefined) };
   const connector = {
     getAccounts: vi.fn(),
@@ -31,10 +33,35 @@ function makeService() {
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const service = new PlaidSyncService(prisma as any, timeline as any, connectors as any);
-  return { service, account, transaction, credential, timeline, connector, connectors };
+  return { service, account, transaction, credential, timeline, connector, connectors, writes };
 }
 
-const oneItem = [{ label: 'item-1', meta: { institution: 'Bank', cursor: 'c0' }, createdAt: new Date() }];
+const oneItem = [{ id: 'credential-1', label: 'item-1', meta: { institution: 'Bank', cursor: 'c0' }, createdAt: new Date() }];
+
+describe('disconnecting linked banks', () => {
+  it('removes the exact requested credentials in one database call, including a failed remote revocation', async () => {
+    const { service, connector, credential } = makeService();
+    credential.findMany.mockResolvedValue([
+      { id: 'credential-1', label: 'item-1', meta: {} },
+      { id: 'credential-2', label: 'item-2', meta: {} },
+      { id: 'credential-3', label: 'item-3', meta: {} },
+    ]);
+    connector.removeItem.mockRejectedValueOnce(new Error('synthetic remote failure'));
+    await service.disconnect('user-1');
+    expect(connector.removeItem).toHaveBeenCalledTimes(3);
+    expect(credential.deleteMany).toHaveBeenCalledTimes(1);
+    expect(credential.deleteMany).toHaveBeenCalledWith({ where: {
+      userId: 'user-1', connector: 'plaid', label: { in: ['item-1', 'item-2', 'item-3'] },
+    } });
+  });
+
+  it('does not issue an empty or broad deletion when nothing is linked', async () => {
+    const { service, credential } = makeService();
+    credential.findMany.mockResolvedValue([]);
+    await service.disconnect('user-1');
+    expect(credential.deleteMany).not.toHaveBeenCalled();
+  });
+});
 
 function accountsResult() {
   return {
@@ -56,7 +83,7 @@ function accountsResult() {
 
 describe('PlaidSyncService.sync', () => {
   it('imports new transactions with the correct sign, deletes removed, and persists the cursor', async () => {
-    const { service, account, transaction, credential, timeline, connector, connectors } = makeService();
+    const { service, transaction, credential, timeline, connector, connectors, writes } = makeService();
     credential.findMany.mockResolvedValue(oneItem);
     connector.getAccounts.mockResolvedValue(accountsResult());
     transaction.findUnique.mockResolvedValue(null); // new txn
@@ -85,21 +112,17 @@ describe('PlaidSyncService.sync', () => {
     expect(res).toMatchObject({ imported: 1, updated: 0, deleted: 1, errors: [] });
 
     // Account upsert: balance in minor units, mapped type, institution carried through.
-    expect(account.upsert).toHaveBeenCalledTimes(1);
-    const upsertArg = account.upsert.mock.calls[0]![0];
-    expect(upsertArg.create.balanceMinor).toBe(BigInt(10050));
-    expect(upsertArg.create.type).toBe('checking');
-    expect(upsertArg.create.institution).toBe('Bank');
-    expect(upsertArg.create.mask).toBe('1234');
+    expect(writes.accounts).toHaveLength(1);
+    expect(writes.accounts[0]).toMatchObject({
+      balanceMinor: 10050n, type: 'checking', institution: 'Bank', mask: '1234', userId: 'user-1',
+    });
 
     // Transaction create: sign inverted (money out → negative), mapped fields.
-    const createArg = transaction.create.mock.calls[0]![0];
-    expect(createArg.data.amountMinor).toBe(BigInt(-1234));
-    expect(createArg.data.source).toBe('plaid');
-    expect(createArg.data.externalId).toBe('t1');
-    expect(createArg.data.accountId).toBe('atlas-a1');
-    expect(createArg.data.merchantName).toBe('Cafe');
-    expect(createArg.data.category).toBe('Food');
+    expect(writes.transactions).toHaveLength(1);
+    expect(writes.transactions[0]).toMatchObject({
+      amountMinor: -1234n, source: 'plaid', externalId: 't1', accountId: 'atlas-a1',
+      merchantName: 'Cafe', category: 'Food', userId: 'user-1',
+    });
 
     // Removed transactions deleted by external id, in ONE statement rather than
     // one per id: `sync.removed` is a whole Plaid page, so a delete each was a
@@ -123,10 +146,11 @@ describe('PlaidSyncService.sync', () => {
   });
 
   it('updates an existing transaction instead of importing it', async () => {
-    const { service, transaction, credential, connector } = makeService();
+    const { service, transaction, credential, connector, writes } = makeService();
     credential.findMany.mockResolvedValue(oneItem);
     connector.getAccounts.mockResolvedValue(accountsResult());
     transaction.findUnique.mockResolvedValue({ id: 'existing-1' }); // already present
+    writes.existingTransactions.add('t1');
     connector.syncTransactions.mockResolvedValue({
       added: [],
       modified: [
@@ -138,15 +162,16 @@ describe('PlaidSyncService.sync', () => {
 
     const res = await service.sync('user-1');
     expect(res).toMatchObject({ imported: 0, updated: 1 });
-    expect(transaction.update).toHaveBeenCalledTimes(1);
+    expect(writes.transactions).toHaveLength(1);
+    expect(writes.transactions[0]).toMatchObject({ amountMinor: -900n, pending: true });
     expect(transaction.create).not.toHaveBeenCalled();
   });
 
   it('aggregates across multiple linked banks', async () => {
     const { service, connector, credential } = makeService();
     credential.findMany.mockResolvedValue([
-      { label: 'item-1', meta: { cursor: 'c0' }, createdAt: new Date() },
-      { label: 'item-2', meta: { cursor: 'c0' }, createdAt: new Date() },
+      { id: 'credential-1', label: 'item-1', meta: { cursor: 'c0' }, createdAt: new Date() },
+      { id: 'credential-2', label: 'item-2', meta: { cursor: 'c0' }, createdAt: new Date() },
     ]);
     connector.getAccounts.mockResolvedValue(accountsResult());
     connector.syncTransactions.mockResolvedValue({ added: [], modified: [], removed: [], nextCursor: 'c1' });

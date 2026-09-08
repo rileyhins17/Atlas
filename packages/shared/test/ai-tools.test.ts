@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { AiToolSpec } from '@atlas/shared';
-import { fromWireToolName, toOpenAiTools, toWireToolName } from '../src/tools.js';
+import type { AiToolSpec } from '../src/contracts.js';
+import { fromWireToolName, toOpenAiTools, toWireToolName } from '../src/ai-tools.js';
 
 describe('tool name wire-safety', () => {
   it('replaces dots with double underscores for the wire (DeepSeek rejects dots)', () => {
