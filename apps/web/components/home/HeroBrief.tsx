@@ -130,6 +130,7 @@ export function HeroBrief({
           </Button>
         </div>
       )}
+      {generate.isError && <p className="brief-generate-error error" role="alert">Your brief could not be generated. Try again.</p>}
     </div>
   );
 }

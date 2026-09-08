@@ -40,6 +40,7 @@ const never = () => new Promise(() => {});
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(AiApi.dailyBrief).mockReset();
   insights.mockResolvedValue([]);
 });
 
@@ -97,4 +98,32 @@ it('does not claim there is no brief when its read failed', async () => {
   wrap(<HeroBrief />);
   await screen.findByText('Your daily brief could not be loaded.');
   expect(screen.queryByRole('button', { name: 'Brief me' })).toBeNull();
+});
+
+for (const existing of [false, true]) {
+  it(`shows a persistent generation failure and retries ${existing ? 'an existing' : 'the first'} brief`, async () => {
+    status.mockResolvedValue({ providerConfigured: true });
+    const old = { id: 'old', title: 'Daily brief', body: 'Keep my existing brief.', createdAt: new Date().toISOString() };
+    insights.mockResolvedValue(existing ? [old] : []);
+    vi.mocked(AiApi.dailyBrief).mockRejectedValueOnce(new Error('Unavailable'));
+    wrap(<HeroBrief compact greeting="Good afternoon." />);
+    const trigger = await screen.findByRole('button', { name: existing ? 'Refresh the brief' : 'Brief me' });
+    fireEvent.click(trigger);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Your brief could not be generated. Try again.');
+    if (existing) expect(screen.getByText('Keep my existing brief.')).toBeVisible();
+    else expect(screen.getByText(/No brief yet today/)).toBeVisible();
+    vi.mocked(AiApi.dailyBrief).mockImplementationOnce(() => new Promise<never>(() => {}));
+    fireEvent.click(trigger);
+    await waitFor(() => expect(trigger).toBeDisabled());
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(AiApi.dailyBrief).toHaveBeenCalledTimes(2);
+  });
+}
+it('offers the first brief only after a successful empty insight read', async () => {
+  status.mockResolvedValue({ providerConfigured: true });
+  insights.mockResolvedValue([]);
+  wrap(<HeroBrief />);
+  expect(await screen.findByRole('button', { name: 'Brief me' })).toBeEnabled();
+  expect(screen.getByText(/No brief yet today/)).toBeVisible();
+  expect(AiApi.dailyBrief).not.toHaveBeenCalled();
 });

@@ -3185,3 +3185,47 @@ test('writing preserves pending journal and note drafts through retry in both th
     }
   }
 });
+
+
+test('daily briefs retain readable context and recover generation failures in both themes', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const baseline = await page.request.post('http://localhost:4000/tasks', { data: { title: `Brief recovery baseline ${Date.now()}` } });
+  expect(baseline.status()).toBe(201);
+  // Provider responses are synthetic; this checks presentation, not paid AI execution.
+  await page.route('http://localhost:4000/ai/status', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ providerConfigured: true }) }));
+  for (const theme of ['light', 'dark'] as const) {
+    for (const existing of [false, true]) {
+      const old = { id: 'previous', kind: 'daily_brief', title: 'Daily brief', body: 'Your saved plan is still here.', createdAt: new Date().toISOString() };
+      const next = { ...old, id: 'next', body: 'Your refreshed plan is ready.' };
+      let rows = existing ? [old] : [];
+      let fail = true;
+      await page.route('http://localhost:4000/ai/insights', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(rows) }));
+      await page.route('http://localhost:4000/ai/daily-brief', (route) => {
+        if (fail) return route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+        rows = [next];
+        return route.fulfill({ contentType: 'application/json', body: JSON.stringify(next) });
+      });
+      await page.goto('/today');
+      await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+      await page.reload();
+      const brief = page.locator('.hero-brief');
+      const action = brief.getByRole('button', { name: existing ? 'Refresh the brief' : 'Brief me', exact: true });
+      await action.click();
+      await expect(brief.getByRole('alert')).toHaveText('Your brief could not be generated. Try again.');
+      if (existing) await expect(brief.getByText(old.body, { exact: true })).toBeVisible();
+      else await expect(brief.getByText(/No brief yet today/)).toBeVisible();
+      let failures = screenFailures(await measureScreen(page, `/today:${existing ? 'refresh' : 'first'}-brief-error`, theme));
+      expect(failures, failures.join('\n')).toEqual([]);
+      fail = false;
+      await action.click();
+      await expect(brief.getByText(next.body, { exact: true })).toBeVisible();
+      await expect(brief.getByRole('alert')).toBeHidden();
+      failures = screenFailures(await measureScreen(page, '/today:brief-recovered', theme));
+      expect(failures, failures.join('\n')).toEqual([]);
+      await page.unroute('http://localhost:4000/ai/insights');
+      await page.unroute('http://localhost:4000/ai/daily-brief');
+    }
+  }
+  await page.unroute('http://localhost:4000/ai/status');
+});
