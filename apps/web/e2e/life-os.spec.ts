@@ -3229,3 +3229,36 @@ test('daily briefs retain readable context and recover generation failures in bo
   }
   await page.unroute('http://localhost:4000/ai/status');
 });
+
+
+test('core panels distinguish failed reads from confirmed empty data in both themes', async ({ page }) => {
+  test.setTimeout(240_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const cases = [
+    { path: '/calendar', urls: ['http://localhost:4000/events?*'], errors: ['Failed to load events'], empty: [/Nothing on this day/] },
+    { path: '/finance', urls: ['http://localhost:4000/finance/accounts', 'http://localhost:4000/finance/transactions?*'], errors: ['Failed to load accounts', 'Failed to load transactions'], empty: [/No accounts yet/, /^No transactions$/] },
+    { path: '/settings#routine', urls: ['http://localhost:4000/routine'], errors: ['Failed to load your week'], empty: [/Nothing set yet/] },
+    { path: '/journal', urls: ['http://localhost:4000/journal', 'http://localhost:4000/notes'], errors: ['Failed to load your writing'], empty: [/Nothing written yet/] },
+  ];
+  for (const theme of ['light', 'dark'] as const) {
+    for (const entry of cases) {
+      let failed = true;
+      for (const [index, url] of entry.urls.entries()) await page.route(url, (route) => route.request().method() === 'GET'
+        ? route.fulfill({ status: failed ? 503 : 200, contentType: 'application/json', body: failed ? JSON.stringify({ message: entry.errors[index] ?? entry.errors[0] }) : '[]' }) : route.continue());
+      await page.goto(entry.path);
+      await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+      await page.reload();
+      for (const message of entry.errors) await expect(page.getByText(message, { exact: true })).toBeVisible({ timeout: 20_000 });
+      for (const empty of entry.empty) await expect(page.getByText(empty)).toBeHidden();
+      if (entry.path === '/finance') await expect(page.getByRole('button', { name: 'Add transaction', exact: true })).toBeDisabled();
+      let failures = screenFailures(await measureScreen(page, `${entry.path}:read-error`, theme));
+      expect(failures, failures.join('\n')).toEqual([]);
+      failed = false;
+      for (const message of entry.errors) await page.getByText(message, { exact: true }).locator('..').getByRole('button', { name: 'Retry', exact: true }).click();
+      for (const empty of entry.empty) await expect(page.getByText(empty)).toBeVisible();
+      failures = screenFailures(await measureScreen(page, `${entry.path}:confirmed-empty`, theme));
+      expect(failures, failures.join('\n')).toEqual([]);
+      for (const url of entry.urls) await page.unroute(url);
+    }
+  }
+});
