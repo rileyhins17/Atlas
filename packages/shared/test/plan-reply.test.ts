@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parsePlanReply } from '../src/modules/ai/plan-day.util.js';
+import { parsePlanReply } from '../src/plan-reply.js';
 
 const proposal = (id: string) =>
   `{"taskId":"${id}","startAt":"2026-07-25T11:40:00.000Z","endAt":"2026-07-25T12:40:00.000Z","why":"Fits the morning window."}`;

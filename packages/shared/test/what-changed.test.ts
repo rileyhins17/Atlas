@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { StatsDayDTO, StatsDTO } from '@atlas/shared';
+import type { StatsDayDTO, StatsDTO } from '../src/dto/stats.js';
 import {
   dayActivity,
   daysSinceLastHabit,
   hasRealActivity,
   longestHabitStreak,
   whatChanged,
-} from '@/lib/what-changed';
+} from '../src/what-changed.js';
 
 /**
  * The sentences that lead the page.

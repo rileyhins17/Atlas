@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatMinorCompact, formatMoney } from '@/lib/money';
+import { formatMinorCompact, formatMoney } from '../src/money.js';
 
 /**
  * `formatMoney` delegates the symbol/placement to Intl, which varies by the

@@ -1,9 +1,10 @@
 // Toronto, because that is where Atlas is used and it observes DST. Set before
 // any Date is constructed in this file.
-process.env.TZ = 'America/Toronto';
+vi.stubEnv('TZ', 'America/Toronto');
+afterAll(() => vi.unstubAllEnvs());
 
-import { describe, expect, it } from 'vitest';
-import { addDays, dayDiff, localDayKey, startOfDay } from '../lib/dates';
+import { afterAll, describe, expect, it, vi } from 'vitest';
+import { addDays, dayDiff, localDayKey, startOfDay } from '../src/local-dates.js';
 
 /**
  * A local day is not always 24 hours, and Atlas pages by day on its main screen.

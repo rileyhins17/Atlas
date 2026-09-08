@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PeriodTotalsDTO, StatsDayDTO, StatsDTO } from '@atlas/shared';
+import type { PeriodTotalsDTO, StatsDayDTO, StatsDTO } from '../src/dto/stats.js';
 import {
   bestDay,
   delta,
@@ -10,7 +10,7 @@ import {
   moodSeries,
   reviewBullets,
   weeklyBuckets,
-} from '@/lib/progress';
+} from '../src/progress.js';
 
 const day = (over: Partial<StatsDayDTO>): StatsDayDTO => ({
   day: over.day ?? '2026-07-01',

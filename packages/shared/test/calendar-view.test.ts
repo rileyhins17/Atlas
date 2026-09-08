@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { EventDTO } from '@atlas/shared';
+import type { EventDTO } from '../src/index.js';
 import {
   addDays,
   bucketByDay,
@@ -7,17 +7,17 @@ import {
   countsByDay,
   dateFromDayKey,
   findOverlaps,
-  formatDuration,
+  formatCalendarDuration as formatDuration,
   isLive,
   minutesBetween,
   nextSlot,
   placeDayEvents,
-  rangeLabel,
+  calendarRangeLabel as rangeLabel,
   startOfWeek,
   toTimeValue,
   visibleHourRange,
   weekDays,
-} from '../lib/calendar-view';
+} from '../src/calendar-view.js';
 
 function event(partial: Partial<EventDTO>): EventDTO {
   return {
