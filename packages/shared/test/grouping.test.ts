@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { TaskDTO } from '@atlas/shared';
-import { groupTasks } from '../components/panels/TasksPanel';
-import { weekCells } from '../components/panels/HabitsPanel';
-import { localDayKey } from '../lib/dates';
+import type { TaskDTO } from '../src/index.js';
+import { groupTasks } from '../src/domain-grouping.js';
+import { weekCells } from '../src/domain-grouping.js';
+import { localDayKey } from '../src/local-dates.js';
 
 const NOW = new Date(2026, 6, 18, 12, 0, 0); // Sat Jul 18, noon local
 
@@ -39,7 +39,7 @@ describe('groupTasks', () => {
       NOW,
     );
     expect(groups.map((g) => g.key)).toEqual(['overdue', 'today', 'week', 'later', 'someday']);
-    expect(groups.map((g) => g.tasks[0].title)).toEqual([
+    expect(groups.map((g) => g.tasks[0]!.title)).toEqual([
       'overdue',
       'today',
       'week',
@@ -59,7 +59,7 @@ describe('groupTasks', () => {
       ],
       NOW,
     );
-    expect(groups[0].tasks.map((t) => t.title)).toEqual(['earlier', 'a-urgent', 'b-low']);
+    expect(groups[0]!.tasks.map((t) => t.title)).toEqual(['earlier', 'a-urgent', 'b-low']);
   });
 });
 
@@ -75,6 +75,6 @@ describe('weekCells', () => {
     expect(cells.at(-1)).toEqual({ day: '2026-07-18', done: true, count: 2 });
     // Yesterday had 1 of target 2 → not done.
     expect(cells.at(-2)).toEqual({ day: '2026-07-17', done: false, count: 1 });
-    expect(cells[0].day).toBe('2026-07-12');
+    expect(cells[0]!.day).toBe('2026-07-12');
   });
 });

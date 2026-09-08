@@ -67,3 +67,4 @@ export * from './feed.js';
 export * from './theme-colour.js';
 export * from './theme-palettes.js';
 export * from './install-eligibility.js';
+export * from './domain-grouping.js';

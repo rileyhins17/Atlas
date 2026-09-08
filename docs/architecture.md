@@ -82,6 +82,13 @@ picker component tests remain in web. This move preserves the existing theme
 algorithm and palette output; rendered accessibility still requires the Phase 3
 browser audit and is not established by contrast arithmetic alone.
 
+Task horizon groups and quick-add eligibility, transaction-day groups and habit
+week cells are defined in `domain-grouping.ts`. Their panel components import
+the calculations and retain compatibility exports. Eight existing tests and
+two transaction-ordering characterization tests live in shared; all ten passed
+against the original component implementations before extraction. Grouping
+labels, ordering, date boundaries and input-preservation behavior are unchanged.
+
 The shared connector transformations parse chat completions, normalize Plaid
 amounts/account types/currencies, and convert Google Calendar date shapes.
 Connectors retain compatibility exports plus HTTP calls, cancellation options,

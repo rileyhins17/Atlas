@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { GROUPS_WORTH_ADDING_TO } from '@/components/panels/TasksPanel';
-import { quickAddDueDate } from '@/lib/tasks-filter';
+import { GROUPS_WORTH_ADDING_TO } from '../src/domain-grouping.js';
+import { quickAddDueDate } from '../src/tasks-filter.js';
 
 /**
  * There were six ways to add a task on one phone screen — the composer at the
