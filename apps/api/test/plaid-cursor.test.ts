@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PlaidSyncService } from '../src/modules/finance/plaid-sync.service.js';
+import { mockPlaidWrites } from './helpers/plaid-writes.js';
 
 /**
  * A Plaid cursor must never advance past a transaction that was not written.
@@ -45,8 +46,9 @@ function makeService(opts: {
   };
   const prisma = {
     client: {
+      $queryRaw: mockPlaidWrites().query,
       credential: {
-        findMany: vi.fn(async () => [{ label: 'item-1', meta: { cursor: 'cursor-1' } }]),
+        findMany: vi.fn(async () => [{ id: 'credential-1', label: 'item-1', meta: { cursor: 'cursor-1' } }]),
         findUnique: vi.fn(async () => ({ meta: { cursor: 'cursor-1' } })),
       },
       account: {

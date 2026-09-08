@@ -2,7 +2,6 @@ name: CI
 
 on:
   push:
-    branches: [main]
   pull_request:
     branches: [main]
 
@@ -44,36 +43,94 @@ jobs:
       - name: Test restore safety contracts
         run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
 
-  restore-drill:
-    name: Prove a backup restores
+  restore-backup:
+    name: Prove synthetic backup restores
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: atlas
+          POSTGRES_PASSWORD: atlas
+          POSTGRES_DB: atlas_restore_source
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # Synthetic-only service credentials; no secrets and no .env are used.
+      DATABASE_URL: postgresql://atlas:atlas@localhost:5432/atlas_restore_source?sslmode=disable
+      DIRECT_DATABASE_URL: postgresql://atlas:atlas@localhost:5432/atlas_restore_source?sslmode=disable
+      RESTORE_DATABASE_URL: postgresql://atlas:atlas@localhost:5432/atlas_restore_target?sslmode=disable
+      PG_BIN: /usr/lib/postgresql/16/bin
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: atlas
+      PGPASSWORD: atlas
+      PGDATABASE: atlas_restore_source
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      # Synthetic, deliberately.
-      #
-      # This builds a database from the repo's OWN migrations, seeds known row
-      # counts, dumps it, and restores that dump into a second throwaway
-      # server — so it proves the mechanism against the schema Atlas actually
-      # ships, including pgvector and the embeddings column type.
-      #
-      # It does not restore the production dump. That file holds three people's
-      # journal entries, finance transactions and fitness logs, and fetching it
-      # into a hosted runner would widen who can read it from one person to
-      # everyone with write access to this repository — a poor trade for a
-      # check that synthetic data makes equally well. Proving THAT dump is good
-      # is a local drill, run where the file already lives:
-      # `python .github/scripts/restore_backup.py` (needs Docker).
-      # Note there is no `-Drill` switch on atlas-backup.ps1; that script backs
-      # up and verifies the dump's table count, it does not restore.
-      - name: Restore drill
-        run: python3 .github/scripts/restore_backup.py --synthetic
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies and PostgreSQL 16 clients
+        run: |
+          pnpm install --frozen-lockfile
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-16
+
+      - name: Apply migrations to synthetic source
+        run: pnpm --filter @atlas/db migrate:deploy
+
+      - name: Seed synthetic domains
+        run: "$PG_BIN/psql -X -v ON_ERROR_STOP=1 -f .github/scripts/restore-seed.sql"
+
+      - name: Dump synthetic source using the real backup tool
+        run: |
+          python3 infra/db-move.py counts DIRECT_DATABASE_URL > "$RUNNER_TEMP/before-counts.txt"
+          cat "$RUNNER_TEMP/before-counts.txt"
+          python3 infra/db-move.py dump "$RUNNER_TEMP/atlas-synthetic.dump"
+
+      - name: Drop synthetic source and create fresh restore target
+        run: |
+          # Only the service database seeded above; no configurable target.
+          "$PG_BIN/dropdb" atlas_restore_source
+          "$PG_BIN/createdb" --template=template0 atlas_restore_target
+          # Public-schema dumps exclude extension definitions; provision only
+          # the prerequisites, never migrate or seed the restore target.
+          "$PG_BIN/psql" -X -v ON_ERROR_STOP=1 -d atlas_restore_target -c 'CREATE EXTENSION vector; CREATE EXTENSION pgcrypto;'
+
+      - name: Restore using the real backup tool
+        run: python3 infra/db-move.py restore RESTORE_DATABASE_URL "$RUNNER_TEMP/atlas-synthetic.dump"
+
+      - name: Require exact counts for every table and a usable vector column
+        run: |
+          python3 infra/db-move.py counts RESTORE_DATABASE_URL > "$RUNNER_TEMP/after-counts.txt"
+          cat "$RUNNER_TEMP/after-counts.txt"
+          diff -u "$RUNNER_TEMP/before-counts.txt" "$RUNNER_TEMP/after-counts.txt"
+          "$PG_BIN/psql" -X -v ON_ERROR_STOP=1 -d atlas_restore_target -f .github/scripts/restore-assert.sql
+
+      # Service containers and volumes are disposed by Actions. Even the
+      # synthetic dump is never uploaded as an artifact or put in .db-moves.
+      - name: Remove synthetic dump
+        if: always()
+        run: rm -f -- "$RUNNER_TEMP/atlas-synthetic.dump"
 
   e2e:
     runs-on: ubuntu-latest
@@ -129,8 +186,38 @@ jobs:
       - name: Install Playwright browser
         run: pnpm --filter @atlas/web exec playwright install --with-deps chromium
 
+      - name: Verify embedding batches against pgvector
+        run: node .github/scripts/check-embedding-batch.mjs
+
+      - name: Verify Plaid batches against Postgres
+        run: node .github/scripts/check-plaid-batches.mjs
+
       - name: Run e2e
         run: pnpm --filter @atlas/web test:e2e
+
+      - name: Verify habit aggregate regression independently
+        run: pnpm --filter @atlas/web exec playwright test e2e/life-os.spec.ts --grep "habit history preserves summed check-ins"
+
+      - name: Verify collection pagination independently
+        run: pnpm --filter @atlas/web exec playwright test e2e/life-os.spec.ts --grep "exercise collections retain the final page"
+
+      - name: Verify Today and exercise-entry regressions independently
+        run: >-
+          pnpm --filter @atlas/web exec playwright test e2e/life-os.spec.ts --grep "day planning works without AI|Today keeps actions first|fitness: set up a split|a daily tracker|a superset is one round|habit consistency never reports zero|a workout finishes with notes while history is unavailable|settings opens as an overview|manual accounts save exact typed balances|mobile week shows complete events|manual transactions persist exact|mood patterns show loading|habit progress respects creation|settings retain drafts across|settings recover notification status|goals and habits recover missing|habit check-ins keep partial progress|tracker setup recovers reads|session and invite configuration failures|command search recovers saved results|task goal links survive unavailable details|workouts finish during a weight-settings outage|capture retains failed drafts|calendar connection status recovers|task title edits retain failed drafts|notification removal keeps failures visible|Today connections distinguish pending|history keeps loaded pages|task timing recovers once per list|task creation protects pending drafts|writing preserves pending journal|daily briefs retain readable context|core panels distinguish failed reads|bank actions retain failures|AI access lets personal accounts redeem invites|mood check-ins retain failed saves"
+
+      - name: Capture synthetic UI baseline
+        env:
+          SHOTS: '1'
+        run: pnpm --filter @atlas/web exec playwright test e2e/screenshots.spec.ts
+
+      - name: Upload synthetic UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-ui-screenshots
+          path: apps/web/test-results/shots/
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Upload Playwright report on failure
         if: failure()

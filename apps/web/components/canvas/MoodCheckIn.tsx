@@ -1,15 +1,16 @@
 'use client';
 
+import { moodCheckInQuestion as question, moodCheckInReason as why } from '@atlas/shared';
+
 import {
   activeMoodWindow,
   inMoodWindow,
-  isWithinRecommended,
   moodWindows,
-  type MoodWindow,
 } from '@atlas/shared';
 import { useCreateJournalEntry, useJournal } from '@/lib/hooks/journal';
 import { useRoutine } from '@/lib/hooks/routine';
 import { dayBit, localDayKey } from '@/lib/dates';
+import { ErrorState, ListSkeleton } from '@/components/ui';
 
 const FACES = [
   { value: 1, label: 'Rough' },
@@ -55,7 +56,15 @@ export function MoodCheckIn() {
   // query is still loading would ask someone who answered an hour ago, or ask
   // at the wrong time of day — the same mistake as "No habits yet" on a page
   // that is still loading.
-  if (journal.isPending || journal.isError || routine.isPending || routine.isError) return null;
+  const failed = [journal, routine].filter((query) => query.isError);
+  if (failed.length > 0) return (
+    <section className="mood-checkin" aria-label="Mood check-in">
+      <ErrorState message="Mood check-in could not be loaded." onRetry={() => {
+        for (const query of failed) void query.refetch();
+      }} />
+    </section>
+  );
+  if (journal.isPending || routine.isPending) return <ListSkeleton rows={1} circle={false} />;
 
   const now = new Date();
   const nowMin = now.getHours() * 60 + now.getMinutes();
@@ -100,33 +109,8 @@ export function MoodCheckIn() {
           </button>
         ))}
       </div>
+      {create.isError && <p className="mood-checkin-error error" role="alert">Mood was not confirmed. Choose a mood to try again.</p>}
       <p className="mood-checkin-why">{why(window, nowMin, Boolean(sleep))}</p>
     </section>
   );
-}
-
-function question(w: MoodWindow): string {
-  return w.id === 'morning' ? 'How did you wake up?' : 'How are you ending the day?';
-}
-
-/**
- * One line saying why this is worth a tap, in the user's own terms.
- *
- * It explains the PAIR — morning and night — because that is the part that is
- * not obvious and the part that makes Looking back mean anything. Someone
- * answering inside the recommended hour is not told about timing; being
- * corrected while doing the thing correctly is a strange reward.
- */
-function why(w: MoodWindow, nowMin: number, hasRoutine: boolean): string {
-  if (!isWithinRecommended(nowMin, w)) {
-    return w.id === 'morning'
-      ? 'Best in the first hour after you wake — that reading is the one your day gets compared against.'
-      : 'Best in the last hour before bed, so the pair covers the whole day.';
-  }
-  if (!hasRoutine) {
-    return 'Asked twice a day — waking and bedtime — so Looking back can show what the hours between did to you. Set your sleep hours in Settings and Atlas will ask at your times, not these.';
-  }
-  return w.id === 'morning'
-    ? 'One tap. Tonight Atlas asks again, and the difference between the two is what your day actually did to you.'
-    : 'One tap. Against this morning, this is what today did to you — and what Looking back compares your habits and training against.';
 }
