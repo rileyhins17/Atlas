@@ -2682,3 +2682,43 @@ test('command search recovers saved results without changing the selected action
     await input.press('Escape');
   }
 });
+
+test('task goal links survive unavailable details and persist a recovered choice in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    const stamp = `${theme} ${Date.now()}`;
+    const goals: { id: string; title: string }[] = [];
+    for (const label of ['Original', 'Next']) {
+      const response = await page.request.post('http://localhost:4000/goals', { data: { title: `${label} goal ${stamp}`, horizon: 'short' } });
+      expect(response.status()).toBe(201);
+      goals.push(await response.json());
+    }
+    const title = `Goal link ${stamp}`;
+    const created = await page.request.post('http://localhost:4000/tasks', { data: { title, goalId: goals[0]!.id } });
+    expect(created.status()).toBe(201);
+    const task = await created.json() as { id: string };
+    await page.route('http://localhost:4000/goals', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.goto('/tasks');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    const row = page.locator('.task').filter({ hasText: title });
+    await row.getByRole('button', { name: 'Goal linked — view or change', exact: true }).click();
+    await expect(row.getByText('Your goals could not be loaded.')).toBeVisible({ timeout: 20_000 });
+    let failures = screenFailures(await measureScreen(page, '/tasks:goal-error', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await page.unroute('http://localhost:4000/goals');
+    await row.getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(row.getByRole('button', { name: `Goal: ${goals[0]!.title} — change`, exact: true })).toBeVisible();
+    const updated = page.waitForResponse((response) => response.url().endsWith(`/tasks/${task.id}`) && response.request().method() === 'PATCH');
+    await row.locator('.task-goal-menu button').filter({ hasText: goals[1]!.title }).click();
+    expect((await updated).ok()).toBe(true);
+    await expect(row.getByRole('button', { name: `Goal: ${goals[1]!.title} — change`, exact: true })).toBeVisible();
+    await page.reload();
+    await expect(row.getByRole('button', { name: `Goal: ${goals[1]!.title} — change`, exact: true })).toBeVisible();
+    const listed = await page.request.get('http://localhost:4000/tasks');
+    expect(listed.ok()).toBe(true);
+    expect(await listed.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: task.id, goalId: goals[1]!.id })]));
+    failures = screenFailures(await measureScreen(page, '/tasks:goal-recovered', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+  }
+});

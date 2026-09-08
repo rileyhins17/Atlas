@@ -290,6 +290,24 @@ test('capture the Life-OS screens', async ({ page }) => {
     await page.screenshot({ path: `${OUT}/search-empty-${theme}.png`, fullPage: true });
     await input.press('Escape');
   }
+  const linkGoalResponse = await page.request.post('http://localhost:4000/goals', { data: { title: 'Training consistency', horizon: 'short' } });
+  expect(linkGoalResponse.status()).toBe(201);
+  const linkGoal = await linkGoalResponse.json() as { id: string };
+  const linkTaskResponse = await page.request.post('http://localhost:4000/tasks', { data: { title: 'Plan next training week', goalId: linkGoal.id } });
+  expect(linkTaskResponse.status()).toBe(201);
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.route('http://localhost:4000/goals', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.goto('/tasks');
+    await page.reload();
+    const row = page.locator('.task').filter({ hasText: 'Plan next training week' });
+    await row.getByRole('button', { name: 'Goal linked — view or change', exact: true }).click();
+    await expect(row.getByText('Your goals could not be loaded.')).toBeVisible({ timeout: 20_000 });
+    measurements.push(await measureScreen(page, '/tasks:goal-error', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/goal-error-${theme}.png`, fullPage: true });
+    await page.unroute('http://localhost:4000/goals');
+  }
   // Session/config failures use synthetic responses, never another registration.
   for (const theme of ['light', 'dark'] as const) {
     await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);

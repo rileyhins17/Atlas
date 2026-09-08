@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Target } from 'lucide-react';
 import { useGoals } from '@/lib/hooks/goals';
 import { useUpdateTask } from '@/lib/hooks/tasks';
+import { ErrorState } from '@/components/ui';
 
 /**
  * The goal a task serves, shown and changed where the work actually is.
@@ -65,27 +66,30 @@ export function TaskGoalChip({
   // While the query is in flight `choices` is empty, which is not the same as
   // having no goals — so the "nothing to link to" branch waits for an answer
   // rather than treating pending as empty.
-  if (!linked && (compact || (goals.isSuccess && choices.length === 0))) return null;
+  // The relationship comes from the task, even when its goal title is unavailable.
+  if (!goalId && (compact || (goals.isSuccess && choices.length === 0))) return null;
 
   return (
     <span className="task-goal" ref={wrap}>
       <button
         type="button"
-        className={linked ? 'task-goal-chip' : 'task-goal-add'}
+        className={goalId ? 'task-goal-chip' : 'task-goal-add'}
         aria-haspopup="true"
         aria-expanded={open}
-        aria-label={linked ? `Goal: ${linked.title} — change` : 'Link this task to a goal'}
-        title={linked ? `Toward: ${linked.title}` : 'Link to a goal'}
+        aria-label={linked ? `Goal: ${linked.title} — change` : goalId ? 'Goal linked — view or change' : 'Link this task to a goal'}
+        title={linked ? `Toward: ${linked.title}` : goalId ? 'Linked goal' : 'Link to a goal'}
         onClick={() => setOpen((v) => !v)}
       >
         <Target size={11} aria-hidden />
-        {linked && <span className="task-goal-name">{linked.title}</span>}
+        {goalId && <span className="task-goal-name">{linked?.title ?? 'Linked goal'}</span>}
       </button>
 
       {open && (
         <div className="task-goal-menu">
-          {!goals.isSuccess ? (
-            <p className="task-goal-empty">Loading your goals…</p>
+          {goals.isError ? (
+            <ErrorState message="Your goals could not be loaded." onRetry={() => void goals.refetch()} />
+          ) : !goals.isSuccess ? (
+            <p className="task-goal-empty" role="status">Loading your goals…</p>
           ) : choices.length === 0 ? (
             <p className="task-goal-empty">No active goals yet.</p>
           ) : (
@@ -104,7 +108,8 @@ export function TaskGoalChip({
               ))}
             </ul>
           )}
-          {linked && (
+          {goals.isSuccess && goalId && !linked && <p className="task-goal-empty">The linked goal is unavailable.</p>}
+          {goalId && (
             <button type="button" className="task-goal-clear" onClick={() => choose(null)}>
               Remove from goal
             </button>

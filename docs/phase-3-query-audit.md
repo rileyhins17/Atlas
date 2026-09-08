@@ -9,7 +9,7 @@ assertions. No component is marked fully audited from source indicators alone.
 | --- | --- | --- |
 | AppShell.tsx | useMe | session-read-recovery: failed read avoids false sign-out and offers Retry; confirmed signed-out landmark; full and independent browser recovery passed CI 34278488365 in both themes |
 | AuthGate.tsx | useAuthConfig | auth-config-recovery: registration waits for known config, Retry, credentials retained, sign-in independent; full and independent browser config recovery passed CI 34278488365 in both themes |
-| TaskGoalChip.tsx | useGoals | Newly included root-level component; errors currently render as loading; old copied-expression tests are not component evidence |
+| TaskGoalChip.tsx | useGoals | task-goal-recovery: real component tests for failed-read Retry, compact pending/error linked label, unresolved linked id, recovered title and confirmed-empty unlinked task; browser persistence pending. Old copied-expression tests are not component evidence |
 | TaskRow.tsx | useTaskDurations | Newly included root-level component; pending duration-hint state/recovery audit |
 | atlas/AsksPanel.tsx | useAiQuestions | context-query-states: questions pending, failure, empty |
 | atlas/CommandBar.tsx | useSearch | command-search-states: active-query loading, failed search Retry, confirmed empty and stable selected action; real saved-result browser recovery pending. Capture failure draft recovery remains separate |
@@ -61,8 +61,7 @@ indirect query usage. Optional routine onboarding no
 longer issues connection-status queries; connections remain query-backed in Settings.
 
 Next high-impact gaps observed in source: CommandBar still closes before capture
-completion and search navigates only to domain lists; TaskGoalChip labels a failed
-goal read as loading; read-only workout displays use a default weight unit before preferences
+completion and search navigates only to domain lists; read-only workout displays use a default weight unit before preferences
 arrive. The old pending-is-not-an-answer tests render copied expressions, not
 GoogleCalendarCard or TaskGoalChip, and do not prove those components' states.
 
