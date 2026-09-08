@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { CalendarPlus, Trash2 } from 'lucide-react';
 import type { TaskDTO } from '@atlas/shared';
+import { ErrorState, ListSkeleton } from '@/components/ui';
 import { useRollForward, useSlippedTasks } from '@/lib/hooks/tasks';
 import { formatDue, localDayKey } from '@/lib/dates';
 
@@ -38,7 +39,10 @@ export function SlippedTasks() {
   const tasks = useMemo(() => slipped.data ?? [], [slipped.data]);
   const chosen = tasks.filter((t) => !excluded.has(t.id));
 
-  if (dismissed || tasks.length === 0) return null;
+  if (dismissed) return null;
+  if (slipped.isError) return <ErrorState message="Unfinished work could not be loaded." onRetry={() => void slipped.refetch()} />;
+  if (slipped.isPending || slipped.data === undefined) return <ListSkeleton rows={1} circle={false} />;
+  if (tasks.length === 0) return <p className="ov-empty">No unfinished work carried over.</p>;
 
   const apply = (action: 'today' | 'drop') => {
     if (chosen.length === 0) return;

@@ -1,5 +1,7 @@
 import type {
   AccountDTO,
+  CreateAccountInput,
+  CreateTransactionInput,
   AiQuestionDTO,
   AiUndoStepDTO,
   AuthConfigDTO,
@@ -385,6 +387,7 @@ export const AiQuestionsApi = {
 };
 
 export interface AiStatus {
+  hostedAccess?: { granted: boolean; revoked: boolean; available: boolean; inviteRequired: boolean };
   enabled: boolean;
   model: string;
   dailyTokenCap: number;
@@ -462,6 +465,10 @@ export const PlaidApi = {
 
 export const FinanceApi = {
   accounts: () => request<AccountDTO[]>('/finance/accounts'),
+  createAccount: (input: CreateAccountInput) =>
+    request<AccountDTO>('/finance/accounts', { method: 'POST', body: JSON.stringify(input) }),
+  createTransaction: (input: CreateTransactionInput) =>
+    request<TransactionDTO>('/finance/transactions', { method: 'POST', body: JSON.stringify(input) }),
   transactions: (opts: { accountId?: string; limit?: number; offset?: number } = {}) => {
     const params = new URLSearchParams();
     if (opts.accountId) params.set('accountId', opts.accountId);
@@ -518,6 +525,7 @@ export const PushApi = {
 
 export const AiApi = {
   status: () => request<AiStatus>('/ai/status'),
+  redeemInvite: (inviteCode: string) => request<{ ok: true }>('/auth/redeem-invite', { method: 'POST', body: JSON.stringify({ inviteCode }) }),
   connectDeepSeek: (apiKey: string) =>
     request<{ ok: true }>('/ai/connect/deepseek', { method: 'POST', body: JSON.stringify({ apiKey }) }),
   chat: (message: string, history: ChatMessageDTO[]) =>
