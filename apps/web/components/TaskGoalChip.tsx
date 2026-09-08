@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Target } from 'lucide-react';
 import { useGoals } from '@/lib/hooks/goals';
 import { useUpdateTask } from '@/lib/hooks/tasks';
@@ -30,6 +30,8 @@ export function TaskGoalChip({
   const update = useUpdateTask();
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLSpanElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+  const [menuShift, setMenuShift] = useState(0);
 
   const all = goals.data ?? [];
   const linked = goalId ? (all.find((g) => g.id === goalId) ?? null) : null;
@@ -38,6 +40,23 @@ export function TaskGoalChip({
   // or dropped stays visible when this task is on it, so nothing silently
   // loses its link, but it is not something to newly attach work to.
   const choices = all.filter((g) => g.status === 'active');
+
+  // A wrapped phone row can put the chip at the left edge. Right-aligning a
+  // 230px menu there clips it without increasing document.scrollWidth.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const position = () => {
+      const anchor = wrap.current?.getBoundingClientRect();
+      const surface = menu.current?.getBoundingClientRect();
+      if (!anchor || !surface || surface.width === 0) return;
+      const left = anchor.right - surface.width;
+      const withinViewport = Math.max(16, Math.min(left, document.documentElement.clientWidth - surface.width - 16));
+      setMenuShift(withinViewport - left);
+    };
+    position();
+    window.addEventListener('resize', position);
+    return () => window.removeEventListener('resize', position);
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -85,7 +104,7 @@ export function TaskGoalChip({
       </button>
 
       {open && (
-        <div className="task-goal-menu">
+        <div className="task-goal-menu" ref={menu} style={{ transform: `translateX(${menuShift}px)` }}>
           {goals.isError ? (
             <ErrorState message="Your goals could not be loaded." onRetry={() => void goals.refetch()} />
           ) : !goals.isSuccess ? (

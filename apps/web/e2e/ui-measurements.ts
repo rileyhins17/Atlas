@@ -34,6 +34,12 @@ export async function measureScreen(page: Page, route: string, theme: 'light' | 
       undersizedTargets: targets.filter((el) => el.width < 24 || el.height < 24),
       textInputCount: inputs.length,
       undersizedInputs: inputs.filter((el) => el.fontSize < 16),
+      // Negative-left clipping does not increase document.scrollWidth. Floating
+      // surfaces must be checked explicitly; do not confuse offscreen with no overflow.
+      offscreenSurfaces: Array.from(document.querySelectorAll('[role="dialog"], .task-goal-menu')).filter(visible).flatMap((el) => {
+        const r = el.getBoundingClientRect();
+        return r.left < 0 || r.right > viewportWidth ? [{ ...describe(el), left: r.left, right: r.right }] : [];
+      }),
       overflowingElements: Array.from(document.querySelectorAll('body *')).filter(visible).flatMap((el) => {
         const r = el.getBoundingClientRect();
         // Diagnostic candidates only: descendants of an intentional scroller can appear here.
@@ -63,6 +69,7 @@ export function screenFailures(report: Awaited<ReturnType<typeof measureScreen>>
   const prefix = `${report.route} (${report.theme})`;
   return [
     ...(report.overflow > 0 ? [`${prefix}: horizontal overflow ${report.overflow}px`] : []),
+    ...report.offscreenSurfaces.map((surface) => `${prefix}: surface outside viewport ${surface.left}..${surface.right} ${surface.tag}.${surface.className}`),
     ...report.undersizedTargets.map((t) => `${prefix}: target ${t.width}x${t.height} ${t.tag}.${t.className} ${t.name}`),
     ...report.undersizedInputs.map((t) => `${prefix}: input font ${t.fontSize}px ${t.tag}.${t.className} ${t.name}`),
     ...report.supplementalContrast.filter((sample) => sample.minimumRatio === null || sample.minimumRatio < 4.5)
