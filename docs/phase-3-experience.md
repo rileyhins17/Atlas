@@ -322,3 +322,24 @@ contrast measurement implementation, but does not resolve the superset flake.
 The superset test follow-up passed local build 6/6, forced typecheck 10/10,
 lint with zero errors and three existing warnings, and 1504 unit tests. Browser
 verification of that follow-up is pending CI.
+
+## Ratings and exercise selection recovery
+
+Nine new component regressions were observed failing before these changes:
+six for personal-rating overview/pattern loading, failure, empty results and
+setup; three for exercise-catalog failure, recent-history failure and loading.
+All nine then passed. Ratings now keep the successfully loaded series visible
+when the separate pattern request fails, with retry for that request. An empty
+tracker collection links to the existing Settings setup. Exercise selection
+keeps search text across recovery, blocks create-from-search while the catalog
+is unavailable, and explains missing recent ordering without blocking catalog
+selection. Existing styles and endpoints are reused.
+
+The latest Progress screenshot also exposes a separate remaining defect:
+HabitConsistency gates the habits request but not the history request, so a
+pending/failed history can render a false zero percent. This is the next
+query-state repair; the product's sparse-data interpretation also needs review.
+
+Validation for ratings/exercise recovery: build 6/6, forced typecheck 10/10,
+lint zero errors with three existing warnings, 1513 unit tests passed.
+Browser and screenshot verification of these changes is pending CI.
