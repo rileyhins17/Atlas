@@ -370,6 +370,24 @@ test('capture the Life-OS screens', async ({ page }) => {
     await page.screenshot({ path: `${OUT}/notification-change-error-${theme}.png`, fullPage: true });
   }
   await page.unroute('http://localhost:4000/push/unsubscribe');
+  const connectionZero = { tasksCompleted: 0, habitChecks: 0, moodAvg: null, journalEntries: 0, spentMinor: 0, earnedMinor: 0, workouts: 0, volumeGrams: 0, events: 0 };
+  for (const theme of ['light', 'dark'] as const) {
+    for (const state of ['error', 'no-pattern'] as const) {
+      await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+      await page.route('http://localhost:4000/stats?days=30', (route) => state === 'error'
+        ? route.fulfill({ status: 503, contentType: 'application/json', body: '{}' })
+        : route.fulfill({ contentType: 'application/json', body: JSON.stringify({
+          days: Array.from({ length: 30 }, (_, index) => ({ ...connectionZero, day: `2026-08-${String(index + 1).padStart(2, '0')}`, tasksCompleted: 1, workouts: 1, moodAvg: 3 })),
+          totals: { current: { ...connectionZero, tasksCompleted: 30, workouts: 30, moodAvg: 3 }, previous: connectionZero },
+        }) }));
+      await page.goto('/today'); await page.reload();
+      await expect(page.getByText(state === 'error' ? 'Connections could not be loaded.' : 'No clear connections in the last 30 days.')).toBeVisible({ timeout: 20_000 });
+      measurements.push(await measureScreen(page, `/today:connections-${state}`, theme));
+      writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+      await page.screenshot({ path: `${OUT}/connections-${state}-${theme}.png`, fullPage: true });
+      await page.unroute('http://localhost:4000/stats?days=30');
+    }
+  }
   // Session/config failures use synthetic responses, never another registration.
   for (const theme of ['light', 'dark'] as const) {
     await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);

@@ -133,7 +133,8 @@ export function TodayView() {
                 {/* The cross-domain observation sits with the brief because it
                     is context, not an action — and only on today, since it
                     describes a window ending now rather than the day you paged
-                    to. It renders nothing when the data cannot support it. */}
+                    to. Its query states distinguish unavailable history from
+                    a window without a supported pattern. */}
                 <ConnectionCard />
                 {/* Renders nothing until Atlas has actually changed something
                     this session. */}

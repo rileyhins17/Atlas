@@ -2944,3 +2944,44 @@ test('notification removal keeps failures visible and retries in both themes', a
     await expect(card.getByRole('button', { name: 'Enable notifications', exact: true })).toBeVisible();
   }
 });
+
+test('Today connections distinguish pending failed and unsupported patterns in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const baseline = await page.request.post('http://localhost:4000/tasks', { data: { title: `Connection state baseline ${Date.now()}` } });
+  expect(baseline.status()).toBe(201);
+  const zero = { tasksCompleted: 0, habitChecks: 0, moodAvg: null, journalEntries: 0, spentMinor: 0, earnedMinor: 0, workouts: 0, volumeGrams: 0, events: 0 };
+  for (const theme of ['light', 'dark'] as const) {
+    let mode: 'pending' | 'failed' | 'empty' | 'constant' = 'pending';
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    await page.route('http://localhost:4000/stats?days=30', async (route) => {
+      if (mode === 'pending') await gate;
+      if (mode === 'failed') return route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+      const days = mode === 'constant' ? Array.from({ length: 30 }, (_, index) => ({ ...zero, day: `2026-08-${String(index + 1).padStart(2, '0')}`, tasksCompleted: 1, workouts: 1, moodAvg: 3 })) : [];
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ days, totals: { current: zero, previous: zero } }) });
+    });
+    await page.goto('/today');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    // Change the theme without abandoning the held stats request.
+    await page.evaluate((value) => document.documentElement.setAttribute('data-theme', value), theme);
+    const card = page.getByRole('region', { name: 'Connections across your life', exact: true });
+    await expect(card.getByRole('status')).toHaveText('Looking for connections across your days…');
+    let failures = screenFailures(await measureScreen(page, '/today:connections-pending', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    mode = 'failed'; release();
+    await expect(card.getByText('Connections could not be loaded.')).toBeVisible({ timeout: 20_000 });
+    failures = screenFailures(await measureScreen(page, '/today:connections-error', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    mode = 'empty';
+    await card.getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(card).toContainText('It has 0.');
+    failures = screenFailures(await measureScreen(page, '/today:connections-empty', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    mode = 'constant';
+    await page.reload();
+    await expect(card).toContainText('No clear connections in the last 30 days.');
+    failures = screenFailures(await measureScreen(page, '/today:connections-no-pattern', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await page.unroute('http://localhost:4000/stats?days=30');
+  }
+});

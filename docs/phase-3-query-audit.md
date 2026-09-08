@@ -14,10 +14,10 @@ assertions. No component is marked fully audited from source indicators alone.
 | atlas/AsksPanel.tsx | useAiQuestions | context-query-states: questions pending, failure, empty |
 | atlas/CommandBar.tsx | useSearch | command-search-states: active-query loading, failed search Retry, confirmed empty and stable selected action; full and independent saved-result recovery passed CI 34279919678; both-theme search PNGs inspected. Capture recovery now has eight local tests and PR #51: failed text retained, pending input protected, confirmed fallback success; browser verification is blocked by CI billing |
 | canvas/DayOverviewView.tsx | useRoutine, useTasks, useDayEvents, useDayActuals | day-overview: four source-specific pending and failed Retry cases, action ordering and timeline expansion. Child components are mocked; this proves the parent gate, not child states. Consolidated state geometry remains |
-| canvas/MoodCheckIn.tsx | useJournal, useRoutine | Pending consolidated loading / empty / error and recovery audit |
+| canvas/MoodCheckIn.tsx | useJournal, useRoutine | source has pending skeleton, failed-source Retry and settled answered/outside-window absence. mood-checkin tests prove windows and failed journal recovery, but old pending cases only assert no prompt; positive skeleton and failed-routine coverage remain |
 | canvas/SlippedTasks.tsx | useSlippedTasks | decision-query-states: pending skeleton, failed read Retry, settled empty message; consolidated state geometry remains to audit |
 | canvas/TodayChecklist.tsx | useHabits | decision-query-states: habit pending and failure avoid false empty, Retry invokes failed source, settled empty message; real check-in and position journeys also exist. Consolidated state geometry remains to audit |
-| canvas/TodayView.tsx | useTasks, useEvents, useHabits, useRoutine, useEstablished | Pending consolidated loading / empty / error and recovery audit |
+| canvas/TodayView.tsx | useTasks, useEvents, useHabits, useRoutine, useEstablished | first-use tests prove the successful-empty setup gate, unsuccessful-read exclusion and saved-item handoff. DayOverview and other children are mocked in those tests; combined source failures must not be inferred from them |
 | connectors/GoogleCalendarCard.tsx | useGoogleStatus | google-connection-states: actual inline pending, three layouts failed-read Retry, cached-unconfigured failed refresh; four observed-red regressions and six passing local cases. Browser manual-event persistence and both-theme error PNGs added but not run |
 | connectors/GoogleCalendarPicker.tsx | useGoogleCalendars | google-calendar-picker plus settings-draft-refresh: selection writes, warnings, draft refresh and empty calendar result; consolidated browser provider-state audit remains |
 | fitness/ActiveWorkout.tsx | useWorkoutHistory, useSettings, useWorkoutTemplates, useExercises | active-workout-recovery: pending plans, failed catalog Retry, retained finish notes and unavailable-comparison explanation; weight-display tests now prove unknown preference states without blocking Finish; summary/browser recovery pending |
@@ -27,7 +27,7 @@ assertions. No component is marked fully audited from source indicators alone.
 | fitness/ExercisePicker.tsx | useExercises, useWorkoutHistory | exercise-picker-states: catalog/recent-history failures and pending |
 | fitness/WorkoutHistory.tsx | useWorkoutHistory, useSettings | workout-weight-preference: actual history waits for units, failed units Retry, recovered kilograms; browser finish/summary/history recovery pending |
 | home/HeroBrief.tsx | useAiStatus, useInsights | hero-brief: real hooks with mocked API prove config pending, config failure and positive Retry, unconfigured fallback, insight pending/error and rendered brief. Configured-success empty and state geometry remain to audit |
-| panels/AdminPanel.tsx | useQuery | Pending consolidated loading / empty / error and recovery audit |
+| panels/AdminPanel.tsx | useQuery | insight-query-states: actual query pending, failed read/Retry and confirmed empty cohort with no invented percentages; these cases passed before implementation changes elsewhere. Browser owner-route states remain unverified |
 | panels/AiSettingsCard.tsx | useAiStatus | ai-access-settings: invite redemption callback, included access and error Retry; pending and revoked/unavailable coverage and real redemption browser proof remain |
 | panels/CalendarPanel.tsx | useEventsRange | Pending consolidated loading / empty / error and recovery audit |
 | panels/FinancePanel.tsx | useAccounts, useTransactions | Pending consolidated loading / empty / error and recovery audit |
@@ -37,7 +37,7 @@ assertions. No component is marked fully audited from source indicators alone.
 | panels/NameSettingsCard.tsx | useSettings, useMe | settings-read-failures and settings-draft-refresh: read failure/retry and background profile draft retention; real save/GET/reload in both themes passed CI 34270602672 |
 | panels/PlaidCard.tsx | usePlaidStatus | Pending consolidated loading / empty / error and recovery audit |
 | panels/ProactiveSettingsCard.tsx | useSettings | settings-draft-refresh: edited hour retained across unrelated responses; real save/GET/reload passed CI 34270602672; settings-action-recovery proves rejected push read and Retry in unit tests; corrected browser recovery passed full and independent runs 34273730781 in both themes. push-disable-recovery and settings-action-recovery now prove removal errors propagate and retain retry; fresh browser/screenshot verification pending |
-| panels/ProgressPanel.tsx | useStats | Pending consolidated loading / empty / error and recovery audit |
+| panels/ProgressPanel.tsx | useStats | insight-query-states: actual pending, failed stats/Retry, confirmed empty and range changes; existing implementation passed. Resolved child states are a separate inventory, and failure-state geometry remains unverified |
 | panels/RoutineEditor.tsx | useRoutine | Pending consolidated loading / empty / error and recovery audit |
 | panels/TasksPanel.tsx | useTasks | Pending consolidated loading / empty / error and recovery audit |
 | panels/TrainingSettingsCard.tsx | useSettings | settings-action-recovery: failed unit save displays alert and preserves confirmed selection; browser failure/retry/persistence passed full and independent runs 34273730781 in both themes |
@@ -47,10 +47,10 @@ assertions. No component is marked fully audited from source indicators alone.
 | progress/MoodPatterns.tsx | useMoodPatterns | mood-pattern-states: observed-red pending, error/retry and empty tests; both-theme browser loading/failure/retry/empty journey passed CI 34268737825 |
 | progress/TrackerTrends.tsx | useTrackerOverview, useTrackerPatterns | tracker-trends-states: overview/pattern pending, failure, empty |
 | progress/WeeklyReviewCard.tsx | useInsights | context-query-states: review pending and failure |
-| stream/ConnectionCard.tsx | useStats | Pending consolidated loading / empty / error and recovery audit |
+| stream/ConnectionCard.tsx | useStats | insight-query-states: pending announcement, failed read/Retry, missing history and sufficient history without a pattern; three observed-red cases fixed. Both-theme browser state measurements and error/no-pattern PNGs configured but unverified |
 | stream/Feed.tsx | useTasks | Pending consolidated loading / empty / error and recovery audit |
 | stream/FirstCapture.tsx | useTasks, useEvents | context-query-states; first-capture-handoff; first-use lifecycle |
-| stream/TodayHeader.tsx | useMe | Pending consolidated loading / empty / error and recovery audit |
+| stream/TodayHeader.tsx | useMe | BriefBlock inherits AppShell session states: BootScreen before data, Retry on failed initial read, AuthGate on confirmed signed-out, and a shared refresh error with cached data. Source chain inspected; name-nudge tests cover settled nameless setup and avoiding prompts before success. No separate greeting error is needed; final geometry remains inherited from shell verification |
 | trackers/TrackerCheckIn.tsx | useTrackers | tracker-checkin: real component pending skeleton, failed-read Retry and confirmed-empty setup link. Browser state geometry remains |
 | trackers/TrackerManager.tsx | useTrackers | tracker-setup-states: loading/error exclude starter suggestions, Retry, retained draft, pending-save protection; full and independent browser read/save/reload journey passed CI 34276808982 in both themes |
 
