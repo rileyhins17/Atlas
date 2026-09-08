@@ -132,6 +132,9 @@ jobs:
       - name: Run e2e
         run: pnpm --filter @atlas/web test:e2e
 
+      - name: Verify habit aggregate regression independently
+        run: pnpm --filter @atlas/web exec playwright test e2e/life-os.spec.ts --grep "habit history preserves summed check-ins"
+
       - name: Upload Playwright report on failure
         if: failure()
         uses: actions/upload-artifact@v4

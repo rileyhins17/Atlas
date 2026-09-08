@@ -1,5 +1,19 @@
 # GOTCHAS — solved once, never rediscover
 
+## A habit history row cap silently changes streaks
+
+Habit check-ins are additive: 2,001 logs on one day must contribute 2,001 to
+that day's total. Adding `take: 2000` to the old reads would report 2,000 and
+could change whether a habit met its target. The service now asks Postgres for
+one summed row per habit and UTC day, preserving the existing day-key semantics.
+The user id, selected habit ids and time window are bound SQL parameters.
+
+History, checklist counts and the reads after logging/editing use this same
+query. A regression with 2,001 synthetic check-ins was observed loading raw
+logs before the fix and now preserves the total without a raw-log read. The
+real SQL is exercised by the authenticated habit-history e2e case, both within
+the full CI suite and independently; mocks alone cannot verify column names.
+
 Append every new setup/build snag here (root cause + fix) so no future thread wastes tokens re-hitting it. The canonical short list also lives in `../CLAUDE.md`; this file is the long form.
 
 ## Toolchain / install
