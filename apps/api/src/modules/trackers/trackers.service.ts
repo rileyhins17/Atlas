@@ -249,12 +249,12 @@ export class TrackersService {
     const overview = await this.overview(userId, 30);
     if (overview.length === 0) return 'No personal trackers.';
     const lines = overview.map(({ tracker, points, sentence }) => {
-      if (points.length === 0) return `- ${tracker.name}: set up, not rated yet.`;
+      if (points.length === 0) return `- [${tracker.id}] ${tracker.name}: set up, not rated yet.`;
       const scale =
         tracker.lowLabel && tracker.highLabel
           ? ` (1 = ${tracker.lowLabel}, 10 = ${tracker.highLabel})`
           : '';
-      return `- ${sentence ?? `${tracker.name}: ${points.at(-1)!.value}/10`}${scale}`;
+      return `- [${tracker.id}] ${sentence ?? `${tracker.name}: ${points.at(-1)!.value}/10`}${scale}`;
     });
     return lines.join('\n');
   }

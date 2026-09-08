@@ -3,6 +3,8 @@ import type { CreateGoalInput, GoalDTO, UpdateGoalInput } from '@atlas/shared';
 import type { Goal } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
+import { UserTimezoneService } from '../../core/user-timezone.service.js';
+import { dayKeyInTz } from '../ai/time.util.js';
 
 const MAX_GOALS = 100;
 
@@ -40,6 +42,7 @@ export class GoalsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly timeline: TimelineService,
+    private readonly timezones: UserTimezoneService,
   ) {}
 
   async owned(userId: string, id: string): Promise<Goal> {
@@ -135,15 +138,16 @@ export class GoalsService {
     const goals = await this.list(userId);
     const active = goals.filter((g) => g.status === 'active');
     if (active.length === 0) return 'No goals set.';
+    const tz = await this.timezones.get(userId);
     const line = (g: GoalDTO) =>
       `- [${g.id}] ${g.title}` +
-      (g.targetDate ? ` (by ${g.targetDate.slice(0, 10)})` : '') +
+      (g.targetDate ? ` (by ${dayKeyInTz(new Date(g.targetDate), tz)})` : '') +
       ` — ${g.taskCount === 0 ? 'nothing linked yet' : `${g.doneTaskCount}/${g.taskCount} tasks done`}`;
     const short = active.filter((g) => g.horizon === 'short');
     const long = active.filter((g) => g.horizon === 'long');
     const parts: string[] = [];
     if (short.length > 0) parts.push(`Short-term goals:\n${short.map(line).join('\n')}`);
     if (long.length > 0) parts.push(`Long-term goals:\n${long.map(line).join('\n')}`);
-    return parts.join('\n\n');
+    return `Goal dates in ${tz}:\n${parts.join('\n\n')}`;
   }
 }

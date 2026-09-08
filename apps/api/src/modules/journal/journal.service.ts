@@ -4,6 +4,8 @@ import type { JournalEntry } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
 import { MemoryService } from '../../core/memory.service.js';
+import { UserTimezoneService } from '../../core/user-timezone.service.js';
+import { dayKeyInTz } from '../ai/time.util.js';
 
 function toDto(e: JournalEntry): JournalDTO {
   return {
@@ -27,6 +29,7 @@ export class JournalService {
     private readonly prisma: PrismaService,
     private readonly timeline: TimelineService,
     private readonly memory: MemoryService,
+    private readonly timezones: UserTimezoneService,
   ) {}
 
   async create(userId: string, input: CreateJournalInput): Promise<JournalDTO> {
@@ -140,9 +143,10 @@ export class JournalService {
     if (recent.length === 0) return 'No journal entries yet.';
     const moods = recent.map((e) => e.mood).filter((m): m is number => m != null);
     const avg = moods.length ? (moods.reduce((a, b) => a + b, 0) / moods.length).toFixed(1) : 'n/a';
-    const last = recent[0];
-    return `${recent.length} recent entr(ies). Avg mood: ${avg}/5. Latest (${last!.entryDate
-      .toISOString()
-      .slice(0, 10)}): "${snippet(last!.body, 120)}"`;
+    const tz = await this.timezones.get(userId);
+    const lines = recent.map((entry) =>
+      `- [${entry.id}] ${dayKeyInTz(entry.entryDate, tz)}: "${snippet(entry.body, 120)}"`,
+    );
+    return `${recent.length} recent entr(ies). Avg mood: ${avg}/5. Dates in ${tz}:\n${lines.join('\n')}`;
   }
 }
