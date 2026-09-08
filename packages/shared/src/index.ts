@@ -46,3 +46,6 @@ export * from './habit-streak.js';
 export * from './ai-pricing.js';
 export * from './ai-tools.js';
 export * from './tool-fingerprint.js';
+export * from './chat.js';
+export * from './plaid-transforms.js';
+export * from './google-calendar-transforms.js';

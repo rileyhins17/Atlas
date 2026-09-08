@@ -50,6 +50,14 @@ are unchanged. The 30 existing calculation tests moved alongside their code;
 the orchestrator still tests deduplication and provider failures at its boundary.
 Other pure application calculations still need migration before Phase 2 is done.
 
+The shared connector transformations parse chat completions, normalize Plaid
+amounts/account types/currencies, and convert Google Calendar date shapes.
+Connectors retain compatibility exports plus HTTP calls, cancellation options,
+OAuth token lifecycle, secret persistence and pagination. In particular,
+`AbortSignal` stays at the network boundary: shared has no dependency on browser
+or Node cancellation globals. Eighteen existing parsing/conversion tests moved
+to shared; request, refresh and timeout tests remain in connectors.
+
 `OrchestratorService` is the only thing that talks to a model. It:
 1. Assembles context from every registered domain (`collectContext`) and packs it under a token budget (`buildContext`) — modules summarize, the builder caps.
 2. Calls the provider through `CostGuard` on **every** round-trip, including each turn of a tool-calling conversation, so spend can't slip past `AI_DAILY_TOKEN_CAP`.
@@ -57,7 +65,7 @@ Other pure application calculations still need migration before Phase 2 is done.
 
 Tool names are dotted (`tasks.create`) everywhere in Atlas, but some providers reject non-alphanumeric function names. The shared `ai-tools.ts` maps them to a wire-safe form (`tasks__create`) at the provider boundary; `packages/ai/src/tools.ts` retains compatibility exports.
 
-**Provider split — chat is remote, memory is local.** Chat runs on **DeepSeek direct** (`api.deepseek.com`, model `deepseek-v4-flash`) via `DeepSeekConnector`, because that's where the credits are; connectors speak an OpenAI-compatible shape and share one response parser (`packages/connectors/src/chat.ts`), so swapping or adding a chat provider is a connector, not a refactor. **Embeddings run locally in-process** (`LocalEmbedder`, `bge-base-en-v1.5`, 768-dim to match the `vector(768)` column): DeepSeek offers no embeddings endpoint, and paying a second provider purely for vectors would undercut both the <$5/mo target and the self-hosted premise. Local embedding is free and offline, so — unlike every chat path — `EmbeddingService` has no cost guard: there is no spend to bound.
+**Provider split — chat is remote, memory is local.** Chat runs on **DeepSeek direct** (`api.deepseek.com`, model `deepseek-v4-flash`) via `DeepSeekConnector`, because that's where the credits are; connectors speak an OpenAI-compatible shape and share one response parser (`packages/shared/src/chat.ts`, re-exported by connectors), so swapping or adding a chat provider is a connector, not a refactor. **Embeddings run locally in-process** (`LocalEmbedder`, `bge-base-en-v1.5`, 768-dim to match the `vector(768)` column): DeepSeek offers no embeddings endpoint, and paying a second provider purely for vectors would undercut both the <$5/mo target and the self-hosted premise. Local embedding is free and offline, so — unlike every chat path — `EmbeddingService` has no cost guard: there is no spend to bound.
 
 **Semantic recall.** `MemoryService.queueForEmbedding` writes rows with `model="pending"`; `EmbeddingService.backfillPending` fills in the vectors. On chat, `OrchestratorService` embeds the user's message and appends the nearest memories (under a distance threshold) to the prompt. This is the piece module summaries can't cover: summaries describe *current state*, while recall surfaces an old journal entry or note that's topically relevant right now. Retrieval is best-effort — if it fails, chat proceeds without it.
 
