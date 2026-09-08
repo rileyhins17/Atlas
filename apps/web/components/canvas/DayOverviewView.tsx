@@ -7,7 +7,7 @@ import { useCompleteTask, useTasks } from '@/lib/hooks/tasks';
 import { useDayEvents } from '@/lib/hooks/events';
 import { useDayActuals } from '@/lib/hooks/timeline';
 import { buildDayCanvas, buildDayOverview, type CanvasSection } from '@/lib/canvas';
-import { ListSkeleton } from '@/components/ui';
+import { ErrorState, ListSkeleton } from '@/components/ui';
 import { usePlanDay, useAcceptProposal } from '@/lib/hooks/plan';
 import type { PlanProposalDTO } from '@atlas/shared';
 import { formatClock } from '@/lib/dates';
@@ -45,17 +45,7 @@ export function DayOverviewView({
 
   const [now, setNow] = useState(() => new Date());
   const [showEarlier, setShowEarlier] = useState(false);
-  // Open by default on any day that is NOT today.
-  //
-  // Today has a now/next card, a checklist, free-time windows and the brief, so
-  // folding the hour-by-hour away leaves plenty on screen. Every other day has
-  // none of those — paging to tomorrow gave "Nothing scheduled yet" and a
-  // closed disclosure over an otherwise black screen, when the routine
-  // underneath it is exactly what you paged over to look at.
-  // Open on every day now, today included. The disclosure stays so it can be
-  // collapsed, but the default is to SHOW the day rather than to hide it behind
-  // a tap.
-  const [showFullDay, setShowFullDay] = useState(true);
+  const [fullDayChoice, setFullDayChoice] = useState<{ day: number; open: boolean } | null>(null);
   const [proposals, setProposals] = useState<PlanProposalDTO[] | null>(null);
   const [planNote, setPlanNote] = useState<string | null>(null);
   const plan = usePlanDay();
@@ -80,10 +70,21 @@ export function DayOverviewView({
   );
   const overview = useMemo(() => buildDayOverview(canvas, now), [canvas, now]);
 
-  const loading = routine.isPending || tasks.isPending || events.isPending || actuals.isPending;
-  if (loading) return <ListSkeleton rows={5} circle={false} />;
+  const queries = [routine, tasks, events, actuals];
+  const failed = queries.filter((query) => query.isError);
+  if (failed.length > 0) return (
+    <ErrorState
+      message="Your day could not be loaded. Retry before planning from it."
+      onRetry={() => { for (const query of failed) void query.refetch(); }}
+    />
+  );
+  if (queries.some((query) => query.isPending || query.data === undefined)) {
+    return <ListSkeleton rows={5} circle={false} />;
+  }
 
   const isToday = canvas.flavor === 'today';
+  const dayKey = dayStart.getTime();
+  const showFullDay = fullDayChoice?.day === dayKey ? fullDayChoice.open : !isToday;
 
   return (
     <div className="overview">
@@ -98,50 +99,11 @@ export function DayOverviewView({
         </div>
       )}
 
-      {/* First thing, once a day. Mood is the only signal Atlas cannot derive
-          from use, so it is asked for before the day is shown rather than after
-          — a question below the fold is a question nobody answers. */}
-      {isToday && <MoodCheckIn />}
-      {isToday && <TrackerCheckIn />}
-
       {/* Today only: "push the rest of the day" has nothing to push from on a
           date that has already happened or has not started. */}
       {isToday && <NowNext overview={overview} now={now} action={<RunningLate />} />}
 
-      {/* The hour-by-hour day, directly under what you are in right now, and
-          open rather than folded away. It used to sit at the very bottom behind
-          a disclosure, which meant the screen that answers "what does my day
-          look like" only did so after a tap most people never made. */}
-      <section className="ov-block" aria-label="Full day">
-        <button
-          type="button"
-          className="ov-disclose"
-          aria-expanded={showFullDay}
-          onClick={() => setShowFullDay((v) => !v)}
-        >
-          <ChevronDown size={14} aria-hidden className={showFullDay ? 'open' : ''} />
-          Full day, hour by hour
-        </button>
-        {showFullDay && (
-          <div className="day-canvas">
-            {canvas.sections.map((section, si) => (
-              <TimeSection
-                key={`${section.label}-${si}`}
-                section={section}
-                flavor={canvas.flavor}
-                onPlanGap={onPlanGap}
-              >
-                {section.items.map((item) => (
-                  <CanvasCard key={item.id} item={item} onComplete={(id) => complete.mutate(id)} />
-                ))}
-              </TimeSection>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Before anything else about today: settle what didn't happen. Planning
-          on top of a backlog you have not looked at is how the list dies. */}
+      {/* Surface unfinished commitments before proposing more work. */}
       {isToday && <SlippedTasks />}
 
       {isToday && (
@@ -247,6 +209,39 @@ export function DayOverviewView({
           </div>
         )}
       </section>
+
+      {/* Today starts with decisions and capacity; other days start with their
+          schedule. The complete timeline remains available without leaving. */}
+      <section className="ov-block" aria-label="Full day">
+        <button
+          type="button"
+          className="ov-disclose"
+          aria-expanded={showFullDay}
+          onClick={() => setFullDayChoice({ day: dayKey, open: !showFullDay })}
+        >
+          <ChevronDown size={14} aria-hidden className={showFullDay ? 'open' : ''} />
+          Full day, hour by hour
+        </button>
+        {showFullDay && (
+          <div className="day-canvas">
+            {canvas.sections.map((section, si) => (
+              <TimeSection
+                key={`${section.label}-${si}`}
+                section={section}
+                flavor={canvas.flavor}
+                onPlanGap={onPlanGap}
+              >
+                {section.items.map((item) => (
+                  <CanvasCard key={item.id} item={item} onComplete={(id) => complete.mutate(id)} />
+                ))}
+              </TimeSection>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {isToday && <MoodCheckIn />}
+      {isToday && <TrackerCheckIn />}
 
       {contextSlot}
 

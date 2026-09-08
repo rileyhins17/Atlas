@@ -136,3 +136,24 @@ not shrink a task merely to make it fit. It makes no writes. Existing AI plannin
 remains available, and accepting a proposal still uses the calendar endpoint.
 The new API-to-persistence regression must pass in CI both in the full suite and
 independently before this change is considered verified end to end.
+
+
+## Today: decisions before history
+
+The initial 390px Today screenshot was 3323px tall, with the expanded complete
+hour-by-hour history before the checklist. Today now starts with Now/Next,
+unfinished commitments, available capacity, proposals and the checklist. The full
+timeline remains one disclosure away below the actionable content; other dates
+keep it expanded. Mood and custom check-ins follow the schedule rather than
+preceding the immediate action. Updated height and visual review await CI.
+
+Four observed red component regressions proved that failed routine, task, event
+or actual-history reads were being treated as empty data. The overview now
+withholds planning until those reads succeed and retries failed sources. A fifth
+observed red regression covered the expanded timeline preceding today's actions.
+All ten component cases now pass, including pending data and other-day behavior.
+The browser recovery/ordering regression is queued for both full-suite and
+independent execution with its own synthetic task baseline.
+
+Local gate: build 6/6, forced typecheck 10/10, lint zero errors with three existing
+warnings, 1466 unit tests. Browser verification of this iteration remains pending.

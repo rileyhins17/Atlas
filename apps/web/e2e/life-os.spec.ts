@@ -2010,3 +2010,37 @@ test('day planning works without AI and accepted blocks retain their task link',
   expect(events.ok()).toBe(true);
   expect(await events.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: event.id, taskId: task.id })]));
 });
+
+
+test('Today keeps actions first and recovers from unavailable day data', async ({ page }) => {
+  const seeded = await page.request.post('http://localhost:4000/tasks', { data: {
+    title: `Overview baseline ${Date.now()}`,
+  } });
+  expect(seeded.ok()).toBe(true);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await go(page, '/today');
+  const fullDay = page.getByRole('button', { name: 'Full day, hour by hour' });
+  await expect(fullDay).toHaveAttribute('aria-expanded', 'false');
+  const checklist = page.getByRole('region', { name: 'Checklist' });
+  await expect(checklist).toBeVisible();
+  const checklistBox = await checklist.boundingBox();
+  const timelineBox = await fullDay.boundingBox();
+  expect(checklistBox!.y).toBeLessThan(timelineBox!.y);
+  await fullDay.click();
+  await expect(fullDay).toHaveAttribute('aria-expanded', 'true');
+  await page.getByRole('button', { name: 'Next day', exact: true }).click();
+  await expect(fullDay).toHaveAttribute('aria-expanded', 'true');
+
+  await page.route('**/timeline?**', (route) => route.fulfill({
+    status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'Synthetic unavailable timeline' }),
+  }));
+  await page.goto('/today');
+  const failure = page.getByText('Your day could not be loaded. Retry before planning from it.');
+  await expect(failure).toBeVisible();
+  await expect(checklist).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Plan my day', exact: true })).toHaveCount(0);
+  await page.unroute('**/timeline?**');
+  await failure.locator('..').getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(checklist).toBeVisible();
+  await expect(failure).toHaveCount(0);
+});
