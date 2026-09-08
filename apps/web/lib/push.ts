@@ -71,8 +71,11 @@ export async function disablePush(): Promise<PushState> {
   const reg = await navigator.serviceWorker.getRegistration();
   const sub = await reg?.pushManager.getSubscription();
   if (sub) {
-    await PushApi.unsubscribe(sub.endpoint).catch(() => undefined);
-    await sub.unsubscribe().catch(() => undefined);
+    // Keep the endpoint available for retry if Atlas cannot remove it. Only
+    // report disabled after both operations settle successfully. A resolved
+    // false from the browser means the subscription was already deactivated.
+    await PushApi.unsubscribe(sub.endpoint);
+    await sub.unsubscribe();
   }
   return 'disabled';
 }

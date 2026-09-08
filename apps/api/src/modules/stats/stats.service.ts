@@ -1,3 +1,5 @@
+import { tagStatsRows as tag } from '@atlas/shared';
+import { readCollection } from '../../core/collection-pages.js';
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@atlas/db';
 import {
@@ -55,9 +57,8 @@ export class StatsService {
   async rollup(userId: string, days: number): Promise<StatsDTO> {
     const tz = await this.timezone(userId);
     const now = new Date();
-    const todayStart = localDayStartUtc(tz, now);
-    const currentFrom = new Date(todayStart.getTime() - (days - 1) * 86_400_000);
-    const prevFrom = new Date(currentFrom.getTime() - days * 86_400_000);
+    const currentFrom = localDayStartUtc(tz, now, -(days - 1));
+    const prevFrom = localDayStartUtc(tz, currentFrom, -days);
     const currentFromDay = dayKeyInTz(currentFrom, tz);
 
     // One query per metric — small, indexed, userId-scoped. The `AT TIME ZONE`
@@ -219,9 +220,7 @@ export class StatsService {
    */
   async trackerPatterns(userId: string): Promise<TrackerPatternsDTO> {
     const tz = await this.timezone(userId);
-    const from = new Date(
-      localDayStartUtc(tz, new Date()).getTime() - PATTERN_WINDOW_DAYS * 86_400_000,
-    );
+    const from = localDayStartUtc(tz, new Date(), -PATTERN_WINDOW_DAYS);
 
     const trackers = await this.prisma.client.tracker.findMany({
       where: { userId, active: true },
@@ -234,10 +233,12 @@ export class StatsService {
     const fromKey = dayKeyInTz(from, tz);
     const [factors, entries] = await Promise.all([
       this.factorsFor(userId, tz, from),
-      this.prisma.client.trackerEntry.findMany({
+      readCollection((page) => this.prisma.client.trackerEntry.findMany({
+        take: page.take, cursor: page.cursor, skip: page.skip,
+        orderBy: { id: 'asc' },
         where: { userId, dayKey: { gte: fromKey }, trackerId: { in: trackers.map((t) => t.id) } },
-        select: { trackerId: true, dayKey: true, value: true },
-      }),
+        select: { id: true, trackerId: true, dayKey: true, value: true },
+      })),
     ]);
 
     const byTracker = new Map<string, TrackerDay[]>();
@@ -297,7 +298,7 @@ export class StatsService {
    */
   async moodPatterns(userId: string): Promise<MoodPatternsDTO> {
     const tz = await this.timezone(userId);
-    const from = new Date(localDayStartUtc(tz, new Date()).getTime() - PATTERN_WINDOW_DAYS * 86_400_000);
+    const from = localDayStartUtc(tz, new Date(), -PATTERN_WINDOW_DAYS);
     const q = <T>(sql: Prisma.Sql) => this.prisma.client.$queryRaw<T[]>(sql);
 
     const [moods, trained, habits, tasks, packed] = await Promise.all([
@@ -399,8 +400,4 @@ export class StatsService {
     ].join('\n');
   }
 
-}
-
-function tag(metric: StatsMetric, rows: { day: string; value: number }[]): MetricRow[] {
-  return rows.map((r) => ({ metric, day: r.day, value: Number(r.value) }));
 }
