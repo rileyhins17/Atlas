@@ -1,5 +1,7 @@
 'use client';
 
+import { formatSessionMinutes as duration } from '@atlas/shared';
+
 import {
   formatVolume,
   formatWeight,
@@ -8,12 +10,6 @@ import {
 } from '@atlas/shared';
 import { Trophy } from 'lucide-react';
 import { Button, Dialog } from '@/components/ui';
-
-/** "1h 02m" — a session length reads better than "62 min". */
-function duration(min: number): string {
-  if (min < 60) return `${min} min`;
-  return `${Math.floor(min / 60)}h ${String(min % 60).padStart(2, '0')}m`;
-}
 
 /**
  * What you get for finishing.
@@ -57,6 +53,9 @@ export function WorkoutSummaryDialog({
           </div>
         </div>
 
+        {summary.historyAvailable === false && (
+          <p className="prog-muted">Workout saved. Earlier sessions were unavailable, so records and volume comparisons were not checked.</p>
+        )}
         {prCount > 0 && (
           <p className="wo-pr">
             <Trophy size={15} aria-hidden />

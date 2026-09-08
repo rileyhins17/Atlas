@@ -198,13 +198,13 @@ export function nextOccurrences(
     const days = r.byDay.length > 0 ? r.byDay : [codeOf(start)];
     const wanted = new Set(days.map(indexOfCode));
     // Week index is measured from the start's week so INTERVAL lands correctly.
-    const weekAnchor = startOfDayLocal(addDays(start, -((start.getDay() + 6) % 7)));
+    const startWeekday = (start.getDay() + 6) % 7;
     let cursor = startOfDayLocal(start);
     for (let step = 0; step < MAX_STEPS && out.length < count; step++, cursor = addDays(cursor, 1)) {
       if (!wanted.has((cursor.getDay() + 6) % 7)) continue;
-      const weeks = Math.floor(
-        (startOfDayLocal(cursor).getTime() - weekAnchor.getTime()) / (7 * 86_400_000),
-      );
+      // The cursor advances one calendar day per step. Elapsed milliseconds
+      // would move Monday into the previous interval week after spring DST.
+      const weeks = Math.floor((startWeekday + step) / 7);
       if (weeks % r.interval !== 0) continue;
       const at = withTimeOf(cursor, start);
       if (at.getTime() <= start.getTime()) continue; // the seed itself isn't "next"

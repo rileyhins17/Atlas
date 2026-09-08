@@ -11,7 +11,7 @@ import {
   type WorkoutTemplateDTO,
 } from '@atlas/shared';
 import { Check, GripVertical, Link2, Plus, Search, Unlink2, X } from 'lucide-react';
-import { Button, Card, Input } from '@/components/ui';
+import { Button, Card, ErrorState, Input, ListSkeleton } from '@/components/ui';
 import {
   useCreateTemplate,
   useDeleteTemplate,
@@ -96,10 +96,11 @@ export function DayBuilder({
   }, [rounds]);
 
   const busy = create.isPending || update.isPending;
+  const catalogReady = !exercises.isError && !exercises.isPending && exercises.data !== undefined;
 
   function save() {
     const label = name.trim();
-    if (!label || chosen.length === 0 || busy) return;
+    if (!catalogReady || !label || chosen.length === 0 || busy) return;
     // Renumber once, here: editing leaves holes (pair, unpair, pair again gives
     // group 2 with no 0 or 1) and the number is shown as "Superset A".
     const tidy = normaliseGroups(chosen);
@@ -136,6 +137,10 @@ export function DayBuilder({
         autoFocus
       />
 
+      {exercises.isError ? (
+        <ErrorState message="Exercise catalog could not be loaded. Your workout draft is kept." onRetry={() => void exercises.refetch()} />
+      ) : !catalogReady ? <ListSkeleton rows={3} /> : null}
+      <fieldset disabled={!catalogReady} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
       {chosen.length > 0 && (
         <ol className="day-chosen">
           {chosen.map((entry, i) => {
@@ -242,17 +247,18 @@ export function DayBuilder({
             <span className="fit-picker-muscle">{describeExercise(e)}</span>
           </button>
         ))}
-        {results.length === 0 && (
+        {catalogReady && results.length === 0 && (
           <p className="prog-muted" style={{ padding: '8px 2px', margin: 0 }}>
-            {query.trim() || filter.target || filter.equipment
+            {all.length === 0 ? 'No exercises are available in the catalog yet.' : query.trim() || filter.target || filter.equipment
               ? 'Nothing matches that.'
               : 'Everything is already in this day.'}
           </p>
         )}
       </div>
 
+      </fieldset>
       <div className="row" style={{ gap: 8 }}>
-        <Button onClick={save} disabled={!name.trim() || chosen.length === 0 || busy}>
+        <Button onClick={save} disabled={!catalogReady || !name.trim() || chosen.length === 0 || busy}>
           <Check size={14} aria-hidden />{' '}
           {busy ? 'Saving…' : `Save ${chosen.length ? `(${chosen.length})` : ''}`}
         </Button>

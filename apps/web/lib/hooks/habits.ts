@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { HabitDTO, UpdateHabitInput } from '@atlas/shared';
+import { optimisticHabitCheckIn, type HabitDTO, type UpdateHabitInput } from '@atlas/shared';
 import { HabitsApi } from '@/lib/api';
 import { qk } from './keys';
 import { useInvalidatingMutation } from './mutation';
@@ -52,11 +52,7 @@ export function useLogHabit() {
           h.id === id
             ? {
                 ...h,
-                doneToday: true,
-                todayCount: h.todayCount + 1,
-                // First check-in of the day extends the streak; the server
-                // recomputes the real value on settle.
-                streak: h.doneToday ? h.streak : h.streak + 1,
+                ...optimisticHabitCheckIn(h),
               }
             : h,
         ),

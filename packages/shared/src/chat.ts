@@ -1,0 +1,86 @@
+// Provider-agnostic chat shapes shared by every LLM connector. Kept
+// OpenAI-compatible since that's the lowest common denominator every provider
+// Atlas might target speaks — today that's DeepSeek direct.
+
+/** A tool call the model wants executed, OpenAI-compatible shape. */
+export interface ChatToolCall {
+  id: string;
+  type: 'function';
+  function: { name: string; arguments: string };
+}
+
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content: string;
+  name?: string;
+  tool_call_id?: string;
+  /** Set on an assistant message that requested tool calls. */
+  tool_calls?: ChatToolCall[];
+}
+
+export interface ChatUsage {
+  promptTokens: number;
+  completionTokens: number;
+  /**
+   * Subset of promptTokens the provider served from its prefix cache
+   * (DeepSeek's `prompt_cache_hit_tokens`). Billed far cheaper — pass it to the
+   * cost guard so spend isn't overstated. 0 when the provider doesn't report it.
+   */
+  cachedPromptTokens: number;
+}
+
+export interface ChatResult {
+  content: string;
+  /** Present when the model wants to call one or more tools instead of (or alongside) replying. */
+  toolCalls?: ChatToolCall[];
+  /**
+   * Why the model stopped — `'stop'` normally, `'length'` when it ran out of
+   * completion budget. Worth checking: a truncated reply is not an error and
+   * arrives looking like a short one, so nothing else reveals it.
+   */
+  finishReason?: string;
+  usage: ChatUsage;
+  model: string;
+  raw: unknown;
+}
+
+export interface EmbedResult {
+  embeddings: number[][];
+  usage: { promptTokens: number };
+  model: string;
+}
+
+/** Shared response parsing for OpenAI-compatible chat/completions APIs. */
+export function parseChatCompletion(data: unknown, fallbackModel: string): ChatResult {
+  const parsed = data as {
+    choices?: {
+      message?: { content?: string | null; tool_calls?: ChatToolCall[] };
+      finish_reason?: string;
+    }[];
+    usage?: {
+      prompt_tokens?: number;
+      completion_tokens?: number;
+      // DeepSeek reports cache hits at the top level; OpenAI-style APIs nest
+      // them under prompt_tokens_details.cached_tokens. Accept either.
+      prompt_cache_hit_tokens?: number;
+      prompt_tokens_details?: { cached_tokens?: number };
+    };
+    model?: string;
+  };
+  const choice = parsed.choices?.[0];
+  const message = choice?.message;
+  const usage = parsed.usage;
+  return {
+    content: message?.content ?? '',
+    toolCalls: message?.tool_calls,
+    finishReason: choice?.finish_reason,
+    usage: {
+      promptTokens: usage?.prompt_tokens ?? 0,
+      completionTokens: usage?.completion_tokens ?? 0,
+      cachedPromptTokens:
+        usage?.prompt_cache_hit_tokens ?? usage?.prompt_tokens_details?.cached_tokens ?? 0,
+    },
+    model: parsed.model ?? fallbackModel,
+    raw: data,
+  };
+}
