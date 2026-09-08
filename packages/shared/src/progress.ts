@@ -58,17 +58,44 @@ export function habitRhythm(
   days: { day: string; count: number }[],
   target: number,
   window: number,
-): { rate: number; weekly: number[] } {
+  context: { now: Date; createdAt: string; cadence: string },
+): { rate: number; weekly: number[]; met: number; periods: number; partialPeriods: number; unit: 'days' | 'weeks' } {
   const goal = Math.max(1, target);
-  const recent = days.slice(-window);
-  const met = recent.filter((d) => d.count >= goal).length;
-  const rate = window === 0 ? 0 : met / window;
-  const weekly: number[] = [];
-  for (let end = recent.length; end > 0; end -= 7) {
-    const start = Math.max(0, end - 7);
-    weekly.unshift(recent.slice(start, end).reduce((sum, d) => sum + d.count, 0));
+  const unit = context.cadence === 'weekly' ? 'weeks' : 'days';
+  const end = context.now.toISOString().slice(0, 10);
+  const start = new Date(`${end}T00:00:00Z`);
+  const boundedWindow = Math.max(0, Math.min(366, Math.floor(window)));
+  start.setUTCDate(start.getUTCDate() - Math.max(0, boundedWindow - 1));
+  const created = new Date(context.createdAt);
+  const createdDay = Number.isFinite(created.getTime()) ? created.toISOString().slice(0, 10) : '';
+  // The history endpoint currently supplies UTC day keys. Use that same
+  // calendar for eligibility and Monday buckets; sparse rows are not days.
+  const counts = new Map<string, number>();
+  for (const day of days) counts.set(day.day, (counts.get(day.day) ?? 0) + day.count);
+  const weeks = new Map<string, { count: number; days: number }>();
+  let eligibleDays = 0;
+  let metDays = 0;
+  for (let i = 0; i < boundedWindow; i++) {
+    const date = new Date(start);
+    date.setUTCDate(date.getUTCDate() + i);
+    const key = date.toISOString().slice(0, 10);
+    if (key < createdDay) continue;
+    eligibleDays++;
+    const count = counts.get(key) ?? 0;
+    if (count >= goal) metDays++;
+    const monday = new Date(date);
+    monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
+    const weekKey = monday.toISOString().slice(0, 10);
+    const week = weeks.get(weekKey) ?? { count: 0, days: 0 };
+    week.count += count;
+    week.days++;
+    weeks.set(weekKey, week);
   }
-  return { rate, weekly };
+  const buckets = [...weeks.values()];
+  const periods = unit === 'weeks' ? buckets.length : eligibleDays;
+  const met = unit === 'weeks' ? buckets.filter((week) => week.count >= goal).length : metDays;
+  return { rate: periods ? met / periods : 0, weekly: buckets.map((week) => week.count), met, periods,
+    partialPeriods: unit === 'weeks' ? buckets.filter((week) => week.days < 7).length : 0, unit };
 }
 
 /**

@@ -62,17 +62,20 @@ export function HabitConsistency({ days }: { days: number }) {
     <div className="prog-habits">
       {list.slice(0, SHOWN).map((h) => {
         const row = history.data?.find((r) => r.habitId === h.id);
-        const { rate, weekly } = habitRhythm(row?.days ?? [], h.target || 1, days);
+        const { rate, weekly, met, periods, unit, partialPeriods } = habitRhythm(row?.days ?? [], h.target || 1, days,
+          { now: new Date(), createdAt: h.createdAt, cadence: h.cadence });
         const pct = Math.round(rate * 100);
         return (
           <div key={h.id} className="prog-habit-row">
-            <ProgressRing value={rate} size={38} strokeWidth={4} label={`${h.name}: ${pct}% of days`}>
+            <ProgressRing value={rate} size={38} strokeWidth={4} label={`${h.name}: ${pct}% of ${unit} with the target met`}>
               <span className="prog-habit-pct">{pct}</span>
             </ProgressRing>
             <div className="prog-habit-meta">
               <span className="prog-habit-name">{h.name}</span>
               <span className="prog-habit-sub">
-                {pct}% of days{h.streak > 0 ? ` · ${h.streak}-day streak` : ''}
+                {met} of {periods} {periods === 1 ? unit.slice(0, -1) : unit} with the target met
+                {unit === 'days' && h.streak > 0 ? ` · ${h.streak}-day streak` : ''}
+                {partialPeriods > 0 ? ` · includes ${partialPeriods} partial ${partialPeriods === 1 ? 'week' : 'weeks'}` : ''}
               </span>
             </div>
             {/* A one-point line is a dot: below two weeks of history there is no

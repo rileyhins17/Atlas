@@ -2197,6 +2197,35 @@ test('manual accounts save exact typed balances without a bank connection', asyn
   await expect(page.locator('.task').filter({ hasText: name })).toBeVisible();
 });
 
+test('habit progress respects creation dates and weekly targets in both themes', async ({ page }) => {
+  const entry = await page.request.post('http://localhost:4000/journal', { data: { body: 'Synthetic habit progress baseline', mood: 3 } });
+  expect(entry.status()).toBe(201);
+  await page.clock.setFixedTime(new Date('2026-09-08T18:00:00Z'));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('http://localhost:4000/habits', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify([
+    { id: 'fixture-daily', name: 'New daily reading', target: 1, cadence: 'daily', createdAt: '2026-09-08T10:00:00Z', streak: 1, active: true, doneToday: true, todayCount: 1 },
+    { id: 'fixture-weekly', name: 'Weekly practice', target: 3, cadence: 'weekly', createdAt: '2026-09-07T10:00:00Z', streak: 1, active: true, doneToday: false, todayCount: 2 },
+  ]) }));
+  await page.route('http://localhost:4000/habits/history?*', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify([
+    { habitId: 'fixture-daily', days: [{ day: '2026-09-08', count: 1 }] },
+    { habitId: 'fixture-weekly', days: [{ day: '2026-09-07', count: 1 }, { day: '2026-09-08', count: 2 }] },
+  ]) }));
+  for (const theme of ['light', 'dark'] as const) {
+    await page.goto('/progress');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    const daily = page.locator('.prog-habit-row').filter({ hasText: 'New daily reading' });
+    const weekly = page.locator('.prog-habit-row').filter({ hasText: 'Weekly practice' });
+    await expect(daily).toContainText('1 of 1 day with the target met');
+    await expect(weekly).toContainText('1 of 1 week with the target met');
+    await expect(weekly).toContainText('includes 1 partial week');
+    await expect(daily.locator('.prog-habit-pct')).toHaveText('100');
+    await expect(weekly.locator('.prog-habit-pct')).toHaveText('100');
+    const failures = screenFailures(await measureScreen(page, '/progress:habit-targets', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+  }
+});
+
 test('mood patterns show loading, failure and recoverable empty history', async ({ page }) => {
   const entry = await page.request.post('http://localhost:4000/journal', { data: { body: 'Synthetic progress state baseline', mood: 3 } });
   expect(entry.status()).toBe(201);

@@ -209,17 +209,16 @@ export function whatChanged(data: StatsDTO, days: number, limit = 5): Change[] {
     }
   }
 
-  // Habits — the share of days is the number people act on, not the raw count.
+  // The rollup knows logged days, not target completion or when habits existed.
   const withHabit = data.days.filter((d) => d.habitChecks > 0).length;
   if (data.days.length > 0 && (withHabit > 0 || before.habitChecks > 0)) {
-    const share = Math.round((withHabit / data.days.length) * 100);
     const streak = longestHabitStreak(data.days);
     add(
       'habits',
-      `You kept a habit on ${share}% of days — your longest run was ${plural(streak, 'day')}.`,
-      share >= 60 ? 'good' : share >= 30 ? 'flat' : 'warn',
+      `You logged habit check-ins on ${withHabit} of ${data.days.length} calendar days — your longest run was ${plural(streak, 'day')}.`,
       'flat',
-      share >= 30 ? 0.35 : 0.6,
+      'flat',
+      0.35,
     );
   }
 

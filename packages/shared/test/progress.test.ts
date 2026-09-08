@@ -72,20 +72,19 @@ describe('habitRhythm', () => {
 
   it('scores a day as met only when it reaches the target', () => {
     // target 2: days with 2+ count, days with 1 do not.
-    const { rate } = habitRhythm(hist([2, 1, 3, 0]), 2, 4);
+    const { rate } = habitRhythm(hist([2, 1, 3, 0]), 2, 4, { now: new Date('2026-07-04T12:00:00Z'), createdAt: '2026-01-01', cadence: 'daily' });
     expect(rate).toBe(0.5);
   });
 
-  it('buckets check-ins per week, oldest first, anchored to the window END', () => {
-    // Anchoring at the end (like weeklyBuckets) keeps the newest bucket a full
-    // week; the leftover partial week is the OLDEST one.
-    const { weekly } = habitRhythm(hist([1, 1, 1, 1, 1, 1, 1, 5, 5]), 1, 9);
-    expect(weekly).toEqual([2, 15]); // 2-day partial, then the last 7 days
+  it('buckets check-ins into Monday calendar weeks, oldest first', () => {
+    // The window can clip either edge of a Monday-Sunday calendar week.
+    const { weekly } = habitRhythm(hist([1, 1, 1, 1, 1, 1, 1, 5, 5]), 1, 9, { now: new Date('2026-07-09T12:00:00Z'), createdAt: '2026-01-01', cadence: 'daily' });
+    expect(weekly).toEqual([5, 12]); // Wednesday-Sunday, then Monday-Thursday
   });
 
   it('rates against the WINDOW, not the days returned — silence still counts', () => {
     // Only 3 recorded days inside a 10-day window: 70% of it was a miss.
-    const { rate } = habitRhythm(hist([1, 1, 1]), 1, 10);
+    const { rate } = habitRhythm(hist([1, 1, 1]), 1, 10, { now: new Date('2026-07-10T12:00:00Z'), createdAt: '2026-01-01', cadence: 'daily' });
     expect(rate).toBeCloseTo(0.3);
   });
 });

@@ -130,6 +130,13 @@ describe('whatChanged', () => {
     expect(out).not.toMatch(/steady|up|down/);
   });
 
+  it('reports logged habit days without treating an unknown eligibility window as failure', () => {
+    const days = [day({ habitChecks: 1 }), ...Array.from({ length: 29 }, () => day({}))];
+    const result = whatChanged(stats({}, {}, days), 30).find((item) => item.id === 'habits');
+    expect(result?.tone).toBe('flat');
+    expect(result?.text).toContain('logged habit check-ins on 1 of 30 calendar days');
+  });
+
   /**
    * The page must not only report improvement. A gap is the most actionable
    * line on it, and it outranks good news.
@@ -188,9 +195,9 @@ describe('whatChanged', () => {
     expect(habits).toBeLessThan(spend);
   });
 
-  it('reports habit consistency as a share of days, with the best run', () => {
+  it('reports logged habit days with their calendar denominator and best run', () => {
     const days = [1, 1, 1, 0, 1].map((n) => day({ habitChecks: n }));
-    expect(text(stats({}, {}, days))).toMatch(/80% of days.*longest run was 3 days/);
+    expect(text(stats({}, {}, days))).toMatch(/4 of 5 calendar days.*longest run was 3 days/);
   });
 
   /** A wall of sentences is the same failure as a wall of charts. */
