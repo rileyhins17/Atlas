@@ -1,5 +1,21 @@
 # GOTCHAS — solved once, never rediscover
 
+## A timezone offset belongs to an instant, not a whole day
+
+The API's midnight helper subtracted the current offset from wall-clock midnight.
+After a DST change that offset no longer describes midnight: on 8 March 2026 in
+Toronto it returned 04:00Z instead of 05:00Z. Its week calculation could then
+return Tuesday instead of Monday. Rolling a task forward before the change
+also put its deadline at 00:59 tomorrow in spring or 22:59 today in autumn.
+
+`packages/shared/src/time.ts` now resolves the offset at the requested boundary.
+Use `localDayStartUtc(tz, instant, calendarDayOffset)` for named-zone calendar
+windows; browser-local date navigation still uses `addDays` from `lib/dates.ts`.
+End of day is the next local midnight minus the intended elapsed minute, never
+today's midnight plus 24 hours. Statistics windows use the same shared helper.
+Six regression cases were observed failing before this change. Additional tests
+cover non-hour offsets, repeated/skipped midnight and statistics query boundaries.
+
 Append every new setup/build snag here (root cause + fix) so no future thread wastes tokens re-hitting it. The canonical short list also lives in `../CLAUDE.md`; this file is the long form.
 
 ## Toolchain / install

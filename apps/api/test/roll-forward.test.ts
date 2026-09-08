@@ -52,6 +52,20 @@ describe('slipped', () => {
 });
 
 describe('rollForward', () => {
+  it.each([
+    ['2026-03-08T06:00:00Z', '2026-03-09T03:59:00.000Z'],
+    ['2026-11-01T05:00:00Z', '2026-11-02T04:59:00.000Z'],
+  ])('rolls to local 23:59 even before a DST change on %s', async (instant, expected) => {
+    const { service, updateMany } = makeService({ tasks: [task('t1')] });
+    vi.setSystemTime(new Date(instant));
+    try {
+      await service.rollForward('u1', ['t1'], 'today');
+      expect(updateMany.mock.calls[0]![0].data.dueAt.toISOString()).toBe(expected);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('moves the chosen tasks to the end of the user’s local day', async () => {
     const { service, updateMany } = makeService({
       tasks: [task('t1'), task('t2')],

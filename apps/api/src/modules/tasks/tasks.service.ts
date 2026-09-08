@@ -155,7 +155,8 @@ export class TasksService {
     if (action === 'today') {
       // End of the user's local day, so a rolled task reads as "today" on every
       // surface rather than landing at midnight and looking overdue again.
-      const due = new Date((await this.dayStart(userId)).getTime() + 86_400_000 - 60_000);
+      const timezone = await this.timezones.get(userId);
+      const due = new Date(localDayStartUtc(timezone, new Date(), 1).getTime() - 60_000);
       await this.prisma.client.task.updateMany({ where: { id: { in: ids } }, data: { dueAt: due } });
     } else {
       await this.prisma.client.task.updateMany({
