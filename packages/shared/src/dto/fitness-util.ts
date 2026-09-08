@@ -244,6 +244,8 @@ export interface WorkoutSummaryStat {
 }
 
 export interface WorkoutSummaryDTO {
+  /** False when the history read was unavailable; omitted by older callers. */
+  historyAvailable?: boolean;
   durationMin: number;
   workingSets: number;
   volumeGrams: number;
@@ -263,8 +265,9 @@ export interface WorkoutSummaryDTO {
  */
 export function summarizeWorkout(
   workout: { title: string; startedAt: string; endedAt: string | null; sets: WorkoutSetDTO[] },
-  history: { title: string; startedAt: string; sets: WorkoutSetDTO[] }[] = [],
+  history: { title: string; startedAt: string; sets: WorkoutSetDTO[] }[] | null = [],
 ): WorkoutSummaryDTO {
+  const knownHistory = history ?? [];
   const end = workout.endedAt ? new Date(workout.endedAt) : new Date();
   const durationMin = Math.max(
     0,
@@ -277,7 +280,7 @@ export function summarizeWorkout(
   const exercises: WorkoutSummaryStat[] = byExercise.map((g) => {
     const best = bestEffort(g.sets);
     // Everything ever lifted on this movement before today.
-    const priorSets = history.flatMap((h) => h.sets.filter((s) => s.exerciseId === g.exerciseId));
+    const priorSets = knownHistory.flatMap((h) => h.sets.filter((s) => s.exerciseId === g.exerciseId));
     const priorBest = bestEffort(priorSets);
     return {
       exerciseId: g.exerciseId,
@@ -292,7 +295,7 @@ export function summarizeWorkout(
   });
 
   const volumeGrams = workoutVolumeGrams(workout.sets);
-  const lastSame = history.find((h) => h.title === workout.title);
+  const lastSame = knownHistory.find((h) => h.title === workout.title);
   const lastVolume = lastSame ? workoutVolumeGrams(lastSame.sets) : 0;
   const volumeDeltaPct =
     lastSame && lastVolume > 0
@@ -300,6 +303,7 @@ export function summarizeWorkout(
       : null;
 
   return {
+    historyAvailable: history !== null,
     durationMin,
     workingSets: working.length,
     volumeGrams,

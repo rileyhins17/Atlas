@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, Logger, UnauthorizedException } from '@nestjs/common';
+import { Injectable, ConflictException, ForbiddenException, Logger, UnauthorizedException } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { createHash, randomBytes } from 'node:crypto';
 import type { RegisterInput, LoginInput, UserDTO } from '@atlas/shared';
@@ -6,6 +6,7 @@ import { PrismaService } from '../core/prisma.service.js';
 import { ActivityService } from '../core/activity.service.js';
 import { safeTz } from '../modules/ai/time.util.js';
 import { hashPassword, verifyPassword } from './password.util.js';
+import { loadEnv } from '../config/env.js';
 
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
 // Daily is plenty for rows that live thirty days.
@@ -38,7 +39,7 @@ export class AuthService {
     return { id: u.id, email: u.email, displayName: u.displayName, timezone: u.timezone };
   }
 
-  async register(input: RegisterInput): Promise<UserDTO> {
+  async register(input: RegisterInput, inviteVerified = false): Promise<UserDTO> {
     const existing = await this.prisma.client.user.findUnique({ where: { email: input.email } });
     if (existing) throw new ConflictException('Email already registered');
     const user = await this.prisma.client.user.create({
@@ -50,9 +51,23 @@ export class AuthService {
         // unparseable zone would break the user's whole Progress page. Fall
         // back rather than store something Postgres will choke on.
         timezone: safeTz(input.timezone),
+        aiAccessGrantedAt: inviteVerified ? new Date() : null,
       },
     });
     return this.toDto(user);
+  }
+
+  async redeemAiInvite(userId: string, inviteCode: string): Promise<{ ok: true }> {
+    const required = loadEnv().INVITE_CODE;
+    if (!required || inviteCode !== required) throw new ForbiddenException('That invite code is not valid.');
+    // The revocation condition is part of the write, so a concurrent revocation
+    // cannot be reversed by a redemption read/write race.
+    const updated = await this.prisma.client.user.updateMany({
+      where: { id: userId, aiAccessRevokedAt: null },
+      data: { aiAccessGrantedAt: new Date() },
+    });
+    if (updated.count !== 1) throw new ForbiddenException('AI invite access is unavailable for this account.');
+    return { ok: true };
   }
 
   /** Verify credentials and open a session. Returns the raw token for the cookie. */

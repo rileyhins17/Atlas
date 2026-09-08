@@ -1,3 +1,5 @@
+import { indentJson as indent } from '@atlas/shared';
+import { exportJson as json } from '@atlas/shared';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma.service.js';
 import { verifyPassword } from '../../auth/password.util.js';
@@ -14,17 +16,6 @@ import { verifyPassword } from '../../auth/password.util.js';
  * enough that a big account is not thousands of round trips.
  */
 const EXPORT_PAGE = 500;
-
-/** `JSON.stringify`, with bigints as strings — Prisma returns them for money. */
-function json(value: unknown, space?: number): string {
-  return JSON.stringify(value, (_key, v: unknown) => (typeof v === 'bigint' ? v.toString() : v), space);
-}
-
-/** Re-indent a stringified value so it sits correctly inside the document. */
-function indent(text: string, depth: number): string {
-  const pad = '  '.repeat(depth);
-  return text.split('\n').join('\n' + pad);
-}
 
 /**
  * One page of a user's rows, ordered by id so the cursor is stable.
