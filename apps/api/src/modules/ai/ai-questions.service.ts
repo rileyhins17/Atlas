@@ -1,3 +1,4 @@
+import { serializeAiQuestion as toDto } from '@atlas/shared';
 import { readCollection } from '../../core/collection-pages.js';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { AiQuestionDTO } from '@atlas/shared';
@@ -5,17 +6,6 @@ import type { AiQuestion } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
 import { MemoryService } from '../../core/memory.service.js';
-
-function toDto(q: AiQuestion): AiQuestionDTO {
-  return {
-    id: q.id,
-    question: q.question,
-    rationale: q.rationale,
-    relatesTo: q.relatesTo,
-    status: q.status,
-    createdAt: q.createdAt.toISOString(),
-  };
-}
 
 @Injectable()
 export class AiQuestionsService {

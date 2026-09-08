@@ -1,3 +1,4 @@
+import { serializeJournal as toDto } from '@atlas/shared';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { CreateJournalInput, JournalDTO, UpdateJournalInput } from '@atlas/shared';
 import type { JournalEntry } from '@atlas/db';
@@ -6,17 +7,6 @@ import { TimelineService } from '../../core/timeline.service.js';
 import { MemoryService } from '../../core/memory.service.js';
 import { UserTimezoneService } from '../../core/user-timezone.service.js';
 import { dayKeyInTz } from '../ai/time.util.js';
-
-function toDto(e: JournalEntry): JournalDTO {
-  return {
-    id: e.id,
-    entryDate: e.entryDate.toISOString(),
-    body: e.body,
-    mood: e.mood,
-    tags: e.tags,
-    createdAt: e.createdAt.toISOString(),
-  };
-}
 
 function snippet(text: string, n = 80): string {
   const s = text.trim().replace(/\s+/g, ' ');

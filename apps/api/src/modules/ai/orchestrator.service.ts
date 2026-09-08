@@ -1,6 +1,6 @@
+import { serializeInsight as toInsightDto } from '@atlas/shared';
 import { Injectable, Logger } from '@nestjs/common';
 import type { ChatMessage } from '@atlas/connectors';
-import type { Insight } from '@atlas/db';
 import type { AiToolSpec, InsightDTO, PlanDayDTO, PlanProposalDTO } from '@atlas/shared';
 import { describeEnergy, durationKey } from '@atlas/shared';
 import { buildContext, CostGuard, runToolLoop, type ToolLoopResult } from '@atlas/ai';
@@ -167,16 +167,6 @@ const ASK_QUESTION_TOOL: AiToolSpec = {
     required: ['question'],
   },
 };
-
-function toInsightDto(i: Insight): InsightDTO {
-  return {
-    id: i.id,
-    kind: i.kind,
-    title: i.title,
-    body: i.body,
-    createdAt: i.createdAt.toISOString(),
-  };
-}
 
 /**
  * The AI brain: assembles cross-domain context under a token budget, calls the

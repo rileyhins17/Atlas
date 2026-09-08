@@ -1,3 +1,4 @@
+import { serializeEvent as toDto } from '@atlas/shared';
 import { readCollection } from '../../core/collection-pages.js';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
@@ -15,22 +16,6 @@ import { PrismaService } from '../../core/prisma.service.js';
 import { UserTimezoneService } from '../../core/user-timezone.service.js';
 import { dayKeyInTz, safeTz } from '../ai/time.util.js';
 import { TimelineService } from '../../core/timeline.service.js';
-
-function toDto(e: Event): EventDTO {
-  return {
-    id: e.id,
-    title: e.title,
-    description: e.description,
-    location: e.location,
-    startAt: e.startAt.toISOString(),
-    endAt: e.endAt.toISOString(),
-    allDay: e.allDay,
-    source: e.source,
-    recurrence: e.recurrence,
-    taskId: e.taskId,
-    createdAt: e.createdAt.toISOString(),
-  };
-}
 
 const MAX_PAGE = 100;
 /** Ceiling on instances generated from one rule inside a single window. */

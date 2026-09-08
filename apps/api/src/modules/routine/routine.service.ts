@@ -1,13 +1,12 @@
+import { serializeRoutineBlock as toDto } from '@atlas/shared';
 import { readCollection } from '../../core/collection-pages.js';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type {
   ReplaceRoutineInput,
   RoutineBlockDTO,
   RoutineBlockInput,
-  RoutineKind,
   UpdateRoutineBlockInput,
 } from '@atlas/shared';
-import type { RoutineBlock } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { UserTimezoneService } from '../../core/user-timezone.service.js';
 import { dayKeyInTz } from '../ai/time.util.js';
@@ -17,18 +16,6 @@ import { dayKeyInTz } from '../ai/time.util.js';
  * describes and still small enough that reading them all is free.
  */
 const MAX_ROUTINE_BLOCKS = 200;
-
-function toDto(b: RoutineBlock): RoutineBlockDTO {
-  return {
-    id: b.id,
-    label: b.label,
-    kind: b.kind as RoutineKind,
-    days: b.days,
-    onDate: b.onDate,
-    startMin: b.startMin,
-    endMin: b.endMin,
-  };
-}
 
 function fmt(min: number): string {
   const h = Math.floor(min / 60);

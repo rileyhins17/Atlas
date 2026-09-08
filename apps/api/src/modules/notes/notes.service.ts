@@ -1,21 +1,10 @@
+import { serializeNote as toDto } from '@atlas/shared';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { CreateNoteInput, NoteDTO, UpdateNoteInput } from '@atlas/shared';
 import type { Note } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
 import { MemoryService } from '../../core/memory.service.js';
-
-function toDto(n: Note): NoteDTO {
-  return {
-    id: n.id,
-    title: n.title,
-    body: n.body,
-    tags: n.tags,
-    pinned: n.pinned,
-    createdAt: n.createdAt.toISOString(),
-    updatedAt: n.updatedAt.toISOString(),
-  };
-}
 
 function embedText(n: Note): string {
   return n.title ? `${n.title}\n${n.body}` : n.body;

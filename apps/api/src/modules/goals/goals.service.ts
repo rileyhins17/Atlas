@@ -1,3 +1,4 @@
+import { serializeGoal as toDto } from '@atlas/shared';
 import { readCollection } from '../../core/collection-pages.js';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { CreateGoalInput, GoalDTO, UpdateGoalInput } from '@atlas/shared';
@@ -8,27 +9,6 @@ import { UserTimezoneService } from '../../core/user-timezone.service.js';
 import { dayKeyInTz } from '../ai/time.util.js';
 
 const MAX_GOALS = 100;
-
-type GoalRow = Goal & { _count?: { tasks: number } };
-
-function toDto(g: GoalRow, doneTaskCount = 0): GoalDTO {
-  return {
-    id: g.id,
-    title: g.title,
-    description: g.description,
-    horizon: g.horizon === 'long' ? 'long' : 'short',
-    status: (['active', 'achieved', 'paused', 'dropped'] as const).includes(
-      g.status as GoalDTO['status'],
-    )
-      ? (g.status as GoalDTO['status'])
-      : 'active',
-    targetDate: g.targetDate ? g.targetDate.toISOString() : null,
-    position: g.position,
-    taskCount: g._count?.tasks ?? 0,
-    doneTaskCount,
-    createdAt: g.createdAt.toISOString(),
-  };
-}
 
 /**
  * Goals: the layer above tasks that says why any of this matters.

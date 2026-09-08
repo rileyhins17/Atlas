@@ -1,3 +1,4 @@
+import { serializeTask as toDto } from '@atlas/shared';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import {
   nextOccurrence,
@@ -12,24 +13,6 @@ import { PrismaService } from '../../core/prisma.service.js';
 import { UserTimezoneService } from '../../core/user-timezone.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
 import { dayKeyInTz, localDayStartUtc } from '../ai/time.util.js';
-
-function toDto(t: Task): TaskDTO {
-  return {
-    id: t.id,
-    title: t.title,
-    notes: t.notes,
-    status: t.status,
-    priority: t.priority,
-    dueAt: t.dueAt?.toISOString() ?? null,
-    completedAt: t.completedAt?.toISOString() ?? null,
-    tags: t.tags,
-    goalId: t.goalId,
-    recurrence: t.recurrence,
-    recurrenceParentId: t.recurrenceParentId,
-    createdAt: t.createdAt.toISOString(),
-    updatedAt: t.updatedAt.toISOString(),
-  };
-}
 
 @Injectable()
 export class TasksService {
