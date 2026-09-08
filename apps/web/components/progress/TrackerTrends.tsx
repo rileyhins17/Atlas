@@ -1,8 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { MIN_DAYS_FOR_TREND } from '@atlas/shared';
 import { useTrackerOverview, useTrackerPatterns } from '@/lib/hooks/trackers';
-import { Sparkline } from '@/components/ui';
+import { ErrorState, ListSkeleton, Sparkline } from '@/components/ui';
 import { NothingYet, ProgressCard } from './ProgressCard';
 
 /**
@@ -20,9 +21,20 @@ export function TrackerTrends() {
   const linesFor = (id: string) =>
     patterns.data?.trackers.find((t) => t.id === id)?.patterns ?? [];
 
-  // Opt-in. A card explaining a feature nobody has switched on is a nag on a
-  // page that already has plenty to say.
-  if (overview.isPending || rows.length === 0) return null;
+  if (overview.isError) return (
+    <ProgressCard title="Personal ratings">
+      <ErrorState message="Personal rating trends could not be loaded." onRetry={() => void overview.refetch()} />
+    </ProgressCard>
+  );
+  if (overview.isPending || overview.data === undefined) return (
+    <ProgressCard title="Personal ratings"><ListSkeleton rows={2} /></ProgressCard>
+  );
+  if (rows.length === 0) return (
+    <ProgressCard title="Personal ratings">
+      <NothingYet>Track something that matters to you to see how it changes over time.</NothingYet>
+      <Link href="/settings" className="trk-manage">Set up personal ratings</Link>
+    </ProgressCard>
+  );
 
   return (
     <>
@@ -70,17 +82,19 @@ export function TrackerTrends() {
                 </p>
               )}
 
-              {/* The half a symptom diary cannot do. Rendered only when the
-                  counting cleared its bars — an empty list means there was
-                  nothing honest to say, not that nothing was checked. */}
-              {linesFor(tracker.id).length > 0 && (
-                <ul className="trk-patterns">
-                  {linesFor(tracker.id).map((p) => (
-                    <li key={p.factor}>{p.line}</li>
-                  ))}
-                </ul>
-              )}
+
             </>
+          )}
+          {patterns.isError ? (
+            <ErrorState message="Patterns could not be loaded. Your ratings are still shown." onRetry={() => void patterns.refetch()} />
+          ) : patterns.isPending || patterns.data === undefined ? (
+            <p className="prog-muted" role="status">Checking patterns…</p>
+          ) : linesFor(tracker.id).length > 0 ? (
+            <ul className="trk-patterns">
+              {linesFor(tracker.id).map((p) => <li key={p.factor}>{p.line}</li>)}
+            </ul>
+          ) : (
+            <p className="prog-muted">No supported patterns yet. Keep rating your days.</p>
           )}
         </ProgressCard>
       ))}

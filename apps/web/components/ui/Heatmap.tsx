@@ -1,5 +1,7 @@
 'use client';
 
+import { heatmapColumns, heatmapLevel } from '@atlas/shared';
+
 import { localDayKey } from '@/lib/dates';
 
 export interface HeatmapProps {
@@ -19,28 +21,8 @@ export interface HeatmapProps {
  */
 export function Heatmap({ counts, weeks = 12, target = 1, label }: HeatmapProps) {
   const today = new Date();
-  // Monday of the current week (getDay(): Sun=0 → offset 6, Mon=1 → 0, ...).
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
-
-  const columns: Date[][] = [];
-  for (let w = weeks - 1; w >= 0; w--) {
-    const col: Date[] = [];
-    for (let d = 0; d < 7; d++) {
-      const day = new Date(monday);
-      day.setDate(monday.getDate() - w * 7 + d);
-      col.push(day);
-    }
-    columns.push(col);
-  }
-
-  const level = (count: number): number => {
-    if (count <= 0) return 0;
-    const ratio = count / Math.max(1, target);
-    if (ratio >= 1) return 3;
-    if (ratio >= 0.5) return 2;
-    return 1;
-  };
+  const columns = heatmapColumns(today, weeks);
+  const level = (count: number) => heatmapLevel(count, target);
 
   return (
     <div className="heatmap" role="img" aria-label={label}>

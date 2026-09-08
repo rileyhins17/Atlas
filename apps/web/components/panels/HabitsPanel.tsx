@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { HabitCadence, HabitDTO } from '@atlas/shared';
-import { Check, Flame, Repeat, X } from 'lucide-react';
+import { Check, Flame, Plus, Repeat, X } from 'lucide-react';
 import { errorMessage } from '@/lib/api';
 import {
   useCreateHabit,
@@ -18,6 +18,7 @@ import {
   Card,
   Dialog,
   EmptyState,
+  ErrorState,
   Heatmap,
   Input,
   ListSkeleton,
@@ -26,9 +27,12 @@ import {
 import { IconButton } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
 import { useSubmitLatch } from '@/lib/hooks/submit-latch';
-import { localDayKey } from '@/lib/dates';
 
-const HISTORY_DAYS = 84; // 12 weeks of heatmap
+import { weekCells } from '@atlas/shared';
+export { weekCells } from '@atlas/shared';
+
+const HISTORY_WEEKS = 26;
+const HISTORY_DAYS = HISTORY_WEEKS * 7;
 
 /** The open edit dialog's working copy — null when nothing is being edited. */
 type HabitDraft = { id: string; name: string; target: string; cadence: HabitCadence };
@@ -39,6 +43,7 @@ export function HabitsPanel() {
   const [draftError, setDraftError] = useState<string | null>(null);
   const habitsQuery = useHabits();
   const historyQuery = useHabitHistory(HISTORY_DAYS);
+  const historyAvailable = !historyQuery.isPending && !historyQuery.isError && historyQuery.data !== undefined;
   const create = useCreateHabit();
   const latch = useSubmitLatch();
   const editLatch = useSubmitLatch();
@@ -165,11 +170,16 @@ export function HabitsPanel() {
             )
           }
         >
+          {habits.length > 0 && !historyAvailable && (historyQuery.isError
+            ? <ErrorState message="Could not load habit history. You can still check in." onRetry={() => void historyQuery.refetch()} />
+            : <p role="status" className="muted">Loading habit history…</p>)}
           {habits.map((h) => (
             <HabitCard
               key={h.id}
               habit={h}
               counts={historyByHabit.get(h.id)}
+              historyAvailable={historyAvailable}
+              saving={log.isPending}
               onCheckIn={() => log.mutate(h.id)}
               onEdit={() => openEdit(h)}
               onRemove={() => remove.mutate(h.id)}
@@ -239,32 +249,19 @@ export function HabitsPanel() {
   );
 }
 
-/** Last 7 local days (oldest first) with done-ness for the mini week grid. */
-export function weekCells(
-  counts: Map<string, number> | undefined,
-  target: number,
-  today: Date,
-): Array<{ day: string; done: boolean; count: number }> {
-  const cells: Array<{ day: string; done: boolean; count: number }> = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    const key = localDayKey(d);
-    const count = counts?.get(key) ?? 0;
-    cells.push({ day: key, done: count >= Math.max(1, target), count });
-  }
-  return cells;
-}
-
 function HabitCard({
   habit,
   counts,
+  historyAvailable,
+  saving,
   onCheckIn,
   onEdit,
   onRemove,
 }: {
   habit: HabitDTO;
   counts: Map<string, number> | undefined;
+  historyAvailable: boolean;
+  saving: boolean;
   onCheckIn: () => void;
   onEdit: () => void;
   onRemove: () => void;
@@ -274,12 +271,15 @@ function HabitCard({
     <Card stack className={habit.doneToday ? 'habit-card done' : 'habit-card'}>
       <div className="row" style={{ gap: 13 }}>
         <button
-          className={`check ${habit.doneToday ? '' : ''}`}
+          type="button"
+          className="habit-checkin"
+          disabled={saving}
+          title={habit.doneToday ? 'Daily target met. Log another check-in.' : 'Log one check-in.'}
           aria-label={`Check in "${habit.name}"`}
           aria-pressed={habit.doneToday}
           onClick={onCheckIn}
         >
-          <Check size={14} strokeWidth={3} aria-hidden />
+          {habit.doneToday ? <Check size={18} strokeWidth={3} aria-hidden /> : <Plus size={18} aria-hidden />}
         </button>
         <div className="stack" style={{ gap: 1, flex: 1, minWidth: 0 }}>
           {/* The name is the edit affordance, the way an event row is on the
@@ -300,13 +300,13 @@ function HabitCard({
             {habit.todayCount}/{habit.target} today · {habit.cadence}
           </span>
         </div>
-        <div className="week-grid" role="img" aria-label={`${habit.name}: last 7 days`}>
+        {historyAvailable && <div className="week-grid" role="img" aria-label={`${habit.name}: last 7 days`}>
           {week.map((c) => (
             <span key={c.day} className={`week-dot ${c.done ? 'done' : ''}`} title={c.day} />
           ))}
-        </div>
+        </div>}
         {habit.streak > 0 && (
-          <Badge className="streak" aria-label={`${habit.streak} day streak`}>
+          <Badge className="streak" role="img" aria-label={`${habit.streak} day streak`}>
             <Flame size={13} aria-hidden />
             {habit.streak}
           </Badge>
@@ -321,14 +321,15 @@ function HabitCard({
           most of the screen was empty. Twenty-six columns fill the card at the
           same cell size, and the extra history is the part of a habit tracker
           worth looking at. */}
-      <div className="habit-heatmap">
+      {historyAvailable && <div className="habit-heatmap">
+        {(!counts || counts.size === 0) && <p className="muted">No check-ins recorded in the last {HISTORY_WEEKS} weeks.</p>}
         <Heatmap
           counts={counts ?? new Map()}
-          weeks={26}
+          weeks={HISTORY_WEEKS}
           target={habit.target}
-          label={`${habit.name} check-ins, last 26 weeks`}
+          label={`${habit.name} check-ins, last ${HISTORY_WEEKS} weeks`}
         />
-      </div>
+      </div>}
     </Card>
   );
 }

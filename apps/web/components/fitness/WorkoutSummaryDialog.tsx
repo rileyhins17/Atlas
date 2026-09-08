@@ -1,5 +1,9 @@
 'use client';
 
+import type { ReactNode } from 'react';
+
+import { formatSessionMinutes as duration } from '@atlas/shared';
+
 import {
   formatVolume,
   formatWeight,
@@ -8,12 +12,6 @@ import {
 } from '@atlas/shared';
 import { Trophy } from 'lucide-react';
 import { Button, Dialog } from '@/components/ui';
-
-/** "1h 02m" — a session length reads better than "62 min". */
-function duration(min: number): string {
-  if (min < 60) return `${min} min`;
-  return `${Math.floor(min / 60)}h ${String(min % 60).padStart(2, '0')}m`;
-}
 
 /**
  * What you get for finishing.
@@ -29,11 +27,13 @@ export function WorkoutSummaryDialog({
   summary,
   title,
   unit,
+  unitStatus,
   onClose,
 }: {
   summary: WorkoutSummaryDTO | null;
   title: string;
-  unit: WeightUnit;
+  unit: WeightUnit | null;
+  unitStatus?: ReactNode;
   onClose: () => void;
 }) {
   if (!summary) return null;
@@ -42,6 +42,7 @@ export function WorkoutSummaryDialog({
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()} title={`${title} — done`}>
       <div className="stack" style={{ gap: 16 }}>
+        {unitStatus}
         <div className="wo-stats">
           <div className="wo-stat">
             <span className="wo-stat-n">{duration(summary.durationMin)}</span>
@@ -52,11 +53,14 @@ export function WorkoutSummaryDialog({
             <span className="wo-stat-l">sets</span>
           </div>
           <div className="wo-stat">
-            <span className="wo-stat-n">{formatVolume(summary.volumeGrams, unit)}</span>
+            <span className="wo-stat-n">{unit ? formatVolume(summary.volumeGrams, unit) : '—'}</span>
             <span className="wo-stat-l">lifted</span>
           </div>
         </div>
 
+        {summary.historyAvailable === false && (
+          <p className="prog-muted">Workout saved. Earlier sessions were unavailable, so records and volume comparisons were not checked.</p>
+        )}
         {prCount > 0 && (
           <p className="wo-pr">
             <Trophy size={15} aria-hidden />
@@ -81,7 +85,7 @@ export function WorkoutSummaryDialog({
             <li key={e.exerciseId} className="wo-row">
               <span className="wo-row-name">{e.name}</span>
               <span className="wo-row-best">
-                {e.bestWeightGrams != null && e.bestReps != null
+                {unit && e.bestWeightGrams != null && e.bestReps != null
                   ? `${formatWeight(e.bestWeightGrams, unit)} × ${e.bestReps}`
                   : `${e.sets} ${e.sets === 1 ? 'set' : 'sets'}`}
               </span>
