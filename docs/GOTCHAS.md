@@ -1,8 +1,73 @@
 # GOTCHAS — solved once, never rediscover
 
+## A timezone offset belongs to an instant, not a whole day
+
+The API's midnight helper subtracted the current offset from wall-clock midnight.
+After a DST change that offset no longer describes midnight: on 8 March 2026 in
+Toronto it returned 04:00Z instead of 05:00Z. Its week calculation could then
+return Tuesday instead of Monday. Rolling a task forward before the change
+also put its deadline at 00:59 tomorrow in spring or 22:59 today in autumn.
+
+`packages/shared/src/time.ts` now resolves the offset at the requested boundary.
+Use `localDayStartUtc(tz, instant, calendarDayOffset)` for named-zone calendar
+windows; browser-local date navigation still uses `addDays` from `lib/dates.ts`.
+End of day is the next local midnight minus the intended elapsed minute, never
+today's midnight plus 24 hours. Statistics windows use the same shared helper.
+Six regression cases were observed failing before this change. Additional tests
+cover non-hour offsets, repeated/skipped midnight and statistics query boundaries.
+
+## The calendar was not the only summary missing record ids
+
+The September correctness sweep reproduced the same addressability bug in
+notes, trackers, finance accounts, journal entries and workouts. Journal,
+fitness, tasks and goals also derived displayed dates from UTC strings: an
+entry at 02:30Z on July 16 belongs to July 15 for a Toronto user. Seven service
+regressions were watched failing before the fix in `domain-summaries.test.ts`.
+
+Every individually described row now includes `[id]`. Date-bearing summaries
+use the owner's `UserTimezoneService` and name the timezone. Journal summaries
+render each of their seven bounded entries so an aggregate mood does not hide
+the ids. Totals such as finance cash flow remain aggregates, not fabricated rows.
+
+## Bound a lookup by its keys, and batch independent database work
+
+An `IN` predicate is not an explicit query limit. For unique task/exercise ids,
+use the distinct requested id count as `take`; for a tracker's daily rating,
+the `(trackerId, dayKey)` constraint bounds the result to one row per tracker.
+Google sync's `(userId, source, externalId)` constraint likewise makes each
+1,000-id chunk safe to read with `take: chunk.length`. These bounds preserve
+every valid match. Do not apply the same reasoning to non-unique names.
+
+Google sync now overlaps at most four independent lookup chunks using its
+existing bounded worker helper. A regression held the first query unresolved
+and observed that the old code never started the second. The replacement is
+also checked with six chunks to enforce its concurrency ceiling. Plaid
+disconnect now removes the exact requested credential labels in one
+owner-scoped batch after remote revocation attempts; its three-item regression
+was observed making three database calls before the fix and one afterwards.
+
+## A habit history row cap silently changes streaks
+
+Habit check-ins are additive: 2,001 logs on one day must contribute 2,001 to
+that day's total. Adding `take: 2000` to the old reads would report 2,000 and
+could change whether a habit met its target. The service now asks Postgres for
+one summed row per habit and UTC day, preserving the existing day-key semantics.
+The user id, selected habit ids and time window are bound SQL parameters.
+
+History, checklist counts and the reads after logging/editing use this same
+query. A regression with 2,001 synthetic check-ins was observed loading raw
+logs before the fix and now preserves the total without a raw-log read. The
+real SQL is exercised by the authenticated habit-history e2e case, both within
+the full CI suite and independently; mocks alone cannot verify column names.
+
 Append every new setup/build snag here (root cause + fix) so no future thread wastes tokens re-hitting it. The canonical short list also lives in `../CLAUDE.md`; this file is the long form.
 
+## Calendar recurrence intervals
+
+- **Every-other-Monday recurrence moved to the wrong week after spring DST.** The weekly scheduler divided elapsed milliseconds since Monday midnight by a fixed seven-day duration. After spring forward, Monday was one hour short of that duration and belonged to the previous interval week. Count the loop's calendar-day steps plus the seed's weekday instead. Regression evidence: a March 2, 2026 Toronto seed returned March 9 instead of March 16; both the Monday-only and Monday/Wednesday cases were observed failing before the fix. Explicit Toronto timezone tests also retain COUNT and wall-clock time through fall back.
+
 ## Toolchain / install
+
 - **pnpm ignores dependency build scripts** → `ERR_PNPM_IGNORED_BUILDS`, Prisma engine missing at runtime. **Fix:** add an `allowBuilds:` map (pnpm 11 key) in `pnpm-workspace.yaml` with `'@prisma/client': true`, `'@prisma/engines': true`, `prisma: true`. Add any future script-needing dep there — local embeddings also needed `onnxruntime-node` (native binary) and `protobufjs` (install-time codegen).
 - **`@huggingface/transformers` throws `ERR_MODULE_NOT_FOUND: Cannot find package 'onnxruntime-common'` at boot.** Root cause: a **phantom dependency** — `transformers.node.mjs` imports `onnxruntime-common` but the package only declares `onnxruntime-node`/`onnxruntime-web` (which depend on `-common`). That works under a hoisted `node_modules` but not under pnpm's strict linking, because Node resolves the import starting from the transformers package's **own** dir in the `.pnpm` store. **Adding `onnxruntime-common` to `packages/ai` does NOT fix it** — it must be visible to *transformers*. **Fix:** declare it on the package's behalf in `pnpm-workspace.yaml`:
   ```yaml

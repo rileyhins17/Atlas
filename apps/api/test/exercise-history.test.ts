@@ -47,7 +47,7 @@ function makeService(rows: ReturnType<typeof row>[], exercise: unknown = EXERCIS
     },
   };
   return {
-    service: new FitnessService(prisma as never, { write: vi.fn(async () => {}) } as never),
+    service: new FitnessService(prisma as never, { write: vi.fn(async () => {}) } as never, { get: async () => 'UTC' } as never),
     prisma,
   };
 }
