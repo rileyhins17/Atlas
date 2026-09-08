@@ -1,27 +1,20 @@
-import { Injectable, type OnModuleInit } from '@nestjs/common';
-import type { AiContextChunk, AiToolSpec } from '@atlas/shared';
-import { estimateTokens } from '@atlas/ai';
-import { DomainModule, ModuleRegistryService } from '../../core/domain-module.js';
+import { Injectable } from '@nestjs/common';
+import type { AiToolSpec } from '@atlas/shared';
+import { RegisteredDomainModule, ModuleRegistryService } from '../../core/domain-module.js';
 import { NotesService } from './notes.service.js';
 
 @Injectable()
-export class NotesAiAdapter implements DomainModule, OnModuleInit {
+export class NotesAiAdapter extends RegisteredDomainModule {
   readonly id = 'notes';
+  readonly contextTitle = 'Notes / known facts';
   /** See DEFAULT_CONTEXT_PRIORITY for what this ordering is for. */
   readonly contextPriority = 40;
 
   constructor(
-    private readonly notes: NotesService,
-    private readonly registry: ModuleRegistryService,
-  ) {}
-
-  onModuleInit(): void {
-    this.registry.register(this);
-  }
-
-  async aiContext(userId: string): Promise<AiContextChunk> {
-    const content = await this.notes.summarize(userId);
-    return { source: this.id, title: 'Notes / known facts', content, tokensEstimate: estimateTokens(content) };
+    notes: NotesService,
+    registry: ModuleRegistryService,
+  ) {
+    super(registry, notes);
   }
 
   getToolSpecs(): AiToolSpec[] {

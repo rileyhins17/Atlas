@@ -1,9 +1,9 @@
 'use client';
 
+import { activityCalendarGrid, activityLevel, describeActivityCell as describe, activityMonthLabel, type ActivityCell } from '@atlas/shared';
+
 import { useMemo, useState } from 'react';
 import type { StatsDayDTO } from '@atlas/shared';
-import { dayActivity } from '@/lib/what-changed';
-import { localDayKey } from '@/lib/dates';
 
 /**
  * Your last N days, as a calendar you can actually read.
@@ -26,85 +26,12 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 /** Only alternate rows get a label, or the column is a wall of tiny text. */
 const LABELLED_ROWS = new Set([0, 2, 4]);
 
-interface Cell {
-  key: string;
-  date: Date;
-  count: number;
-  future: boolean;
-}
-
-/** The four bands, chosen from the data so the scale means something. */
-function thresholds(counts: number[]): [number, number, number] {
-  const busy = counts.filter((n) => n > 0).sort((a, b) => a - b);
-  if (busy.length === 0) return [1, 2, 3];
-  const at = (q: number) => busy[Math.min(busy.length - 1, Math.floor(busy.length * q))] ?? 1;
-  // Quartiles, deduplicated and monotonic — a flat distribution must not
-  // produce three identical bands that all render as the darkest shade.
-  const a = Math.max(1, at(0.25));
-  const b = Math.max(a + 1, at(0.55));
-  const c = Math.max(b + 1, at(0.8));
-  return [a, b, c];
-}
-
 export function ActivityCalendar({ days }: { days: StatsDayDTO[] }) {
-  const [picked, setPicked] = useState<Cell | null>(null);
+  const [picked, setPicked] = useState<ActivityCell | null>(null);
 
-  const { columns, bands, total } = useMemo(() => {
-    const byDay = new Map(days.map((d) => [d.day, dayActivity(d)]));
-    const counts = [...byDay.values()];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // Start on the Monday on or before the first day in the window, so every
-    // column is a whole week and the weekday rows line up.
-    const first = days[0] ? new Date(`${days[0].day}T00:00:00`) : today;
-    const start = new Date(first);
-    start.setDate(first.getDate() - ((first.getDay() + 6) % 7));
-
-    const cols: Cell[][] = [];
-    const cursor = new Date(start);
-    while (cursor <= today) {
-      const col: Cell[] = [];
-      for (let d = 0; d < 7; d++) {
-        const date = new Date(cursor);
-        date.setDate(cursor.getDate() + d);
-        const key = localDayKey(date);
-        col.push({ key, date, count: byDay.get(key) ?? 0, future: date > today });
-      }
-      cols.push(col);
-      cursor.setDate(cursor.getDate() + 7);
-    }
-    return {
-      columns: cols,
-      bands: thresholds(counts),
-      total: counts.reduce((n, c) => n + c, 0),
-    };
-  }, [days]);
-
-  const level = (count: number) => {
-    if (count <= 0) return 0;
-    if (count <= bands[0]) return 1;
-    if (count <= bands[1]) return 2;
-    if (count <= bands[2]) return 3;
-    return 4;
-  };
-
-  const describe = (c: Cell) =>
-    `${c.date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} — ${
-      c.count === 1 ? '1 thing' : `${c.count} things`
-    }`;
-
-  // A month label sits above the first column that starts a new month.
-  const monthFor = (col: Cell[], i: number): string | null => {
-    // The month of the LAST day in the column: a month that begins on a
-    // Thursday never appears if you only look at the Monday, which is how a
-    // thirty-day window spanning August and September was labelled "Aug".
-    const month = col[6]!.date.getMonth();
-    if (i === 0) return col[6]!.date.toLocaleDateString('en-US', { month: 'short' });
-    return columns[i - 1]![6]!.date.getMonth() === month
-      ? null
-      : col[6]!.date.toLocaleDateString('en-US', { month: 'short' });
-  };
+  const { columns, bands, total } = useMemo(() => activityCalendarGrid(days, new Date()), [days]);
+  const level = (count: number) => activityLevel(count, bands);
+  const monthFor = (col: ActivityCell[], i: number) => activityMonthLabel(col, i, columns);
 
   return (
     <div className="cal">

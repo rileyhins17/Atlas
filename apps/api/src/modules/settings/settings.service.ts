@@ -1,3 +1,5 @@
+import { isValidTimezone } from '@atlas/shared';
+import { serializeSettings as toDto } from '@atlas/shared';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type { SettingsDTO, UpdateSettingsInput } from '@atlas/shared';
 import { PrismaService } from '../../core/prisma.service.js';
@@ -38,29 +40,5 @@ export class SettingsService {
     // the next request re-primes the cache.
     if (input.timezone !== undefined) this.timezones.forget(userId);
     return toDto(row);
-  }
-}
-
-/**
- * Postgres stores `weightUnit` as TEXT, so Prisma types it as `string`. Narrow
- * it here rather than casting: a row written before the column existed, or by
- * hand, must not produce a DTO that lies about its own type.
- */
-function toDto(row: {
-  displayName: string | null;
-  timezone: string;
-  briefHour: number;
-  proactiveEnabled: boolean;
-  weightUnit: string;
-}): SettingsDTO {
-  return { ...row, weightUnit: row.weightUnit === 'kg' ? 'kg' : 'lb' };
-}
-
-function isValidTimezone(tz: string): boolean {
-  try {
-    new Intl.DateTimeFormat('en-US', { timeZone: tz });
-    return true;
-  } catch {
-    return false;
   }
 }

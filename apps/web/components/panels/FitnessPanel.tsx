@@ -1,5 +1,7 @@
 'use client';
 
+import { workoutRecencyLabel } from '@atlas/shared';
+
 import { useState } from 'react';
 import { type WorkoutSummaryDTO, type WorkoutTemplateDTO } from '@atlas/shared';
 import { Dumbbell, Plus, Sparkles } from 'lucide-react';
@@ -12,7 +14,6 @@ import { TrainingProgress } from '@/components/fitness/TrainingProgress';
 import { DayBuilder } from '@/components/fitness/DayBuilder';
 import { Button, Card, ErrorState, Input, ListSkeleton } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
-import { dayDiff } from '@/lib/dates';
 import { NO_EXERCISES } from '@/components/fitness/helpers';
 import { ActiveWorkout } from '@/components/fitness/ActiveWorkout';
 import { WorkoutHistory } from '@/components/fitness/WorkoutHistory';
@@ -20,18 +21,8 @@ import { WorkoutHistory } from '@/components/fitness/WorkoutHistory';
 /** Fallback names, used only until the user has saved days of their own. */
 const QUICK_STARTS = ['Push', 'Pull', 'Legs', 'Upper', 'Full body'];
 
-/** "3 days ago" / "today" — how long since a saved day was last trained. */
 function sinceLabel(iso: string | null): string {
-  if (!iso) return 'not done yet';
-  // Calendar days, not elapsed hours. Dividing the gap by 24h called a session
-  // logged at 23:00 last night "today" until 23:00 tonight, because barely a
-  // day had passed — while every calendar on the screen said otherwise.
-  const days = dayDiff(new Date(iso), new Date());
-  if (days <= 0) return 'today';
-  if (days === 1) return 'yesterday';
-  if (days < 7) return `${days} days ago`;
-  if (days < 14) return 'last week';
-  return `${Math.floor(days / 7)} weeks ago`;
+  return workoutRecencyLabel(iso, new Date());
 }
 
 export function FitnessPanel() {

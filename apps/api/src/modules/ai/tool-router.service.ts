@@ -1,7 +1,21 @@
-import { Injectable } from '@nestjs/common';
-import { z } from 'zod';
 import {
-  CreateEventInput,
+  AiByIdInput as ByIdInput,
+  AiEventPatch,
+  AiHabitLogInput as HabitLogInput,
+  AiTrackerLogInput as TrackerLogInput,
+  AiTaskPatch,
+  AiNotePatch,
+  AiHabitPatch,
+  AiGoalPatch,
+  AiAskQuestionInput as AskQuestionInput,
+  normalizeAiEventInput as toEventInput,
+  pickUndoFields as pick,
+  deleteToolUndo as del,
+  patchToolUndo as patchBack,
+  recreateToolUndo as recreate,
+} from '@atlas/shared';
+import { Injectable } from '@nestjs/common';
+import {
   CreateHabitInput,
   CreateJournalInput,
   CreateGoalInput,
@@ -11,12 +25,8 @@ import {
   LogTrackerInput,
   RoutineBlockInput,
   StartWorkoutInput,
-  UpdateGoalInput,
-  UpdateHabitInput,
-  UpdateNoteInput,
-  UpdateTaskInput,
 } from '@atlas/shared';
-import type { ToolOutcome, ToolUndo } from '@atlas/ai';
+import type { ToolOutcome } from '@atlas/shared';
 import { TasksService } from '../tasks/tasks.service.js';
 import { HabitsService } from '../habits/habits.service.js';
 import { TrackersService } from '../trackers/trackers.service.js';
@@ -27,111 +37,6 @@ import { FitnessService } from '../fitness/fitness.service.js';
 import { RoutineService } from '../routine/routine.service.js';
 import { GoalsService } from '../goals/goals.service.js';
 import { MemoryService } from '../../core/memory.service.js';
-
-const ByIdInput = z.object({ id: z.string().min(1).max(64) });
-
-/** Default span when the model gives a start but no end and no duration. */
-const DEFAULT_EVENT_MINUTES = 60;
-
-/**
- * What the model may send for an event: `endAt` OR `durationMinutes`. Models
- * are far more reliable at "how long is it" than at arithmetic on end times, so
- * duration is the preferred path and this normalises both into a real endAt.
- */
-const AiEventInput = z.object({
-  title: z.string().min(1).max(300),
-  startAt: z.coerce.date(),
-  endAt: z.coerce.date().optional(),
-  durationMinutes: z.number().int().min(1).max(24 * 60).optional(),
-  location: z.string().max(500).optional(),
-  description: z.string().max(5_000).optional(),
-  recurrence: z.string().max(500).optional(),
-});
-
-function toEventInput(raw: unknown) {
-  const parsed = AiEventInput.parse(raw);
-  const minutes = parsed.durationMinutes ?? DEFAULT_EVENT_MINUTES;
-  const endAt =
-    parsed.endAt && parsed.endAt > parsed.startAt
-      ? parsed.endAt
-      : new Date(parsed.startAt.getTime() + minutes * 60_000);
-  return CreateEventInput.parse({
-    title: parsed.title,
-    startAt: parsed.startAt,
-    endAt,
-    location: parsed.location,
-    description: parsed.description,
-    recurrence: parsed.recurrence,
-    allDay: false,
-  });
-}
-
-/** Moving an event: any field may be omitted, and duration still beats endAt. */
-const AiEventPatch = z.object({
-  id: z.string().min(1).max(64),
-  title: z.string().min(1).max(300).optional(),
-  startAt: z.coerce.date().optional(),
-  endAt: z.coerce.date().optional(),
-  durationMinutes: z.number().int().min(1).max(24 * 60).optional(),
-  location: z.string().max(500).optional(),
-});
-
-const HabitLogInput = z.object({
-  id: z.string(),
-  value: z.number().optional(),
-  note: z.string().optional(),
-});
-
-const TrackerLogInput = z.object({
-  trackerId: z.string().min(1).max(64),
-  value: z.number().int().min(1).max(10),
-  note: z.string().max(500).nullish(),
-});
-const AiTaskPatch = UpdateTaskInput.extend({ id: z.string().min(1).max(64) });
-const AiNotePatch = UpdateNoteInput.extend({ id: z.string().min(1).max(64) });
-const AiHabitPatch = UpdateHabitInput.extend({ id: z.string().min(1).max(64) });
-const AiGoalPatch = UpdateGoalInput.extend({ id: z.string().min(1).max(64) });
-const AskQuestionInput = z.object({
-  question: z.string().min(1).max(2_000),
-  rationale: z.string().max(2_000).optional(),
-  relatesTo: z.string().max(100).optional(),
-});
-
-// ── Undo builders ─────────────────────────────────────────────────────────
-// Every path here is built from a row the server just read or wrote. The model
-// never supplies a path or a body, so replaying one can only ever reach data
-// the caller's own session could already reach.
-
-const del = (path: string, label: string): ToolUndo => ({ label, method: 'DELETE', path, body: null });
-
-const patchBack = (path: string, label: string, body: Record<string, unknown>): ToolUndo => ({
-  label,
-  method: 'PATCH',
-  path,
-  body,
-});
-
-const recreate = (path: string, label: string, body: Record<string, unknown>): ToolUndo => ({
-  label,
-  method: 'POST',
-  path,
-  body,
-});
-
-/**
- * Only the fields the patch actually touched.
- *
- * Restoring the whole row would clobber a field someone edited by hand between
- * the AI's change and the undo.
- */
-function pick(row: Record<string, unknown>, keys: string[]): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const k of keys) {
-    const v = row[k];
-    out[k] = v instanceof Date ? v.toISOString() : (v ?? null);
-  }
-  return out;
-}
 
 /**
  * Bridges AI tool calls (by name, from getToolSpecs()) to the real domain

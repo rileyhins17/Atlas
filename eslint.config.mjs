@@ -57,6 +57,18 @@ export default tseslint.config(
     },
   },
 
+  // The generated client belongs to @atlas/db. App and domain packages use
+  // that public boundary for values and types, including generated subpaths.
+  {
+    files: ['apps/**/*.{ts,tsx,js,mjs}', 'packages/{ai,connectors,shared}/**/*.{ts,tsx,js,mjs}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        paths: [{ name: '@prisma/client', message: 'Import database types and values through @atlas/db.' }],
+        patterns: [{ group: ['@prisma/client/*', '@prisma/client/**'], message: 'Use the public @atlas/db boundary.' }],
+      }],
+    },
+  },
+
   // Browser code.
   {
     files: ['apps/web/**/*.{ts,tsx}'],

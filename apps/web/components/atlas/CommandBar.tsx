@@ -1,5 +1,8 @@
 'use client';
 
+import { summarizeToolRuns } from '@atlas/shared';
+export { summarizeToolRuns } from '@atlas/shared';
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import * as RadixDialog from '@radix-ui/react-dialog';
@@ -68,28 +71,6 @@ interface Item {
   title: string;
   hint?: string;
   run: () => void;
-}
-
-/** Friendly summary of what brain-dump filed, e.g. "1 task, 1 journal entry". */
-export function summarizeToolRuns(names: string[]): string {
-  const labels: Record<string, string> = {
-    'tasks.create': 'task',
-    'tasks.complete': 'task completed',
-    'habits.log': 'habit check-in',
-    'journal.add': 'journal entry',
-    'notes.remember': 'note',
-    'calendar.add': 'event',
-    'ai.ask_question': 'question for you',
-  };
-  const countByLabel = new Map<string, number>();
-  for (const name of names) {
-    const label = labels[name] ?? name;
-    countByLabel.set(label, (countByLabel.get(label) ?? 0) + 1);
-  }
-  if (countByLabel.size === 0) return 'Nothing to file';
-  return [...countByLabel]
-    .map(([label, n]) => (n > 1 ? `${n} ${label}s` : `1 ${label}`))
-    .join(', ');
 }
 
 /**

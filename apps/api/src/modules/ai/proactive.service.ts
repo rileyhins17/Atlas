@@ -1,3 +1,5 @@
+import { serviceErrorText as errText } from '@atlas/shared';
+import { truncateNotification as truncate } from '@atlas/shared';
 import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import type { InsightDTO } from '@atlas/shared';
@@ -142,12 +144,4 @@ export class ProactiveService {
       this.logger.warn(`Proactive push failed for ${userId}: ${errText(err)}`);
     }
   }
-}
-
-function truncate(s: string, max: number): string {
-  return s.length <= max ? s : `${s.slice(0, max - 1).trimEnd()}…`;
-}
-
-function errText(err: unknown): string {
-  return err instanceof Error ? err.message : 'unknown error';
 }
