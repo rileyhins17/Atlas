@@ -21,6 +21,11 @@ where that saved task is visible, then measures a real empty query. Error and em
 typecheck 10/10, lint 0 errors with 3 existing warnings and 1610 unit tests passed.
 Full CI evidence is pending.
 
+The first CI run (34279068443, 8332677) passed 66 browser tests and skipped one,
+then the new search-error measurement failed: the command input was 23px high.
+Its minimum height is now 32px. The existing default-route measurements did not
+include this open search state; the stricter case caught the real target defect.
+
 Depends on unmerged PR #47 through 47de6a1. No API contract, provider behavior,
 runtime dependency, credential or production change. Capture's existing close-on-
 submit and hook-owned local fallback are unchanged; retaining a failed capture

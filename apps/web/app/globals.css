@@ -1702,6 +1702,7 @@ input[type='checkbox']:checked::after {
 }
 .command-input {
   flex: 1;
+  min-height: 32px;
   background: transparent;
   border: none;
   outline: none;
