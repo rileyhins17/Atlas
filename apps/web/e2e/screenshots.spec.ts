@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { AUDIT_ROUTES, measureScreen, screenFailures } from './ui-measurements';
 import { expect, test } from '@playwright/test';
 import { register } from './helpers';
 
@@ -35,7 +37,7 @@ test('capture the Life-OS screens', async ({ page }) => {
   // Explicit-run only (SHOTS=1): this rig registers its own user, and in a full
   // suite run that third registration trips the 5/min register throttle.
   test.skip(!process.env.SHOTS, 'screenshot rig — run explicitly with SHOTS=1');
-  test.setTimeout(240_000);
+  test.setTimeout(600_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await register(page);
 
@@ -188,4 +190,27 @@ test('capture the Life-OS screens', async ({ page }) => {
   await page.getByRole('button', { name: /next day/i }).click();
   await page.waitForTimeout(1100);
   await page.screenshot({ path: `${OUT}/p-13-day-canvas.png`, fullPage: true });
+
+  // The original 33-image rig was run and all PNGs inspected at 1b60239 before
+  // adding this stricter baseline. Collect every route before asserting, so a
+  // single broken control cannot hide findings on the remaining screens.
+  const measurements: Awaited<ReturnType<typeof measureScreen>>[] = [];
+  mkdirSync(OUT, { recursive: true });
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    for (const route of AUDIT_ROUTES) {
+      await page.goto(route);
+      await expect(page.getByLabel('Capture anything')).toBeAttached();
+      await page.waitForLoadState('networkidle');
+      await expect(page.locator('.skeleton')).toHaveCount(0);
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      const report = await measureScreen(page, route, theme);
+      measurements.push(report);
+      writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+      await page.screenshot({ path: `${OUT}/audit-${theme}-${route.slice(1)}.png`, fullPage: true });
+    }
+  }
+  const failures = measurements.flatMap(screenFailures);
+  expect(failures, failures.join('\n')).toEqual([]);
+
 });

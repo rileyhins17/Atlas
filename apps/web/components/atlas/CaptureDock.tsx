@@ -12,7 +12,7 @@ export function CaptureDock() {
   const { captureContext, clearCaptureContext, captureFocusToken } = useAtlasUi();
 
   return (
-    <div className="capture-dock">
+    <section className="capture-dock" aria-label="Quick capture">
       <div className="capture-dock-inner">
         <HomeCapture
           context={captureContext}
@@ -20,6 +20,6 @@ export function CaptureDock() {
           focusToken={captureFocusToken}
         />
       </div>
-    </div>
+    </section>
   );
 }
