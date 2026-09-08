@@ -12,7 +12,7 @@ unmount or a newer read. Existing permission/unsupported/configuration states
 remain. A failed weight preference save displays an inline alert and retains
 the confirmed selection; choosing the desired unit again retries the mutation.
 
-The browser case grants notification permission only in its synthetic browser
+The browser case stubs the notification permission read in its synthetic browser
 context, then simulates the first registration-status failure without sending
 a notification. It then retries to the
 available state. A simulated weight-save failure verifies the alert and retained
@@ -32,3 +32,5 @@ results belong in the commit; browser evidence remains pending until observed.
 ## Browser fixture correction
 
 Run 34271572518 passed build/unit checks and the synthetic restore drill, but its browser suite reported 61 passed, 1 skipped and 1 failed. The error snapshot showed notifications blocked: Chromium returned `denied` before the injected registration failure could execute. The recovery case now establishes its own notification permission baseline with Playwright before injecting the failure. This is isolated test setup, not an application permission change. The corrected browser result remains pending.
+
+Run 34272803364 again reported 61 browser tests passed, 1 skipped and 1 failed at the same assertion. The snapshot still showed blocked notifications despite the Playwright permission grant. The recovery fixture now stubs `Notification.permission` explicitly alongside the registration read. Permission-grant semantics and real notification delivery are outside this fixture; the corrected browser result is pending.

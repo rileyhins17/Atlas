@@ -2197,11 +2197,11 @@ test('manual accounts save exact typed balances without a bank connection', asyn
   await expect(page.locator('.task').filter({ hasText: name })).toBeVisible();
 });
 
-test('settings recover notification status and failed weight saves in both themes', async ({ page, context }) => {
-  // Headless Chromium may deny notifications by default; this case exercises a
-  // registration read failure, so establish its own browser permission baseline.
-  await context.grantPermissions(['notifications']);
+test('settings recover notification status and failed weight saves in both themes', async ({ page }) => {
   await page.addInitScript(() => {
+    // Stub this browser boundary: the case proves status-read recovery, not
+    // Chromium permission grants or delivery through a push provider.
+    Object.defineProperty(Notification, 'permission', { configurable: true, get: () => 'default' });
     let first = true;
     Object.defineProperty(navigator.serviceWorker, 'getRegistration', { configurable: true, value: async () => {
       if (first) { first = false; throw new Error('Synthetic registration read failure'); }
