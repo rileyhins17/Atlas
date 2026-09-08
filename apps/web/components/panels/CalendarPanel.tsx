@@ -23,7 +23,7 @@ import {
   useToast,
 } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
-import { WeekGrid } from '@/components/calendar/WeekGrid';
+import { WeekPresentation } from '@/components/calendar/WeekPresentation';
 import { EventComposer } from '@/components/calendar/EventComposer';
 import { blankDraft, draftAtSlot, draftFor, type Draft } from '@/lib/event-draft';
 import { GoogleCalendarCard } from '@/components/connectors/GoogleCalendarCard';
@@ -229,7 +229,7 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
           column is just a list with worse density. */}
       {scope === 'week' && !eventsQuery.isPending && !listError ? (
         <Card style={{ marginTop: 12 }} className="wk-card">
-          <WeekGrid
+          <WeekPresentation
             days={days}
             events={events}
             selectedDay={selectedDay}
@@ -258,7 +258,7 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
           <div className="stack" style={{ gap: 18 }}>
             {visible.map((bucket) => (
               <section key={bucket.key} aria-label={bucket.date.toLocaleDateString()}>
-                <h3 className="focus-group-title" style={{ marginBottom: 6 }}>
+                <h2 className="focus-group-title" style={{ marginBottom: 6 }}>
                   {bucket.key === todayKey
                     ? 'Today'
                     : bucket.date.toLocaleDateString(undefined, {
@@ -266,7 +266,7 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
                         month: 'long',
                         day: 'numeric',
                       })}
-                </h3>
+                </h2>
                 {bucket.events.map((ev) => {
                   const start = new Date(ev.startAt);
                   const end = new Date(ev.endAt);

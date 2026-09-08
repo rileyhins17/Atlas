@@ -24,6 +24,8 @@ const EnvSchema = z.object({
   // real product work, and this is the control that actually needs to exist the
   // moment the app has a public hostname.
   INVITE_CODE: z.string().min(6).optional(),
+  // Server-only hosted credential. It is resolved only for an active account grant.
+  ATLAS_DEEPSEEK_API_KEY: z.string().min(1).optional(),
   // The one account allowed to read /admin/adoption. Unset means nobody, so
   // forgetting to configure it locks the door rather than opening it.
   ADMIN_EMAIL: z.string().email().optional(),

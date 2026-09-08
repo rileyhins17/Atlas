@@ -148,6 +148,18 @@ describe('summarizeWorkout', () => {
     ],
   };
 
+  it('keeps actual session totals while marking unavailable comparisons explicitly', () => {
+    const result = summarizeWorkout(now, null);
+    expect(result.historyAvailable).toBe(false);
+    expect(result.workingSets).toBe(2);
+    expect(result.durationMin).toBe(62);
+    expect(result.prCount).toBe(0);
+    expect(result.volumeDeltaPct).toBeNull();
+  });
+  it('distinguishes a known empty history from an unavailable read', () => {
+    expect(summarizeWorkout(now, []).historyAvailable).toBe(true);
+  });
+
   it('reports duration and working sets, warm-ups excluded', () => {
     const s = summarizeWorkout(now, []);
     expect(s.durationMin).toBe(62);

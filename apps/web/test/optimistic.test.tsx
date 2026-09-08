@@ -41,7 +41,7 @@ const task = (over: Partial<TaskDTO> = {}): TaskDTO =>
   ({ id: '1', title: 'x', status: 'OPEN', completedAt: null, ...over }) as unknown as TaskDTO;
 
 const habit = (over: Partial<HabitDTO> = {}): HabitDTO =>
-  ({ id: 'h1', name: 'Gym', doneToday: false, todayCount: 0, streak: 2, ...over }) as unknown as HabitDTO;
+  ({ id: 'h1', name: 'Gym', target: 1, doneToday: false, todayCount: 0, streak: 2, ...over }) as unknown as HabitDTO;
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -101,4 +101,16 @@ describe('useLogHabit (optimistic)', () => {
       expect(h?.streak).toBe(2);
     });
   });
+});
+
+it('does not mark a partial habit check-in complete or extend its streak while saving', async () => {
+  const { client, wrapper } = makeWrapper();
+  client.setQueryData(qk.habits, [habit({ target: 8, todayCount: 2, streak: 4 })]);
+  const d = deferred<HabitDTO>();
+  vi.mocked(HabitsApi.log).mockReturnValue(d.promise);
+  const { result } = renderHook(() => useLogHabit(), { wrapper });
+  act(() => result.current.mutate('h1'));
+  await waitFor(() => expect(client.getQueryData<HabitDTO[]>(qk.habits)?.[0].todayCount).toBe(3));
+  expect(client.getQueryData<HabitDTO[]>(qk.habits)?.[0]).toMatchObject({ doneToday: false, streak: 4 });
+  await act(async () => { d.resolve(habit({ target: 8, todayCount: 3, streak: 4 })); await d.promise; });
 });

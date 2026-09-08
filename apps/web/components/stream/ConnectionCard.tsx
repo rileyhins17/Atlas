@@ -7,6 +7,7 @@ import {
 } from '@atlas/shared';
 import { Dumbbell, Link2, ListChecks, Repeat, Smile, Wallet } from 'lucide-react';
 import { useStats } from '@/lib/hooks/stats';
+import { ErrorState } from '@/components/ui';
 
 const DOMAIN_ICON: Record<ConnectionDomain, typeof Dumbbell> = {
   training: Dumbbell,
@@ -30,15 +31,22 @@ const WINDOW_DAYS = 30;
  * dashboard, and a dashboard is something you stop reading — one sentence you
  * did not know is something you remember.
  *
- * When there is nothing honest to say it says nothing, which is the property
- * that makes it worth believing on the days it does speak.
+ * Missing history, failed reads and a window without a supported pattern are
+ * distinct answers. None should masquerade as a personal observation.
  */
 export function ConnectionCard() {
   const stats = useStats(WINDOW_DAYS);
 
-  // No skeleton: this sits below what you came here to do, and a placeholder
-  // for a card that may correctly render nothing is just a flash of furniture.
-  if (!stats.isSuccess) return null;
+  if (stats.isError) return (
+    <section className="conn-card thin" aria-label="Connections across your life">
+      <ErrorState message="Connections could not be loaded." onRetry={() => void stats.refetch()} />
+    </section>
+  );
+  if (stats.isPending || !stats.data) return (
+    <section className="conn-card thin" aria-label="Connections across your life">
+      <p className="conn-missing" role="status">Looking for connections across your days…</p>
+    </section>
+  );
 
   const days = stats.data.days;
   const connections = findConnections(days);
@@ -46,15 +54,12 @@ export function ConnectionCard() {
 
   if (!top) {
     const missing = describeMissingEvidence(days);
-    // Rich data and no pattern is a real answer, and the honest response to it
-    // is silence rather than an empty card explaining itself.
-    if (!missing) return null;
     return (
       <section className="conn-card thin" aria-label="Connections across your life">
         <span className="conn-icons" aria-hidden>
           <Link2 size={13} />
         </span>
-        <p className="conn-missing">{missing}</p>
+        <p className="conn-missing">{missing ?? `No clear connections in the last ${WINDOW_DAYS} days.`}</p>
       </section>
     );
   }

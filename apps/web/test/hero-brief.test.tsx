@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 vi.mock('@/lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api')>();
@@ -80,4 +80,21 @@ describe('HeroBrief', () => {
 
     await waitFor(() => expect(screen.getByText(/Three things today/)).toBeTruthy());
   });
+});
+
+
+it('retries failed AI configuration without treating it as unconfigured', async () => {
+  status.mockRejectedValueOnce(new Error('offline')).mockResolvedValue({ providerConfigured: false });
+  wrap(<HeroBrief greeting="Good afternoon." />);
+  await screen.findByText('AI availability could not be loaded.');
+  expect(screen.queryByText(/connect the AI in Settings/i)).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+  await screen.findByText(/connect the AI in Settings/i);
+});
+it('does not claim there is no brief when its read failed', async () => {
+  status.mockResolvedValue({ providerConfigured: true });
+  insights.mockRejectedValue(new Error('offline'));
+  wrap(<HeroBrief />);
+  await screen.findByText('Your daily brief could not be loaded.');
+  expect(screen.queryByRole('button', { name: 'Brief me' })).toBeNull();
 });
