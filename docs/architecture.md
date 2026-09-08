@@ -127,3 +127,7 @@ Tool names are dotted (`tasks.create`) everywhere in Atlas, but some providers r
 
 ## Deploy
 Docker Compose on a cheap VPS: `db` (pgvector), `api`, `web`, `caddy` (auto-HTTPS). Cloudflare for DNS. Local dev currently uses **Neon** for Postgres because Docker Desktop is broken on the dev machine (see `docs/GOTCHAS.md`); production is unaffected.
+
+## Explicit clocks for display calculations
+
+`packages/shared/src/clock-labels.ts` owns canvas day/span labels, calendar hour ticks, workout recency and elapsed-session labels, and routine weekday descriptions. Web adapters supply the current clock and configured display timezone. Calendar-day comparisons and the local-midnight special case retain their existing runtime-local semantics. Thirteen characterization assertions were observed against the original functions before extraction; six shared tests retain those cases and cover explicit-clock immutability and display-zone formatting. Phase 2 remains in progress: API serialization and the cumulative pure-logic audit are still outstanding.

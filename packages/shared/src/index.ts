@@ -69,3 +69,4 @@ export * from './theme-palettes.js';
 export * from './install-eligibility.js';
 export * from './domain-grouping.js';
 export * from './component-calculations.js';
+export * from './clock-labels.js';
