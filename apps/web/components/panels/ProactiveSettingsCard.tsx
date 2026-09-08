@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage } from '@/lib/api';
 import { useSettings, useUpdateSettings } from '@/lib/hooks/settings';
 import {
@@ -16,19 +16,41 @@ export function ProactiveSettingsCard() {
   const settingsQuery = useSettings();
   const update = useUpdateSettings();
 
-  const [tz, setTz] = useState('');
-  const [hour, setHour] = useState(7);
-  const [enabled, setEnabled] = useState(true);
-  const [dirty, setDirty] = useState(false);
+  const [draft, setDraft] = useState<{ timezone: string; briefHour: number; proactiveEnabled: boolean } | null>(null);
+  const tz = draft?.timezone ?? settingsQuery.data?.timezone ?? '';
+  const hour = draft?.briefHour ?? settingsQuery.data?.briefHour ?? 7;
+  const enabled = draft?.proactiveEnabled ?? settingsQuery.data?.proactiveEnabled ?? true;
+  const dirty = draft !== null;
+  function edit(patch: Partial<NonNullable<typeof draft>>) {
+    setDraft({ timezone: tz, briefHour: hour, proactiveEnabled: enabled, ...patch });
+  }
   const [pushState, setPushState] = useState<PushState | null>(null);
   const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState(false);
+  const [pushActionError, setPushActionError] = useState(false);
+  const pushRead = useRef(0);
+  const readPushState = useCallback(async () => {
+    const request = ++pushRead.current;
+    setPushError(false);
+    setPushState(null);
+    try {
+      const next = await currentPushState();
+      if (request === pushRead.current) setPushState(next);
+    } catch {
+      if (request === pushRead.current) setPushError(true);
+    }
+  }, []);
+  const cancelPushRead = useCallback(() => { pushRead.current++; }, []);
 
   useEffect(() => {
-    void currentPushState().then(setPushState);
-  }, []);
+    void readPushState();
+    return cancelPushRead;
+  }, [readPushState, cancelPushRead]);
 
   async function togglePush() {
+    if (pushBusy) return;
     setPushBusy(true);
+    setPushActionError(false);
     try {
       const next = pushState === 'enabled' ? await disablePush() : await enablePush();
       setPushState(next);
@@ -37,36 +59,28 @@ export function ProactiveSettingsCard() {
       else if (next === 'denied') toast('Notifications are blocked in your browser', 'error');
       else if (next === 'unconfigured') toast('Push is not configured on this server', 'error');
     } catch {
+      setPushActionError(true);
       toast('Could not change notifications', 'error');
     } finally {
       setPushBusy(false);
     }
   }
 
-  useEffect(() => {
-    if (settingsQuery.data) {
-      setTz(settingsQuery.data.timezone);
-      setHour(settingsQuery.data.briefHour);
-      setEnabled(settingsQuery.data.proactiveEnabled);
-      setDirty(false);
-    }
-  }, [settingsQuery.data]);
-
   function detectTz() {
     try {
-      setTz(Intl.DateTimeFormat().resolvedOptions().timeZone);
-      setDirty(true);
+      edit({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
     } catch {
       /* ignore — user can type it */
     }
   }
 
   function save() {
+    if (update.isPending || !dirty) return;
     update.mutate(
       { timezone: tz.trim(), briefHour: hour, proactiveEnabled: enabled },
       {
         onSuccess: () => {
-          setDirty(false);
+          setDraft(null);
           toast('Settings saved', 'success');
         },
       },
@@ -98,9 +112,9 @@ export function ProactiveSettingsCard() {
             <input
               type="checkbox"
               checked={enabled}
+              disabled={update.isPending}
               onChange={(e) => {
-                setEnabled(e.target.checked);
-                setDirty(true);
+                edit({ proactiveEnabled: e.target.checked });
               }}
             />
             <span>Enable proactive briefs &amp; reviews</span>
@@ -111,13 +125,13 @@ export function ProactiveSettingsCard() {
             <div className="row" style={{ gap: 8 }}>
               <Input
                 value={tz}
+                disabled={update.isPending}
                 placeholder="America/Toronto"
                 onChange={(e) => {
-                  setTz(e.target.value);
-                  setDirty(true);
+                  edit({ timezone: e.target.value });
                 }}
               />
-              <Button variant="ghost" onClick={detectTz}>Detect</Button>
+              <Button variant="ghost" onClick={detectTz} disabled={update.isPending}>Detect</Button>
             </div>
           </label>
 
@@ -128,9 +142,9 @@ export function ProactiveSettingsCard() {
               min={0}
               max={23}
               value={hour}
+              disabled={update.isPending}
               onChange={(e) => {
-                setHour(Math.max(0, Math.min(23, Number(e.target.value) || 0)));
-                setDirty(true);
+                edit({ briefHour: Math.max(0, Math.min(23, Number(e.target.value) || 0)) });
               }}
             />
           </label>
@@ -144,7 +158,11 @@ export function ProactiveSettingsCard() {
 
           <div className="stack" style={{ gap: 4, marginTop: 4 }}>
             <span className="muted" style={{ fontSize: 12 }}>Push notifications</span>
-            {pushState === 'unsupported' ? (
+            {pushError ? (
+              <ErrorState message="Could not read notification status." onRetry={() => void readPushState()} />
+            ) : pushState === null ? (
+              <p role="status" className="muted">Checking notifications…</p>
+            ) : pushState === 'unsupported' ? (
               <span className="muted" style={{ fontSize: 13 }}>This browser doesn&apos;t support notifications.</span>
             ) : pushState === 'unconfigured' ? (
               <span className="muted" style={{ fontSize: 13 }}>Push isn&apos;t configured on this server.</span>
@@ -157,6 +175,7 @@ export function ProactiveSettingsCard() {
                 </Button>
               </div>
             )}
+            {pushActionError && <p className="error" role="alert">Notification change was not confirmed. Try again.</p>}
           </div>
         </>
       )}

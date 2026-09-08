@@ -1,48 +1,9 @@
+import type { ToolExecution, ToolUndo, ToolOutcome, ToolLoopResult } from '@atlas/shared';
+export type { ToolExecution, ToolUndo, ToolOutcome, ToolLoopResult } from '@atlas/shared';
+import { toolCallFingerprint as callFingerprint } from '@atlas/shared';
 import type { ChatMessage, ChatResult } from '@atlas/connectors';
 import type { AiToolSpec } from '@atlas/shared';
 import { fromWireToolName, toOpenAiTools } from './tools.js';
-
-/** Record of one tool the model asked to run, and what happened. */
-export interface ToolExecution {
-  name: string;
-  arguments: string;
-  result: string;
-  ok: boolean;
-  /** Plain-language description of the change, for the "Atlas changed" strip. */
-  summary: string | null;
-  /** How to reverse it. Server-built; null when the action is not reversible. */
-  undo: ToolUndo | null;
-}
-
-/**
- * The inverse of one write, as a call against Atlas's own REST API.
- *
- * Built on the server from the row that was actually written — the model never
- * supplies a path or a body, so replaying one can only reach data the caller's
- * session could already reach.
- */
-export interface ToolUndo {
-  label: string;
-  method: 'POST' | 'PATCH' | 'DELETE';
-  path: string;
-  body: Record<string, unknown> | null;
-}
-
-/**
- * What a tool hands back. `result` is what the model sees; the rest is for the
- * user interface and is never shown to the model.
- */
-export interface ToolOutcome {
-  result: unknown;
-  summary?: string | null;
-  undo?: ToolUndo | null;
-}
-
-export interface ToolLoopResult {
-  content: string;
-  usage: { promptTokens: number; completionTokens: number; cachedPromptTokens: number };
-  toolExecutions: ToolExecution[];
-}
 
 export interface ToolLoopParams {
   /** Full message list to send, e.g. [system, ...history, user]. Mutated internally on a copy. */
@@ -69,29 +30,6 @@ const DEFAULT_MAX_ITERATIONS = 4;
  * a lot of work to do.
  */
 const MAX_CALLS_PER_TURN = 8;
-
-/**
- * A tool call reduced to what makes it the same call.
- *
- * Arguments are re-serialised with sorted keys, because the model does not emit
- * them in a stable order and `{"a":1,"b":2}` is the same request as
- * `{"b":2,"a":1}`.
- */
-function callFingerprint(name: string, rawArgs: string | undefined): string {
-  let normalised = rawArgs ?? '';
-  try {
-    const parsed: unknown = rawArgs ? JSON.parse(rawArgs) : {};
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      const entries = Object.entries(parsed as Record<string, unknown>).sort(([a], [b]) =>
-        a.localeCompare(b),
-      );
-      normalised = JSON.stringify(entries);
-    }
-  } catch {
-    // Unparseable arguments fail later anyway; fingerprint the raw string.
-  }
-  return `${name}::${normalised}`;
-}
 
 /**
  * Provider-agnostic multi-turn tool-calling loop: send messages, and if the

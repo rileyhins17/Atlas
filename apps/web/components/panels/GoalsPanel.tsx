@@ -112,27 +112,29 @@ function GoalRow({ goal }: { goal: GoalDTO }) {
 
       {open && (
         <div className="goal-tasks">
-          {linked.length > 0 ? (
-            <ul className="goal-task-list">
-              {linked.map((t) => (
-                <li key={t.id} className={`goal-task ${t.status === 'DONE' ? 'done' : ''}`}>
-                  <span>{t.title}</span>
-                  <button
-                    type="button"
-                    className="goal-unlink"
-                    aria-label={`Unlink "${t.title}" from this goal`}
-                    onClick={() => updateTask.mutate({ id: t.id, patch: { goalId: null } })}
-                  >
-                    <X size={12} aria-hidden />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="prog-muted" style={{ margin: '0 0 6px', fontSize: 12 }}>
-              Break this into work you can actually do. Tasks added here count toward it.
-            </p>
-          )}
+          <QueryState query={tasks} errorFallback="Could not load linked tasks." skeleton={<ListSkeleton rows={2} circle={false} />}>
+            {linked.length > 0 ? (
+              <ul className="goal-task-list">
+                {linked.map((t) => (
+                  <li key={t.id} className={`goal-task ${t.status === 'DONE' ? 'done' : ''}`}>
+                    <span>{t.title}</span>
+                    <button
+                      type="button"
+                      className="goal-unlink"
+                      aria-label={`Unlink "${t.title}" from this goal`}
+                      onClick={() => updateTask.mutate({ id: t.id, patch: { goalId: null } })}
+                    >
+                      <X size={12} aria-hidden />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="prog-muted" style={{ margin: '0 0 6px', fontSize: 12 }}>
+                Break this into work you can actually do. Tasks added here count toward it.
+              </p>
+            )}
+          </QueryState>
 
           <form className="row" style={{ gap: 6 }} onSubmit={addTask} noValidate>
             <Input
@@ -141,7 +143,7 @@ function GoalRow({ goal }: { goal: GoalDTO }) {
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
             />
-            <Button type="submit" disabled={!draft.trim() || createTask.isPending}>
+            <Button type="submit" aria-label={`Add a task toward "${goal.title}"`} disabled={!draft.trim() || createTask.isPending}>
               <Plus size={14} aria-hidden />
             </Button>
           </form>
