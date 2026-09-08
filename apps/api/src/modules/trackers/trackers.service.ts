@@ -1,3 +1,4 @@
+import { summarizeTrackers } from '@atlas/shared';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   MAX_TRACKERS,
@@ -83,6 +84,8 @@ export class TrackersService {
     const today = dayKeyInTz(new Date(), await this.timezoneOf(userId));
     const entries = await this.prisma.client.trackerEntry.findMany({
       where: { userId, dayKey: today, trackerId: { in: rows.map((r) => r.id) } },
+      // (trackerId, dayKey) is unique, so this cannot truncate a rating.
+      take: rows.length,
       select: { trackerId: true, value: true },
     });
     const byTracker = new Map(entries.map((e) => [e.trackerId, e.value]));
@@ -247,15 +250,6 @@ export class TrackersService {
   /** What the AI is told. One line per tracker, and nothing when there are none. */
   async summarize(userId: string): Promise<string> {
     const overview = await this.overview(userId, 30);
-    if (overview.length === 0) return 'No personal trackers.';
-    const lines = overview.map(({ tracker, points, sentence }) => {
-      if (points.length === 0) return `- ${tracker.name}: set up, not rated yet.`;
-      const scale =
-        tracker.lowLabel && tracker.highLabel
-          ? ` (1 = ${tracker.lowLabel}, 10 = ${tracker.highLabel})`
-          : '';
-      return `- ${sentence ?? `${tracker.name}: ${points.at(-1)!.value}/10`}${scale}`;
-    });
-    return lines.join('\n');
+    return summarizeTrackers(overview);
   }
 }

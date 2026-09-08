@@ -1,40 +1,35 @@
+import { summarizeFitness } from '@atlas/shared';
+import { serializeWorkout as toWorkoutDto } from '@atlas/shared';
+import { serializeWorkoutSet as toSetDto } from '@atlas/shared';
+import { serializeExercise as toExerciseDto } from '@atlas/shared';
+import { readCollection } from '../../core/collection-pages.js';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type {
   CreateExerciseInput,
   ExerciseDTO,
   ExerciseHistoryDTO,
-  ExerciseKind,
   ExerciseSessionDTO,
   FinishWorkoutInput,
   LastPerformanceDTO,
   LogSetInput,
-  Equipment,
-  MuscleTarget,
-  MuscleGroup,
   SetType,
   StartWorkoutInput,
   WorkoutDTO,
-  WorkoutSetDTO,
 } from '@atlas/shared';
 import {
   bestE1rm,
   bestWeightGrams,
-  isSetType,
   // Pure training maths lives in @atlas/shared so the logger UI and the API
   // compute volume, records and set labels from ONE implementation.
-  countWorkingSets,
-  describeSet,
   gramsToKg,
   exerciseRecords,
-  groupSetsByExercise,
   setVolumeGrams,
-  workoutVolumeGrams,
 } from '@atlas/shared';
-import type { Exercise, Prisma } from '@atlas/db';
+import type { Prisma } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
+import { UserTimezoneService } from '../../core/user-timezone.service.js';
 import { EXERCISE_CATALOG } from './exercise-catalog.js';
-
 
 /** A workout row with its sets and each set's exercise, as every read needs. */
 type WorkoutWithSets = Prisma.WorkoutGetPayload<{
@@ -55,69 +50,6 @@ const MAX_EXERCISE_SESSIONS = 30;
 const MAX_EXERCISE_SETS = 600;
 const MAX_SETS_PER_WORKOUT = 500;
 
-function toExerciseDto(e: Exercise): ExerciseDTO {
-  return {
-    id: e.id,
-    name: e.name,
-    muscle: e.muscle as MuscleGroup,
-    // Null rather than a guess. A row written before these columns existed, or
-    // a user's own addition, is genuinely unclassified — and the picker's
-    // filters have to be able to say "not filed" rather than quietly filing it
-    // somewhere wrong.
-    target: (e.target as MuscleTarget | null) ?? null,
-    equipment: (e.equipment as Equipment | null) ?? null,
-    kind: e.kind as ExerciseKind,
-    custom: e.userId !== null,
-  };
-}
-
-/** One set row to its DTO. Shared so a set means the same thing on every screen. */
-function toSetDto(s: {
-  id: string;
-  exerciseId: string;
-  exercise: { name: string; kind: string };
-  position: number;
-  weightGrams: number | null;
-  reps: number | null;
-  durationSec: number | null;
-  distanceM: number | null;
-  warmup: boolean;
-  setType: string;
-  rpe: number | null;
-  completedAt: Date;
-}): WorkoutSetDTO {
-  return {
-    id: s.id,
-    exerciseId: s.exerciseId,
-    exerciseName: s.exercise.name,
-    kind: s.exercise.kind as ExerciseKind,
-    position: s.position,
-    weightGrams: s.weightGrams,
-    reps: s.reps,
-    durationSec: s.durationSec,
-    distanceM: s.distanceM,
-    warmup: s.warmup,
-    setType: isSetType(s.setType) ? s.setType : 'normal',
-    rpe: s.rpe,
-    completedAt: s.completedAt.toISOString(),
-  };
-}
-
-function toWorkoutDto(w: WorkoutWithSets): WorkoutDTO {
-  const sets: WorkoutSetDTO[] = w.sets.map(toSetDto);
-  return {
-    id: w.id,
-    title: w.title,
-    notes: w.notes,
-    startedAt: w.startedAt.toISOString(),
-    endedAt: w.endedAt?.toISOString() ?? null,
-    sets,
-    volumeGrams: workoutVolumeGrams(sets),
-    workingSets: countWorkingSets(sets),
-    templateId: w.templateId,
-  };
-}
-
 const WITH_SETS = {
   sets: { include: { exercise: true }, orderBy: { position: 'asc' } },
 } satisfies Prisma.WorkoutInclude;
@@ -136,6 +68,7 @@ export class FitnessService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly timeline: TimelineService,
+    private readonly timezones: UserTimezoneService,
   ) {}
 
   // ── Exercises ─────────────────────────────────────────────────────────────
@@ -150,10 +83,12 @@ export class FitnessService {
    * name check has to be explicit.
    */
   async seedCatalog(): Promise<number> {
-    const existing = await this.prisma.client.exercise.findMany({
+    const existing = await readCollection((page) => this.prisma.client.exercise.findMany({
+      take: page.take, cursor: page.cursor, skip: page.skip,
+      orderBy: { id: 'asc' },
       where: { userId: null },
       select: { id: true, name: true, target: true, equipment: true },
-    });
+    }));
     const byName = new Map(existing.map((e) => [e.name, e]));
 
     const missing = EXERCISE_CATALOG.filter((e) => !byName.has(e.name));
@@ -187,10 +122,11 @@ export class FitnessService {
 
   /** The shared catalog plus this user's own additions, alphabetical. */
   async listExercises(userId: string): Promise<ExerciseDTO[]> {
-    const rows = await this.prisma.client.exercise.findMany({
+    const rows = await readCollection((page) => this.prisma.client.exercise.findMany({
+      take: page.take, cursor: page.cursor, skip: page.skip,
       where: { OR: [{ userId: null }, { userId }] },
-      orderBy: { name: 'asc' },
-    });
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    }));
     return rows.map(toExerciseDto);
   }
 
@@ -518,23 +454,8 @@ export class FitnessService {
       this.active(userId),
       this.history(userId, { limit: 3, offset: 0 }),
     ]);
-    if (!open && recent.length === 0) return 'No workouts logged.';
-
-    const lines: string[] = [];
-    if (open) {
-      lines.push(`In progress: ${open.title} (${open.workingSets} sets so far).`);
-    }
-    for (const w of recent) {
-      const when = w.startedAt.slice(0, 10);
-      const top = groupSetsByExercise(w.sets)
-        .slice(0, 3)
-        .map((g) => {
-          const best = g.sets.filter((s) => !s.warmup).at(-1);
-          return best ? `${g.exerciseName} ${describeSet(best, g.kind)}` : g.exerciseName;
-        })
-        .join(', ');
-      lines.push(`- ${when}: ${w.title} — ${gramsToKg(w.volumeGrams)} kg volume${top ? ` (${top})` : ''}`);
-    }
-    return lines.join('\n');
+    if (!open && recent.length === 0) return summarizeFitness(open, recent, 'UTC');
+    const tz = await this.timezones.get(userId);
+    return summarizeFitness(open, recent, tz);
   }
 }

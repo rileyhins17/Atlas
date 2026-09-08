@@ -1,3 +1,4 @@
+import { summarizeHabits } from '@atlas/shared';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type {
   CreateHabitInput,
@@ -6,13 +7,19 @@ import type {
   LogHabitInput,
   UpdateHabitInput,
 } from '@atlas/shared';
-import type { Habit, HabitLog } from '@atlas/db';
+import { Prisma, type Habit } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
 import { computeStreak, dayKey } from './habits.util.js';
 
 /** How far back streak math ever needs to look. */
 const STREAK_WINDOW_DAYS = 400;
+
+interface HabitDayTotal {
+  habitId: string;
+  day: string;
+  value: number;
+}
 
 @Injectable()
 export class HabitsService {
@@ -28,10 +35,10 @@ export class HabitsService {
     return habit;
   }
 
-  private toDto(habit: Habit, logs: HabitLog[]): HabitDTO {
+  private toDto(habit: Habit, logs: HabitDayTotal[]): HabitDTO {
     const perDay = new Map<string, number>();
     for (const log of logs) {
-      const k = dayKey(log.loggedAt);
+      const k = log.day;
       perDay.set(k, (perDay.get(k) ?? 0) + log.value);
     }
     const todayCount = perDay.get(dayKey(new Date())) ?? 0;
@@ -59,11 +66,25 @@ export class HabitsService {
     return since;
   }
 
-  /** Logs for one habit, userId-scoped and time-bounded. */
-  private logsForHabit(userId: string, habitId: string): Promise<HabitLog[]> {
-    return this.prisma.client.habitLog.findMany({
-      where: { userId, habitId, loggedAt: { gte: HabitsService.streakWindowStart() } },
-    });
+  /** Aggregate before crossing the database boundary: never truncate check-ins.
+   * loggedAt is Prisma's timestamp without timezone, stored as UTC. Preserve
+   * the existing UTC day-key semantics while reducing rows to habit/day totals.
+   */
+  private dailyTotals(userId: string, habitIds: string[], since: Date): Promise<HabitDayTotal[]> {
+    if (habitIds.length === 0) return Promise.resolve([]);
+    return this.prisma.client.$queryRaw<HabitDayTotal[]>(Prisma.sql`
+      SELECT "habitId", to_char("loggedAt"::date, 'YYYY-MM-DD') AS day,
+             SUM(value)::float AS value
+      FROM habit_logs
+      WHERE "userId" = ${userId} AND "habitId" IN (${Prisma.join(habitIds)})
+        AND "loggedAt" >= ${since}
+      GROUP BY "habitId", "loggedAt"::date
+      ORDER BY "loggedAt"::date ASC
+    `);
+  }
+
+  private logsForHabit(userId: string, habitId: string): Promise<HabitDayTotal[]> {
+    return this.dailyTotals(userId, [habitId], HabitsService.streakWindowStart());
   }
 
   async list(userId: string): Promise<HabitDTO[]> {
@@ -74,10 +95,8 @@ export class HabitsService {
       take: 200,
     });
     if (habits.length === 0) return [];
-    const logs = await this.prisma.client.habitLog.findMany({
-      where: { userId, loggedAt: { gte: HabitsService.streakWindowStart() } },
-    });
-    const byHabit = new Map<string, HabitLog[]>();
+    const logs = await this.dailyTotals(userId, habits.map((h) => h.id), HabitsService.streakWindowStart());
+    const byHabit = new Map<string, HabitDayTotal[]>();
     for (const log of logs) {
       const arr = byHabit.get(log.habitId) ?? [];
       arr.push(log);
@@ -154,15 +173,12 @@ export class HabitsService {
     if (habits.length === 0) return [];
     const since = new Date();
     since.setUTCDate(since.getUTCDate() - days);
-    const logs = await this.prisma.client.habitLog.findMany({
-      where: { userId, loggedAt: { gte: since } },
-      select: { habitId: true, loggedAt: true, value: true },
-    });
+    const logs = await this.dailyTotals(userId, habits.map((h) => h.id), since);
     const perHabit = new Map<string, Map<string, number>>(habits.map((h) => [h.id, new Map()]));
     for (const log of logs) {
       const dayMap = perHabit.get(log.habitId);
       if (!dayMap) continue; // log for an archived habit
-      const k = dayKey(log.loggedAt);
+      const k = log.day;
       dayMap.set(k, (dayMap.get(k) ?? 0) + log.value);
     }
     return habits.map((h) => ({
@@ -177,12 +193,6 @@ export class HabitsService {
   /** Compact summary for the AI context builder. */
   async summarize(userId: string): Promise<string> {
     const habits = await this.list(userId);
-    if (habits.length === 0) return 'No habits tracked.';
-    const lines = habits.map(
-      // The id is what makes habits.update / habits.delete addressable.
-      (h) =>
-        `- [${h.id}] ${h.name}: ${h.doneToday ? 'done today' : 'not yet today'}, streak ${h.streak}d`,
-    );
-    return `${habits.length} habit(s):\n${lines.join('\n')}`;
+    return summarizeHabits(habits);
   }
 }
