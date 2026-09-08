@@ -1,3 +1,4 @@
+import { tagStatsRows as tag } from '@atlas/shared';
 import { readCollection } from '../../core/collection-pages.js';
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@atlas/db';
@@ -399,8 +400,4 @@ export class StatsService {
     ].join('\n');
   }
 
-}
-
-function tag(metric: StatsMetric, rows: { day: string; value: number }[]): MetricRow[] {
-  return rows.map((r) => ({ metric, day: r.day, value: Number(r.value) }));
 }

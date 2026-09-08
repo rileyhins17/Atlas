@@ -1,3 +1,4 @@
+import { chunkItems as chunks } from '@atlas/shared';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import {
   ConnectorScopeError,
@@ -58,12 +59,6 @@ interface RemoteEventData {
   endAt: Date;
   allDay: boolean;
   sourceCalendarId: string | null;
-}
-
-function chunks<T>(items: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
-  return out;
 }
 
 /** Promise.all with a ceiling on how many run at once. */

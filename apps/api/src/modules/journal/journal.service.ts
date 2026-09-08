@@ -1,3 +1,4 @@
+import { journalSnippet as snippet } from '@atlas/shared';
 import { serializeJournal as toDto } from '@atlas/shared';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { CreateJournalInput, JournalDTO, UpdateJournalInput } from '@atlas/shared';
@@ -7,11 +8,6 @@ import { TimelineService } from '../../core/timeline.service.js';
 import { MemoryService } from '../../core/memory.service.js';
 import { UserTimezoneService } from '../../core/user-timezone.service.js';
 import { dayKeyInTz } from '../ai/time.util.js';
-
-function snippet(text: string, n = 80): string {
-  const s = text.trim().replace(/\s+/g, ' ');
-  return s.length > n ? `${s.slice(0, n)}…` : s;
-}
 
 @Injectable()
 export class JournalService {

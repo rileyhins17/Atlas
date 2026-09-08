@@ -1,3 +1,5 @@
+import { shiftCalendarDayKey as shiftDay } from '@atlas/shared';
+import { routineClockLabel as fmt } from '@atlas/shared';
 import { serializeRoutineBlock as toDto } from '@atlas/shared';
 import { readCollection } from '../../core/collection-pages.js';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
@@ -17,21 +19,7 @@ import { dayKeyInTz } from '../ai/time.util.js';
  */
 const MAX_ROUTINE_BLOCKS = 200;
 
-function fmt(min: number): string {
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
-
 const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-
-/** YYYY-MM-DD arithmetic without touching timezones. */
-function shiftDay(day: string, delta: number): string {
-  const [y, m, d] = day.split('-').map(Number);
-  const t = new Date(Date.UTC(y!, m! - 1, d!));
-  t.setUTCDate(t.getUTCDate() + delta);
-  return t.toISOString().slice(0, 10);
-}
 
 @Injectable()
 export class RoutineService {

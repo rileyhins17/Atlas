@@ -71,3 +71,6 @@ export * from './domain-grouping.js';
 export * from './component-calculations.js';
 export * from './clock-labels.js';
 export * from './response-serialization.js';
+export * from './fitness-serialization.js';
+export * from './service-calculations.js';
+export * from './exercise-catalog.js';

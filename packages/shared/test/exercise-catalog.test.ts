@@ -4,8 +4,8 @@ import {
   MUSCLE_TARGET_LABELS,
   TARGETS_BY_GROUP,
   groupOfTarget,
-} from '@atlas/shared';
-import { EXERCISE_CATALOG } from '../src/modules/fitness/exercise-catalog.js';
+} from '../src/index.js';
+import { EXERCISE_CATALOG } from '../src/exercise-catalog.js';
 
 /**
  * The catalog and the browse tree have to agree, or an exercise is in the app

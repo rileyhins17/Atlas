@@ -1,8 +1,8 @@
+import { expandEventSeries as expandSeries } from '@atlas/shared';
 import { serializeEvent as toDto } from '@atlas/shared';
 import { readCollection } from '../../core/collection-pages.js';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
-  nextOccurrences,
   type CreateEventInput,
   type EventDTO,
   type UpdateEventInput,
@@ -18,42 +18,6 @@ import { dayKeyInTz, safeTz } from '../ai/time.util.js';
 import { TimelineService } from '../../core/timeline.service.js';
 
 const MAX_PAGE = 100;
-/** Ceiling on instances generated from one rule inside a single window. */
-const MAX_OCCURRENCES_PER_SERIES = 100;
-
-/**
- * Project a stored series onto a window as read-only occurrence rows. The
- * stored row IS the first occurrence, so it comes back from the query normally
- * and only the later ones are synthesised here.
- *
- * Synthetic rows carry `id = "<rootId>@<epochMs>"` and `isOccurrence: true` so
- * the UI can render them but never PATCH/DELETE them as if they were rows.
- */
-function expandSeries(event: Event, from: Date, to: Date): EventDTO[] {
-  const durationMs = event.endAt.getTime() - event.startAt.getTime();
-  // `after` is exclusive, so step back a millisecond to keep an occurrence
-  // landing exactly on the window start.
-  const after = new Date(Math.max(from.getTime() - 1, event.startAt.getTime()));
-  const dates = nextOccurrences(
-    event.recurrence,
-    event.startAt,
-    after,
-    MAX_OCCURRENCES_PER_SERIES,
-  );
-  const base = toDto(event);
-  const out: EventDTO[] = [];
-  for (const startAt of dates) {
-    if (startAt.getTime() >= to.getTime()) break;
-    out.push({
-      ...base,
-      id: `${event.id}@${startAt.getTime()}`,
-      startAt: startAt.toISOString(),
-      endAt: new Date(startAt.getTime() + durationMs).toISOString(),
-      isOccurrence: true,
-    });
-  }
-  return out;
-}
 
 /**
  * How many upcoming events the AI is shown.

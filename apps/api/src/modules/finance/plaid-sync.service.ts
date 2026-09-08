@@ -1,3 +1,4 @@
+import { serviceErrorText as errText } from '@atlas/shared';
 import { readCollection } from '../../core/collection-pages.js';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
@@ -361,8 +362,4 @@ export class PlaidSyncService {
     // Local account/transaction rows stay — they're the user's data.
     return { ok: true };
   }
-}
-
-function errText(err: unknown): string {
-  return err instanceof Error ? err.message : 'unknown error';
 }

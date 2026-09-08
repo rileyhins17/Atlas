@@ -1,3 +1,5 @@
+import { workoutTemplateTitleCase as titleCase, type WorkoutTemplateRecord as TemplateRow } from '@atlas/shared';
+import { serializeWorkoutTemplate as toDto } from '@atlas/shared';
 import { readCollection } from '../../core/collection-pages.js';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
@@ -22,37 +24,6 @@ const MAX_TEMPLATES = 20;
 const WITH_EXERCISES = {
   exercises: { include: { exercise: true }, orderBy: { position: 'asc' } },
 } as const;
-
-type TemplateRow = {
-  id: string;
-  name: string;
-  position: number;
-  createdAt: Date;
-  exercises: {
-    exerciseId: string;
-    position: number;
-    supersetGroup: number | null;
-    exercise: { name: string; muscle: string; kind: string };
-  }[];
-};
-
-function toDto(row: TemplateRow, lastPerformedAt: Date | null): WorkoutTemplateDTO {
-  return {
-    id: row.id,
-    name: row.name,
-    position: row.position,
-    exercises: row.exercises.map((te) => ({
-      exerciseId: te.exerciseId,
-      name: te.exercise.name,
-      muscle: te.exercise.muscle as WorkoutTemplateDTO['exercises'][number]['muscle'],
-      kind: te.exercise.kind as WorkoutTemplateDTO['exercises'][number]['kind'],
-      position: te.position,
-      supersetGroup: te.supersetGroup,
-    })),
-    lastPerformedAt: lastPerformedAt ? lastPerformedAt.toISOString() : null,
-    createdAt: row.createdAt.toISOString(),
-  };
-}
 
 /**
  * Named days in a user's split, and the setup flow that fills them.
@@ -403,16 +374,4 @@ export class WorkoutTemplatesService {
 
     return out;
   }
-}
-
-/**
- * "incline db press" → "Incline Db Press". Words already containing a capital
- * are left alone, so "RDL" and "EZ-Bar" survive.
- */
-function titleCase(s: string): string {
-  return s
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((w) => (/[A-Z]/.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)))
-    .join(' ');
 }
