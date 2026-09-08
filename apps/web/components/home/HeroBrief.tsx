@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { ChevronDown, RefreshCw, Sparkles } from 'lucide-react';
 import { useAiStatus, useGenerateDailyBrief, useInsights } from '@/lib/hooks/ai';
-import { Button } from '@/components/ui';
+import { Button, ErrorState, ListSkeleton } from '@/components/ui';
 import { Constellation } from '@/components/atlas/Constellation';
 import { formatAgo, localDayKey } from '@/lib/dates';
 
@@ -40,10 +40,17 @@ export function HeroBrief({
   //
   // The greeting is safe to show immediately: it comes from the user, not the
   // provider.
+  if (status.isError) return (
+    <div className={`hero-brief ${compact ? 'compact' : ''}`}>
+      {greeting && <p className="hero-brief-greeting">{greeting}</p>}
+      <ErrorState message="AI availability could not be loaded." onRetry={() => void status.refetch()} />
+    </div>
+  );
   if (!status.data) {
     return (
       <div className={`hero-brief ${compact ? 'compact' : ''}`}>
         {greeting && <p className="hero-brief-greeting">{greeting}</p>}
+        <ListSkeleton rows={1} circle={false} />
       </div>
     );
   }
@@ -53,8 +60,8 @@ export function HeroBrief({
       <div className={`hero-brief ${compact ? 'compact' : ''}`}>
         {greeting && <p className="hero-brief-greeting">{greeting}</p>}
         <p className="hero-brief-text muted" style={{ margin: 0 }}>
-          Atlas can brief you each day, file whatever you type, and chat over your whole life —{' '}
-          <Link href="/settings">connect the AI in Settings</Link> to switch it on.
+          Capture and day planning already work without AI. For daily briefs and chat —{' '}
+          <Link href="/settings">connect the AI in Settings</Link> when you want them.
         </p>
       </div>
     );
@@ -63,7 +70,9 @@ export function HeroBrief({
   return (
     <div className={`hero-brief ${compact ? 'compact' : ''}`} aria-busy={generate.isPending || insights.isPending}>
       {greeting && <p className="hero-brief-greeting">{greeting}</p>}
-      {insights.isPending ? (
+      {insights.isError ? (
+        <ErrorState message="Your daily brief could not be loaded." onRetry={() => void insights.refetch()} />
+      ) : insights.isPending ? (
         <div className="row" style={{ gap: 10, alignItems: 'center' }}>
           <Constellation loading size={compact ? 22 : 30} />
           <span className="muted" style={{ fontSize: 13 }}>Reading your day…</span>
@@ -121,6 +130,7 @@ export function HeroBrief({
           </Button>
         </div>
       )}
+      {generate.isError && <p className="brief-generate-error error" role="alert">Your brief could not be generated. Try again.</p>}
     </div>
   );
 }

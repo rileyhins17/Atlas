@@ -51,8 +51,6 @@ export function WritingPanel() {
   const latch = useSubmitLatch();
 
   const failure =
-    createEntry.error ??
-    createNote.error ??
     removeNote.error ??
     updateEntry.error ??
     updateNote.error;
@@ -75,8 +73,10 @@ export function WritingPanel() {
   function save(e: React.FormEvent) {
     e.preventDefault();
     const text = body.trim();
-    if (!text) return;
+    if (!text || createEntry.isPending || createNote.isPending) return;
     latch((release) => {
+      createEntry.reset();
+      createNote.reset();
       const done = {
         onSettled: release,
         onSuccess: () => {
@@ -112,6 +112,7 @@ export function WritingPanel() {
               placeholder="What is this about? — e.g. 'My knee', 'Sarah'"
               aria-label="What this note is about"
               value={title}
+              readOnly={busy}
               onChange={(e) => setTitle(e.target.value)}
             />
           )}
@@ -128,6 +129,7 @@ export function WritingPanel() {
             }
             aria-label="What are you writing?"
             value={body}
+            readOnly={busy}
             onChange={(e) => setBody(e.target.value)}
           />
 
@@ -139,6 +141,7 @@ export function WritingPanel() {
                 <button
                   key={m}
                   type="button"
+                  disabled={busy}
                   className={`wr-mood ${mood === m ? 'on' : ''}`}
                   aria-pressed={mood === m}
                   aria-label={`Mood ${m} out of 5`}
@@ -159,6 +162,7 @@ export function WritingPanel() {
                 type="checkbox"
                 aria-label="Atlas should always remember this, not just today"
                 checked={remember}
+                disabled={busy}
                 onChange={(e) => setRemember(e.target.checked)}
               />
               Atlas should always remember this
@@ -167,9 +171,11 @@ export function WritingPanel() {
               Save
             </Button>
           </div>
-          {error && <div className="error">{error}</div>}
+          {busy && <p className="writing-save-status muted" role="status">Saving your writing…</p>}
+          {(createEntry.isError || createNote.isError) && <p className="writing-save-status error" role="alert">Your writing was not confirmed. Your draft is kept.</p>}
         </form>
       </Card>
+      {error && <div className="error" role="alert">{error}</div>}
 
       {/* Named, so "did this actually save" can be asked of the LIST rather than
           of any `.card` on the page. React mirrors a controlled textarea's value

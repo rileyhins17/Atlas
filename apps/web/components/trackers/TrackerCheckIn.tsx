@@ -5,6 +5,7 @@ import { TRACKER_MAX, TRACKER_MIN, type TrackerDTO } from '@atlas/shared';
 import { Check, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useLogTracker, useTrackers } from '@/lib/hooks/trackers';
+import { ErrorState, ListSkeleton } from '@/components/ui';
 
 /**
  * Today's ratings, on Today.
@@ -21,9 +22,18 @@ export function TrackerCheckIn() {
   const trackers = useTrackers();
   const rows = trackers.data ?? [];
 
-  // Nothing set up: this is opt-in, so an empty state here would be a nag on a
-  // screen that already has enough to say. The way in is Settings.
-  if (trackers.isPending || rows.length === 0) return null;
+  if (trackers.isError) return (
+    <section className="trk-card" aria-label="Today's ratings">
+      <ErrorState message="Your ratings could not be loaded." onRetry={() => void trackers.refetch()} />
+    </section>
+  );
+  if (trackers.isPending) return <ListSkeleton rows={1} circle={false} />;
+  if (rows.length === 0) return (
+    <section className="trk-card" aria-label="Today's ratings">
+      <p className="trk-hint">No personal ratings set up.</p>
+      <Link href="/settings" className="trk-manage">Choose what to track</Link>
+    </section>
+  );
 
   return (
     <section className="trk-card" aria-label="Today's ratings">
