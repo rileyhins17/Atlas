@@ -113,7 +113,7 @@ export class NotesService {
     const total = await this.prisma.client.note.count({ where: { userId } });
     if (total === 0) return 'No notes yet.';
     if (pinned.length === 0) return `${total} note(s), none pinned as key facts.`;
-    const lines = pinned.map((n) => `- ${n.title ? `${n.title}: ` : ''}${n.body.slice(0, 100)}`);
+    const lines = pinned.map((n) => `- [${n.id}] ${n.title ? `${n.title}: ` : ''}${n.body.slice(0, 100)}`);
     return `Key facts about the user (pinned notes):\n${lines.join('\n')}`;
   }
 }
