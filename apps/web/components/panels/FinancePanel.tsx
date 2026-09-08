@@ -7,23 +7,10 @@ import { useAccounts, useTransactions } from '@/lib/hooks/finance';
 import { Card, EmptyState, ListSkeleton, QueryState } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
 import { PlaidCard } from './PlaidCard';
-import { formatDayHeading, localDayKey } from '@/lib/dates';
+import { formatDayHeading } from '@/lib/dates';
+import { groupTransactionsByDay } from '@atlas/shared';
+export { groupTransactionsByDay } from '@atlas/shared';
 import { formatMoney } from '@/lib/money';
-
-/** Transactions grouped by local calendar day, most recent first. */
-export function groupTransactionsByDay(txns: TransactionDTO[]): Array<[string, TransactionDTO[]]> {
-  const byDay = new Map<string, TransactionDTO[]>();
-  const sorted = [...txns].sort(
-    (a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime(),
-  );
-  for (const t of sorted) {
-    const key = localDayKey(new Date(t.postedAt));
-    const arr = byDay.get(key) ?? [];
-    arr.push(t);
-    byDay.set(key, arr);
-  }
-  return [...byDay.entries()];
-}
 
 function AccountCard({ account }: { account: AccountDTO }) {
   const where = account.institution
