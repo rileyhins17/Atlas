@@ -2632,3 +2632,53 @@ test('session and invite configuration failures recover without losing credentia
     await page.unroute(meUrl);
   }
 });
+
+test('command search recovers saved results without changing the selected action in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    const title = `Dentist search ${theme} ${Date.now()}`;
+    const created = await page.request.post('http://localhost:4000/tasks', { data: { title } });
+    expect(created.status()).toBe(201);
+    const task = await created.json() as { id: string };
+    await page.goto('/today');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    await expect(page.getByRole('region', { name: 'Quick capture' })).toBeVisible();
+    await page.getByRole('button', { name: 'Search and capture', exact: true }).click();
+    const input = page.getByRole('combobox', { name: 'Command input' });
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    await page.route('http://localhost:4000/search?*', async (route) => {
+      await held;
+      await route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+    });
+    try {
+      await input.click(); await input.pressSequentially(title);
+      await expect(page.getByRole('status').filter({ hasText: 'Searching your Atlas…' })).toBeVisible();
+      await input.press('ArrowDown');
+      await expect(page.getByRole('option', { name: /Ask Atlas:/ })).toHaveAttribute('aria-selected', 'true');
+    } finally { release(); }
+    await expect(page.getByText('Your saved items could not be searched.')).toBeVisible({ timeout: 20_000 });
+    let failures = screenFailures(await measureScreen(page, '/today:search-error', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await page.unroute('http://localhost:4000/search?*');
+    const responsePromise = page.waitForResponse((response) => response.url().includes('/search?') && new URL(response.url()).searchParams.get('q') === title);
+    await page.getByRole('button', { name: 'Retry', exact: true }).click();
+    const response = await responsePromise;
+    expect(response.ok()).toBe(true);
+    expect((await response.json()).hits).toEqual(expect.arrayContaining([expect.objectContaining({ id: task.id, title })]));
+    await expect(page.getByRole('option', { name: /Ask Atlas:/ })).toHaveAttribute('aria-selected', 'true');
+    await expect(input).toHaveValue(title);
+    const hit = page.getByRole('option').filter({ hasText: title }).filter({ has: page.locator('.command-item-hint', { hasText: /^task/ }) });
+    await expect(hit).toBeVisible();
+    await hit.click();
+    await expect(page).toHaveURL(/\/tasks/);
+    await expect(page.locator('.task').filter({ hasText: title })).toBeVisible();
+    await page.getByRole('button', { name: 'Search and capture', exact: true }).click();
+    await input.click(); await input.pressSequentially(`zznomatch${Date.now()}${theme}`);
+    await expect(page.getByText('No saved items match this search.')).toBeVisible();
+    failures = screenFailures(await measureScreen(page, '/tasks:search-empty', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await input.press('Escape');
+  }
+});

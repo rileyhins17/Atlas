@@ -268,6 +268,28 @@ test('capture the Life-OS screens', async ({ page }) => {
     writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
     await page.screenshot({ path: `${OUT}/settings-actions-${theme}.png`, fullPage: true });
   }
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.goto('/today');
+    await page.reload();
+    await expect(page.getByRole('region', { name: 'Quick capture' })).toBeVisible();
+    await page.getByRole('button', { name: 'Search and capture', exact: true }).click();
+    const input = page.getByRole('combobox', { name: 'Command input' });
+    await page.route('http://localhost:4000/search?*', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await input.click(); await input.pressSequentially('Dentist');
+    await expect(page.getByText('Your saved items could not be searched.')).toBeVisible({ timeout: 20_000 });
+    measurements.push(await measureScreen(page, '/today:search-error', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/search-error-${theme}.png`, fullPage: true });
+    await page.unroute('http://localhost:4000/search?*');
+    await input.click(); await input.press('ControlOrMeta+a');
+    await input.pressSequentially(`zznomatch${Date.now()}`);
+    await expect(page.getByText('No saved items match this search.')).toBeVisible();
+    measurements.push(await measureScreen(page, '/today:search-empty', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/search-empty-${theme}.png`, fullPage: true });
+    await input.press('Escape');
+  }
   // Session/config failures use synthetic responses, never another registration.
   for (const theme of ['light', 'dark'] as const) {
     await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);

@@ -1716,6 +1716,8 @@ input[type='checkbox']:checked::after {
   overflow-y: auto;
   padding: 6px;
 }
+.command-search-status { padding: 0 14px; color: var(--text-muted); font-size: var(--text-sm); }
+.command-search-status p { margin: 10px 0; }
 .command-item {
   display: flex;
   align-items: center;

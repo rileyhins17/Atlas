@@ -12,7 +12,7 @@ assertions. No component is marked fully audited from source indicators alone.
 | TaskGoalChip.tsx | useGoals | Newly included root-level component; errors currently render as loading; old copied-expression tests are not component evidence |
 | TaskRow.tsx | useTaskDurations | Newly included root-level component; pending duration-hint state/recovery audit |
 | atlas/AsksPanel.tsx | useAiQuestions | context-query-states: questions pending, failure, empty |
-| atlas/CommandBar.tsx | useSearch | Pending consolidated loading / empty / error and recovery audit |
+| atlas/CommandBar.tsx | useSearch | command-search-states: active-query loading, failed search Retry, confirmed empty and stable selected action; real saved-result browser recovery pending. Capture failure draft recovery remains separate |
 | canvas/DayOverviewView.tsx | useRoutine, useTasks, useDayEvents, useDayActuals | Pending consolidated loading / empty / error and recovery audit |
 | canvas/MoodCheckIn.tsx | useJournal, useRoutine | Pending consolidated loading / empty / error and recovery audit |
 | canvas/SlippedTasks.tsx | useSlippedTasks | Pending consolidated loading / empty / error and recovery audit |
