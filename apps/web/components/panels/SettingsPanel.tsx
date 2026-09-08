@@ -1,6 +1,5 @@
 'use client';
 
-import { useGoogleStatus } from '@/lib/hooks/google';
 
 import { PageHeader } from '@/components/PageHeader';
 import { DataPrivacyPanel } from './DataPrivacyPanel';
@@ -16,71 +15,38 @@ import { TrainingSettingsCard } from './TrainingSettingsCard';
 import { GoogleCalendarCard } from '@/components/connectors/GoogleCalendarCard';
 
 export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
-  // Only the section hint needs status now; GoogleCalendarCard owns the flow.
-  const google = useGoogleStatus();
-
   return (
     <>
-      <PageHeader title="Settings" subtitle="Connections, your data, and your account." />
-
-      {/* Your week first: it drives what Today calls free time, so it is the
-          setting people actually come here to correct. */}
-      <SettingsSection id="routine" title="Your week" hint="sleep, work and the shape of your day" defaultOpen>
-        <RoutineEditor />
-      </SettingsSection>
-
-      <SettingsSection id="you" title="Your name" hint="how Atlas greets you">
-        <NameSettingsCard />
-      </SettingsSection>
-
-      <SettingsSection id="ai" title="Atlas AI" hint="model key and usage">
-        <AiSettingsCard />
-      </SettingsSection>
-
-      <SettingsSection
-        id="trackers"
-        title="Daily check-ins"
-        hint="rate anything on a 1–10 scale"
-      >
-        <TrackerManager />
-      </SettingsSection>
-
-      <SettingsSection id="training" title="Training" hint="weight units">
-        <TrainingSettingsCard />
-      </SettingsSection>
-
-      <SettingsSection id="proactive" title="Briefs & notifications" hint="when Atlas checks in">
-        <ProactiveSettingsCard />
-      </SettingsSection>
-
-      <SettingsSection
-        id="google"
-        title="Google Calendar"
-        /* Three states, not two. `data ?? null` made a PENDING query read as
-           "not connected", so anyone who was connected opened Settings and was
-           told they were not, until the request came back. Saying nothing is
-           the honest answer while the answer is unknown. */
-        hint={
-          google.isSuccess ? (google.data?.connected ? 'connected' : 'not connected') : undefined
-        }
-      >
-        <GoogleCalendarCard />
-      </SettingsSection>
-
-      {/* Its own section rather than buried under "Your data & account" with
-          the light/dark toggle: a colour scheme is the thing people go looking
-          for, and it was two levels down next to Delete account. */}
-      <SettingsSection id="appearance" title="Appearance" hint="ten colour schemes">
-        <PaletteSettingsCard />
-      </SettingsSection>
-
-      <SettingsSection id="banking" title="Banking" hint="connect an account">
-        <PlaidCard />
-      </SettingsSection>
-
-      <SettingsSection id="data" title="Your data & account" hint="appearance, sign out, export, delete">
-        <DataPrivacyPanel onSignOut={onSignOut} />
-      </SettingsSection>
+      <PageHeader title="Settings" subtitle="Make Atlas fit your life." />
+      <nav className="settings-shortcuts" aria-label="Settings shortcuts">
+        <a className="btn secondary" href="#routine">Edit my week</a>
+        <a className="btn secondary" href="#ai">AI access & usage</a>
+        <a className="btn secondary" href="#data">My data</a>
+      </nav>
+      <div className="settings-groups">
+        <section className="settings-group" aria-labelledby="settings-account-heading">
+          <h2 id="settings-account-heading">Your account</h2>
+          <p className="muted">Personal details, appearance and control of your data.</p>
+          <SettingsSection id="you" title="Your name" hint="how Atlas greets you"><NameSettingsCard /></SettingsSection>
+          <SettingsSection id="appearance" title="Appearance" hint="theme and colour"><PaletteSettingsCard /></SettingsSection>
+          <SettingsSection id="ai" title="Atlas AI" hint="access and usage"><AiSettingsCard /></SettingsSection>
+          <SettingsSection id="data" title="Your data & account" hint="export, sign out or delete"><DataPrivacyPanel onSignOut={onSignOut} /></SettingsSection>
+        </section>
+        <section className="settings-group" aria-labelledby="settings-day-heading">
+          <h2 id="settings-day-heading">Your day</h2>
+          <p className="muted">The routine, preferences and check-ins behind your plan.</p>
+          <SettingsSection id="routine" title="Your week" hint="edit sleep, work and recurring time"><RoutineEditor /></SettingsSection>
+          <SettingsSection id="training" title="Training" hint="weight units"><TrainingSettingsCard /></SettingsSection>
+          <SettingsSection id="trackers" title="Daily check-ins" hint="choose what you track"><TrackerManager /></SettingsSection>
+          <SettingsSection id="proactive" title="Briefs & notifications" hint="when Atlas checks in"><ProactiveSettingsCard /></SettingsSection>
+        </section>
+        <section className="settings-group" aria-labelledby="settings-connections-heading">
+          <h2 id="settings-connections-heading">Connections</h2>
+          <p className="muted">Bring in your calendar and bank activity when you want to.</p>
+          <SettingsSection id="google" title="Google Calendar" hint="connection and calendar selection"><GoogleCalendarCard /></SettingsSection>
+          <SettingsSection id="banking" title="Banking" hint="linked accounts and sync"><PlaidCard /></SettingsSection>
+        </section>
+      </div>
     </>
   );
 }

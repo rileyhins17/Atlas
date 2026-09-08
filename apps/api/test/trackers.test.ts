@@ -71,6 +71,15 @@ function makeService(opts: { timezone?: string } = {}) {
 }
 
 describe('rating a day', () => {
+  it('bounds today’s ratings to one row per returned tracker', async () => {
+    const { service, prisma } = makeService();
+    await service.list('u1');
+    expect(prisma.client.trackerEntry.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      take: 1,
+      where: expect.objectContaining({ userId: 'u1', trackerId: { in: ['t1'] } }),
+    }));
+  });
+
   /**
    * The unique constraint is on (trackerId, dayKey), and this is the write that
    * relies on it: rating a day again has to correct the number, not stack a

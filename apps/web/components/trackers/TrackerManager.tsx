@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { MAX_TRACKERS, TrackerDirection, type TrackerDTO } from '@atlas/shared';
 import { Archive, Plus, X } from 'lucide-react';
-import { Button, Input } from '@/components/ui';
+import { Button, ErrorState, Input, ListSkeleton } from '@/components/ui';
 import { useArchiveTracker, useCreateTracker, useTrackers } from '@/lib/hooks/trackers';
 import { useSubmitLatch } from '@/lib/hooks/submit-latch';
 import { TrackerHint } from './TrackerCheckIn';
@@ -68,9 +68,15 @@ export function TrackerManager() {
     );
   };
 
+  if (trackers.isError) return (
+    <ErrorState message="Your daily ratings could not be loaded." onRetry={() => void trackers.refetch()} />
+  );
+  if (trackers.isPending || trackers.data === undefined) return <ListSkeleton rows={2} circle={false} />;
+
   return (
     <div className="trk-manage-pane">
       <TrackerHint />
+      {rows.length === 0 && !adding && <p className="muted">No daily ratings set up yet. Choose a suggestion or add your own.</p>}
 
       {rows.length > 0 && (
         <ul className="trk-manage-list">
@@ -132,6 +138,7 @@ export function TrackerManager() {
           <Input
             placeholder="What do you want to rate? — Bloating, Focus, Skin…"
             aria-label="Tracker name"
+            disabled={create.isPending}
             value={name}
             maxLength={40}
             onChange={(e) => setName(e.target.value)}
@@ -143,6 +150,7 @@ export function TrackerManager() {
                 key={d.value}
                 type="button"
                 role="radio"
+                disabled={create.isPending}
                 aria-checked={direction === d.value}
                 className={`chip ${direction === d.value ? 'active' : ''}`}
                 onClick={() => setDirection(d.value)}
@@ -155,6 +163,7 @@ export function TrackerManager() {
             <Input
               placeholder="1 means…"
               aria-label="What 1 means"
+              disabled={create.isPending}
               value={lowLabel}
               maxLength={24}
               onChange={(e) => setLowLabel(e.target.value)}
@@ -162,6 +171,7 @@ export function TrackerManager() {
             <Input
               placeholder="10 means…"
               aria-label="What 10 means"
+              disabled={create.isPending}
               value={highLabel}
               maxLength={24}
               onChange={(e) => setHighLabel(e.target.value)}
@@ -171,7 +181,7 @@ export function TrackerManager() {
             <Button type="submit" disabled={!name.trim() || create.isPending}>
               {create.isPending ? 'Adding…' : 'Add tracker'}
             </Button>
-            <Button variant="ghost" type="button" onClick={reset}>
+            <Button variant="ghost" type="button" onClick={reset} disabled={create.isPending}>
               <X size={14} aria-hidden /> Cancel
             </Button>
           </div>

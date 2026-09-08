@@ -5,7 +5,7 @@ import { describeExercise, type ExerciseDTO, type WorkoutTemplateDTO } from '@at
 import { Plus, Search, SlidersHorizontal, X } from 'lucide-react';
 import { useCreateExercise, useExercises, useWorkoutHistory } from '@/lib/hooks/fitness';
 import { pickerSections, recentExerciseIds } from '@/lib/exercise-order';
-import { IconButton, ListSkeleton } from '@/components/ui';
+import { ErrorState, IconButton, ListSkeleton } from '@/components/ui';
 import { NO_EXERCISES } from './helpers';
 import { MuscleFilter, NO_FILTER, type MuscleFilterValue } from './MuscleFilter';
 
@@ -94,7 +94,15 @@ export function ExercisePicker({
 
       {browsing && <MuscleFilter exercises={all} value={filter} onChange={setFilter} />}
 
-      {exercises.isPending ? (
+      {history.isError ? (
+        <ErrorState message="Recent exercises could not be loaded. You can still search the catalog." onRetry={() => void history.refetch()} />
+      ) : history.isPending ? (
+        <p className="prog-muted" role="status">Loading recent exercises…</p>
+      ) : null}
+
+      {exercises.isError ? (
+        <ErrorState message="Exercise catalog could not be loaded." onRetry={() => void exercises.refetch()} />
+      ) : exercises.isPending || exercises.data === undefined ? (
         <ListSkeleton rows={4} circle={false} />
       ) : (
         <div className="fit-picker-list" role="listbox" aria-label="Exercises">

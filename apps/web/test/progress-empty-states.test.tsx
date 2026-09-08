@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 vi.mock('@/lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api')>();
@@ -80,4 +80,33 @@ describe('HabitConsistency empty states', () => {
     expect(await screen.findByText(/Could not load your habits/i)).toBeTruthy();
     expect(screen.queryByText(NO_HABITS)).toBeNull();
   });
+});
+
+
+it('does not invent zero consistency while history is pending', async () => {
+  list.mockResolvedValue([{ id: 'h1', name: 'Gym', target: 1, streak: 1 }]);
+  history.mockImplementation(() => new Promise(() => {}));
+  const { container } = wrap(<HabitConsistency days={30} />);
+  await waitFor(() => expect(list).toHaveBeenCalled());
+  await screen.findByText('Loading habit history…');
+  expect(container.querySelector('.prog-habit-pct')).toBeNull();
+});
+it('retries failed history without presenting a zero and then renders the recovered rate', async () => {
+  list.mockResolvedValue([{ id: 'h1', name: 'Gym', target: 1, streak: 1 }]);
+  history.mockRejectedValueOnce(new Error('offline')).mockResolvedValue([]);
+  const { container } = wrap(<HabitConsistency days={30} />);
+  expect(await screen.findByText('Could not load your habit history.')).toBeTruthy();
+  expect(container.querySelector('.prog-habit-pct')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+  expect(await screen.findByText('Gym')).toBeTruthy();
+  expect(container.querySelector('.prog-habit-pct')?.textContent).toBe('0');
+  expect(history).toHaveBeenCalledTimes(2);
+  expect(list).toHaveBeenCalledTimes(1);
+});
+it('offers recovery when the habit list fails', async () => {
+  list.mockRejectedValueOnce(new Error('offline')).mockResolvedValue([]);
+  wrap(<HabitConsistency days={30} />);
+  await screen.findByText(/Could not load your habits/i);
+  fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+  expect(await screen.findByText(NO_HABITS)).toBeTruthy();
 });

@@ -2,7 +2,7 @@
 
 import { useGenerateWeeklyReview, useInsights } from '@/lib/hooks/ai';
 import { reviewBullets } from '@/lib/progress';
-import { Button } from '@/components/ui';
+import { Button, ListSkeleton, QueryState } from '@/components/ui';
 import { WeeklyDecisions } from '@/components/panels/WeeklyDecisions';
 import { formatDayHeading } from '@/lib/dates';
 import { ProgressCard } from './ProgressCard';
@@ -43,6 +43,7 @@ export function WeeklyReviewCard() {
       {/* The half you can act on comes FIRST. Atlas's prose is the commentary;
           these are the decisions, and a review you only read changes nothing. */}
       <WeeklyDecisions />
+      <QueryState query={insights} errorFallback="Weekly review could not be loaded." skeleton={<ListSkeleton rows={2} circle={false} />}>
       {review ? (
         <ul className="prog-review-list">
           {reviewBullets(review.body).map((line, i) => (
@@ -62,6 +63,7 @@ export function WeeklyReviewCard() {
             ? 'Write a fresh one'
             : 'Write my weekly review'}
       </Button>
+      </QueryState>
     </ProgressCard>
   );
 }
