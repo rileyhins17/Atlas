@@ -2985,3 +2985,52 @@ test('Today connections distinguish pending failed and unsupported patterns in b
     await page.unroute('http://localhost:4000/stats?days=30');
   }
 });
+
+test('history keeps loaded pages and recovers task actions in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    const title = `History action ${theme} ${Date.now()}`;
+    const created = await page.request.post('http://localhost:4000/tasks', { data: { title } });
+    expect(created.status()).toBe(201);
+    const task = await created.json() as { id: string };
+    const row = { id: `history-${task.id}`, type: 'task.created', source: 'tasks', title, summary: null, refType: 'task', refId: task.id, occurredAt: '2026-09-01T12:00:00Z' };
+    let earlierFails = true;
+    await page.route('http://localhost:4000/timeline?*', (route) => {
+      const query = new URL(route.request().url()).searchParams;
+      if (query.get('limit') !== '50') return route.continue();
+      if (query.get('offset') === '50') return earlierFails
+        ? route.fulfill({ status: 503, contentType: 'application/json', body: '{}' })
+        : route.fulfill({ contentType: 'application/json', body: JSON.stringify({ events: [{ ...row, id: `earlier-${task.id}`, title: 'Earlier saved activity', refType: null, refId: null }], hasMore: false }) });
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ events: [row], hasMore: true }) });
+    });
+    await page.route('http://localhost:4000/tasks', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.goto('/looking-back');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    await page.getByRole('button', { name: 'Everything that happened', exact: true }).click();
+    const feed = page.getByRole('region', { name: 'Your story', exact: true });
+    await expect(feed.getByText(title, { exact: true })).toBeVisible();
+    await expect(feed.getByText('Task actions could not be loaded.')).toBeVisible({ timeout: 20_000 });
+    await feed.getByRole('button', { name: 'Show earlier', exact: true }).click();
+    await expect(feed.getByText('Earlier activity could not be loaded.')).toBeVisible({ timeout: 20_000 });
+    await expect(feed.getByText(title, { exact: true })).toBeVisible();
+    let failures = screenFailures(await measureScreen(page, '/looking-back:history-errors', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    earlierFails = false;
+    await feed.getByText('Earlier activity could not be loaded.').locator('..').getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(feed.getByText('Earlier saved activity', { exact: true })).toBeVisible();
+    await page.unroute('http://localhost:4000/tasks');
+    await feed.getByText('Task actions could not be loaded.').locator('..').getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(feed.getByRole('button', { name: `Complete "${title}"`, exact: true })).toBeVisible();
+    failures = screenFailures(await measureScreen(page, '/looking-back:history-recovered', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    const completed = page.waitForResponse((response) => response.url().endsWith(`/tasks/${task.id}/complete`) && response.request().method() === 'POST');
+    await feed.getByRole('button', { name: `Complete "${title}"`, exact: true }).click();
+    expect((await completed).ok()).toBe(true);
+    await expect(feed.getByRole('button', { name: `Complete "${title}"`, exact: true })).toBeHidden();
+    const listed = await page.request.get('http://localhost:4000/tasks');
+    expect(listed.ok()).toBe(true);
+    expect(await listed.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: task.id, status: 'DONE' })]));
+    await page.unroute('http://localhost:4000/timeline?*');
+  }
+});

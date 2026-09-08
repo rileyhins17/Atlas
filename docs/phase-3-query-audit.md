@@ -48,13 +48,13 @@ assertions. No component is marked fully audited from source indicators alone.
 | progress/TrackerTrends.tsx | useTrackerOverview, useTrackerPatterns | tracker-trends-states: overview/pattern pending, failure, empty |
 | progress/WeeklyReviewCard.tsx | useInsights | context-query-states: review pending and failure |
 | stream/ConnectionCard.tsx | useStats | insight-query-states: pending announcement, failed read/Retry, missing history and sufficient history without a pattern; three observed-red cases fixed. Both-theme browser state measurements and error/no-pattern PNGs configured but unverified |
-| stream/Feed.tsx | useTasks | Pending consolidated loading / empty / error and recovery audit |
+| stream/Feed.tsx | useTimeline, useTasks | history-query-recovery: actual infinite query preserves pages on next-page failure and retries offset 50; task-action pending/error recovery preserves history; first-page failure remains distinct from empty. Three observed-red cases fixed. Browser recovery and saved completion configured but unverified |
 | stream/FirstCapture.tsx | useTasks, useEvents | context-query-states; first-capture-handoff; first-use lifecycle |
 | stream/TodayHeader.tsx | useMe | BriefBlock inherits AppShell session states: BootScreen before data, Retry on failed initial read, AuthGate on confirmed signed-out, and a shared refresh error with cached data. Source chain inspected; name-nudge tests cover settled nameless setup and avoiding prompts before success. No separate greeting error is needed; final geometry remains inherited from shell verification |
 | trackers/TrackerCheckIn.tsx | useTrackers | tracker-checkin: real component pending skeleton, failed-read Retry and confirmed-empty setup link. Browser state geometry remains |
 | trackers/TrackerManager.tsx | useTrackers | tracker-setup-states: loading/error exclude starter suggestions, Retry, retained draft, pending-save protection; full and independent browser read/save/reload journey passed CI 34276808982 in both themes |
 
-Current inventory: 37 query-backed hook functions and 46 component files.
+Current inventory: 38 query-backed hook functions and 46 component files.
 WeightPreference and WorkoutSummaryDialog also receive query-derived state through
 props; their coverage is recorded with the calling workout components. The previous Git pathspec omitted root-level
 components; this refresh includes them and removes the obsolete SettingsPanel hook
@@ -73,3 +73,9 @@ GoogleCalendarCard or TaskGoalChip, and do not prove those components' states.
 This ledger is intentionally incomplete evidence. Default-route screenshots do
 not prove modal, editor, pending, failure or empty states. Remaining product
 journeys and Phase 4 are not replaced by this inventory.
+
+Inventory correction: the earlier scanner counted useQuery but omitted
+useInfiniteQuery. Including it finds useTimeline, consumed by Feed inside the
+expandable LookingBackPanel → HistoryPanel surface. The count is 38 hooks in
+46 component files. A search limited to route files would miss this mounted
+component chain; the history feed is not dead code.

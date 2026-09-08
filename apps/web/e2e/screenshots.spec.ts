@@ -388,6 +388,29 @@ test('capture the Life-OS screens', async ({ page }) => {
       await page.unroute('http://localhost:4000/stats?days=30');
     }
   }
+  for (const theme of ['light', 'dark'] as const) {
+    const historyRow = { id: 'synthetic-history', type: 'task.created', source: 'tasks', title: 'Review the weekly plan', summary: null, refType: 'task', refId: 'synthetic-task', occurredAt: '2026-09-01T12:00:00Z' };
+    await page.route('http://localhost:4000/timeline?*', (route) => {
+      const query = new URL(route.request().url()).searchParams;
+      if (query.get('limit') !== '50') return route.continue();
+      return query.get('offset') === '50'
+        ? route.fulfill({ status: 503, contentType: 'application/json', body: '{}' })
+        : route.fulfill({ contentType: 'application/json', body: JSON.stringify({ events: [historyRow], hasMore: true }) });
+    });
+    await page.route('http://localhost:4000/tasks', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.goto('/looking-back'); await page.reload();
+    await page.getByRole('button', { name: 'Everything that happened', exact: true }).click();
+    const feed = page.getByRole('region', { name: 'Your story', exact: true });
+    await expect(feed.getByText('Task actions could not be loaded.')).toBeVisible({ timeout: 20_000 });
+    await feed.getByRole('button', { name: 'Show earlier', exact: true }).click();
+    await expect(feed.getByText('Earlier activity could not be loaded.')).toBeVisible({ timeout: 20_000 });
+    measurements.push(await measureScreen(page, '/looking-back:history-errors', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/history-errors-${theme}.png`, fullPage: true });
+    await page.unroute('http://localhost:4000/timeline?*');
+    await page.unroute('http://localhost:4000/tasks');
+  }
   // Session/config failures use synthetic responses, never another registration.
   for (const theme of ['light', 'dark'] as const) {
     await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
