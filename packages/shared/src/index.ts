@@ -53,3 +53,7 @@ export * from './stats-assemble.js';
 export * from './progress.js';
 export * from './what-changed.js';
 export * from './money.js';
+export * from './local-dates.js';
+export * from './calendar-view.js';
+export * from './canvas.js';
+export * from './event-draft.js';

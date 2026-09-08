@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { EventDTO, RoutineBlockDTO, TaskDTO, TimelineEventDTO } from '@atlas/shared';
-import { buildDayCanvas, buildDayOverview, supposedTo, CANVAS_NOISE_TYPES, type DayCanvas } from '@/lib/canvas';
-import { localDayKey } from '@/lib/dates';
+import type { EventDTO, RoutineBlockDTO, TaskDTO, TimelineEventDTO } from '../src/index.js';
+import { buildDayCanvas, buildDayOverview, supposedTo, CANVAS_NOISE_TYPES, type DayCanvas } from '../src/canvas.js';
+import { localDayKey } from '../src/local-dates.js';
 
 /**
  * The Day Canvas engine is the heart of Atlas v4 — these tests pin its whole

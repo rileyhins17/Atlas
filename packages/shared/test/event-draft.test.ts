@@ -1,8 +1,9 @@
 // Toronto: the app's timezone, and one that observes DST. Set before any Date.
-process.env.TZ = 'America/Toronto';
+vi.stubEnv('TZ', 'America/Toronto');
+afterAll(() => vi.unstubAllEnvs());
 
-import { describe, expect, it } from 'vitest';
-import { blankDraft, draftAtSlot, draftInterval, draftToPayload, type Draft } from '../lib/event-draft';
+import { afterAll, describe, expect, it, vi } from 'vitest';
+import { blankDraft, draftAtSlot, draftInterval, draftToPayload, type Draft } from '../src/event-draft.js';
 
 /**
  * The composer's draft -> API conversion. Extracting this out of CalendarPanel

@@ -59,6 +59,15 @@ changing their assertions. SQL aggregation, query hooks and React rendering
 stay in their application layers. Locale defaults and existing display wording
 are preserved in this architecture pass.
 
+Calendar bucketing, overlap placement, day-canvas assembly, event-draft
+conversion and local-calendar arithmetic live in shared as well. The web
+`lib/dates.ts` adapter retains the display-timezone state and default clock;
+shared formatters take those values as explicit inputs. Web callers still use
+`addDays` through that adapter. Calendar duration formatting remains separate
+from task-duration formatting (`formatCalendarDuration`), preserving both
+existing output contracts. One hundred pure tests moved to shared, including
+the Toronto DST cases; timezone-state and auth-sync tests remain in web.
+
 The shared connector transformations parse chat completions, normalize Plaid
 amounts/account types/currencies, and convert Google Calendar date shapes.
 Connectors retain compatibility exports plus HTTP calls, cancellation options,
