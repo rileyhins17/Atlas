@@ -30,18 +30,18 @@ assertions. No component is marked fully audited from source indicators alone.
 | panels/FitnessPanel.tsx | useActiveWorkout, useWorkoutHistory, useWorkoutTemplates, useWeightUnit, useExercises | Pending consolidated loading / empty / error and recovery audit |
 | panels/GoalsPanel.tsx | useTasks, useGoals | Pending consolidated loading / empty / error and recovery audit |
 | panels/HabitsPanel.tsx | useHabits, useHabitHistory | Pending consolidated loading / empty / error and recovery audit |
-| panels/NameSettingsCard.tsx | useSettings, useMe | settings-read-failures and settings-draft-refresh: read failure/retry and background profile draft retention; save/reload journey pending CI |
+| panels/NameSettingsCard.tsx | useSettings, useMe | settings-read-failures and settings-draft-refresh: read failure/retry and background profile draft retention; real save/GET/reload in both themes passed CI 34270602672 |
 | panels/PlaidCard.tsx | usePlaidStatus | Pending consolidated loading / empty / error and recovery audit |
-| panels/ProactiveSettingsCard.tsx | useSettings | settings-draft-refresh: edited hour retained across unrelated server responses; save/reload journey pending CI; push-state recovery remains |
+| panels/ProactiveSettingsCard.tsx | useSettings | settings-draft-refresh: edited hour retained across unrelated responses; real save/GET/reload passed CI 34270602672; settings-action-recovery proves rejected push read and Retry in unit tests; corrected browser recovery fixture pending |
 | panels/ProgressPanel.tsx | useStats | Pending consolidated loading / empty / error and recovery audit |
 | panels/RoutineEditor.tsx | useRoutine | Pending consolidated loading / empty / error and recovery audit |
 | panels/SettingsPanel.tsx | useGoogleStatus | Pending consolidated loading / empty / error and recovery audit |
 | panels/TasksPanel.tsx | useTasks | Pending consolidated loading / empty / error and recovery audit |
-| panels/TrainingSettingsCard.tsx | useSettings | Pending consolidated loading / empty / error and recovery audit |
+| panels/TrainingSettingsCard.tsx | useSettings | settings-action-recovery: failed unit save displays alert and preserves confirmed selection; browser failure/retry/persistence proof pending corrected CI fixture |
 | panels/WeeklyDecisions.tsx | useSlippedTasks, useGoals, useHabits, useHabitHistory | decision-query-states: per-source pending and retry |
 | panels/WritingPanel.tsx | useJournal, useNotes | Pending consolidated loading / empty / error and recovery audit |
 | progress/HabitConsistency.tsx | useHabits, useHabitHistory | progress-empty-states: list/history pending, failure, empty, retry; CI 34225605840 |
-| progress/MoodPatterns.tsx | useMoodPatterns | mood-pattern-states: observed-red pending, error/retry and empty tests; browser state journey pending CI |
+| progress/MoodPatterns.tsx | useMoodPatterns | mood-pattern-states: observed-red pending, error/retry and empty tests; both-theme browser loading/failure/retry/empty journey passed CI 34268737825 |
 | progress/TrackerTrends.tsx | useTrackerOverview, useTrackerPatterns | tracker-trends-states: overview/pattern pending, failure, empty |
 | progress/WeeklyReviewCard.tsx | useInsights | context-query-states: review pending and failure |
 | stream/ConnectionCard.tsx | useStats | Pending consolidated loading / empty / error and recovery audit |
