@@ -1,5 +1,7 @@
 'use client';
 
+import { workoutRecencyLabel } from '@atlas/shared';
+
 import { useState } from 'react';
 import { type WorkoutSummaryDTO, type WorkoutTemplateDTO } from '@atlas/shared';
 import { Dumbbell, Plus, Sparkles } from 'lucide-react';
@@ -10,9 +12,8 @@ import { SplitSetup } from '@/components/fitness/SplitSetup';
 import { WorkoutSummaryDialog } from '@/components/fitness/WorkoutSummaryDialog';
 import { TrainingProgress } from '@/components/fitness/TrainingProgress';
 import { DayBuilder } from '@/components/fitness/DayBuilder';
-import { Button, Card, ErrorState, Input, ListSkeleton } from '@/components/ui';
+import { Button, Card, ErrorState, Input, ListSkeleton, QueryState } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
-import { dayDiff } from '@/lib/dates';
 import { NO_EXERCISES } from '@/components/fitness/helpers';
 import { ActiveWorkout } from '@/components/fitness/ActiveWorkout';
 import { WorkoutHistory } from '@/components/fitness/WorkoutHistory';
@@ -20,18 +21,8 @@ import { WorkoutHistory } from '@/components/fitness/WorkoutHistory';
 /** Fallback names, used only until the user has saved days of their own. */
 const QUICK_STARTS = ['Push', 'Pull', 'Legs', 'Upper', 'Full body'];
 
-/** "3 days ago" / "today" — how long since a saved day was last trained. */
 function sinceLabel(iso: string | null): string {
-  if (!iso) return 'not done yet';
-  // Calendar days, not elapsed hours. Dividing the gap by 24h called a session
-  // logged at 23:00 last night "today" until 23:00 tonight, because barely a
-  // day had passed — while every calendar on the screen said otherwise.
-  const days = dayDiff(new Date(iso), new Date());
-  if (days <= 0) return 'today';
-  if (days === 1) return 'yesterday';
-  if (days < 7) return `${days} days ago`;
-  if (days < 14) return 'last week';
-  return `${Math.floor(days / 7)} weeks ago`;
+  return workoutRecencyLabel(iso, new Date());
 }
 
 export function FitnessPanel() {
@@ -98,6 +89,7 @@ export function FitnessPanel() {
               untitled blank session, and almost everybody starts the day they
               have left the longest. Naming a workout is now the quiet option at
               the bottom, where the rare thing belongs. */}
+          <QueryState query={templates} errorFallback="Saved workout days could not be loaded." skeleton={<ListSkeleton rows={2} />}>
           {suggested.length > 0 && (
             <div className="fit-quick" role="group" aria-label="Start a saved day">
               {suggested.map((t, i) => (
@@ -151,6 +143,7 @@ export function FitnessPanel() {
             </div>
           )}
 
+          </QueryState>
           <form
             className="fit-blank"
             onSubmit={(e) => {
@@ -201,7 +194,8 @@ export function FitnessPanel() {
         </div>
       )}
 
-      {!workout && (history.data?.length ?? 0) === 0 && !history.isPending && (
+      {!workout && history.isError && <ErrorState message="Workout history could not be loaded." onRetry={() => void history.refetch()} />}
+      {!workout && !history.isError && history.data !== undefined && history.data.length === 0 && !history.isPending && (
         <section className="fit-pitch" aria-label="What Atlas tracks">
           <h2 className="section-title" style={{ marginTop: 20 }}>
             What you get once you log one
@@ -234,7 +228,7 @@ export function FitnessPanel() {
         onClose={() => setSummary(null)}
       />
 
-      {!workout && ((history.data?.length ?? 0) > 0 || history.isPending) && (
+      {!workout && !history.isError && ((history.data?.length ?? 0) > 0 || history.isPending) && (
         <>
           <div className="cal-scope" role="group" aria-label="Training view" style={{ marginTop: 22 }}>
             <button
@@ -258,12 +252,14 @@ export function FitnessPanel() {
           <div style={{ marginTop: 14 }}>
             {tab === 'train' ? (
               <WorkoutHistory />
-            ) : (
+            ) : history.isPending || history.data === undefined ? <ListSkeleton rows={3} /> : (
+              <QueryState query={exercisesQuery} errorFallback="Exercises for training progress could not be loaded." skeleton={<ListSkeleton rows={3} />}>
               <TrainingProgress
                 workouts={history.data ?? []}
                 exercises={exercisesQuery.data ?? NO_EXERCISES}
                 unit={unit}
               />
+              </QueryState>
             )}
           </div>
         </>

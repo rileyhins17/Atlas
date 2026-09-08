@@ -40,6 +40,9 @@ model User {
   passwordHash String
   displayName  String?
   timezone     String   @default("UTC")
+  // Server-controlled eligibility for owner-funded AI. Existing users start ungranted.
+  aiAccessGrantedAt DateTime?
+  aiAccessRevokedAt DateTime?
   // Proactive engine prefs: master switch + local hour (0-23) to fire the daily
   // brief / weekly review, interpreted in `timezone`.
   proactiveEnabled Boolean @default(true)

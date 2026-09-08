@@ -6,21 +6,68 @@ function makeService(opts: {
   habits: Array<{ id: string }>;
   logs: Array<{ habitId: string; loggedAt: Date; value: number }>;
 }) {
-  const habitFindMany = vi.fn().mockResolvedValue(opts.habits);
+  const habitFindMany = vi.fn().mockResolvedValue(opts.habits.map((habit) => ({
+    name: 'Synthetic habit', cadence: 'daily', target: 1, active: true,
+    createdAt: new Date('2026-01-01T00:00:00Z'), ...habit,
+  })));
   const logFindMany = vi.fn().mockResolvedValue(opts.logs);
+  const queryRaw = vi.fn().mockImplementation(async () => {
+    const totals = new Map<string, { habitId: string; day: string; value: number }>();
+    for (const log of opts.logs) {
+      const day = dayKey(log.loggedAt);
+      const key = `${log.habitId}:${day}`;
+      const total = totals.get(key) ?? { habitId: log.habitId, day, value: 0 };
+      total.value += log.value;
+      totals.set(key, total);
+    }
+    return [...totals.values()];
+  });
   const prisma = {
     client: {
       habit: { findMany: habitFindMany },
       habitLog: { findMany: logFindMany },
+      $queryRaw: queryRaw,
     },
   };
   const timeline = { write: vi.fn() };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const service = new HabitsService(prisma as any, timeline as any);
-  return { service, habitFindMany, logFindMany };
+  return { service, habitFindMany, logFindMany, queryRaw };
 }
 
 describe('HabitsService.history', () => {
+  it('uses the same full daily totals for the checklist count and streak', async () => {
+    const { service, logFindMany } = makeService({
+      habits: [{ id: 'h1' }],
+      logs: Array.from({ length: 2001 }, () => ({
+        habitId: 'h1', loggedAt: new Date('2026-07-18T09:00:00Z'), value: 1,
+      })),
+    });
+    vi.setSystemTime(new Date('2026-07-18T12:00:00Z'));
+    try {
+      expect(await service.list('user-1')).toEqual([
+        expect.objectContaining({ id: 'h1', todayCount: 2001, doneToday: true, streak: 1 }),
+      ]);
+      expect(logFindMany).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps every check-in in the total without loading raw history rows', async () => {
+    const { service, logFindMany, queryRaw } = makeService({
+      habits: [{ id: 'h1' }],
+      logs: Array.from({ length: 2001 }, () => ({
+        habitId: 'h1', loggedAt: new Date('2026-07-18T09:00:00Z'), value: 1,
+      })),
+    });
+    expect(await service.history('user-1', 84)).toEqual([
+      { habitId: 'h1', days: [{ day: '2026-07-18', count: 2001 }] },
+    ]);
+    expect(queryRaw).toHaveBeenCalledTimes(1);
+    expect(logFindMany).not.toHaveBeenCalled();
+  });
+
   it('returns day-keyed counts per habit, summing multiple logs on one day', async () => {
     const day = new Date('2026-07-18T09:00:00.000Z');
     const { service } = makeService({
@@ -43,7 +90,7 @@ describe('HabitsService.history', () => {
   });
 
   it('ignores logs for archived habits and scopes queries to the user', async () => {
-    const { service, habitFindMany, logFindMany } = makeService({
+    const { service, habitFindMany, queryRaw } = makeService({
       habits: [{ id: 'h1' }],
       logs: [{ habitId: 'archived', loggedAt: new Date(), value: 1 }],
     });
@@ -52,16 +99,18 @@ describe('HabitsService.history', () => {
     expect(habitFindMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { userId: 'user-1', active: true } }),
     );
-    expect(logFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ userId: 'user-1' }),
-      }),
-    );
+    const sql = queryRaw.mock.calls[0]![0];
+    expect(sql.values).toContain('user-1');
+    expect(sql.values).toContain('h1');
+    expect(sql.values).not.toContain('archived');
+    expect(sql.sql).toContain('"userId" = ?');
+    expect(sql.sql).toContain('"habitId" IN (?)');
   });
 
   it('returns [] without querying logs when there are no habits', async () => {
-    const { service, logFindMany } = makeService({ habits: [], logs: [] });
+    const { service, logFindMany, queryRaw } = makeService({ habits: [], logs: [] });
     expect(await service.history('user-1', 84)).toEqual([]);
     expect(logFindMany).not.toHaveBeenCalled();
+    expect(queryRaw).not.toHaveBeenCalled();
   });
 });

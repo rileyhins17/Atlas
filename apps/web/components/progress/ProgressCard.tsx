@@ -1,3 +1,5 @@
+export { hasNothing } from '@atlas/shared';
+
 /**
  * One titled card in the Progress grid. `wide` spans both columns — used by the
  * cards whose content needs the width (a 52-week heatmap, the weekly review),
@@ -38,9 +40,4 @@ export function ProgressCard({
  */
 export function NothingYet({ children }: { children: React.ReactNode }) {
   return <p className="prog-nothing">{children}</p>;
-}
-
-/** True when a series has no signal at all — every bucket empty. */
-export function hasNothing(points: number[]): boolean {
-  return points.length === 0 || points.every((n) => n === 0);
 }
