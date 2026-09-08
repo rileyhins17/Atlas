@@ -2,7 +2,7 @@
 
 Inspected the Habits screenshots in light and dark from green CI 34274101707.
 Checked and unchecked habits both displayed a tick in a native-looking button.
-The source applied the same undefined `check` class for both states. The
+The source applied the same `check` class for both states; its CSS rules were scoped to `.task`, so they did not style the habit control. The
 control now has a defined 36px target, a plus before the daily target is met,
 and a filled checkmark after it is met. Pending saves disable further taps.
 

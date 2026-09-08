@@ -7,6 +7,10 @@ assertions. No component is marked fully audited from source indicators alone.
 
 | Component | Query-backed hooks | Evidence located / work remaining |
 | --- | --- | --- |
+| AppShell.tsx | useMe | Newly included root-level component; pending state/recovery audit |
+| AuthGate.tsx | useAuthConfig | Newly included root-level component; pending auth configuration state/recovery audit |
+| TaskGoalChip.tsx | useGoals | Newly included root-level component; errors currently render as loading; old copied-expression tests are not component evidence |
+| TaskRow.tsx | useTaskDurations | Newly included root-level component; pending duration-hint state/recovery audit |
 | atlas/AsksPanel.tsx | useAiQuestions | context-query-states: questions pending, failure, empty |
 | atlas/CommandBar.tsx | useSearch | Pending consolidated loading / empty / error and recovery audit |
 | canvas/DayOverviewView.tsx | useRoutine, useTasks, useDayEvents, useDayActuals | Pending consolidated loading / empty / error and recovery audit |
@@ -16,8 +20,8 @@ assertions. No component is marked fully audited from source indicators alone.
 | canvas/TodayView.tsx | useTasks, useEvents, useHabits, useRoutine, useEstablished | Pending consolidated loading / empty / error and recovery audit |
 | connectors/GoogleCalendarCard.tsx | useGoogleStatus | Pending consolidated loading / empty / error and recovery audit |
 | connectors/GoogleCalendarPicker.tsx | useGoogleCalendars | google-calendar-picker plus settings-draft-refresh: selection writes, warnings, draft refresh and empty calendar result; consolidated browser provider-state audit remains |
-| fitness/ActiveWorkout.tsx | useWorkoutHistory, useWeightUnit, useWorkoutTemplates, useExercises | Pending consolidated loading / empty / error and recovery audit |
-| fitness/DayBuilder.tsx | useExercises | Pending consolidated loading / empty / error and recovery audit |
+| fitness/ActiveWorkout.tsx | useWorkoutHistory, useWeightUnit, useWorkoutTemplates, useExercises | active-workout-recovery: pending plans, failed catalog Retry, retained finish notes and unavailable-comparison explanation; weight-preference display audit remains |
+| fitness/DayBuilder.tsx | useExercises | workout-builder-recovery: pending and empty catalog, failed refresh Retry, retained draft and selected exercise ids |
 | fitness/ExerciseBlock.tsx | useSettings, useLastPerformance | exercise-entry-units: delayed units, errors, retained draft |
 | fitness/ExerciseDetail.tsx | useExerciseHistory, useWeightUnit | Pending consolidated loading / empty / error and recovery audit |
 | fitness/ExercisePicker.tsx | useExercises, useWorkoutHistory | exercise-picker-states: catalog/recent-history failures and pending |
@@ -35,7 +39,6 @@ assertions. No component is marked fully audited from source indicators alone.
 | panels/ProactiveSettingsCard.tsx | useSettings | settings-draft-refresh: edited hour retained across unrelated responses; real save/GET/reload passed CI 34270602672; settings-action-recovery proves rejected push read and Retry in unit tests; corrected browser recovery passed full and independent runs 34273730781 in both themes |
 | panels/ProgressPanel.tsx | useStats | Pending consolidated loading / empty / error and recovery audit |
 | panels/RoutineEditor.tsx | useRoutine | Pending consolidated loading / empty / error and recovery audit |
-| panels/SettingsPanel.tsx | useGoogleStatus | Pending consolidated loading / empty / error and recovery audit |
 | panels/TasksPanel.tsx | useTasks | Pending consolidated loading / empty / error and recovery audit |
 | panels/TrainingSettingsCard.tsx | useSettings | settings-action-recovery: failed unit save displays alert and preserves confirmed selection; browser failure/retry/persistence passed full and independent runs 34273730781 in both themes |
 | panels/WeeklyDecisions.tsx | useSlippedTasks, useGoals, useHabits, useHabitHistory | decision-query-states: per-source pending and retry |
@@ -49,15 +52,19 @@ assertions. No component is marked fully audited from source indicators alone.
 | stream/FirstCapture.tsx | useTasks, useEvents | context-query-states; first-capture-handoff; first-use lifecycle |
 | stream/TodayHeader.tsx | useMe | Pending consolidated loading / empty / error and recovery audit |
 | trackers/TrackerCheckIn.tsx | useTrackers | Pending consolidated loading / empty / error and recovery audit |
-| trackers/TrackerManager.tsx | useTrackers | Pending consolidated loading / empty / error and recovery audit |
+| trackers/TrackerManager.tsx | useTrackers | tracker-setup-states: loading/error exclude starter suggestions, Retry, retained draft, pending-save protection; browser read/save/reload journey pending CI |
 
-Current inventory: 43 component files. Optional routine onboarding no
+Current inventory: 46 component files. The previous Git pathspec omitted root-level
+components; this refresh includes them and removes the obsolete SettingsPanel hook
+row. This inventory remains a discovery aid, not exhaustive proof for aliased or
+indirect query usage. Optional routine onboarding no
 longer issues connection-status queries; connections remain query-backed in Settings.
 
-Next high-impact gaps observed in source: ActiveWorkout derives template blocks
-from unavailable template/catalog data and record summaries from unavailable
-history; DayBuilder has no catalog recovery gate. These require preserving
-draft/session state and avoiding false absence or personal-record claims.
+Next high-impact gaps observed in source: CommandBar consumes search results
+without loading/error/empty feedback; TaskGoalChip labels a failed goal read as
+loading; read-only workout displays use a default weight unit before preferences
+arrive. The old pending-is-not-an-answer tests render copied expressions, not
+GoogleCalendarCard or TaskGoalChip, and do not prove those components' states.
 
 This ledger is intentionally incomplete evidence. Default-route screenshots do
 not prove modal, editor, pending, failure or empty states. Remaining product

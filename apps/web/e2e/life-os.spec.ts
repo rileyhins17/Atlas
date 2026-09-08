@@ -2537,3 +2537,55 @@ test('habit check-ins keep partial progress honest and recover failed saves in b
     expect(failures, failures.join('\n')).toEqual([]);
   }
 });
+
+
+test('tracker setup recovers reads and saves without losing drafts in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    await page.goto('/settings');
+    await page.evaluate((value) => {
+      localStorage.setItem('atlas-theme', value);
+      localStorage.setItem('atlas-settings-trackers', '1');
+    }, theme);
+    await page.route('http://localhost:4000/trackers', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.reload();
+    const section = page.locator('#trackers-body');
+    await expect(section.getByText('Your daily ratings could not be loaded.')).toBeVisible({ timeout: 20_000 });
+    await expect(section.getByRole('button', { name: 'Energy', exact: true })).toHaveCount(0);
+    await expect(section.getByRole('button', { name: 'Track something else' })).toHaveCount(0);
+    await page.unroute('http://localhost:4000/trackers');
+    await section.getByRole('button', { name: 'Retry', exact: true }).click();
+    await section.getByRole('button', { name: 'Track something else' }).click();
+    const name = `Focus ${theme} ${Date.now()}`;
+    const input = section.getByRole('textbox', { name: 'Tracker name' });
+    await input.click(); await input.pressSequentially(name);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    await page.route('http://localhost:4000/trackers', async (route) => {
+      if (route.request().method() !== 'POST') return route.continue();
+      await held;
+      await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'Synthetic tracker save failure' }) });
+    });
+    try {
+      await section.getByRole('button', { name: 'Add tracker', exact: true }).click();
+      await expect(input).toBeDisabled();
+      await expect(section.getByRole('button', { name: 'Cancel', exact: true })).toBeDisabled();
+    } finally { release(); }
+    await expect(input).toBeEnabled();
+    await expect(input).toHaveValue(name);
+    await page.unroute('http://localhost:4000/trackers');
+    const saved = page.waitForResponse((response) => response.url().endsWith('/trackers') && response.request().method() === 'POST');
+    await section.getByRole('button', { name: 'Add tracker', exact: true }).click();
+    const response = await saved;
+    expect(response.status()).toBe(201);
+    const tracker = await response.json() as { id: string };
+    await expect(section.locator('.trk-manage-row').filter({ hasText: name })).toBeVisible();
+    await page.reload();
+    await expect(section.locator('.trk-manage-row').filter({ hasText: name })).toBeVisible();
+    const listed = await page.request.get('http://localhost:4000/trackers');
+    expect(listed.ok()).toBe(true);
+    expect(await listed.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: tracker.id, name })]));
+    const failures = screenFailures(await measureScreen(page, '/settings:tracker-setup', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+  }
+});
