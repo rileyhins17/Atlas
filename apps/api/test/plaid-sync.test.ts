@@ -36,6 +36,29 @@ function makeService() {
 
 const oneItem = [{ label: 'item-1', meta: { institution: 'Bank', cursor: 'c0' }, createdAt: new Date() }];
 
+describe('disconnecting linked banks', () => {
+  it('removes the exact requested credentials in one database call, including a failed remote revocation', async () => {
+    const { service, connector, credential } = makeService();
+    credential.findMany.mockResolvedValue([
+      { label: 'item-1', meta: {} }, { label: 'item-2', meta: {} }, { label: 'item-3', meta: {} },
+    ]);
+    connector.removeItem.mockRejectedValueOnce(new Error('synthetic remote failure'));
+    await service.disconnect('user-1');
+    expect(connector.removeItem).toHaveBeenCalledTimes(3);
+    expect(credential.deleteMany).toHaveBeenCalledTimes(1);
+    expect(credential.deleteMany).toHaveBeenCalledWith({ where: {
+      userId: 'user-1', connector: 'plaid', label: { in: ['item-1', 'item-2', 'item-3'] },
+    } });
+  });
+
+  it('does not issue an empty or broad deletion when nothing is linked', async () => {
+    const { service, credential } = makeService();
+    credential.findMany.mockResolvedValue([]);
+    await service.disconnect('user-1');
+    expect(credential.deleteMany).not.toHaveBeenCalled();
+  });
+});
+
 function accountsResult() {
   return {
     accounts: [
