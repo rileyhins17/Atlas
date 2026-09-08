@@ -70,9 +70,10 @@ function QuickAdd({ groupKey, groupLabel }: { groupKey: string; groupLabel: stri
         placeholder={`New task in ${groupLabel.toLowerCase()}…`}
         aria-label={`New task in ${groupLabel}`}
         value={title}
-        onChange={(e) => setTitle(e.target.value)}
+        readOnly={create.isPending}
+        onChange={(e) => { create.reset(); setTitle(e.target.value); }}
         onKeyDown={(e) => {
-          if (e.key === 'Escape') setOpen(false);
+          if (e.key === 'Escape' && !create.isPending) setOpen(false);
         }}
       />
       <div className="quick-add-row">
@@ -82,6 +83,7 @@ function QuickAdd({ groupKey, groupLabel }: { groupKey: string; groupLabel: stri
               key={p}
               type="button"
               className={`quick-prio-chip ${priority === p ? 'on' : ''} p-${p.toLowerCase()}`}
+              disabled={create.isPending}
               aria-pressed={priority === p}
               onClick={() => setPriority(p)}
             >
@@ -92,11 +94,13 @@ function QuickAdd({ groupKey, groupLabel }: { groupKey: string; groupLabel: stri
         <Button type="submit" disabled={!title.trim() || create.isPending}>
           Add task
         </Button>
-        <Button type="button" variant="ghost" onClick={() => setOpen(false)} aria-label="Cancel">
+        <Button type="button" variant="ghost" disabled={create.isPending} onClick={() => setOpen(false)} aria-label="Cancel">
           <X size={14} aria-hidden />
         </Button>
       </div>
-      <RecurrencePicker value={repeat} onChange={setRepeat} />
+      <RecurrencePicker value={repeat} onChange={setRepeat} disabled={create.isPending} />
+      {create.isPending && <p className="task-create-status muted" role="status">Saving task…</p>}
+      {create.isError && <p className="task-create-status error" role="alert">Task was not confirmed. Your draft is kept.</p>}
     </form>
   );
 }
@@ -159,18 +163,22 @@ export function TasksPanel() {
         }
       />
 
-      <form className="row" onSubmit={addTask}>
-        <Input
-          placeholder="Add a task…"
-          aria-label="New task title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-        <Button type="submit" disabled={!title.trim() || create.isPending}>
-          Add
-        </Button>
+      <form className="task-create-form" onSubmit={addTask}>
+        <div className="row">
+          <Input
+            placeholder="Add a task…"
+            aria-label="New task title"
+            value={title}
+            readOnly={create.isPending}
+            onChange={(e) => { create.reset(); setTitle(e.target.value); }}
+          />
+          <Button type="submit" disabled={!title.trim() || create.isPending}>
+            Add
+          </Button>
+        </div>
+        {create.isPending && <p className="task-create-status muted" role="status">Saving task…</p>}
+        {create.isError && <p className="task-create-status error" role="alert">Task was not confirmed. Your draft is kept.</p>}
       </form>
-      {create.error && <div className="error">{errorMessage(create.error, 'Failed to add task')}</div>}
 
       <div className="task-controls">
         <div className="filter-chips" role="group" aria-label="Filter tasks">

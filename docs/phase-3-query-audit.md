@@ -83,3 +83,9 @@ Timing ownership correction: TaskRow is rendered only by TasksPanel. Moving the
 query there leaves 38 query-backed hooks but reduces direct query-owning
 component files from 46 to 45. TaskRow remains in the prop-derived state audit;
 its removal from the direct-query inventory is not removal of its UI coverage.
+
+Task creation follow-up: TasksPanel and its dated QuickAdd now protect submitted
+drafts during writes and expose persistent retryable failures. Four actual-hook
+regressions failed first; browser pending/failure/retry and persistence checks
+are configured in life-os.spec.ts but remain unverified. See
+[task creation](phase-3-task-creation.md).

@@ -3035,6 +3035,59 @@ test('history keeps loaded pages and recovers task actions in both themes', asyn
   }
 });
 
+test('task creation protects pending drafts and retries failures in both themes', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    for (const quick of [false, true]) {
+      await page.goto('/tasks');
+      await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+      await page.reload();
+      if (quick) await page.getByRole('button', { name: 'Add to today', exact: true }).click();
+      const input = page.getByRole('textbox', { name: quick ? 'New task in Today' : 'New task title', exact: true });
+      const form = input.locator('xpath=ancestor::form');
+      const draft = `Retained ${quick ? 'dated' : 'main'} task ${theme} ${Date.now()}`;
+      await input.click(); await input.pressSequentially(draft);
+      if (quick) await form.getByRole('button', { name: 'High', exact: true }).click();
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => { release = resolve; });
+      await page.route('http://localhost:4000/tasks', async (route) => {
+        if (route.request().method() !== 'POST') return route.continue();
+        await held;
+        return route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+      });
+      try {
+        await form.getByRole('button', { name: quick ? 'Add task' : 'Add', exact: true }).click();
+        await expect(input).toHaveAttribute('readonly', '');
+        await expect(form.getByRole('status')).toHaveText('Saving task…');
+        await input.pressSequentially(' must not replace the draft');
+        await expect(input).toHaveValue(draft);
+        if (quick) {
+          await expect(form.getByRole('button', { name: 'High', exact: true })).toBeDisabled();
+          await expect(form.getByRole('button', { name: 'Daily', exact: true })).toBeDisabled();
+          await expect(form.getByRole('button', { name: 'Cancel', exact: true })).toBeDisabled();
+          await input.press('Escape');
+          await expect(input).toBeVisible();
+        }
+      } finally { release(); }
+      await expect(form.getByRole('alert')).toHaveText('Task was not confirmed. Your draft is kept.');
+      await expect(input).toHaveValue(draft);
+      const failures = screenFailures(await measureScreen(page, `/tasks:${quick ? 'dated' : 'main'}-creation-error`, theme));
+      expect(failures, failures.join('\n')).toEqual([]);
+      await page.unroute('http://localhost:4000/tasks');
+      const saved = page.waitForResponse((response) => response.url().endsWith('/tasks') && response.request().method() === 'POST');
+      await form.getByRole('button', { name: quick ? 'Add task' : 'Add', exact: true }).click();
+      const response = await saved;
+      expect(response.status()).toBe(201);
+      const task = await response.json() as { id: string };
+      await page.reload();
+      const listed = await page.request.get('http://localhost:4000/tasks');
+      expect(listed.ok()).toBe(true);
+      expect(await listed.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: task.id, title: draft, priority: quick ? 'HIGH' : 'MEDIUM' })]));
+    }
+  }
+});
+
 test('task timing recovers once per list without losing the task draft in both themes', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   for (const theme of ['light', 'dark'] as const) {

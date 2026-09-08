@@ -6441,3 +6441,6 @@ label:has(> input[type='checkbox']) {
 
 .task-timing-state { margin-top: 12px; font-size: 14px; line-height: 1.5; }
 .task-timing-state > p { margin: 0; }
+
+.task-create-form { min-width: 0; }
+.task-create-status { margin: 8px 0 0; font-size: 14px; line-height: 1.5; }
