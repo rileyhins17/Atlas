@@ -28,16 +28,16 @@ assertions. No component is marked fully audited from source indicators alone.
 | panels/CalendarPanel.tsx | useEventsRange | Pending consolidated loading / empty / error and recovery audit |
 | panels/FinancePanel.tsx | useAccounts, useTransactions | Pending consolidated loading / empty / error and recovery audit |
 | panels/FitnessPanel.tsx | useActiveWorkout, useWorkoutHistory, useWorkoutTemplates, useWeightUnit, useExercises | Pending consolidated loading / empty / error and recovery audit |
-| panels/GoalsPanel.tsx | useTasks, useGoals | domain-query-states: expanded tasks pending/error/retry do not show false empty; browser saved-step and retained-draft recovery pending |
-| panels/HabitsPanel.tsx | useHabits, useHabitHistory | domain-query-states: history pending/error/retry preserve check-in controls and hide false blank grids; history request covers displayed 26 weeks; browser recovery pending |
+| panels/GoalsPanel.tsx | useTasks, useGoals | domain-query-states: expanded tasks pending/error/retry do not show false empty; real saved-step and retained-draft recovery passed full and independent browser runs 34274101707 in both themes |
+| panels/HabitsPanel.tsx | useHabits, useHabitHistory | domain-query-states: history pending/error/retry preserve check-in controls and hide false blank grids; history request covers displayed 26 weeks; browser recovery passed full and independent runs 34274101707 in both themes |
 | panels/NameSettingsCard.tsx | useSettings, useMe | settings-read-failures and settings-draft-refresh: read failure/retry and background profile draft retention; real save/GET/reload in both themes passed CI 34270602672 |
 | panels/PlaidCard.tsx | usePlaidStatus | Pending consolidated loading / empty / error and recovery audit |
-| panels/ProactiveSettingsCard.tsx | useSettings | settings-draft-refresh: edited hour retained across unrelated responses; real save/GET/reload passed CI 34270602672; settings-action-recovery proves rejected push read and Retry in unit tests; corrected browser recovery fixture pending |
+| panels/ProactiveSettingsCard.tsx | useSettings | settings-draft-refresh: edited hour retained across unrelated responses; real save/GET/reload passed CI 34270602672; settings-action-recovery proves rejected push read and Retry in unit tests; corrected browser recovery passed full and independent runs 34273730781 in both themes |
 | panels/ProgressPanel.tsx | useStats | Pending consolidated loading / empty / error and recovery audit |
 | panels/RoutineEditor.tsx | useRoutine | Pending consolidated loading / empty / error and recovery audit |
 | panels/SettingsPanel.tsx | useGoogleStatus | Pending consolidated loading / empty / error and recovery audit |
 | panels/TasksPanel.tsx | useTasks | Pending consolidated loading / empty / error and recovery audit |
-| panels/TrainingSettingsCard.tsx | useSettings | settings-action-recovery: failed unit save displays alert and preserves confirmed selection; browser failure/retry/persistence proof pending corrected CI fixture |
+| panels/TrainingSettingsCard.tsx | useSettings | settings-action-recovery: failed unit save displays alert and preserves confirmed selection; browser failure/retry/persistence passed full and independent runs 34273730781 in both themes |
 | panels/WeeklyDecisions.tsx | useSlippedTasks, useGoals, useHabits, useHabitHistory | decision-query-states: per-source pending and retry |
 | panels/WritingPanel.tsx | useJournal, useNotes | Pending consolidated loading / empty / error and recovery audit |
 | progress/HabitConsistency.tsx | useHabits, useHabitHistory | progress-empty-states: list/history pending, failure, empty, retry; CI 34225605840 |

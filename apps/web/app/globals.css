@@ -2933,9 +2933,8 @@ input[type='checkbox']:checked::after {
 .nownext-title { margin: 0; font-size: 27px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
 .nownext-title.nownext-open { color: var(--text-muted); }
 .nownext-sub { font-size: 14.5px; color: var(--text-muted); }
-/* "Running late" — one tap to push the rest of today. Sits under the now-line
-   because that is the moment it is needed. Pills rather than the standard
-   Button so three of them fit on a phone without wrapping the now-block. */
+/* Schedule adjustments follow the checklist and missed commitments. Keep the
+   control available without consuming the daily orientation card. */
 .runlate {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
   width: 100%; margin-top: 12px;

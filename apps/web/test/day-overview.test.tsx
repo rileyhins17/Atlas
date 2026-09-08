@@ -14,8 +14,8 @@ vi.mock('@/lib/hooks/timeline', () => ({ useDayActuals: () => state.actuals }));
 vi.mock('@/lib/hooks/plan', () => ({ usePlanDay: () => ({ mutate: vi.fn() }), useAcceptProposal: () => ({ mutate: vi.fn() }) }));
 vi.mock('@/components/canvas/MoodCheckIn', () => ({ MoodCheckIn: () => null }));
 vi.mock('@/components/trackers/TrackerCheckIn', () => ({ TrackerCheckIn: () => null }));
-vi.mock('@/components/canvas/SlippedTasks', () => ({ SlippedTasks: () => null }));
-vi.mock('@/components/canvas/RunningLate', () => ({ RunningLate: () => null }));
+vi.mock('@/components/canvas/SlippedTasks', () => ({ SlippedTasks: () => <section aria-label="Missed commitments">Review missed work</section> }));
+vi.mock('@/components/canvas/RunningLate', () => ({ RunningLate: () => <div role="group" aria-label="Running late">Adjust schedule</div> }));
 vi.mock('@/components/canvas/TodayChecklist', () => ({ TodayChecklist: () => <p>Your checklist</p> }));
 import { DayOverviewView } from '@/components/canvas/DayOverviewView';
 import { startOfDay, addDays } from '@/lib/dates';
@@ -60,4 +60,23 @@ describe('the day overview', () => {
     render(<DayOverviewView dayStart={addDays(startOfDay(new Date()), 1)} />);
     expect(screen.getByRole('button', { name: 'Full day, hour by hour' }).getAttribute('aria-expanded')).toBe('true');
   });
+});
+
+it('puts the checklist before missed commitments and free-time planning', () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-09-08T12:00:00'));
+  try {
+    render(<DayOverviewView dayStart={startOfDay(new Date())} />);
+    const checklist = screen.getByRole('region', { name: 'Checklist' });
+    for (const name of ['Missed commitments', 'Free time']) {
+      expect(checklist.compareDocumentPosition(screen.getByRole('region', { name })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+  } finally { vi.useRealTimers(); }
+});
+
+it('keeps schedule adjustments available after the checklist rather than in the now card', () => {
+  render(<DayOverviewView dayStart={startOfDay(new Date())} />);
+  const adjustments = screen.getByRole('group', { name: 'Running late' });
+  expect(screen.getByRole('region', { name: 'Right now' }).contains(adjustments)).toBe(false);
+  expect(screen.getByRole('region', { name: 'Checklist' }).compareDocumentPosition(adjustments) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });

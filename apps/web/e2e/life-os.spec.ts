@@ -2068,20 +2068,37 @@ test('day planning works without AI and accepted blocks retain their task link',
 
 
 test('Today keeps actions first and recovers from unavailable day data', async ({ page }) => {
+  const marker = Date.now();
   const seeded = await page.request.post('http://localhost:4000/tasks', { data: {
-    title: `Overview baseline ${Date.now()}`,
+    title: `Overview baseline ${marker}`,
   } });
   expect(seeded.ok()).toBe(true);
+  const habit = await page.request.post('http://localhost:4000/habits', { data: {
+    name: `Visible daily action ${marker}`, target: 1,
+  } });
+  expect(habit.status()).toBe(201);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/today');
-  await expect(page.getByLabel('Capture anything')).toBeVisible();
   const fullDay = page.getByRole('button', { name: 'Full day, hour by hour' });
-  await expect(fullDay).toHaveAttribute('aria-expanded', 'false');
   const checklist = page.getByRole('region', { name: 'Checklist' });
-  await expect(checklist).toBeVisible();
-  const checklistBox = await checklist.boundingBox();
-  const timelineBox = await fullDay.boundingBox();
-  expect(checklistBox!.y).toBeLessThan(timelineBox!.y);
+  for (const theme of ['light', 'dark'] as const) {
+    await page.goto('/today');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    await expect(page.getByLabel('Capture anything')).toBeVisible();
+    await expect(fullDay).toHaveAttribute('aria-expanded', 'false');
+    await expect(checklist).toBeVisible();
+    const firstAction = checklist.getByRole('button').first();
+    await expect(firstAction).toBeVisible();
+    const actionBox = await firstAction.boundingBox();
+    const captureBox = await page.getByRole('region', { name: 'Quick capture' }).boundingBox();
+    expect(actionBox!.y).toBeGreaterThanOrEqual(0);
+    expect(actionBox!.y + actionBox!.height, 'the first daily action is above the fixed capture dock without scrolling').toBeLessThan(captureBox!.y);
+    const checklistBox = await checklist.boundingBox();
+    const adjustments = await page.getByRole('group', { name: 'Running late' }).boundingBox();
+    expect(checklistBox!.y).toBeLessThan(adjustments!.y);
+    const failures = screenFailures(await measureScreen(page, '/today:action-priority', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+  }
   await fullDay.click();
   await expect(fullDay).toHaveAttribute('aria-expanded', 'true');
   await page.getByRole('button', { name: 'Next day', exact: true }).click();

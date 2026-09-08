@@ -101,10 +101,19 @@ export function DayOverviewView({
 
       {/* Today only: "push the rest of the day" has nothing to push from on a
           date that has already happened or has not started. */}
-      {isToday && <NowNext overview={overview} now={now} action={<RunningLate />} />}
+      {isToday && <NowNext overview={overview} now={now} />}
+
+      {isToday && (
+        <section className="ov-block" aria-label="Checklist">
+          <h2 className="ov-head">Checklist</h2>
+          <TodayChecklist checklist={overview.checklist} />
+        </section>
+      )}
 
       {/* Surface unfinished commitments before proposing more work. */}
       {isToday && <SlippedTasks />}
+
+      {isToday && <RunningLate />}
 
       {isToday && (
         <FreeTime
@@ -176,13 +185,6 @@ export function DayOverviewView({
         </section>
       )}
 
-      {isToday && (
-        <section className="ov-block" aria-label="Checklist">
-          <h2 className="ov-head">Checklist</h2>
-          <TodayChecklist checklist={overview.checklist} />
-        </section>
-      )}
-
       <section className="ov-block" aria-label={isToday ? 'Coming up' : 'Planned'}>
         <h2 className="ov-head">
           {isToday ? 'Coming up' : 'Planned'}
@@ -210,7 +212,7 @@ export function DayOverviewView({
         )}
       </section>
 
-      {/* Today starts with decisions and capacity; other days start with their
+      {/* Today starts with the current context and checklist; other days start with their
           schedule. The complete timeline remains available without leaving. */}
       <section className="ov-block" aria-label="Full day">
         <button
