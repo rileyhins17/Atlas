@@ -1,3 +1,4 @@
+import { readCollection } from '../../core/collection-pages.js';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type {
   CreateExerciseInput,
@@ -33,6 +34,8 @@ import {
 import type { Exercise, Prisma } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
+import { UserTimezoneService } from '../../core/user-timezone.service.js';
+import { dayKeyInTz } from '../ai/time.util.js';
 import { EXERCISE_CATALOG } from './exercise-catalog.js';
 
 
@@ -136,6 +139,7 @@ export class FitnessService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly timeline: TimelineService,
+    private readonly timezones: UserTimezoneService,
   ) {}
 
   // ── Exercises ─────────────────────────────────────────────────────────────
@@ -150,10 +154,12 @@ export class FitnessService {
    * name check has to be explicit.
    */
   async seedCatalog(): Promise<number> {
-    const existing = await this.prisma.client.exercise.findMany({
+    const existing = await readCollection((page) => this.prisma.client.exercise.findMany({
+      take: page.take, cursor: page.cursor, skip: page.skip,
+      orderBy: { id: 'asc' },
       where: { userId: null },
       select: { id: true, name: true, target: true, equipment: true },
-    });
+    }));
     const byName = new Map(existing.map((e) => [e.name, e]));
 
     const missing = EXERCISE_CATALOG.filter((e) => !byName.has(e.name));
@@ -187,10 +193,11 @@ export class FitnessService {
 
   /** The shared catalog plus this user's own additions, alphabetical. */
   async listExercises(userId: string): Promise<ExerciseDTO[]> {
-    const rows = await this.prisma.client.exercise.findMany({
+    const rows = await readCollection((page) => this.prisma.client.exercise.findMany({
+      take: page.take, cursor: page.cursor, skip: page.skip,
       where: { OR: [{ userId: null }, { userId }] },
-      orderBy: { name: 'asc' },
-    });
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    }));
     return rows.map(toExerciseDto);
   }
 
@@ -520,12 +527,13 @@ export class FitnessService {
     ]);
     if (!open && recent.length === 0) return 'No workouts logged.';
 
-    const lines: string[] = [];
+    const tz = await this.timezones.get(userId);
+    const lines: string[] = [`Workout dates in ${tz}:`];
     if (open) {
-      lines.push(`In progress: ${open.title} (${open.workingSets} sets so far).`);
+      lines.push(`In progress: [${open.id}] ${open.title} (${open.workingSets} sets so far).`);
     }
     for (const w of recent) {
-      const when = w.startedAt.slice(0, 10);
+      const when = dayKeyInTz(new Date(w.startedAt), tz);
       const top = groupSetsByExercise(w.sets)
         .slice(0, 3)
         .map((g) => {
@@ -533,7 +541,7 @@ export class FitnessService {
           return best ? `${g.exerciseName} ${describeSet(best, g.kind)}` : g.exerciseName;
         })
         .join(', ');
-      lines.push(`- ${when}: ${w.title} — ${gramsToKg(w.volumeGrams)} kg volume${top ? ` (${top})` : ''}`);
+      lines.push(`- [${w.id}] ${when}: ${w.title} — ${gramsToKg(w.volumeGrams)} kg volume${top ? ` (${top})` : ''}`);
     }
     return lines.join('\n');
   }
