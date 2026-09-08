@@ -186,8 +186,20 @@ jobs:
       - name: Install Playwright browser
         run: pnpm --filter @atlas/web exec playwright install --with-deps chromium
 
+      - name: Verify embedding batches against pgvector
+        run: node .github/scripts/check-embedding-batch.mjs
+
+      - name: Verify Plaid batches against Postgres
+        run: node .github/scripts/check-plaid-batches.mjs
+
       - name: Run e2e
         run: pnpm --filter @atlas/web test:e2e
+
+      - name: Verify habit aggregate regression independently
+        run: pnpm --filter @atlas/web exec playwright test e2e/life-os.spec.ts --grep "habit history preserves summed check-ins"
+
+      - name: Verify collection pagination independently
+        run: pnpm --filter @atlas/web exec playwright test e2e/life-os.spec.ts --grep "exercise collections retain the final page"
 
       - name: Upload Playwright report on failure
         if: failure()

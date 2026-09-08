@@ -9,9 +9,25 @@ The active refactor's expanded objective is recorded in
 [`docs/REFACTOR-GOAL.md`](./docs/REFACTOR-GOAL.md): rethink the product and implement
 it end to end, while retaining the safety and verification gates.
 
+## Active refactor update — 7 September 2026
+
+Phase 0's synthetic restore path is verified in CI in PR #3. Phase 1's focused
+PRs #4–#11 are also individually green. The combined branch
+`codex/phase-1-correctness-gate` assembles them and adds the timer mutation
+regressions and repository-wide list-bound contract. Its local gates passed
+(build 6/6, forced typecheck 10/10, lint 0 errors and 3 existing warnings,
+1,367 unit tests, plus 15 Python restore tests). Combined CI is still pending;
+architecture work must wait for that PR and green CI. See
+[`docs/phase-1-validation.md`](./docs/phase-1-validation.md) for tested commits,
+observed runs, audit scope and current verification.
+
+The historical status and measurements below are retained for context. They
+are not fresh observations of the live origin or production database. The
+private production dump remains off limits to agents and CI.
+
 ---
 
-## State at handoff
+## Historical state at the original handoff
 
 Green on `main` at `8de8e20`:
 
