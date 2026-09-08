@@ -27,6 +27,7 @@ export function ProactiveSettingsCard() {
   const [pushState, setPushState] = useState<PushState | null>(null);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState(false);
+  const [pushActionError, setPushActionError] = useState(false);
   const pushRead = useRef(0);
   const readPushState = useCallback(async () => {
     const request = ++pushRead.current;
@@ -47,7 +48,9 @@ export function ProactiveSettingsCard() {
   }, [readPushState, cancelPushRead]);
 
   async function togglePush() {
+    if (pushBusy) return;
     setPushBusy(true);
+    setPushActionError(false);
     try {
       const next = pushState === 'enabled' ? await disablePush() : await enablePush();
       setPushState(next);
@@ -56,6 +59,7 @@ export function ProactiveSettingsCard() {
       else if (next === 'denied') toast('Notifications are blocked in your browser', 'error');
       else if (next === 'unconfigured') toast('Push is not configured on this server', 'error');
     } catch {
+      setPushActionError(true);
       toast('Could not change notifications', 'error');
     } finally {
       setPushBusy(false);
@@ -171,6 +175,7 @@ export function ProactiveSettingsCard() {
                 </Button>
               </div>
             )}
+            {pushActionError && <p className="error" role="alert">Notification change was not confirmed. Try again.</p>}
           </div>
         </>
       )}

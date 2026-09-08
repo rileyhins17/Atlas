@@ -9,6 +9,7 @@ vi.mock('@/lib/push', () => ({ currentPushState: state.readPush, enablePush: vi.
 vi.mock('@/components/ui', async (original) => ({ ...await original<typeof import('@/components/ui')>(), useToast: () => ({ toast: vi.fn() }) }));
 import { ProactiveSettingsCard } from '@/components/panels/ProactiveSettingsCard';
 import { TrainingSettingsCard } from '@/components/panels/TrainingSettingsCard';
+import { disablePush } from '@/lib/push';
 beforeEach(() => { state.readPush.mockReset(); state.error = null; });
 it('offers notification-status retry instead of leaving an unusable button', async () => {
   state.readPush.mockRejectedValueOnce(new Error('Synthetic service worker failure')).mockResolvedValue('disabled');
@@ -23,4 +24,15 @@ it('explains a failed weight preference save while keeping the saved unit select
   render(<TrainingSettingsCard />);
   expect(screen.getByRole('alert').textContent).toContain('Could not save weight preference. Try your selection again.');
   expect(screen.getByRole('button', { name: 'Kilograms (kg)' })).toHaveAttribute('aria-pressed', 'true');
+});
+
+it('keeps notification-change failure visible and offers the same action again', async () => {
+  state.readPush.mockResolvedValue('enabled');
+  vi.mocked(disablePush).mockReset().mockRejectedValueOnce(new Error('Synthetic removal failure')).mockResolvedValue('disabled');
+  render(<ProactiveSettingsCard />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Disable notifications' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Notification change was not confirmed. Try again.');
+  fireEvent.click(screen.getByRole('button', { name: 'Disable notifications' }));
+  expect(await screen.findByRole('button', { name: 'Enable notifications' })).toBeEnabled();
+  expect(screen.queryByRole('alert')).toBeNull();
 });

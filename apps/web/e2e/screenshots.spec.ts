@@ -352,6 +352,24 @@ test('capture the Life-OS screens', async ({ page }) => {
     await page.screenshot({ path: `${OUT}/task-title-error-${theme}.png`, fullPage: true });
     await page.unroute(`http://localhost:4000/tasks/${editTask.id}`);
   }
+  await page.addInitScript(() => {
+    Object.defineProperty(Notification, 'permission', { configurable: true, get: () => 'default' });
+    Object.defineProperty(navigator.serviceWorker, 'getRegistration', { configurable: true, value: async () => ({ pushManager: {
+      getSubscription: async () => ({ endpoint: 'https://push.example.test/synthetic', unsubscribe: async () => true }),
+    } }) });
+  });
+  await page.route('http://localhost:4000/push/unsubscribe', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((value) => { localStorage.setItem('atlas-theme', value); localStorage.setItem('atlas-settings-proactive', '1'); }, theme);
+    await page.goto('/settings');
+    await page.reload();
+    await page.locator('#proactive-body').getByRole('button', { name: 'Disable notifications', exact: true }).click();
+    await expect(page.getByText('Notification change was not confirmed. Try again.')).toBeVisible();
+    measurements.push(await measureScreen(page, '/settings:notification-change-error', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/notification-change-error-${theme}.png`, fullPage: true });
+  }
+  await page.unroute('http://localhost:4000/push/unsubscribe');
   // Session/config failures use synthetic responses, never another registration.
   for (const theme of ['light', 'dark'] as const) {
     await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);

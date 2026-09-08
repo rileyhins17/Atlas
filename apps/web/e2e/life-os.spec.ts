@@ -2895,3 +2895,52 @@ test('task title edits retain failed drafts and persist explicit saves in both t
     expect(failures, failures.join('\n')).toEqual([]);
   }
 });
+
+test('notification removal keeps failures visible and retries in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    Object.defineProperty(Notification, 'permission', { configurable: true, get: () => 'default' });
+    const sub = { endpoint: 'https://push.example.test/synthetic', unsubscribe: async () => {
+      sessionStorage.setItem('test-push-calls', String(Number(sessionStorage.getItem('test-push-calls') ?? 0) + 1));
+      if (sessionStorage.getItem('test-push-browser-fail') === '1') throw new Error('Synthetic browser removal failure');
+      sessionStorage.setItem('test-push-off', '1');
+      return true;
+    } };
+    Object.defineProperty(navigator.serviceWorker, 'getRegistration', { configurable: true, value: async () => ({ pushManager: {
+      getSubscription: async () => sessionStorage.getItem('test-push-off') === '1' ? null : sub,
+    } }) });
+  });
+  let serverFails = true;
+  let requests = 0;
+  await page.route('http://localhost:4000/push/unsubscribe', (route) => {
+    requests++;
+    expect(route.request().postDataJSON()).toEqual({ endpoint: 'https://push.example.test/synthetic' });
+    return route.fulfill({ status: serverFails ? 503 : 200, contentType: 'application/json', body: JSON.stringify(serverFails ? { message: 'Synthetic removal failure' } : { ok: true }) });
+  });
+  for (const theme of ['light', 'dark'] as const) {
+    serverFails = true; requests = 0;
+    await page.goto('/settings');
+    await page.evaluate((value) => {
+      localStorage.setItem('atlas-theme', value); localStorage.setItem('atlas-settings-proactive', '1');
+      sessionStorage.removeItem('test-push-off'); sessionStorage.setItem('test-push-calls', '0'); sessionStorage.setItem('test-push-browser-fail', '1');
+    }, theme);
+    await page.reload();
+    const card = page.locator('#proactive-body');
+    await card.getByRole('button', { name: 'Disable notifications', exact: true }).click();
+    await expect(card.getByRole('alert')).toHaveText('Notification change was not confirmed. Try again.');
+    expect(await page.evaluate(() => sessionStorage.getItem('test-push-calls'))).toBe('0');
+    const failures = screenFailures(await measureScreen(page, '/settings:notification-change-error', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    serverFails = false;
+    await card.getByRole('button', { name: 'Disable notifications', exact: true }).click();
+    await expect(card.getByRole('alert')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => sessionStorage.getItem('test-push-calls'))).toBe('1');
+    await page.evaluate(() => sessionStorage.removeItem('test-push-browser-fail'));
+    await card.getByRole('button', { name: 'Disable notifications', exact: true }).click();
+    await expect(card.getByRole('button', { name: 'Enable notifications', exact: true })).toBeVisible();
+    await expect(card.getByRole('alert')).toBeHidden();
+    expect(requests).toBe(3);
+    await page.reload();
+    await expect(card.getByRole('button', { name: 'Enable notifications', exact: true })).toBeVisible();
+  }
+});
