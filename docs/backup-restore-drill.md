@@ -1,76 +1,57 @@
-# Proving the September 2026 backup
+# Synthetic backup restore drill
 
-The `Prove private backup restores` CI job restores the private snapshot into
-`pgvector/pgvector:pg17` and checks exact `COUNT(*)` results:
+CI exercises the actual `infra/db-move.py` dump, restore and counts commands on
+every push and pull request. All data is invented. The production dump stays on
+its owner's PC: it must never reach CI, an artifact store, a GitHub secret, or
+an environment an agent can read. No private storage configuration is needed.
 
-| Table | Expected rows |
-| --- | ---: |
-| tasks | 2,194 |
-| journal_entries | 636 |
-| timeline_events | 2,698 |
-| workouts | 147 |
+The `Prove synthetic backup restores` job:
 
-These are the snapshot counts recorded in HANDOFF.md, not new measurements of
-production. A green run is the evidence that this archive actually restores.
-The manifest lives in `.github/restore-counts.json`. For a replacement snapshot,
-review its independently captured counts and checksum together; never change
-the manifest merely to make an unexpected restore result pass.
+1. Starts a disposable `pgvector/pgvector:pg16` service.
+2. Runs `pnpm --filter @atlas/db migrate:deploy` on `atlas_restore_source`.
+3. Seeds two fictional users, seven tasks, five journal entries, three workouts,
+   two finance accounts, four transactions, seven timeline events and two
+   768-dimensional vectors. It checks these known counts before taking a dump.
+4. Runs `db-move.py counts DIRECT_DATABASE_URL` and `db-move.py dump <temp-file>`.
+5. Drops only the synthetic source database and creates `atlas_restore_target`
+   from `template0`. It provisions vector/pgcrypto extensions; it does not
+   migrate or seed this target.
+6. Runs `db-move.py restore RESTORE_DATABASE_URL <temp-file>`, then
+   `db-move.py counts RESTORE_DATABASE_URL`. `diff` requires every public table's
+   exact count to match, including empty tables and the migration ledger.
+7. Reasserts the known fixture counts and exercises vector dimensions and
+   distance operators on the restored values.
 
-## Supply the private archive
+Any migration, seed, dump, restore, count or vector check failure fails CI.
+The runner deletes the synthetic dump on success or failure; Actions disposes
+of its database service and volume. No dump is uploaded or put in `.db-moves`.
 
-`.db-moves/` must remain gitignored. CI cannot receive these files from checkout.
-Put the existing dump in owner-controlled private HTTPS storage, then configure:
+## Changes to the existing CLI
 
-- Actions secret `ATLAS_RESTORE_DUMP_URL`: a read-only HTTPS download URL for the
-  dump (a signed URL is supported; renew it before it expires).
-- Actions variable `ATLAS_RESTORE_DUMP_SHA256`: its SHA-256 checksum, computed
-  locally with `Get-FileHash -Algorithm SHA256 <path-to-dump>`.
+The CLI still passes credentials as PG* environment variables, never argv. It
+now accepts connection URLs from the process environment before its local
+`.env` fallback. Under `CI`, a missing URL fails without reading `.env`, and an
+explicit synthetic dump path is mandatory. The `PG_BIN` environment variable
+selects PostgreSQL clients matching the CI server; the Windows default remains
+PostgreSQL 17. An explicit URL `sslmode` is honoured for the local test service;
+the default remains `require`.
 
-Never put the URL, backup bytes, production database credentials or encryption
-key in a commit, PR, log or artifact. The runner downloads the archive as
-`.db-moves/ci-snapshot.dump` and checks the checksum before restoring it. A
-missing secret, inaccessible download, expired URL or checksum mismatch fails
-the job. Fork PRs do not receive secrets and therefore cannot satisfy this gate;
-maintainers must review and run a trusted branch in the private repository.
-Do not use `pull_request_target` to run untrusted code with backup access.
+Restores now target the database named in the selected URL and use
+`--exit-on-error --single-transaction`. A failed restore exits nonzero rather
+than printing the failure and returning success. Raw database error output is
+withheld because failed COPY statements can include row contents. A dump will
+not overwrite an existing backup file.
 
-## What the drill proves
+Counts use `COUNT(*)` for every public table, not `pg_stat_user_tables` estimates.
+PostgreSQL quotes table identifiers before executing these read-only queries.
 
-The runner creates a unique container with `--network none`, no published ports
-and no host mounts. It copies the archive in, creates a fresh database from
-`template0`, restores using `--exit-on-error --single-transaction --no-owner
---no-privileges`, then checks exact counts and the real vector column type.
-It never reads `.env`, accepts a database URL, runs migrations or starts Atlas.
-It removes only its newly created container and anonymous volume in `finally`;
-CI also removes the downloaded file, including after failure.
-
-The fresh database already has the `public` schema, so the restore list omits
-only that schema's creation entry. Every table, data and constraint entry is
-retained. Public-only Supabase dumps can reference an extension they did not
-include; the drill provisions pgvector in `extensions` or `public` according to
-the archive's schema before restoring. PostgreSQL 17 matches the dump tooling
-documented in HANDOFF.md; the existing e2e job keeps its own PostgreSQL 16.
-
-The log contains only archive numbers, exact counts and status. Raw database
-errors are deliberately withheld because a failed COPY can include private
-row contents. A failure is never converted to success based on stderr text.
-
-To run against local archives on a machine with Docker available:
-
-```bash
-python .github/scripts/restore_backup.py
-```
-
-Every `.db-moves/*.dump` gets its own fresh container and must match the manifest.
-Do not mix snapshots with different expected counts in this drill directory.
-The command without `--download` does not use the storage secret or change the
-source dumps. To test the safety contracts without Docker or private data:
+The CLI regression tests run without PostgreSQL:
 
 ```bash
 python -m unittest discover -s .github/scripts -p 'test_*.py'
 ```
 
-This proves recovery of a specific snapshot. It does not register the nightly
-backup task, select an off-machine retention policy, prove newer data is backed
-up, or prove encrypted connector credentials can be decrypted without the
-separately retained production encryption key.
+This proves the restore mechanism with the current schema and synthetic data.
+It does not prove the integrity or freshness of the private production archive,
+register nightly backups, or verify production encryption-key recovery. Those
+remain owner-operated work outside CI.
