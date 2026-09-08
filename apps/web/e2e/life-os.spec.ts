@@ -2238,8 +2238,8 @@ test('manual transactions persist exact spending and income in both themes', asy
     await page.reload();
     await page.getByRole('button', { name: 'Add transaction', exact: true }).click();
     const form = page.getByRole('form', { name: 'New manual transaction' });
-    await form.getByLabel('Account', { exact: true }).selectOption(account.id);
-    await form.getByLabel('Type', { exact: true }).selectOption(theme === 'light' ? 'expense' : 'income');
+    await form.getByRole('combobox', { name: 'Account', exact: true }).selectOption(account.id);
+    await form.getByRole('combobox', { name: 'Type', exact: true }).selectOption(theme === 'light' ? 'expense' : 'income');
     const description = `Saved ledger ${theme} ${Date.now()}`;
     await form.getByLabel('Description', { exact: true }).click();
     await form.getByLabel('Description', { exact: true }).pressSequentially(description);
