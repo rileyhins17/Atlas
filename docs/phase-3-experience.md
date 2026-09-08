@@ -193,3 +193,26 @@ retry failed reads and identify a genuinely empty result after success. The
 expanded 13-case suite passes. Explicit dismissal still suppresses the unfinished
 work card for the current day; that user choice remains distinct from an empty
 query result. The full local gate passed: build 6/6, forced typecheck 10/10, lint zero errors with three existing warnings, 1483 unit tests. Browser verification is pending.
+
+
+## Observed route gate at eab2cdf
+
+PR CI run `34221051172` completed successfully: 52 browser tests passed, one was
+skipped, habit and collection regressions each passed independently, and both
+Today regressions passed together independently. The screenshot/measurement test
+passed. All 26 screens have zero document overflow, targets below 24x24, inputs
+below 16px and reported axe violations. See [route gate evidence](./evidence/phase-3-route-gate.json).
+
+Today measured 1909px tall in both themes versus the original 3323px synthetic
+phone screenshot; the fixtures are comparable but runtime clock values differ.
+Both updated Today PNGs were inspected. The hierarchy is shorter and the checklist
+precedes the full timeline. Eight incomplete axe rule results persist across
+Today, Habits and Progress. They are not verified passes. The measurement artifact
+now captures their check messages and data to support follow-up instead of only
+listing selectors. This route gate does not prove every query/component state.
+
+The questions inbox, weekly review and first-capture guidance now distinguish
+failed and pending reads from missing content. Five regressions were observed
+red before their recovery states were added; the focused suite was then green.
+Independent weekly decisions stay visible while the prose review loads or fails.
+The local gate passed: build 6/6, forced typecheck 10/10, lint zero errors with three existing warnings, and 1491 unit tests. Browser verification of this iteration remains pending.

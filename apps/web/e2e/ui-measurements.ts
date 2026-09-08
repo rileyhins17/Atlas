@@ -47,7 +47,13 @@ export async function measureScreen(page: Page, route: string, theme: 'light' | 
     violations: axe.violations.map(({ id, impact, description, nodes }) => ({
       id, impact, description, nodes: nodes.map(({ target, failureSummary }) => ({ target, failureSummary })),
     })),
-    incomplete: axe.incomplete.map(({ id, nodes }) => ({ id, targets: nodes.map((n) => n.target) })),
+    incomplete: axe.incomplete.map(({ id, nodes }) => ({
+      id, targets: nodes.map((n) => n.target),
+      nodes: nodes.map(({ target, failureSummary, any, all, none }) => ({
+        target, failureSummary,
+        checks: [...any, ...all, ...none].map(({ id, message, data }) => ({ id, message, data })),
+      })),
+    })),
   };
 }
 
