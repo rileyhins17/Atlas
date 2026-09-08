@@ -293,3 +293,32 @@ opaque ancestor surface. It rejects unsupported/translucent cases and asserts a
 minimum 4.5:1. The existing shared colour functions supply the arithmetic. This
 adds evidence for the specific checks axe left incomplete, without filtering them
 out of its report. Current-head CI measurements remain pending.
+
+
+## Superset reliability follow-up
+
+Run `34223435181` was green overall but reported 51 passed, one flaky and one
+skipped in the full suite. The superset case failed to observe a saved set on its
+first attempt, then passed on retry. The independent group passed all four cases,
+including the delayed-unit 100kg-to-100000g persistence check. No failure trace was
+retained because the job succeeded, so the specific cause of that first failure
+is not proven.
+
+The superset helper typed absolute values without clearing possible previous-set
+prefills. It now sets its own pounds preference, selects existing field text,
+types and asserts exact values, and asserts the POST save response before the
+stored-row and rest-timer assertions. The case also joins the independent group.
+This removes an input-baseline ambiguity and improves failure evidence; a clean
+observed run is still needed before calling its reliability verified.
+
+Latest measured run `34224085136` at `d52fa3d` passed all three CI jobs.
+All 26 route/theme measurements again have zero document overflow, undersized
+targets, undersized inputs and axe violations. Supplemental contrast checks
+also passed; axe incompletes remain reported explicitly. The full browser suite
+again had 51 passed, one flaky superset case and one skipped; independent checks
+passed 1 + 1 + 4, and the screenshot/measurement spec passed. This confirms the
+contrast measurement implementation, but does not resolve the superset flake.
+
+The superset test follow-up passed local build 6/6, forced typecheck 10/10,
+lint with zero errors and three existing warnings, and 1504 unit tests. Browser
+verification of that follow-up is pending CI.

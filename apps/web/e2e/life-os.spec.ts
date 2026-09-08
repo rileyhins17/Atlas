@@ -1766,6 +1766,8 @@ test('Atlas asks how you are at your own waking and bedtime, not the clock', asy
  */
 test('a superset is one round, and the rest timer waits for the end of it', async ({ page }) => {
   await resetFitness(page);
+  const unit = await page.request.patch('http://localhost:4000/settings', { data: { weightUnit: 'lb' } });
+  expect(unit.ok()).toBe(true);
   await go(page, '/fitness');
 
   await page.getByRole('button', { name: 'New workout day' }).click();
@@ -1828,10 +1830,19 @@ test('a superset is one round, and the rest timer waits for the end of it', asyn
     // Typed, not filled: a controlled input can swallow a one-shot value, and
     // a click alone must change nothing.
     await fields.nth(0).click();
+    await fields.nth(0).press('ControlOrMeta+a');
     await fields.nth(0).pressSequentially(weight);
+    await expect(fields.nth(0)).toHaveValue(weight);
     await fields.nth(1).click();
+    await fields.nth(1).press('ControlOrMeta+a');
     await fields.nth(1).pressSequentially(reps);
-    await block.getByRole('button', { name: /log set/i }).click();
+    await expect(fields.nth(1)).toHaveValue(reps);
+    const [saved] = await Promise.all([
+      page.waitForResponse((response) => /\/fitness\/workouts\/[^/]+\/sets$/.test(new URL(response.url()).pathname)
+        && response.request().method() === 'POST'),
+      block.getByRole('button', { name: /log set/i }).click(),
+    ]);
+    expect(saved.status(), 'the superset set must persist before checking the rest timer').toBe(201);
     await expect(block.locator('.fit-set')).toHaveCount(before + 1, { timeout: 20_000 });
   };
 
