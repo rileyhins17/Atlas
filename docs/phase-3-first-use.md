@@ -43,3 +43,23 @@ editors, sparse-data Progress interpretation, and Phase 4 measurements are outst
 Local gates: build 6/6, forced typecheck 10/10, lint zero errors with three
 existing warnings, 1519 unit tests passed. Browser proof and first-use
 measurements remain pending CI.
+
+## Optional routine setup follow-up
+
+The routine wizard now asks only about sleep and week structure, then offers
+Build my week. Provider connections remain in Settings. This removes the third
+step and its obsolete claim that planning requires a key, as well as unverified
+price and future-brief promises. The existing routine builder and mutation remain
+unchanged. A new regression was observed failing against the three-step flow;
+all four focused first-use/routine tests then passed.
+
+The former post-save calendar offer was also removed. Source inspection shows
+that the routine mutation immediately populates the cache, making Today stop
+rendering first use before that offer can be relied upon. The successful handoff
+is now explicitly back to Today, with connections available in Settings. This
+is source evidence about the old lifecycle; the new routine browser journey
+still needs verification.
+
+Two-step routine local gates: build 6/6, forced typecheck 10/10, lint zero
+errors with three existing warnings, 1520 unit tests passed. Browser verification
+of this commit remains pending CI.
