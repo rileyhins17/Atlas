@@ -1,3 +1,6 @@
+import { CreateTransactionInput, type AccountDTO } from './dto/finance.js';
+import { localDayKey } from './local-dates.js';
+
 /**
  * Money formatting. Amounts are always signed MINOR units (cents) end to end —
  * negative means money out — so every display path converts here rather than
@@ -17,6 +20,22 @@ export function parseMoneyInput(value: string): number | null {
   const signed = match[1] ? -cents : cents;
   const result = Number(signed);
   return Number.isSafeInteger(result) ? result : null;
+}
+
+/** Manual ledger entry uses a date in the device calendar, like ledger grouping. */
+export function manualTransactionInput(account: AccountDTO | undefined, draft: {
+  amount: string; direction: 'expense' | 'income'; description: string; date: string;
+}): CreateTransactionInput | null {
+  const amount = parseMoneyInput(draft.amount);
+  if (!account || amount === null || amount <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(draft.date)) return null;
+  const postedAt = new Date(`${draft.date}T12:00:00`);
+  if (!Number.isFinite(postedAt.getTime()) || localDayKey(postedAt) !== draft.date) return null;
+  const parsed = CreateTransactionInput.safeParse({
+    accountId: account.id, currency: account.currency,
+    amountMinor: draft.direction === 'expense' ? -amount : amount,
+    description: draft.description.trim(), postedAt,
+  });
+  return parsed.success ? parsed.data : null;
 }
 
 /**

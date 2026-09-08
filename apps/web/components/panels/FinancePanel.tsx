@@ -6,6 +6,7 @@ import { Landmark, Wallet } from 'lucide-react';
 import { useAccounts, useTransactions } from '@/lib/hooks/finance';
 import { Button, Card, EmptyState, ListSkeleton, QueryState } from '@/components/ui';
 import { ManualAccountForm } from './ManualAccountForm';
+import { ManualTransactionForm } from './ManualTransactionForm';
 import { PageHeader } from '@/components/PageHeader';
 import { PlaidCard } from './PlaidCard';
 import { formatDayHeading } from '@/lib/dates';
@@ -40,6 +41,7 @@ const NO_TXNS: TransactionDTO[] = [];
 
 export function FinancePanel() {
   const [addingAccount, setAddingAccount] = useState(false);
+  const [addingTransaction, setAddingTransaction] = useState(false);
   const accountsQuery = useAccounts();
   const txnsQuery = useTransactions();
 
@@ -92,6 +94,15 @@ export function FinancePanel() {
       </details>
 
       <Card style={{ marginTop: 14 }}>
+        <h2>Transactions</h2>
+        {addingTransaction ? (
+          <ManualTransactionForm accounts={accounts} onSaved={() => setAddingTransaction(false)} onCancel={() => setAddingTransaction(false)} />
+        ) : (
+          <div className="stack" style={{ marginBottom: 14 }}>
+            <Button disabled={accountsQuery.isPending || accountsQuery.isError || accounts.length === 0} onClick={() => setAddingTransaction(true)}>Add transaction</Button>
+            {!accountsQuery.isPending && !accountsQuery.isError && accounts.length === 0 && <p className="muted">Add an account first to record spending or income.</p>}
+          </div>
+        )}
         <QueryState
           query={txnsQuery}
           errorFallback="Failed to load transactions"
@@ -101,7 +112,7 @@ export function FinancePanel() {
               <EmptyState
                 icon={Wallet}
                 title="No transactions"
-                hint="Once a bank is connected and synced, your transactions show up here."
+                hint="Record spending or income above, or sync transactions from a connected bank."
               />
             )
           }

@@ -241,6 +241,23 @@ test('capture the Life-OS screens', async ({ page }) => {
       await page.screenshot({ path: `${OUT}/audit-${theme}-${route.slice(1)}.png`, fullPage: true });
     }
   }
+  const manualAccount = await page.request.post('http://localhost:4000/finance/accounts', {
+    data: { name: 'Everyday cash', type: 'cash', currency: 'CAD', balanceMinor: 20000 },
+  });
+  expect(manualAccount.status()).toBe(201);
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.goto('/finance');
+    await page.getByRole('button', { name: 'Add transaction', exact: true }).click();
+    const form = page.getByRole('form', { name: 'New manual transaction' });
+    await form.getByLabel('Description', { exact: true }).click();
+    await form.getByLabel('Description', { exact: true }).pressSequentially('Groceries');
+    await form.getByLabel('Amount (CAD)', { exact: true }).click();
+    await form.getByLabel('Amount (CAD)', { exact: true }).pressSequentially('18.29');
+    measurements.push(await measureScreen(page, '/finance:transaction', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/manual-transaction-${theme}.png`, fullPage: true });
+  }
   const failures = measurements.flatMap(screenFailures);
   expect(failures, failures.join('\n')).toEqual([]);
 

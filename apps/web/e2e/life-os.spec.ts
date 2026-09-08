@@ -2197,6 +2197,41 @@ test('manual accounts save exact typed balances without a bank connection', asyn
   await expect(page.locator('.task').filter({ hasText: name })).toBeVisible();
 });
 
+test('manual transactions persist exact spending and income in both themes', async ({ page }) => {
+  const accountResponse = await page.request.post('http://localhost:4000/finance/accounts', { data: { name: `Manual ledger ${Date.now()}`, type: 'cash', currency: 'CAD', balanceMinor: 20000 } });
+  expect(accountResponse.status()).toBe(201);
+  const account = await accountResponse.json() as { id: string };
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    await page.goto('/finance');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    await page.getByRole('button', { name: 'Add transaction', exact: true }).click();
+    const form = page.getByRole('form', { name: 'New manual transaction' });
+    await form.getByLabel('Account', { exact: true }).selectOption(account.id);
+    await form.getByLabel('Type', { exact: true }).selectOption(theme === 'light' ? 'expense' : 'income');
+    const description = `Saved ledger ${theme} ${Date.now()}`;
+    await form.getByLabel('Description', { exact: true }).click();
+    await form.getByLabel('Description', { exact: true }).pressSequentially(description);
+    await form.getByLabel('Amount (CAD)', { exact: true }).click();
+    await form.getByLabel('Amount (CAD)', { exact: true }).pressSequentially('18.29');
+    const failures = screenFailures(await measureScreen(page, '/finance:transaction', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    const response = page.waitForResponse((res) => res.url().endsWith('/finance/transactions') && res.request().method() === 'POST');
+    await form.getByRole('button', { name: 'Save transaction', exact: true }).click();
+    const savedResponse = await response;
+    expect(savedResponse.status()).toBe(201);
+    const saved = await savedResponse.json() as { id: string; amountMinor: number; currency: string };
+    expect(saved.amountMinor).toBe(theme === 'light' ? -1829 : 1829);
+    expect(saved.currency).toBe('CAD');
+    await page.reload();
+    await expect(page.locator('.task').filter({ hasText: description })).toBeVisible();
+    const ledger = await page.request.get(`http://localhost:4000/finance/transactions?accountId=${account.id}`);
+    expect(ledger.ok()).toBe(true);
+    expect((await ledger.json() as { id: string }[]).some((row) => row.id === saved.id)).toBe(true);
+  }
+});
+
 test('mobile week shows complete events and retains time-grid access in both themes', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/week');

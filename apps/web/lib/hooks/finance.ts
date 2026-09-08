@@ -13,6 +13,10 @@ export function useCreateAccount() {
   return useInvalidatingMutation({ mutationFn: FinanceApi.createAccount, invalidates: qk.accounts });
 }
 
+export function useCreateTransaction() {
+  return useInvalidatingMutation({ mutationFn: FinanceApi.createTransaction, invalidates: ['finance', 'transactions'] });
+}
+
 export function useTransactions(accountId?: string) {
   return useQuery({
     queryKey: qk.transactions(accountId),
