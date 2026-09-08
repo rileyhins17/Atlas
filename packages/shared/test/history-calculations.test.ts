@@ -36,6 +36,18 @@ describe('history response calculations', () => {
     expect(rows.map(r => r.id)).toEqual(['latest', 'older']);
   });
 
+  it('reports the best individual session volume across all fetched workouts, before the display cap', () => {
+    const rows = [
+      row('latest', 'new', '2026-09-02T12:00:00Z', 10000),
+      row('older', 'old', '2026-09-01T12:00:00Z', 20000),
+      { ...row('warmup', 'old', '2026-09-01T11:55:00Z', 100000), warmup: true },
+    ];
+    const result = assembleExerciseHistory(exercise, rows, 1);
+    expect(result.sessions.map(s => s.volumeGrams)).toEqual([100000]);
+    expect(result.records.bestSessionVolumeGrams).toBe(200000);
+    expect(result.records.heaviestGrams).toBe(20000);
+  });
+
   it('returns the latest workout in set order while keeping historical best weight', () => {
     const rows = [row('last', 'new', '2026-09-02T12:10:00Z', 11000), row('first', 'new', '2026-09-02T12:00:00Z', 10000), row('older', 'old', '2026-09-01T12:00:00Z', 20000)];
     const result = assembleLastPerformance(exercise.id, rows)!;

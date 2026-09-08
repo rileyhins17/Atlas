@@ -2,7 +2,7 @@
 
 ## F1 — Exercise history combines sessions when reporting best session volume
 
-Status: verified with synthetic inputs on 8 September 2026; correction pending.
+Status: corrected in the Phase 1 session-volume follow-up; CI verification pending.
 
 `assembleExerciseHistory` (formerly the inline calculation in
 `FitnessService.exerciseHistory`) supplies every fetched set as one session to
@@ -15,7 +15,9 @@ and 20,000 g respectively. The response's individual session volumes were
 the correct maximum of the two sessions is 200,000 g. The exercise detail UI
 displays this field as a session record.
 
-The history extraction preserves this existing behavior. Correct it in a
-separate focused correctness PR with a regression observed failing first.
-Compute records from actual workout groups across **all fetched sessions**,
-before applying the displayed-session limit, so old records remain available.
+The history extraction preserved this existing behavior. The separate
+correctness follow-up calculates records from actual workout groups across
+**all fetched sessions**, before applying the displayed-session limit.
+The regression was observed failing with expected 200,000 and received 300,000
+before the fix. It also covers an older record outside the display cap and
+excludes a heavier warm-up set.

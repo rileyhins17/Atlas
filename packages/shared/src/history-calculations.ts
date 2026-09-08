@@ -146,7 +146,10 @@ export function assembleExerciseHistory(exercise: ExerciseRecord, rows: Exercise
     sessions,
     // Records span every set read, not only the sessions shown, so a best
     // from further back is not quietly forgotten by the cap above.
-    records: exerciseRecords([{ sets: rows.map(withExercise) }]),
+    // Session-volume records need real session boundaries; flattening the
+    // fetched history invents one giant workout. Use every group, including
+    // groups outside the display cap above, so older records remain visible.
+    records: exerciseRecords([...byWorkout.values()].map((w) => ({ sets: w.sets.map(withExercise) }))),
   };
 }
 
