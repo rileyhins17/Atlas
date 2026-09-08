@@ -1,5 +1,8 @@
 'use client';
 
+import { summarizeToolRuns } from '@atlas/shared';
+export { summarizeToolRuns } from '@atlas/shared';
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import * as RadixDialog from '@radix-ui/react-dialog';
@@ -26,7 +29,7 @@ import {
 } from 'lucide-react';
 import { DESTINATIONS as NAV_DESTINATIONS } from '@/lib/sections';
 import { useBrainDump } from '@/lib/hooks/ai';
-import { useToast } from '@/components/ui';
+import { ErrorState, useToast } from '@/components/ui';
 import { Kbd } from '@/components/ui/Kbd';
 import { useAtlasUi } from './AtlasUiProvider';
 
@@ -70,28 +73,6 @@ interface Item {
   run: () => void;
 }
 
-/** Friendly summary of what brain-dump filed, e.g. "1 task, 1 journal entry". */
-export function summarizeToolRuns(names: string[]): string {
-  const labels: Record<string, string> = {
-    'tasks.create': 'task',
-    'tasks.complete': 'task completed',
-    'habits.log': 'habit check-in',
-    'journal.add': 'journal entry',
-    'notes.remember': 'note',
-    'calendar.add': 'event',
-    'ai.ask_question': 'question for you',
-  };
-  const countByLabel = new Map<string, number>();
-  for (const name of names) {
-    const label = labels[name] ?? name;
-    countByLabel.set(label, (countByLabel.get(label) ?? 0) + 1);
-  }
-  if (countByLabel.size === 0) return 'Nothing to file';
-  return [...countByLabel]
-    .map(([label, n]) => (n > 1 ? `${n} ${label}s` : `1 ${label}`))
-    .join(', ');
-}
-
 /**
  * The ⌘K omni-bar — Atlas's primary input. Type anything:
  * capture (default) routes messy input through brain-dump into the right
@@ -104,7 +85,7 @@ export function CommandBar() {
   const brainDump = useBrainDump();
   const { toast } = useToast();
   const [query, setQuery] = useState('');
-  const [active, setActive] = useState(0);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -112,7 +93,7 @@ export function CommandBar() {
   useEffect(() => {
     if (commandOpen) {
       setQuery('');
-      setActive(0);
+      setSelectedId(null);
     }
   }, [commandOpen]);
 
@@ -235,18 +216,18 @@ export function CommandBar() {
     return list;
   }, [trimmed, isAsk, askText, brainDump, openChat, router, setCommandOpen, toast, search.data, qc, recordChanges]);
 
-  // Clamp the active row when the list shrinks.
-  useEffect(() => {
-    if (active >= items.length) setActive(Math.max(0, items.length - 1));
-  }, [items.length, active]);
+  // Preserve an explicitly selected action as asynchronous hits arrive above it.
+  // A new query starts at the first result; an unchanged query keeps the user's choice.
+  const active = Math.max(0, items.findIndex((item) => item.id === selectedId));
+  const searching = !isAsk && trimmed.length >= 2;
 
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setActive((a) => Math.min(items.length - 1, a + 1));
+      setSelectedId(items[Math.min(items.length - 1, active + 1)]?.id ?? null);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setActive((a) => Math.max(0, a - 1));
+      setSelectedId(items[Math.max(0, active - 1)]?.id ?? null);
     } else if (e.key === 'Enter') {
       e.preventDefault();
       items[active]?.run();
@@ -289,11 +270,22 @@ export function CommandBar() {
               aria-controls="command-results"
               aria-activedescendant={items[active] ? `command-item-${items[active].id}` : undefined}
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => { setQuery(e.target.value); setSelectedId(null); }}
               onKeyDown={onKeyDown}
             />
             <Kbd>esc</Kbd>
           </div>
+          {searching && (
+            <div className="command-search-status">
+              {search.isError
+                ? <ErrorState message="Your saved items could not be searched." onRetry={() => void search.refetch()} />
+                : search.isPending
+                  ? <p role="status">Searching your Atlas…</p>
+                  : search.isSuccess && search.data?.hits.length === 0
+                    ? <p role="status">No saved items match this search.</p>
+                    : null}
+            </div>
+          )}
           <div
             className="command-results"
             id="command-results"
@@ -313,7 +305,7 @@ export function CommandBar() {
                   aria-selected={i === active}
                   className={`command-item ${i === active ? 'active' : ''}`}
                   onClick={item.run}
-                  onMouseMove={() => setActive(i)}
+                  onMouseMove={() => setSelectedId(item.id)}
                 >
                   <Icon size={16} aria-hidden className="command-item-icon" />
                   <span className="command-item-title">{item.title}</span>

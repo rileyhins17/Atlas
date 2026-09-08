@@ -57,6 +57,34 @@ export default tseslint.config(
     },
   },
 
+  // The generated client belongs to @atlas/db. App and domain packages use
+  // that public boundary for values and types, including generated subpaths.
+  {
+    files: ['apps/**/*.{ts,tsx,js,mjs}', 'packages/{ai,connectors,shared}/**/*.{ts,tsx,js,mjs}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        paths: [{ name: '@prisma/client', message: 'Import database types and values through @atlas/db.' }],
+        patterns: [{ group: ['@prisma/client/*', '@prisma/client/**'], message: 'Use the public @atlas/db boundary.' }],
+      }],
+    },
+  },
+
+  // Shared domain code cannot depend back on a runtime adapter or framework.
+  {
+    files: ['packages/shared/src/**/*.{ts,tsx,js,mjs}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [{
+          group: ['@prisma/client', '@prisma/client/**', '@atlas/db', '@atlas/db/**',
+            '@atlas/ai', '@atlas/ai/**', '@atlas/connectors', '@atlas/connectors/**',
+            '@nestjs/**', 'next', 'next/**', 'react', 'react/**', 'react-dom', 'react-dom/**',
+            '**/apps/**'],
+          message: 'Shared domain code must remain independent of database, framework and runtime adapters.',
+        }],
+      }],
+    },
+  },
+
   // Browser code.
   {
     files: ['apps/web/**/*.{ts,tsx}'],

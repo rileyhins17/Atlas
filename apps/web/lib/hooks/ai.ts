@@ -21,6 +21,10 @@ export function useAiStatus() {
   return useQuery({ queryKey: qk.aiStatus, queryFn: AiApi.status });
 }
 
+export function useRedeemAiInvite() {
+  return useInvalidatingMutation({ mutationFn: AiApi.redeemInvite, invalidates: qk.aiStatus });
+}
+
 export function useConnectDeepSeek() {
   return useInvalidatingMutation({
     mutationFn: AiApi.connectDeepSeek,

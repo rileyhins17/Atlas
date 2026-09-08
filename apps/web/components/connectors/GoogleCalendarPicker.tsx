@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { errorMessage } from '@/lib/api';
 import { useGoogleCalendars, useSetGoogleCalendars } from '@/lib/hooks/google';
 import { Button, ErrorState, Skeleton } from '@/components/ui';
@@ -30,15 +30,11 @@ export function GoogleCalendarPicker({ connected }: { connected: boolean }) {
   const [chosen, setChosen] = useState<string[] | null>(null);
   const [note, setNote] = useState<string | null>(null);
 
-  // Adopt the server's answer once, and again after a save. Keyed on the data
-  // itself so a background refetch never discards a half-made selection.
+  // Until edited, follow the server. After editing, a refetch is not permission
+  // to replace the selection. The mutation updates the cache before clearing it.
   const serverIds = calendars.data
     ?.filter((c) => c.syncing)
-    .map((c) => c.id)
-    .join(',');
-  useEffect(() => {
-    if (serverIds != null) setChosen(serverIds ? serverIds.split(',') : []);
-  }, [serverIds]);
+    .map((c) => c.id) ?? [];
 
   if (!connected) return null;
 
@@ -65,7 +61,8 @@ export function GoogleCalendarPicker({ connected }: { connected: boolean }) {
   }
 
   const all = calendars.data;
-  const selected = chosen ?? [];
+  if (all.length === 0) return <p className="muted">No calendars are available from this Google account.</p>;
+  const selected = chosen ?? serverIds;
   const dirty =
     all.filter((c) => c.syncing).length !== selected.length ||
     all.some((c) => c.syncing !== selected.includes(c.id));
@@ -74,7 +71,7 @@ export function GoogleCalendarPicker({ connected }: { connected: boolean }) {
   function toggle(id: string) {
     setNote(null);
     setChosen((prev) => {
-      const next = prev ?? [];
+      const next = prev ?? serverIds;
       return next.includes(id) ? next.filter((x) => x !== id) : [...next, id];
     });
   }
@@ -89,6 +86,7 @@ export function GoogleCalendarPicker({ connected }: { connected: boolean }) {
               <input
                 type="checkbox"
                 checked={selected.includes(c.id)}
+                disabled={save.isPending}
                 onChange={() => toggle(c.id)}
               />
               <span
@@ -118,12 +116,14 @@ export function GoogleCalendarPicker({ connected }: { connected: boolean }) {
           disabled={!dirty || save.isPending}
           onClick={() =>
             save.mutate(selected, {
-              onSuccess: (res) =>
+              onSuccess: (res) => {
+                setChosen(null);
                 setNote(
                   res.removed > 0
                     ? `Saved. ${res.removed} imported event${res.removed === 1 ? '' : 's'} removed.`
                     : 'Saved. Run a sync to pull the new calendars in.',
-                ),
+                );
+              },
             })
           }
         >

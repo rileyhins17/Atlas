@@ -1,0 +1,438 @@
+{
+  "commit": "eab2cdf79134ddbf850ae172c2047f4559243170",
+  "run": 34221051172,
+  "artifact": 10053958607,
+  "status": "all 26 default route/theme measurements passed; incomplete axe checks remain for review",
+  "screens": [
+    {
+      "route": "/today",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1909,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              ".nownext-eyebrow"
+            ],
+            [
+              ".nownext-title"
+            ],
+            [
+              ".nownext-sub"
+            ],
+            [
+              ".nownext-next-label"
+            ],
+            [
+              ".nownext-next-title"
+            ],
+            [
+              ".nownext-next-meta"
+            ],
+            [
+              ".runlate-label"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/tasks",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1170,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/calendar",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 844,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/goals",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 844,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/habits",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 982,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "aria-prohibited-attr",
+          "targets": [
+            [
+              ".pill"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/journal",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 971,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/notes",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 971,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/fitness",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1028,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/finance",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1010,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/progress",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1664,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "aria-prohibited-attr",
+          "targets": [
+            [
+              ".cal-key"
+            ]
+          ]
+        },
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              "div[aria-label=\"Gym: 3% of days\"] > .ring-center > .prog-habit-pct"
+            ],
+            [
+              "div[aria-label=\"Read: 0% of days\"] > .ring-center > .prog-habit-pct"
+            ],
+            [
+              "div[aria-label=\"Water: 0% of days\"] > .ring-center > .prog-habit-pct"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/everything",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1039,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/week",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 993,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/settings",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 2622,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/today",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1909,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              ".nownext-eyebrow"
+            ],
+            [
+              ".nownext-title"
+            ],
+            [
+              ".nownext-sub"
+            ],
+            [
+              ".nownext-next-label"
+            ],
+            [
+              ".nownext-next-title"
+            ],
+            [
+              ".nownext-next-meta"
+            ],
+            [
+              ".runlate-label"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/tasks",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1170,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/calendar",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 844,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/goals",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 844,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/habits",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 982,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "aria-prohibited-attr",
+          "targets": [
+            [
+              ".pill"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/journal",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 971,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/notes",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 971,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/fitness",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1028,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/finance",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1010,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/progress",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1664,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "aria-prohibited-attr",
+          "targets": [
+            [
+              ".cal-key"
+            ]
+          ]
+        },
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              "div[aria-label=\"Gym: 3% of days\"] > .ring-center > .prog-habit-pct"
+            ],
+            [
+              "div[aria-label=\"Read: 0% of days\"] > .ring-center > .prog-habit-pct"
+            ],
+            [
+              "div[aria-label=\"Water: 0% of days\"] > .ring-center > .prog-habit-pct"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/everything",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 1039,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/week",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 993,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/settings",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 2622,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    }
+  ]
+}
