@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import type { TaskDTO } from '@atlas/shared';
 import { ChevronDown, ChevronRight, Plus, Search, X } from 'lucide-react';
 import { errorMessage } from '@/lib/api';
-import { useCreateTask, useTasks } from '@/lib/hooks/tasks';
+import { useCreateTask, useTasks, useTaskDurations } from '@/lib/hooks/tasks';
 import {
   Button,
   Card,
@@ -16,7 +16,7 @@ import {
 } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
 import { TaskRow } from '@/components/TaskRow';
-import { groupTasks, GROUPS_WORTH_ADDING_TO } from '@atlas/shared';
+import { durationKey, groupTasks, GROUPS_WORTH_ADDING_TO } from '@atlas/shared';
 export { groupTasks, GROUPS_WORTH_ADDING_TO } from '@atlas/shared';
 import { filterTasks, quickAddDueDate, TASK_FILTERS, type TaskFilter } from '@/lib/tasks-filter';
 import { useSubmitLatch } from '@/lib/hooks/submit-latch';
@@ -131,6 +131,9 @@ export function TasksPanel() {
   // is the only place it shows — it must survive an otherwise-empty view, or
   // finishing your last task makes the page claim you have nothing.
   const showDone = filter === 'all' && done.length > 0;
+  const showTiming = tasksQuery.isSuccess && visible.some((task) => task.status !== 'DONE');
+  const timing = useTaskDurations(showTiming);
+  const estimates = timing.isError || timing.isPending ? undefined : timing.data;
 
   /** The always-there fast path: type, Enter, done. Dates come from quick-add. */
   function addTask(e: React.FormEvent) {
@@ -236,7 +239,7 @@ export function TasksPanel() {
         ) : filter === 'done' ? (
           <section aria-label="Done">
             {visible.map((t) => (
-              <TaskRow key={t.id} task={t} />
+              <TaskRow key={t.id} task={t} usual={estimates?.get(durationKey(t.title))} />
             ))}
           </section>
         ) : (
@@ -250,7 +253,7 @@ export function TasksPanel() {
                   {g.label} · {g.tasks.length}
                 </h2>
                 {g.tasks.map((t) => (
-                  <TaskRow key={t.id} task={t} />
+                  <TaskRow key={t.id} task={t} usual={estimates?.get(durationKey(t.title))} />
                 ))}
                 {/* Quick-add is pointless while searching — it wouldn't match.
                     And it only earns its place in a group where it does
@@ -284,10 +287,17 @@ export function TasksPanel() {
                     Done · {done.length}
                   </h2>
                 </button>
-                {doneOpen && done.map((t) => <TaskRow key={t.id} task={t} />)}
+                {doneOpen && done.map((t) => <TaskRow key={t.id} task={t} usual={estimates?.get(durationKey(t.title))} />)}
               </>
             )}
           </>
+        )}
+        {showTiming && (
+          <section className="task-timing-state" aria-label="Task timing">
+            {timing.isError ? <ErrorState message="Task timing could not be loaded." onRetry={() => void timing.refetch()} />
+              : timing.isPending ? <p className="muted" role="status">Loading task timing…</p>
+                : timing.data?.size === 0 ? <p className="muted">No timing estimates yet. Finish a few planned tasks to build them.</p> : null}
+          </section>
         )}
       </Card>
     </>

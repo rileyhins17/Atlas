@@ -10,7 +10,6 @@ assertions. No component is marked fully audited from source indicators alone.
 | AppShell.tsx | useMe | session-read-recovery: failed read avoids false sign-out and offers Retry; confirmed signed-out landmark; full and independent browser recovery passed CI 34278488365 in both themes |
 | AuthGate.tsx | useAuthConfig | auth-config-recovery: registration waits for known config, Retry, credentials retained, sign-in independent; full and independent browser config recovery passed CI 34278488365 in both themes |
 | TaskGoalChip.tsx | useGoals | task-goal-recovery: real component tests for failed-read Retry, compact pending/error linked label, unresolved linked id, recovered title and confirmed-empty unlinked task; browser persistence passed CI 34280641816, but inspected PNGs exposed -85px menu clipping; repair and stronger bounds checks pending. Old copied-expression tests are not component evidence |
-| TaskRow.tsx | useTaskDurations | task-title-recovery: rejected title retained, explicit Save/Cancel, pending protection and no blur write; three observed-red unit cases. Browser save/GET/reload and state PNGs pending. Duration-hint query states remain unaudited |
 | atlas/AsksPanel.tsx | useAiQuestions | context-query-states: questions pending, failure, empty |
 | atlas/CommandBar.tsx | useSearch | command-search-states: active-query loading, failed search Retry, confirmed empty and stable selected action; full and independent saved-result recovery passed CI 34279919678; both-theme search PNGs inspected. Capture recovery now has eight local tests and PR #51: failed text retained, pending input protected, confirmed fallback success; browser verification is blocked by CI billing |
 | canvas/DayOverviewView.tsx | useRoutine, useTasks, useDayEvents, useDayActuals | day-overview: four source-specific pending and failed Retry cases, action ordering and timeline expansion. Child components are mocked; this proves the parent gate, not child states. Consolidated state geometry remains |
@@ -39,7 +38,7 @@ assertions. No component is marked fully audited from source indicators alone.
 | panels/ProactiveSettingsCard.tsx | useSettings | settings-draft-refresh: edited hour retained across unrelated responses; real save/GET/reload passed CI 34270602672; settings-action-recovery proves rejected push read and Retry in unit tests; corrected browser recovery passed full and independent runs 34273730781 in both themes. push-disable-recovery and settings-action-recovery now prove removal errors propagate and retain retry; fresh browser/screenshot verification pending |
 | panels/ProgressPanel.tsx | useStats | insight-query-states: actual pending, failed stats/Retry, confirmed empty and range changes; existing implementation passed. Resolved child states are a separate inventory, and failure-state geometry remains unverified |
 | panels/RoutineEditor.tsx | useRoutine | Pending consolidated loading / empty / error and recovery audit |
-| panels/TasksPanel.tsx | useTasks | Pending consolidated loading / empty / error and recovery audit |
+| panels/TasksPanel.tsx | useTasks, useTaskDurations | task-timing-states: one pending/error/empty state for the list, Retry retains the new-task draft, and timing stays disabled without open tasks. TaskRow receives confirmed estimates as props; title recovery remains covered separately. Browser persistence and timing PNGs pending. Main task-list state geometry remains to consolidate |
 | panels/TrainingSettingsCard.tsx | useSettings | settings-action-recovery: failed unit save displays alert and preserves confirmed selection; browser failure/retry/persistence passed full and independent runs 34273730781 in both themes |
 | panels/WeeklyDecisions.tsx | useSlippedTasks, useGoals, useHabits, useHabitHistory | decision-query-states: per-source pending and retry |
 | panels/WritingPanel.tsx | useJournal, useNotes | Pending consolidated loading / empty / error and recovery audit |
@@ -54,7 +53,7 @@ assertions. No component is marked fully audited from source indicators alone.
 | trackers/TrackerCheckIn.tsx | useTrackers | tracker-checkin: real component pending skeleton, failed-read Retry and confirmed-empty setup link. Browser state geometry remains |
 | trackers/TrackerManager.tsx | useTrackers | tracker-setup-states: loading/error exclude starter suggestions, Retry, retained draft, pending-save protection; full and independent browser read/save/reload journey passed CI 34276808982 in both themes |
 
-Current inventory: 38 query-backed hook functions and 46 component files.
+Current inventory: 38 query-backed hook functions and 45 component files.
 WeightPreference and WorkoutSummaryDialog also receive query-derived state through
 props; their coverage is recorded with the calling workout components. The previous Git pathspec omitted root-level
 components; this refresh includes them and removes the obsolete SettingsPanel hook
@@ -62,9 +61,9 @@ row. This inventory remains a discovery aid, not exhaustive proof for aliased or
 indirect query usage. Optional routine onboarding no
 longer issues connection-status queries; connections remain query-backed in Settings.
 
-Next high-impact gaps observed in source: task duration hints have no explicit
-query recovery. TaskRow now keeps failed title drafts with explicit Save/Cancel;
-its final browser and visual results are pending. Command search
+Task duration query recovery now belongs to TasksPanel, with confirmed estimates
+passed into TaskRow. TaskRow also keeps failed title drafts with explicit
+Save/Cancel; both changes still need final browser and visual verification. Command search
 still navigates only to domain lists. Capture recovery is implemented in PR #51
 and awaits browser verification. Weight-dependent displays
 now use the settings query with explicit states; their full browser result is pending. The old pending-is-not-an-answer tests render copied expressions, not
@@ -79,3 +78,8 @@ useInfiniteQuery. Including it finds useTimeline, consumed by Feed inside the
 expandable LookingBackPanel → HistoryPanel surface. The count is 38 hooks in
 46 component files. A search limited to route files would miss this mounted
 component chain; the history feed is not dead code.
+
+Timing ownership correction: TaskRow is rendered only by TasksPanel. Moving the
+query there leaves 38 query-backed hooks but reduces direct query-owning
+component files from 46 to 45. TaskRow remains in the prop-derived state audit;
+its removal from the direct-query inventory is not removal of its UI coverage.

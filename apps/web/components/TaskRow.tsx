@@ -1,12 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { describeRrule, durationKey, formatDuration, type TaskDTO } from '@atlas/shared';
+import { describeRrule, formatDuration, type DurationEstimate, type TaskDTO } from '@atlas/shared';
 import { Check, Flag, Repeat, X } from 'lucide-react';
 import {
   useCompleteTask,
   useDeleteTask,
-  useTaskDurations,
   useUpdateTask,
 } from '@/lib/hooks/tasks';
 import { IconButton, Badge, Button } from '@/components/ui';
@@ -19,7 +18,7 @@ const PRIORITY_ORDER: TaskDTO['priority'][] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'
  * The rich task row: complete-check, priority dot (click to cycle), inline
  * title edit (click or `e`), warm due chip, tags, quiet delete on hover.
  */
-export function TaskRow({ task, compact = false }: { task: TaskDTO; compact?: boolean }) {
+export function TaskRow({ task, compact = false, usual }: { task: TaskDTO; compact?: boolean; usual?: DurationEstimate }) {
   const complete = useCompleteTask();
   const update = useUpdateTask();
   const del = useDeleteTask();
@@ -28,9 +27,7 @@ export function TaskRow({ task, compact = false }: { task: TaskDTO; compact?: bo
   const inputRef = useRef<HTMLInputElement>(null);
   const savingTitle = useRef(false);
 
-  const durations = useTaskDurations();
   const done = task.status === 'DONE';
-  const usual = durations.data?.get(durationKey(task.title));
   const repeat = describeRrule(task.recurrence);
   const due = task.dueAt ? new Date(task.dueAt) : null;
   const overdue = !done && due !== null && due.getTime() < Date.now();

@@ -3034,3 +3034,44 @@ test('history keeps loaded pages and recovers task actions in both themes', asyn
     await page.unroute('http://localhost:4000/timeline?*');
   }
 });
+
+test('task timing recovers once per list without losing the task draft in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    const title = `Timed report ${theme} ${Date.now()}`;
+    const created = await page.request.post('http://localhost:4000/tasks', { data: { title } });
+    expect(created.status()).toBe(201);
+    let failed = true;
+    await page.route('http://localhost:4000/tasks/durations', (route) => route.fulfill({
+      status: failed ? 503 : 200, contentType: 'application/json',
+      body: JSON.stringify(failed ? {} : [{ key: title.toLowerCase(), minutes: 45, samples: 4 }]),
+    }));
+    await page.goto('/tasks');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    await expect(page.getByText('Task timing could not be loaded.')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText('Task timing could not be loaded.')).toHaveCount(1);
+    const draft = `Task saved after timing recovery ${theme} ${Date.now()}`;
+    const input = page.getByRole('textbox', { name: 'New task title', exact: true });
+    await input.click(); await input.pressSequentially(draft);
+    let failures = screenFailures(await measureScreen(page, '/tasks:timing-error', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    failed = false;
+    await page.getByRole('region', { name: 'Task timing', exact: true }).getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(page.locator('.task').filter({ hasText: title })).toContainText('usually 45m');
+    await expect(input).toHaveValue(draft);
+    failures = screenFailures(await measureScreen(page, '/tasks:timing-recovered', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    const saved = page.waitForResponse((response) => response.url().endsWith('/tasks') && response.request().method() === 'POST');
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    const response = await saved;
+    expect(response.status()).toBe(201);
+    const task = await response.json() as { id: string };
+    await expect(input).toHaveValue('');
+    await page.reload();
+    const listed = await page.request.get('http://localhost:4000/tasks');
+    expect(listed.ok()).toBe(true);
+    expect(await listed.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: task.id, title: draft })]));
+    await page.unroute('http://localhost:4000/tasks/durations');
+  }
+});

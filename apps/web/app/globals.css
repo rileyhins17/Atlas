@@ -6438,3 +6438,6 @@ label:has(> input[type='checkbox']) {
 .task-title-editor .task-title-input { width: 100%; font-size: 16px; min-height: 36px; }
 .task-title-controls { display: flex; flex-wrap: wrap; gap: 6px; }
 .task-title-status { margin: 0; font-size: 14px; line-height: 1.5; color: var(--text-muted); }
+
+.task-timing-state { margin-top: 12px; font-size: 14px; line-height: 1.5; }
+.task-timing-state > p { margin: 0; }

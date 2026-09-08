@@ -411,6 +411,16 @@ test('capture the Life-OS screens', async ({ page }) => {
     await page.unroute('http://localhost:4000/timeline?*');
     await page.unroute('http://localhost:4000/tasks');
   }
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.route('http://localhost:4000/tasks/durations', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.goto('/tasks'); await page.reload();
+    await expect(page.getByText('Task timing could not be loaded.')).toBeVisible({ timeout: 20_000 });
+    measurements.push(await measureScreen(page, '/tasks:timing-error', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/task-timing-error-${theme}.png`, fullPage: true });
+    await page.unroute('http://localhost:4000/tasks/durations');
+  }
   // Session/config failures use synthetic responses, never another registration.
   for (const theme of ['light', 'dark'] as const) {
     await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
