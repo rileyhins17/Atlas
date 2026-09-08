@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { HabitCadence, HabitDTO } from '@atlas/shared';
-import { Check, Flame, Repeat, X } from 'lucide-react';
+import { Check, Flame, Plus, Repeat, X } from 'lucide-react';
 import { errorMessage } from '@/lib/api';
 import {
   useCreateHabit,
@@ -179,6 +179,7 @@ export function HabitsPanel() {
               habit={h}
               counts={historyByHabit.get(h.id)}
               historyAvailable={historyAvailable}
+              saving={log.isPending}
               onCheckIn={() => log.mutate(h.id)}
               onEdit={() => openEdit(h)}
               onRemove={() => remove.mutate(h.id)}
@@ -252,6 +253,7 @@ function HabitCard({
   habit,
   counts,
   historyAvailable,
+  saving,
   onCheckIn,
   onEdit,
   onRemove,
@@ -259,6 +261,7 @@ function HabitCard({
   habit: HabitDTO;
   counts: Map<string, number> | undefined;
   historyAvailable: boolean;
+  saving: boolean;
   onCheckIn: () => void;
   onEdit: () => void;
   onRemove: () => void;
@@ -268,12 +271,15 @@ function HabitCard({
     <Card stack className={habit.doneToday ? 'habit-card done' : 'habit-card'}>
       <div className="row" style={{ gap: 13 }}>
         <button
-          className={`check ${habit.doneToday ? '' : ''}`}
+          type="button"
+          className="habit-checkin"
+          disabled={saving}
+          title={habit.doneToday ? 'Daily target met. Log another check-in.' : 'Log one check-in.'}
           aria-label={`Check in "${habit.name}"`}
           aria-pressed={habit.doneToday}
           onClick={onCheckIn}
         >
-          <Check size={14} strokeWidth={3} aria-hidden />
+          {habit.doneToday ? <Check size={18} strokeWidth={3} aria-hidden /> : <Plus size={18} aria-hidden />}
         </button>
         <div className="stack" style={{ gap: 1, flex: 1, minWidth: 0 }}>
           {/* The name is the edit affordance, the way an event row is on the

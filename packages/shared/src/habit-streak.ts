@@ -1,3 +1,5 @@
+import type { HabitDTO } from './dto/habit.js';
+
 /** UTC day key (YYYY-MM-DD) for grouping habit logs. */
 export function utcHabitDayKey(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -17,4 +19,15 @@ export function computeHabitStreak(perDay: Map<string, number>, target: number, 
     cursor.setUTCDate(cursor.getUTCDate() - 1);
   }
   return streak;
+}
+
+/** Predict one pending check-in; the server remains authoritative on settlement. */
+export function optimisticHabitCheckIn(habit: Pick<HabitDTO, 'todayCount' | 'target' | 'doneToday' | 'streak'>) {
+  const todayCount = habit.todayCount + 1;
+  const doneToday = todayCount >= habit.target;
+  return {
+    todayCount,
+    doneToday,
+    streak: habit.streak + (doneToday && !habit.doneToday ? 1 : 0),
+  };
 }

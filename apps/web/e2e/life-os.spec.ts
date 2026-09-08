@@ -2488,3 +2488,52 @@ test('mobile week shows complete events and retains time-grid access in both the
     await expect(event).toBeVisible();
   }
 });
+
+
+test('habit check-ins keep partial progress honest and recover failed saves in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    const name = `Check-in state ${theme} ${Date.now()}`;
+    const created = await page.request.post('http://localhost:4000/habits', { data: { name, target: 2 } });
+    expect(created.status()).toBe(201);
+    const habit = await created.json() as { id: string };
+    await page.goto('/habits');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    const card = page.locator('.habit-card').filter({ hasText: name });
+    const button = card.getByRole('button', { name: `Check in "${name}"` });
+    await expect(button).toHaveAttribute('aria-pressed', 'false');
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    const logUrl = `http://localhost:4000/habits/${habit.id}/log`;
+    await page.route(logUrl, async (route) => {
+      await held;
+      await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'Synthetic check-in failure' }) });
+    });
+    try {
+      await button.click();
+      await expect(button).toBeDisabled();
+      await expect(card).toContainText('1/2 today');
+      await expect(button).toHaveAttribute('aria-pressed', 'false');
+    } finally { release(); }
+    await expect(card).toContainText('0/2 today');
+    await expect(button).toBeEnabled();
+    await page.unroute(logUrl);
+    for (const count of [1, 2]) {
+      const saved = page.waitForResponse((response) => response.url() === logUrl && response.request().method() === 'POST');
+      await button.click();
+      expect((await saved).ok()).toBe(true);
+      await expect(button).toBeEnabled();
+      await expect(card).toContainText(`${count}/2 today`);
+      await expect(button).toHaveAttribute('aria-pressed', String(count === 2));
+    }
+    await page.reload();
+    await expect(card).toContainText('2/2 today');
+    await expect(button).toHaveAttribute('aria-pressed', 'true');
+    const listed = await page.request.get('http://localhost:4000/habits');
+    expect(listed.ok()).toBe(true);
+    expect(await listed.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: habit.id, todayCount: 2, target: 2, doneToday: true })]));
+    const failures = screenFailures(await measureScreen(page, '/habits:check-in-state', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+  }
+});

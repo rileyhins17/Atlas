@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeHabitStreak, utcHabitDayKey as dayKey } from '../src/habit-streak.js';
+import { computeHabitStreak, optimisticHabitCheckIn, utcHabitDayKey as dayKey } from '../src/habit-streak.js';
 
 // Explicit mid-day UTC input keeps day boundaries stable without a global clock.
 const NOW = new Date('2026-07-16T12:00:00.000Z');
@@ -79,5 +79,17 @@ describe('computeStreak', () => {
   it('is zero with no qualifying days', () => {
     expect(computeStreak(new Map(), 1)).toBe(0);
     expect(computeStreak(days([[5, 1]]), 1)).toBe(0);
+  });
+});
+
+describe('pending check-in projection', () => {
+  it.each([
+    [2, false, 3, false, 4],
+    [7, false, 8, true, 5],
+    [8, true, 9, true, 4],
+  ])('keeps completion and streak tied to the target at count %i', (count, done, nextCount, nextDone, nextStreak) => {
+    const before = { todayCount: count as number, doneToday: done as boolean, target: 8, streak: 4 };
+    expect(optimisticHabitCheckIn(before)).toEqual({ todayCount: nextCount, doneToday: nextDone, streak: nextStreak });
+    expect(before.todayCount).toBe(count);
   });
 });

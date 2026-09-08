@@ -6413,3 +6413,16 @@ label:has(> input[type='checkbox']) {
 .week-agenda-event { display: flex; flex-direction: column; gap: 5px; width: 100%; min-height: 44px; padding: 12px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface); color: var(--text); text-align: left; cursor: pointer; }
 .week-agenda-time { font-size: 13px; color: var(--text-muted); }
 .week-agenda-title { font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+
+/* Habit check-in is an add action until the daily target has been met. */
+.habit-checkin {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 36px; height: 36px; padding: 0; border-radius: 10px;
+  border: 1.5px solid var(--border-subtle); background: var(--surface-inset);
+  color: var(--text); cursor: pointer;
+}
+.habit-checkin[aria-pressed="true"] {
+  border-color: var(--success-role); background: var(--success-role); color: #fff;
+}
+.habit-checkin:hover:not(:disabled) { border-color: var(--brand); }
+.habit-checkin:disabled { opacity: 0.6; cursor: wait; }
