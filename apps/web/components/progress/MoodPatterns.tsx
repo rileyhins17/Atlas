@@ -1,6 +1,7 @@
 'use client';
 
 import { useMoodPatterns } from '@/lib/hooks/stats';
+import { ErrorState, ListSkeleton } from '@/components/ui';
 
 /** Three is a page you read. Six is a horoscope. */
 const MAX_SHOWN = 3;
@@ -21,7 +22,7 @@ const MAX_SHOWN = 3;
  * wrong about someone's mental health in public.
  *
  * Four states, and three of them say almost nothing on purpose:
- *   nothing logged  → silence (Today's check-in is already doing the asking)
+ *   nothing logged  → explains the history needed
  *   under a fortnight → how far off it is, so the daily tap has a visible point
  *   enough days, no gap → says so plainly, which is a real answer
  *   a gap → the observation, with both counts, so it can be checked
@@ -31,9 +32,14 @@ export function MoodPatterns() {
 
   // Never make a claim about someone's data from a response that has not
   // arrived — the same rule that keeps "No habits yet" off a loading page.
-  if (q.isPending || q.isError) return null;
+  if (q.isError) return <ErrorState message="Could not load mood patterns." onRetry={() => void q.refetch()} />;
+  if (q.isPending || q.data === undefined) return (
+    <section aria-label="Mood patterns">
+      <p role="status">Loading mood patterns…</p>
+      <ListSkeleton rows={2} />
+    </section>
+  );
   const { daysLogged, daysNeeded, patterns } = q.data;
-  if (daysLogged === 0) return null;
 
   return (
     <section className="mood-patterns" aria-labelledby="mood-patterns-h">

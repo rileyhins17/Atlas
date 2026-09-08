@@ -16,8 +16,9 @@ import {
 } from '@atlas/shared';
 import { Plus } from 'lucide-react';
 import { useExercises, useFinishWorkout, useWorkoutHistory, useWorkoutTemplates } from '@/lib/hooks/fitness';
-import { useWeightUnit } from '@/lib/hooks/settings';
-import { Button, Card } from '@/components/ui';
+import { useSettings } from '@/lib/hooks/settings';
+import { WeightPreferenceStatus } from './WeightPreference';
+import { Button, Card, ErrorState } from '@/components/ui';
 import { RestTimer } from '@/components/fitness/RestTimer';
 import { elapsed } from './helpers';
 import { ExercisePicker } from './ExercisePicker';
@@ -56,9 +57,14 @@ export function ActiveWorkout({
   // the numbers, and it was the one thing there was nowhere to put.
   const [notes, setNotes] = useState('');
   const history = useWorkoutHistory();
-  const unit = useWeightUnit();
+  const settings = useSettings();
+  const unit = settings.data?.weightUnit;
   const templates = useWorkoutTemplates();
   const exercises = useExercises();
+
+  const planSources = workout.templateId ? [templates, exercises] : [];
+  const failedPlan = planSources.filter((query) => query.isError);
+  const planReady = planSources.every((query) => !query.isError && !query.isPending && query.data !== undefined);
 
   const template =
     templates.data?.find((t) => t.id === workout.templateId) ?? null;
@@ -129,8 +135,8 @@ export function ActiveWorkout({
           <div>
             <h2 className="fit-active-title">{workout.title}</h2>
             <p className="fit-active-sub">
-              {elapsed(workout.startedAt)} · {workout.workingSets} sets ·{' '}
-              {formatVolume(workout.volumeGrams, unit)} volume
+              {elapsed(workout.startedAt)} · {workout.workingSets} sets
+              {unit && ` · ${formatVolume(workout.volumeGrams, unit)} volume`}
             </p>
           </div>
           <Button
@@ -140,7 +146,7 @@ export function ActiveWorkout({
               // Snapshot BEFORE finishing: the mutation clears the active
               // workout, and the summary needs the session that just ended.
               const done = { ...workout };
-              const past = history.data ?? [];
+              const past = history.isError || history.isPending ? null : history.data ?? null;
               finish.mutate(
                 notes.trim() ? { notes: notes.trim() } : {},
                 {
@@ -156,6 +162,7 @@ export function ActiveWorkout({
             Finish
           </Button>
         </header>
+        <WeightPreferenceStatus query={settings} />
 
         <label className="fit-notes">
           <span className="fit-notes-label">How did it go?</span>
@@ -171,6 +178,18 @@ export function ActiveWorkout({
         <RestTimer key={restKey} />
       </Card>
 
+      {history.isError ? (
+        <ErrorState message="Earlier sessions could not be loaded. You can still finish this workout without comparisons." onRetry={() => void history.refetch()} />
+      ) : history.isPending || history.data === undefined ? (
+        <p className="prog-muted" role="status">Loading earlier sessions for comparisons…</p>
+      ) : null}
+      {failedPlan.length > 0 ? (
+        <ErrorState message="Planned exercises could not be loaded. Your logged sets are kept." onRetry={() => {
+          for (const query of failedPlan) void query.refetch();
+        }} />
+      ) : !planReady ? <p className="prog-muted" role="status">Loading planned exercises…</p> : null}
+      <fieldset disabled={!planReady} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
+      {planReady && rounds.length === 0 && <p className="prog-muted">No exercises in this session yet. Add one to start logging.</p>}
       {rounds.map((round) => {
         const body = round.members.map((b) => (
           <ExerciseBlock
@@ -218,6 +237,7 @@ export function ActiveWorkout({
           <Plus size={15} aria-hidden /> Add exercise
         </button>
       )}
+      </fieldset>
     </>
   );
 }

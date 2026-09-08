@@ -7,6 +7,7 @@ export interface RecurrencePickerProps {
   value: string | null;
   onChange: (rule: string | null) => void;
   label?: string;
+  disabled?: boolean;
 }
 
 /**
@@ -18,6 +19,7 @@ export function RecurrencePicker({
   value,
   onChange,
   label = 'Repeat',
+  disabled = false,
 }: RecurrencePickerProps) {
   return (
     <div className="repeat-picker" role="group" aria-label={label}>
@@ -28,6 +30,7 @@ export function RecurrencePicker({
           <button
             key={p.key}
             type="button"
+            disabled={disabled}
             className={`repeat-chip ${on ? 'on' : ''}`}
             aria-pressed={on}
             onClick={() => onChange(p.rule ?? null)}

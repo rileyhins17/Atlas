@@ -1,15 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { describeRrule, durationKey, formatDuration, type TaskDTO } from '@atlas/shared';
+import { describeRrule, formatDuration, type DurationEstimate, type TaskDTO } from '@atlas/shared';
 import { Check, Flag, Repeat, X } from 'lucide-react';
 import {
   useCompleteTask,
   useDeleteTask,
-  useTaskDurations,
   useUpdateTask,
 } from '@/lib/hooks/tasks';
-import { IconButton, Badge } from '@/components/ui';
+import { IconButton, Badge, Button } from '@/components/ui';
 import { TaskGoalChip } from '@/components/TaskGoalChip';
 import { formatDue } from '@/lib/dates';
 
@@ -19,17 +18,16 @@ const PRIORITY_ORDER: TaskDTO['priority'][] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'
  * The rich task row: complete-check, priority dot (click to cycle), inline
  * title edit (click or `e`), warm due chip, tags, quiet delete on hover.
  */
-export function TaskRow({ task, compact = false }: { task: TaskDTO; compact?: boolean }) {
+export function TaskRow({ task, compact = false, usual }: { task: TaskDTO; compact?: boolean; usual?: DurationEstimate }) {
   const complete = useCompleteTask();
   const update = useUpdateTask();
   const del = useDeleteTask();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(task.title);
   const inputRef = useRef<HTMLInputElement>(null);
+  const savingTitle = useRef(false);
 
-  const durations = useTaskDurations();
   const done = task.status === 'DONE';
-  const usual = durations.data?.get(durationKey(task.title));
   const repeat = describeRrule(task.recurrence);
   const due = task.dueAt ? new Date(task.dueAt) : null;
   const overdue = !done && due !== null && due.getTime() < Date.now();
@@ -39,10 +37,22 @@ export function TaskRow({ task, compact = false }: { task: TaskDTO; compact?: bo
   }, [editing]);
 
   function saveTitle() {
+    if (savingTitle.current || update.isPending) return;
     const title = draft.trim();
+    if (!title) return;
+    if (title === task.title) { setEditing(false); return; }
+    savingTitle.current = true;
+    update.mutate({ id: task.id, patch: { title } }, {
+      onSuccess: () => setEditing(false),
+      onSettled: () => { savingTitle.current = false; },
+    });
+  }
+
+  function cancelTitle() {
+    if (savingTitle.current || update.isPending) return;
+    update.reset();
+    setDraft(task.title);
     setEditing(false);
-    if (title && title !== task.title) update.mutate({ id: task.id, patch: { title } });
-    else setDraft(task.title);
   }
 
   function cyclePriority() {
@@ -56,7 +66,7 @@ export function TaskRow({ task, compact = false }: { task: TaskDTO; compact?: bo
       <button
         className="check"
         aria-label={done ? `Completed "${task.title}"` : `Complete "${task.title}"`}
-        disabled={done || complete.isPending}
+        disabled={done || complete.isPending || update.isPending}
         onClick={() => complete.mutate(task.id)}
       >
         <Check size={14} strokeWidth={3} aria-hidden />
@@ -68,6 +78,7 @@ export function TaskRow({ task, compact = false }: { task: TaskDTO; compact?: bo
           className={`priority-dot p-${task.priority}`}
           aria-label={`Priority ${task.priority.toLowerCase()} — click to change`}
           title={`Priority: ${task.priority.toLowerCase()}`}
+          disabled={update.isPending}
           onClick={cyclePriority}
         >
           <Flag size={11} aria-hidden />
@@ -75,27 +86,36 @@ export function TaskRow({ task, compact = false }: { task: TaskDTO; compact?: bo
       )}
 
       {editing ? (
-        <input
-          ref={inputRef}
-          className="task-title-input"
-          aria-label="Edit task title"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={saveTitle}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') saveTitle();
-            if (e.key === 'Escape') {
-              setDraft(task.title);
-              setEditing(false);
-            }
-          }}
-        />
+        <form className="task-title-editor" onSubmit={(event) => { event.preventDefault(); saveTitle(); }}>
+          <input
+            ref={inputRef}
+            className="task-title-input"
+            aria-label="Edit task title"
+            value={draft}
+            readOnly={update.isPending}
+            onChange={(event) => {
+              if (update.isError) update.reset();
+              setDraft(event.target.value);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') { event.preventDefault(); saveTitle(); }
+              if (event.key === 'Escape') { event.preventDefault(); cancelTitle(); }
+            }}
+          />
+          <div className="task-title-controls">
+            <Button type="submit" disabled={update.isPending || !draft.trim()} aria-label="Save title">
+              {update.isPending ? 'Saving…' : 'Save'}
+            </Button>
+            <Button type="button" variant="ghost" disabled={update.isPending} onClick={cancelTitle} aria-label="Cancel edit">Cancel</Button>
+          </div>
+          {update.isError && <p className="task-title-status" role="alert">Title was not confirmed. Your edit is kept.</p>}
+        </form>
       ) : (
         <button
           type="button"
           className="title task-title-btn"
           onClick={() => {
-            if (!done) setEditing(true);
+            if (!done) { update.reset(); setDraft(task.title); setEditing(true); }
           }}
           aria-label={done ? task.title : `${task.title} — click to edit`}
         >
@@ -143,7 +163,7 @@ export function TaskRow({ task, compact = false }: { task: TaskDTO; compact?: bo
         <IconButton
           label={`Delete "${task.title}"`}
           onClick={() => del.mutate(task.id)}
-          disabled={del.isPending}
+          disabled={del.isPending || update.isPending}
         >
           <X size={15} aria-hidden />
         </IconButton>

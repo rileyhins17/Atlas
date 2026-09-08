@@ -76,11 +76,22 @@ export function GoogleCalendarCard({
 
   // A server with no Google OAuth client cannot connect anything, so on a domain
   // page it shows nothing at all rather than a button that cannot work.
-  if ((compact || inline) && status && !status.configured) return null;
+  if ((compact || inline) && statusQuery.isSuccess && status && !status.configured) return null;
 
   if (inline) {
-    // Nothing at all until the status is known: a row that appears a beat late
-    // is far better than one that shifts the events down as it resolves.
+    if (statusQuery.isPending) {
+      return <p className="gc-inline-note" role="status">Checking Google Calendar connection…</p>;
+    }
+    if (statusQuery.isError) {
+      return (
+        <div className="gc-inline">
+          <ErrorState
+            message={errorMessage(statusQuery.error, 'Failed to load connector status')}
+            onRetry={() => void statusQuery.refetch()}
+          />
+        </div>
+      );
+    }
     if (!status?.configured) return null;
     return (
       <div className="gc-inline">

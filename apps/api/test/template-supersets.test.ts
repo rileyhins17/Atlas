@@ -39,7 +39,7 @@ function makeService() {
     },
   };
   const service = new WorkoutTemplatesService(prisma as never, {} as never, {} as never);
-  return { service, created };
+  return { service, created, prisma };
 }
 
 const save = async (exerciseIds: string[], supersetGroups?: (number | null)[]) => {
@@ -49,6 +49,13 @@ const save = async (exerciseIds: string[], supersetGroups?: (number | null)[]) =
 };
 
 describe('workout day supersets', () => {
+  it('bounds exercise validation without dropping a selected movement', async () => {
+    const { service, created, prisma } = makeService();
+    await service.create('u1', { name: 'Push', exerciseIds: ['bench', 'row', 'bench'] });
+    expect(prisma.client.exercise.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 2 }));
+    expect(created.map((e) => e.exerciseId)).toEqual(['bench', 'row']);
+  });
+
   it('stores the grouping it was given', async () => {
     const rows = await save(['bench', 'row', 'squat'], [0, 0, null]);
     expect(rows.map((r) => [r.exerciseId, r.supersetGroup])).toEqual([
