@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { ArrowDown, Check } from 'lucide-react';
 import { ErrorState, ListSkeleton } from '@/components/ui';
 import { useEvents } from '@/lib/hooks/events';
@@ -61,10 +62,11 @@ export function FirstCapture() {
     return (
       <section className="fc-card done" aria-label="First capture complete">
         <Check size={15} aria-hidden />
-        <p>
-          That is the whole app. Anything you type there — a task, a plan, how the day went — lands
-          in the right place.
-        </p>
+        <div className="stack">
+          <p>Your first item is saved. Open it to decide what happens next.</p>
+          {(tasks.data?.length ?? 0) > 0 && <Link href="/tasks" className="btn secondary">Review my tasks</Link>}
+          {(events.data?.length ?? 0) > 0 && <Link href="/calendar" className="btn secondary">Open my calendar</Link>}
+        </div>
       </section>
     );
   }

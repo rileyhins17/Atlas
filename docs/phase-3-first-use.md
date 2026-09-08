@@ -63,3 +63,31 @@ still needs verification.
 Two-step routine local gates: build 6/6, forced typecheck 10/10, lint zero
 errors with three existing warnings, 1520 unit tests passed. Browser verification
 of this commit remains pending CI.
+
+## Saved-item handoff
+
+The first-capture confirmation now offers Review my tasks for saved tasks and
+Open my calendar for saved events, using the existing destination routes. Two
+new tests were observed failing before this change; both then passed alongside
+eight existing query-state tests. The browser proof now clicks the confirmation
+link instead of using page.goto to reach Tasks, so the user-facing transition
+itself must work. This lifecycle proof is pending CI, not inferred from the
+component tests.
+
+## Existing onboarding browser contract corrected
+
+Run `34226131494` at `1d07336` failed the existing a-onboarding spec: it
+expected sleep setup immediately and could not find that heading on the new
+capture-first screen. Result: 52 passed, one failed, one skipped. The failure
+prevented screenshot execution, so no new first-use visual pass is claimed.
+
+The existing spec now chooses routine setup explicitly, measures both steps in
+light and dark at 390px using the shared strict geometry/font/all-axe checker,
+and saves the second pass. It retains the original Today handoff and persisted
+09:30–17:30 work-hours assertion in Settings. No extra registration or spec was
+introduced. This repairs an outdated expectation for the deliberate redesign;
+it does not remove the persistence proof. CI verification remains pending.
+
+Final local gates for the handoff and browser-contract correction: build 6/6,
+forced typecheck 10/10, lint zero errors with three existing warnings, 1522
+unit tests passed. CI and PNG review remain pending for this revision.
