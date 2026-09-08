@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { GoogleCalendarChoiceDTO } from '@atlas/shared';
 import { GoogleApi } from '@/lib/api';
 import { qk } from './keys';
 import { useInvalidatingMutation } from './mutation';
@@ -35,7 +36,9 @@ export function useSetGoogleCalendars() {
     mutationFn: GoogleApi.setCalendars,
     // Unticking a calendar deletes the events it brought in, so the events
     // cache is as stale as the calendar list.
-    onSuccess: () => {
+    onSuccess: (_result, selected) => {
+      qc.setQueryData<GoogleCalendarChoiceDTO[]>(qk.googleCalendars, (current) =>
+        current?.map((calendar) => ({ ...calendar, syncing: selected.includes(calendar.id) })));
       void qc.invalidateQueries({ queryKey: qk.googleCalendars });
       void qc.invalidateQueries({ queryKey: qk.events });
     },

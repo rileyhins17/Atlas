@@ -56,7 +56,7 @@ export function Feed() {
 
       {timeline.isPending ? (
         <ListSkeleton rows={6} />
-      ) : timeline.isError ? (
+      ) : timeline.isError && rows.length === 0 ? (
         <ErrorState message="Couldn't load your story." onRetry={() => timeline.refetch()} />
       ) : rows.length === 0 ? (
         <EmptyState
@@ -65,12 +65,16 @@ export function Feed() {
         />
       ) : (
         <div className="feed-groups">
+          {rows.some((row) => row.refType === 'task') && (
+            tasks.isError ? <ErrorState message="Task actions could not be loaded." onRetry={() => void tasks.refetch()} />
+              : tasks.isPending ? <p className="muted" role="status">Checking task actions…</p> : null
+          )}
           {groups.map(([day, dayRows]) => (
             <section key={day} aria-label={formatDayHeading(new Date(`${day}T12:00:00`))}>
               <h2 className="feed-day">{formatDayHeading(new Date(`${day}T12:00:00`))}</h2>
               <ol className="feed-list">
                 {dayRows.map((row: TimelineEventDTO) => {
-                  const open = openTaskRef(row, tasks.data ?? []);
+                  const open = tasks.isError || tasks.isPending ? null : openTaskRef(row, tasks.data ?? []);
                   return (
                     <FeedRow
                       key={row.id}
@@ -83,7 +87,12 @@ export function Feed() {
               </ol>
             </section>
           ))}
-          {timeline.hasNextPage && (
+          {timeline.isFetchNextPageError ? (
+            <ErrorState message="Earlier activity could not be loaded." onRetry={() => void timeline.fetchNextPage()} />
+          ) : timeline.isError ? (
+            <ErrorState message="Your story could not be refreshed." onRetry={() => void timeline.refetch()} />
+          ) : null}
+          {timeline.hasNextPage && !timeline.isFetchNextPageError && (
             <div className="row" style={{ justifyContent: 'center' }}>
               <Button
                 variant="secondary"
