@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { AUDIT_ROUTES, measureScreen, screenFailures } from './ui-measurements';
 import { expect, test } from '@playwright/test';
 import { register } from './helpers';
 
@@ -35,9 +37,11 @@ test('capture the Life-OS screens', async ({ page }) => {
   // Explicit-run only (SHOTS=1): this rig registers its own user, and in a full
   // suite run that third registration trips the 5/min register throttle.
   test.skip(!process.env.SHOTS, 'screenshot rig — run explicitly with SHOTS=1');
-  test.setTimeout(240_000);
+  test.setTimeout(600_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await register(page);
+  const measurements: Awaited<ReturnType<typeof measureScreen>>[] = [];
+  mkdirSync(OUT, { recursive: true });
 
   // FIRST, before any data exists: the first-run wizard. It is the only screen
   // every paying user is guaranteed to see, and it is the one the rig could
@@ -55,6 +59,36 @@ test('capture the Life-OS screens', async ({ page }) => {
   await expect(wizard).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/p-00-onboarding.png`, fullPage: true });
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    await expect(page.getByRole('region', { name: 'Start using Atlas' })).toBeVisible();
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+    measurements.push(await measureScreen(page, '/today:first-use', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/first-use-${theme}.png`, fullPage: true });
+  }
+
+  // This account has no provider or routine. Prove first value through the
+  // actual capture path before seeding the richer screenshot fixture.
+  const marker = `FirstUse${Date.now()}`;
+  const firstCapture = page.getByRole('region', { name: 'Start using Atlas' });
+  await firstCapture.getByLabel('Capture anything').click();
+  await firstCapture.getByLabel('Capture anything').pressSequentially(`buy groceries ${marker}`);
+  await firstCapture.getByRole('button', { name: 'Capture', exact: true }).click();
+  await expect(firstCapture).toHaveCount(0, { timeout: 30_000 });
+  const savedTasks = await page.request.get('http://localhost:4000/tasks');
+  expect(savedTasks.ok()).toBe(true);
+  const saved = await savedTasks.json() as { id: string; title: string }[];
+  expect(saved.some((task) => task.id && task.title.includes(marker))).toBe(true);
+  const routine = await page.request.get('http://localhost:4000/routine');
+  expect(routine.ok()).toBe(true);
+  expect(await routine.json()).toEqual([]);
+  await page.getByRole('region', { name: 'First capture complete' }).getByRole('link', { name: 'Review my tasks' }).click();
+  await expect(page).toHaveURL(/\/tasks$/);
+  await expect(page.locator('.task-title-btn').filter({ hasText: marker })).toBeVisible();
+  await page.evaluate(() => localStorage.setItem('atlas-theme', 'light'));
   await page.setViewportSize({ width: 1440, height: 900 });
 
   // Seed a believable day straight through the API (cookie-authed). A routine
@@ -188,4 +222,159 @@ test('capture the Life-OS screens', async ({ page }) => {
   await page.getByRole('button', { name: /next day/i }).click();
   await page.waitForTimeout(1100);
   await page.screenshot({ path: `${OUT}/p-13-day-canvas.png`, fullPage: true });
+
+  // The original 33-image rig was run and all PNGs inspected at 1b60239 before
+  // adding this stricter baseline. Collect every route before asserting, so a
+  // single broken control cannot hide findings on the remaining screens.
+  mkdirSync(OUT, { recursive: true });
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    for (const route of AUDIT_ROUTES) {
+      await page.goto(route);
+      await expect(page.getByLabel('Capture anything')).toBeAttached();
+      await page.waitForLoadState('networkidle');
+      await expect(page.locator('.skeleton')).toHaveCount(0);
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      const report = await measureScreen(page, route, theme);
+      measurements.push(report);
+      writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+      await page.screenshot({ path: `${OUT}/audit-${theme}-${route.slice(1)}.png`, fullPage: true });
+    }
+  }
+  const manualAccount = await page.request.post('http://localhost:4000/finance/accounts', {
+    data: { name: 'Everyday cash', type: 'cash', currency: 'CAD', balanceMinor: 20000 },
+  });
+  expect(manualAccount.status()).toBe(201);
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.goto('/finance');
+    await page.getByRole('button', { name: 'Add transaction', exact: true }).click();
+    const form = page.getByRole('form', { name: 'New manual transaction' });
+    await form.getByLabel('Description', { exact: true }).click();
+    await form.getByLabel('Description', { exact: true }).pressSequentially('Groceries');
+    await form.getByLabel('Amount (CAD)', { exact: true }).click();
+    await form.getByLabel('Amount (CAD)', { exact: true }).pressSequentially('18.29');
+    measurements.push(await measureScreen(page, '/finance:transaction', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/manual-transaction-${theme}.png`, fullPage: true });
+    await page.evaluate(() => {
+      for (const id of ['training', 'proactive']) localStorage.setItem(`atlas-settings-${id}`, '1');
+    });
+    await page.goto('/settings');
+    await expect(page.getByRole('group', { name: 'Weight unit' })).toBeVisible();
+    await expect(page.getByRole('status').filter({ hasText: 'Checking notifications' })).toHaveCount(0);
+    await expect(page.locator('.skeleton')).toHaveCount(0);
+    measurements.push(await measureScreen(page, '/settings:actions', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/settings-actions-${theme}.png`, fullPage: true });
+  }
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.goto('/today');
+    await page.reload();
+    await expect(page.getByRole('region', { name: 'Quick capture' })).toBeVisible();
+    await page.getByRole('button', { name: 'Search and capture', exact: true }).click();
+    const input = page.getByRole('combobox', { name: 'Command input' });
+    await page.route('http://localhost:4000/search?*', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await input.click(); await input.pressSequentially('Dentist');
+    await expect(page.getByText('Your saved items could not be searched.')).toBeVisible({ timeout: 20_000 });
+    measurements.push(await measureScreen(page, '/today:search-error', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/search-error-${theme}.png`, fullPage: true });
+    await page.unroute('http://localhost:4000/search?*');
+    await input.click(); await input.press('ControlOrMeta+a');
+    await input.pressSequentially(`zznomatch${Date.now()}`);
+    await expect(page.getByText('No saved items match this search.')).toBeVisible();
+    measurements.push(await measureScreen(page, '/today:search-empty', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/search-empty-${theme}.png`, fullPage: true });
+    await input.press('Escape');
+  }
+  const linkGoalResponse = await page.request.post('http://localhost:4000/goals', { data: { title: 'Training consistency', horizon: 'short' } });
+  expect(linkGoalResponse.status()).toBe(201);
+  const linkGoal = await linkGoalResponse.json() as { id: string };
+  const linkTaskResponse = await page.request.post('http://localhost:4000/tasks', { data: { title: 'Plan next training week', goalId: linkGoal.id } });
+  expect(linkTaskResponse.status()).toBe(201);
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.route('http://localhost:4000/goals', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.goto('/tasks');
+    await page.reload();
+    const row = page.locator('.task').filter({ hasText: 'Plan next training week' });
+    await row.getByRole('button', { name: 'Goal linked — view or change', exact: true }).click();
+    await expect(row.getByText('Your goals could not be loaded.')).toBeVisible({ timeout: 20_000 });
+    measurements.push(await measureScreen(page, '/tasks:goal-error', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/goal-error-${theme}.png`, fullPage: true });
+    await page.unroute('http://localhost:4000/goals');
+  }
+  const weightWorkoutResponse = await page.request.post('http://localhost:4000/fitness/workouts', { data: { title: 'Saved training session' } });
+  expect(weightWorkoutResponse.status()).toBe(201);
+  const weightWorkout = await weightWorkoutResponse.json() as { id: string };
+  expect((await page.request.post(`http://localhost:4000/fitness/workouts/${weightWorkout.id}/finish`, { data: {} })).ok()).toBe(true);
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.route('http://localhost:4000/settings', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.goto('/fitness');
+    await page.reload();
+    await expect(page.getByText('Weight units could not be loaded.')).toBeVisible({ timeout: 20_000 });
+    measurements.push(await measureScreen(page, '/fitness:history-unit-error', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/history-unit-error-${theme}.png`, fullPage: true });
+    await page.unroute('http://localhost:4000/settings');
+  }
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.route('http://localhost:4000/connectors/google/status', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'Calendar connection could not be checked.' }) }));
+    await page.goto('/calendar');
+    await page.reload();
+    await expect(page.getByText('Calendar connection could not be checked.')).toBeVisible({ timeout: 20_000 });
+    measurements.push(await measureScreen(page, '/calendar:connection-error', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/calendar-connection-error-${theme}.png`, fullPage: true });
+    await page.unroute('http://localhost:4000/connectors/google/status');
+  }
+  const editTaskResponse = await page.request.post('http://localhost:4000/tasks', { data: { title: 'Book the next appointment' } });
+  expect(editTaskResponse.status()).toBe(201);
+  const editTask = await editTaskResponse.json() as { id: string };
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.goto('/tasks');
+    await page.reload();
+    await page.getByRole('button', { name: 'Book the next appointment — click to edit', exact: true }).click();
+    const input = page.getByRole('textbox', { name: 'Edit task title', exact: true });
+    await input.click(); await input.press('ControlOrMeta+a'); await input.pressSequentially('Book an appointment that fits next week');
+    await page.route(`http://localhost:4000/tasks/${editTask.id}`, (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.getByRole('button', { name: 'Save title', exact: true }).click();
+    await expect(page.getByText('Title was not confirmed. Your edit is kept.')).toBeVisible();
+    measurements.push(await measureScreen(page, '/tasks:title-error', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/task-title-error-${theme}.png`, fullPage: true });
+    await page.unroute(`http://localhost:4000/tasks/${editTask.id}`);
+  }
+  // Session/config failures use synthetic responses, never another registration.
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.route('http://localhost:4000/auth/me', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.goto('/today');
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Could not load your session' })).toBeVisible();
+    measurements.push(await measureScreen(page, '/today:session-failure', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/session-failure-${theme}.png`, fullPage: true });
+    await page.unroute('http://localhost:4000/auth/me');
+    await page.route('http://localhost:4000/auth/me', (route) => route.fulfill({ status: 401, contentType: 'application/json', body: '{}' }));
+    await page.route('http://localhost:4000/auth/config', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ inviteRequired: true }) }));
+    await page.reload();
+    await page.getByRole('button', { name: 'Show the create account form' }).click();
+    await expect(page.getByLabel('Invite code', { exact: true })).toBeVisible();
+    measurements.push(await measureScreen(page, '/today:invite-sign-up', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/invite-sign-up-${theme}.png`, fullPage: true });
+    await page.unroute('http://localhost:4000/auth/me');
+    await page.unroute('http://localhost:4000/auth/config');
+  }
+  const failures = measurements.flatMap(screenFailures);
+  expect(failures, failures.join('\n')).toEqual([]);
+
 });

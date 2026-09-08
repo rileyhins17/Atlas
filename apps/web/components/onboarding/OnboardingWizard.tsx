@@ -3,40 +3,16 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
-import { errorMessage } from '@/lib/api';
-import { useConnectDeepSeek } from '@/lib/hooks/ai';
 import { useReplaceRoutine } from '@/lib/hooks/routine';
-import { useGoogleConnectStart, useGoogleStatus } from '@/lib/hooks/google';
 import { qk } from '@/lib/hooks/keys';
 import { Button, Input, useToast } from '@/components/ui';
 import { useAtlasUi } from '@/components/atlas/AtlasUiProvider';
 import { AtlasLoadingScreen } from '@/components/atlas/AtlasLoadingScreen';
 import { buildRoutine, timeToMin, type OnboardingAnswers } from '@/lib/onboarding';
 
-/**
- * First-run onboarding v2: a warm, conversational form — one screen at a time,
- * real inputs instead of multiple choice, three free-text steps that become
- * pinned notes (always in the AI's context, auto-embedded for recall). The
- * more you tell Atlas here, the better it runs your life — and everything is
- * still skippable.
- */
-
-type StepId = 'sleep' | 'week' | 'ai';
-
-/**
- * Three questions, not eight.
- *
- * The wizard used to ask for a name, free-text about-you, goals, context and a
- * habit list before the product had demonstrated anything — eight chances to
- * leave, in exchange for data Atlas can just as easily ask for later, when it
- * has earned the right to. Everything dropped here is still collected: the asks
- * bell raises it at the moment it becomes relevant.
- *
- * What survives is the set that cannot wait. Sleep and work hours are what make
- * Today's free-time calculation correct rather than confidently wrong, and the
- * API key is what makes the AI exist at all.
- */
-const STEPS: StepId[] = ['sleep', 'week', 'ai'];
+/** Optional routine setup. Provider connections live in Settings. */
+type StepId = 'sleep' | 'week';
+const STEPS: StepId[] = ['sleep', 'week'];
 
 const BUILD_MESSAGES = [
   'Mapping your week…',
@@ -60,9 +36,6 @@ export function OnboardingWizard() {
   }, [setFocusMode]);
 
   const [step, setStep] = useState(0);
-  const [offerCalendar, setOfferCalendar] = useState(false);
-  const googleConnect = useGoogleConnectStart();
-  const googleStatus = useGoogleStatus();
   const [building, setBuilding] = useState(false);
 
   const [bedtime, setBedtime] = useState('23:00');
@@ -72,10 +45,6 @@ export function OnboardingWizard() {
   const [workEnd, setWorkEnd] = useState('17:00');
   const [exercise, setExercise] = useState<OnboardingAnswers['exercise']>('none');
   const [meals, setMeals] = useState<OnboardingAnswers['meals']>('regular');
-  const [aiKey, setAiKey] = useState('');
-  const [aiSaved, setAiSaved] = useState(false);
-  const connectAi = useConnectDeepSeek();
-
   const id: StepId = STEPS[step]!;
   const last = step === STEPS.length - 1;
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
@@ -104,54 +73,13 @@ export function OnboardingWizard() {
         qc.invalidateQueries({ queryKey: qk.me }),
       ]);
       toast('Your week is mapped. Welcome to Atlas.', 'success');
-      // Offer the calendar only AFTER everything is saved. Connecting Google is
-      // a full-page redirect, so asking mid-wizard would throw away every
-      // answer the user had just typed.
-      setOfferCalendar(true);
+      // The routine cache update makes Today leave first use. Connections
+      // remain available in Settings after this successful handoff.
+      setBuilding(false);
     } catch {
       toast('Could not save everything — you can adjust it later in Settings.', 'error');
       setBuilding(false);
     }
-  }
-
-  // Everything is persisted by now, so leaving for Google's consent screen is
-  // safe. Skipping is a first-class choice: the app is fully usable without it.
-  if (offerCalendar) {
-    return (
-      <section className="onb" aria-label="Connect your calendar">
-        <div className="onb-step">
-          <h1 className="onb-q">One last thing.</h1>
-          <p className="onb-help">
-            Connect Google Calendar and Atlas can plan around the meetings you already
-            have, instead of guessing your day is empty. Two-way — events you add here
-            go back to Google.
-          </p>
-          <div className="onb-cal-actions">
-            <Button
-              onClick={() =>
-                googleConnect.mutate(undefined, {
-                  onSuccess: ({ url }) => {
-                    window.location.href = url;
-                  },
-                })
-              }
-              disabled={googleConnect.isPending || googleStatus.data?.configured === false}
-            >
-              {googleConnect.isPending ? 'Opening Google…' : 'Connect Google Calendar'}
-            </Button>
-            <Button variant="ghost" onClick={() => setOfferCalendar(false)}>
-              Skip for now
-            </Button>
-          </div>
-          {googleStatus.data?.configured === false && (
-            <p className="onb-help">
-              This server has no Google client configured — you can connect later from
-              Settings.
-            </p>
-          )}
-        </div>
-      </section>
-    );
   }
 
   if (building) {
@@ -217,7 +145,7 @@ export function OnboardingWizard() {
         )}
 
         {id === 'week' && (
-          <OnbForm onNext={next}>
+          <OnbForm onNext={() => void finish()} label="Build my week">
             <h1 className="onb-q">What does a normal week look like?</h1>
             <div className="onb-field-col">
               <label className="onb-field">
@@ -289,87 +217,6 @@ export function OnboardingWizard() {
 
 
 
-        {id === 'ai' && (
-          <>
-            {/* Named plainly. "Want Atlas to think?" was clever and told a
-                newcomer nothing about what they were being asked for, or that
-                without it the intelligence in the product does not exist. */}
-            <h1 className="onb-q">Add your DeepSeek API key</h1>
-            <p className="onb-sub">
-              <strong>This key is what powers everything intelligent in Atlas.</strong> Understanding
-              what you type and filing it in the right place, your morning brief, planning your day
-              around the hours you actually have, the weekly review, and every pattern it notices
-              across your training, sleep and work — all of it runs on this key.
-            </p>
-            <p className="onb-sub">
-              It is <strong>yours, not ours</strong>. You get it from DeepSeek, you pay DeepSeek
-              directly — a few cents a month for normal use — and Atlas never bills you or marks it
-              up. That is also why your data never goes through our account.
-            </p>
-            <form
-              className="onb-name-row"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const key = aiKey.trim();
-                if (!key || connectAi.isPending) return;
-                connectAi.mutate(key, { onSuccess: () => setAiSaved(true) });
-              }}
-            >
-              <Input
-                type="password"
-                placeholder="sk-…"
-                aria-label="DeepSeek API key"
-                autoComplete="off"
-                value={aiKey}
-                onChange={(e) => setAiKey(e.target.value)}
-              />
-              <Button type="submit" variant="secondary" disabled={!aiKey.trim() || connectAi.isPending}>
-                {connectAi.isPending ? 'Checking…' : 'Save'}
-              </Button>
-            </form>
-            {aiSaved && (
-              <p className="onb-sub" style={{ color: 'var(--success-text)' }}>
-                Connected. Atlas will brief you from tomorrow morning.
-              </p>
-            )}
-            {connectAi.isError && (
-              <p className="onb-sub" style={{ color: 'var(--danger-role)' }}>
-                {errorMessage(connectAi.error, 'That key was not accepted.')}
-              </p>
-            )}
-            <p className="onb-sub" style={{ fontSize: 12 }}>
-              {/* A link, not bold text to retype. This is the single highest-
-                  friction step in onboarding and it was asking someone to copy
-                  a domain by hand onto a second device. Opens in a new tab so a
-                  half-finished wizard is not lost. */}
-              Get one free at{' '}
-              <a
-                href="https://platform.deepseek.com"
-                target="_blank"
-                rel="noreferrer noopener"
-                className="onb-link"
-              >
-                platform.deepseek.com
-              </a>{' '}
-              — sign up, open API keys, create one, paste it here. Stored encrypted; it never
-              leaves your Atlas.
-            </p>
-            {/* Skipping has to be honest about the cost. Saying "everything
-                still works" was not true — capture, the brief, planning and the
-                weekly review are the product. */}
-            <p className="onb-sub" style={{ fontSize: 12 }}>
-              You can skip and add it later in Settings. Atlas still records and organises
-              everything you enter, and typing “gym at 6” still lands on your calendar — but it
-              will not brief you, plan for you, or notice anything until a key is in place.
-            </p>
-            {/* The last step needs its own way forward. Leaving "Skip" in the
-                header as the only exit means someone who has just pasted a key
-                has to press Skip to continue, which reads like discarding it. */}
-            <Button style={{ marginTop: 14 }} onClick={() => void finish()}>
-              {aiSaved ? 'Build my week' : 'Build my week — I’ll add a key later'}
-            </Button>
-          </>
-        )}
 
       </div>
     </section>
@@ -377,7 +224,7 @@ export function OnboardingWizard() {
 }
 
 /** Step scaffold: content + a Continue submit so Enter always advances. */
-function OnbForm({ children, onNext }: { children: React.ReactNode; onNext: () => void }) {
+function OnbForm({ children, onNext, label = 'Continue' }: { children: React.ReactNode; onNext: () => void; label?: string }) {
   return (
     <form
       className="onb-form"
@@ -388,7 +235,7 @@ function OnbForm({ children, onNext }: { children: React.ReactNode; onNext: () =
     >
       {children}
       <Button type="submit" style={{ marginTop: 6 }}>
-        Continue
+        {label}
       </Button>
     </form>
   );

@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useSettings, useUpdateSettings } from '@/lib/hooks/settings';
 import { useMe } from '@/lib/hooks/auth';
-import { Button, Input, Spinner } from '@/components/ui';
+import { Button, ErrorState, Input, Spinner } from '@/components/ui';
 import { firstNameFrom } from '@/lib/name';
 import { greeting } from '@/lib/dates';
 
@@ -22,14 +22,15 @@ export function NameSettingsCard() {
   const update = useUpdateSettings();
 
   const saved = settings.data?.displayName ?? '';
-  const [name, setName] = useState(saved);
+  const [draft, setDraft] = useState<string | null>(null);
+  const name = draft ?? saved;
   const [error, setError] = useState<string | null>(null);
 
-  // Adopt the server value once it arrives, and after a save. Keyed on `saved`
-  // so typing is never clobbered by an unrelated re-render.
-  useEffect(() => setName(saved), [saved]);
-
-  if (settings.isPending) return <Spinner />;
+  const failed = [settings, me].filter((query) => query.isError);
+  if (failed.length > 0) return <ErrorState message="Your profile settings could not be loaded." onRetry={() => {
+    for (const query of failed) void query.refetch();
+  }} />;
+  if (settings.isPending || me.isPending || settings.data === undefined || me.data === undefined) return <Spinner />;
 
   const trimmed = name.trim();
   const dirty = trimmed !== saved;
@@ -39,7 +40,7 @@ export function NameSettingsCard() {
 
   function save(e: React.FormEvent) {
     e.preventDefault();
-    if (!dirty) return;
+    if (!dirty || update.isPending) return;
     if (tooLong) {
       setError('That is longer than 80 characters.');
       return;
@@ -52,7 +53,10 @@ export function NameSettingsCard() {
       setError('Enter a name, or leave this as it was.');
       return;
     }
-    update.mutate({ displayName: trimmed }, { onError: () => setError('Could not save that name.') });
+    update.mutate({ displayName: trimmed }, {
+      onSuccess: () => setDraft(null),
+      onError: () => setError('Could not save that name.'),
+    });
   }
 
   // Show the actual sentence Today will render, so the setting explains itself.
@@ -61,14 +65,15 @@ export function NameSettingsCard() {
   return (
     <form className="stack" style={{ gap: 8 }} noValidate onSubmit={save}>
       <p className="prog-muted" style={{ margin: 0, fontSize: 13 }}>
-        Atlas greets you by this on Today. Leave it blank and it works out a name from your email
-        address, or skips the name entirely when that would not read like one.
+        Atlas uses this name to greet you on Today. Until you set one, it uses a suitable name
+        from your email address or leaves the greeting unnamed.
       </p>
       <label className="field">
         <span className="field-label">Your name</span>
         <Input
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => setDraft(e.target.value)}
+          disabled={update.isPending}
           placeholder="Riley"
           maxLength={80}
         />

@@ -220,3 +220,15 @@ describe('MoodCheckIn', () => {
     }
   });
 });
+
+
+it('recovers a failed mood read without asking for a duplicate answer', async () => {
+  atLocalHour(7, 20);
+  list.mockRejectedValueOnce(new Error('network')).mockResolvedValue([]);
+  wrap(<MoodCheckIn />);
+  await screen.findByText('Mood check-in could not be loaded.');
+  expect(screen.queryByText(ANY)).toBeNull();
+  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  await user.click(screen.getByRole('button', { name: 'Retry' }));
+  await screen.findByText(MORNING);
+});

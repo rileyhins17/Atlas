@@ -1,5 +1,7 @@
 'use client';
 
+import { trainingWeekLabel as weekLabel } from '@atlas/shared';
+
 import { useMemo, useState } from 'react';
 import {
   exerciseProgress,
@@ -15,15 +17,6 @@ import {
 } from '@atlas/shared';
 import { Dumbbell, TrendingDown, TrendingUp, Trophy } from 'lucide-react';
 import { Card, EmptyState, Sparkline } from '@/components/ui';
-
-/** "Jul 21" for a week-of key. */
-function weekLabel(key: string): string {
-  const [y, m, d] = key.split('-').map(Number);
-  return new Date(y!, (m ?? 1) - 1, d ?? 1).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-  });
-}
 
 /**
  * Training progress in the terms a lifter asks about: am I training enough,

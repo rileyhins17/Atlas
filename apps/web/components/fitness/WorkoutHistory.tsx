@@ -8,10 +8,11 @@ import {
 } from '@atlas/shared';
 import { errorMessage } from '@/lib/api';
 import { useWorkoutHistory } from '@/lib/hooks/fitness';
-import { useWeightUnit } from '@/lib/hooks/settings';
+import { useSettings } from '@/lib/hooks/settings';
 import { EmptyState, ErrorState, ListSkeleton } from '@/components/ui';
 import { formatDayHeading } from '@/lib/dates';
 import { ExerciseDetail } from './ExerciseDetail';
+import { WeightPreference } from './WeightPreference';
 
 /** Finished sessions, newest first. */
 export function WorkoutHistory() {
@@ -20,7 +21,7 @@ export function WorkoutHistory() {
   // record, and "what have I ever squatted" had no answer on any screen.
   const [openExercise, setOpenExercise] = useState<{ id: string; name: string } | null>(null);
   const history = useWorkoutHistory();
-  const unit = useWeightUnit();
+  const settings = useSettings();
   const workouts = history.data ?? [];
 
   if (history.isPending) return <ListSkeleton rows={3} circle={false} />;
@@ -50,7 +51,7 @@ export function WorkoutHistory() {
           onClose={() => setOpenExercise(null)}
         />
       )}
-      {workouts.map((w) => {
+      <WeightPreference query={settings}>{(unit) => workouts.map((w) => {
         const groups = groupSetsByExercise(w.sets);
         return (
           <section key={w.id} className="fit-history-row" aria-label={w.title}>
@@ -82,7 +83,7 @@ export function WorkoutHistory() {
             </ul>
           </section>
         );
-      })}
+      })}</WeightPreference>
     </div>
   );
 }

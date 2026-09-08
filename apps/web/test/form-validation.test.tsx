@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 // Keep ApiError/errorMessage real; stub only the network objects so we can
@@ -10,7 +10,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api')>();
   return {
     ...actual,
-    AuthApi: { me: vi.fn(), register: vi.fn(), login: vi.fn(), logout: vi.fn() },
+    AuthApi: { config: vi.fn().mockResolvedValue({ inviteRequired: false }), me: vi.fn(), register: vi.fn(), login: vi.fn(), logout: vi.fn() },
     EventsApi: {
       list: vi.fn().mockResolvedValue([]),
       create: vi.fn(),
@@ -47,6 +47,7 @@ describe('AuthGate client-side validation', () => {
     await user.click(screen.getByRole('button', { name: 'Show the create account form' }));
     await user.type(screen.getByLabelText('Email'), 'a@b.com');
     await user.type(screen.getByLabelText('Password'), 'short');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Create account' })).toBeEnabled());
     await user.click(screen.getByRole('button', { name: 'Create account' }));
 
     expect(screen.getByText('Password must be at least 8 characters')).toBeInTheDocument();

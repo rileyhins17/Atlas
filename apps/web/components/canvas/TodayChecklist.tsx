@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { ErrorState, ListSkeleton } from '@/components/ui';
 import { Check, Plus, Repeat } from 'lucide-react';
 import type { CanvasItem } from '@/lib/canvas';
 import { useHabits, useLogHabit } from '@/lib/hooks/habits';
@@ -20,6 +21,9 @@ export function TodayChecklist({ checklist }: { checklist: CanvasItem[] }) {
   const openHabits = (habits.data ?? []).filter((h) => !h.doneToday);
   const doneHabits = (habits.data ?? []).filter((h) => h.doneToday);
   const total = checklist.length + openHabits.length;
+
+  if (habits.isError) return <ErrorState message="Your checklist could not be loaded." onRetry={() => void habits.refetch()} />;
+  if (habits.isPending || habits.data === undefined) return <ListSkeleton rows={2} circle={false} />;
 
   if (total === 0 && doneHabits.length === 0) {
     return (
