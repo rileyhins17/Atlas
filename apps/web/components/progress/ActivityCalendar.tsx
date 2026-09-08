@@ -85,7 +85,7 @@ export function ActivityCalendar({ days }: { days: StatsDayDTO[] }) {
         {/* RANGES, not bare numbers. "Quieter → Busier" said the squares were
             ordered and nothing about what any meant; "0 5 7 8 8+" then read as
             a sequence of counts rather than the bands they are. */}
-        <div className="cal-key" aria-label="Scale">
+        <div className="cal-key" role="group" aria-label="Scale">
           <i data-level="0" />
           <span>0</span>
           <i data-level="1" />

@@ -275,3 +275,21 @@ Detailed incomplete axe diagnostics from green run `34222072737` identify:
 - Progress: a labelled legend div has no suitable role; short percentage text
   was not automatically evaluated for contrast.
 These remain unresolved checks, not passes.
+
+
+## Follow-up on incomplete accessibility results
+
+Three new regressions were observed red: the streak image label, the activity
+legend group label, and the actual Now-label CSS token over its 13% gradient tint.
+The last test found nine failing palette/mode pairs, from 4.16:1 to 4.49:1. The
+label now uses `--brand-on-tint`, the streak has an image role and the legend a
+group role. All six targeted cases pass. The gradient remains, with explicit sRGB
+interpolation so its colour bounds are well defined.
+
+A supplemental browser measurement reads actual computed gradient stops and text
+colours. For the gradient it uses component-wise RGB bounds, which conservatively
+bound luminance throughout sRGB interpolation; for short ring text it reads the
+opaque ancestor surface. It rejects unsupported/translucent cases and asserts a
+minimum 4.5:1. The existing shared colour functions supply the arithmetic. This
+adds evidence for the specific checks axe left incomplete, without filtering them
+out of its report. Current-head CI measurements remain pending.

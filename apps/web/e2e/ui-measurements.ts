@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
+import { measureSupplementalContrast } from './contrast-measurements';
 
 /** The existing whole-app regression's thirteen routes, including compatibility URLs. */
 export const AUDIT_ROUTES = [
@@ -44,6 +45,7 @@ export async function measureScreen(page: Page, route: string, theme: 'light' | 
   const axe = await new AxeBuilder({ page }).analyze();
   return {
     route, resolvedUrl: page.url(), theme, ...geometry,
+    supplementalContrast: await measureSupplementalContrast(page),
     violations: axe.violations.map(({ id, impact, description, nodes }) => ({
       id, impact, description, nodes: nodes.map(({ target, failureSummary }) => ({ target, failureSummary })),
     })),
@@ -63,6 +65,8 @@ export function screenFailures(report: Awaited<ReturnType<typeof measureScreen>>
     ...(report.overflow > 0 ? [`${prefix}: horizontal overflow ${report.overflow}px`] : []),
     ...report.undersizedTargets.map((t) => `${prefix}: target ${t.width}x${t.height} ${t.tag}.${t.className} ${t.name}`),
     ...report.undersizedInputs.map((t) => `${prefix}: input font ${t.fontSize}px ${t.tag}.${t.className} ${t.name}`),
+    ...report.supplementalContrast.filter((sample) => sample.minimumRatio === null || sample.minimumRatio < 4.5)
+      .map((sample) => `${prefix}: supplemental contrast ${sample.target}: ${sample.unsupported ?? sample.minimumRatio?.toFixed(2)}`),
     ...report.violations.map((v) => `${prefix}: axe ${v.id} (${v.impact}) on ${v.nodes.length} element(s)`),
   ];
 }

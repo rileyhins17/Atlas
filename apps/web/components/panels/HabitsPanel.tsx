@@ -291,7 +291,7 @@ function HabitCard({
           ))}
         </div>
         {habit.streak > 0 && (
-          <Badge className="streak" aria-label={`${habit.streak} day streak`}>
+          <Badge className="streak" role="img" aria-label={`${habit.streak} day streak`}>
             <Flame size={13} aria-hidden />
             {habit.streak}
           </Badge>

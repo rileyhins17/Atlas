@@ -2913,7 +2913,7 @@ input[type='checkbox']:checked::after {
 .nownext {
   display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px;
   padding: 18px 20px; border-radius: 18px;
-  background: linear-gradient(135deg,
+  background: linear-gradient(135deg in srgb,
     color-mix(in srgb, var(--brand) 13%, var(--surface-raised)),
     var(--surface-raised) 62%);
   border: 1px solid color-mix(in srgb, var(--brand) 28%, transparent);
@@ -2922,7 +2922,7 @@ input[type='checkbox']:checked::after {
 .nownext-eyebrow {
   display: inline-flex; align-items: center; gap: 7px;
   font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--brand);
+  color: var(--brand-on-tint);
 }
 .nownext-dot {
   width: 8px; height: 8px; border-radius: 50%; background: var(--brand);
