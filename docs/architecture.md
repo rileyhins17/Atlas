@@ -74,6 +74,14 @@ shared. Web modules retain compatibility exports. These moves preserve their
 existing rules and all 51 existing tests; they do not redesign navigation or
 change the capture heuristic during the architecture phase.
 
+Onboarding routine construction, feed grouping/routing, install eligibility and
+theme palette/contrast calculations are shared too. `readEnv()` stays in the web
+install adapter; DOM theme application and local storage stay in web. The 219
+existing calculation tests moved to shared, while install-prompt and palette
+picker component tests remain in web. This move preserves the existing theme
+algorithm and palette output; rendered accessibility still requires the Phase 3
+browser audit and is not established by contrast arithmetic alone.
+
 The shared connector transformations parse chat completions, normalize Plaid
 amounts/account types/currencies, and convert Google Calendar date shapes.
 Connectors retain compatibility exports plus HTTP calls, cancellation options,

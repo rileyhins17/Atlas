@@ -6,7 +6,7 @@ import {
   isStandalone,
   shouldShowIosInstallHint,
   type Env,
-} from '@/lib/install';
+} from '../src/install-eligibility.js';
 
 /**
  * The install banner listened only for `beforeinstallprompt`, which Safari

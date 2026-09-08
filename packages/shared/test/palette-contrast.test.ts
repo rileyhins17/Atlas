@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { contrast, hslToHex, mix, solveForContrast } from '@/lib/theme/colour';
-import { DEFAULT_PALETTE, PALETTES, buildPalette, palettesCss } from '@/lib/theme/palettes';
+import { contrast, hslToHex, mix, solveForContrast } from '../src/theme-colour.js';
+import { DEFAULT_PALETTE, PALETTES, buildPalette, palettesCss } from '../src/theme-palettes.js';
 
 /**
  * The test that makes ten themes safe to ship.

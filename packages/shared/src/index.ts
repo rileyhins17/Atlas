@@ -62,3 +62,8 @@ export * from './capture-intent.js';
 export * from './exercise-order.js';
 export * from './sections.js';
 export * from './name.js';
+export * from './onboarding.js';
+export * from './feed.js';
+export * from './theme-colour.js';
+export * from './theme-palettes.js';
+export * from './install-eligibility.js';

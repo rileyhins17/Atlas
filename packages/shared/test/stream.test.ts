@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { TaskDTO, TimelineEventDTO } from '@atlas/shared';
-import { feedRowHref, groupFeedByDay, openTaskRef } from '@/lib/stream';
+import type { TaskDTO, TimelineEventDTO } from '../src/index.js';
+import { feedRowHref, groupFeedByDay, openTaskRef } from '../src/feed.js';
 
 // Local-time constructors keep day boundaries stable in any test timezone.
 const now = new Date(2026, 6, 15, 12, 0); // Wed Jul 15 2026, noon local

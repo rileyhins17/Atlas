@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { RoutineBlockDTO } from '@atlas/shared';
-import { routineAt } from '@/lib/stream';
-import { buildRoutine, DAILY, minToTime, timeToMin, WEEKDAYS } from '@/lib/onboarding';
+import type { RoutineBlockDTO } from '../src/index.js';
+import { routineAt } from '../src/feed.js';
+import { buildRoutine, DAILY, minToTime, timeToMin, WEEKDAYS } from '../src/onboarding.js';
 
 const block = (over: Partial<RoutineBlockDTO>): RoutineBlockDTO => ({
   id: over.id ?? `b${Math.random()}`,
