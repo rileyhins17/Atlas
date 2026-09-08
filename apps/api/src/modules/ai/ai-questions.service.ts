@@ -1,3 +1,4 @@
+import { readCollection } from '../../core/collection-pages.js';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { AiQuestionDTO } from '@atlas/shared';
 import type { AiQuestion } from '@atlas/db';
@@ -32,10 +33,11 @@ export class AiQuestionsService {
   }
 
   async listOpen(userId: string): Promise<AiQuestionDTO[]> {
-    const qs = await this.prisma.client.aiQuestion.findMany({
+    const qs = await readCollection((page) => this.prisma.client.aiQuestion.findMany({
+      take: page.take, cursor: page.cursor, skip: page.skip,
       where: { userId, status: 'OPEN' },
-      orderBy: { createdAt: 'desc' },
-    });
+      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+    }));
     return qs.map(toDto);
   }
 
