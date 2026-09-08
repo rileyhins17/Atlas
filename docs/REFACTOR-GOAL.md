@@ -16,6 +16,22 @@ product redesign; accidental changes and silent capability loss are not.
 
 ## Product work required
 
+### Owner-funded AI — Riley's 8 September clarification
+
+Invited users must be able to use Atlas AI without entering a DeepSeek API key.
+The owner supplies the server-side provider credential and usage budget. A
+validated invite grants durable account eligibility; merely creating an account
+or knowing another user's id must never grant access to owner-funded calls.
+Existing users need an authenticated invite-redemption path. Preserve the local
+capture fallback and existing personal-key accounts during the transition.
+
+This is part of the active end-to-end objective, prioritized before finishing
+the manual-Money slice (checkpoint 59622f6). Implement registration/redemption,
+server credential selection, usage enforcement, accurate status and onboarding,
+and automatic briefs together. No client receives the shared provider key.
+Record observed authorization, tenant-isolation, budget, fallback and browser
+tests. Do not treat a configured environment variable alone as delivery.
+
 1. Inspect the current implementation and rendered app. Separate what actually
    works from assumptions in old plans. Record the current experience and its
    measured weaknesses before changing the UI.

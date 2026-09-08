@@ -153,7 +153,7 @@ export class AiController {
       enabled: this.costGuard.enabled,
       model: env.AI_MODEL,
       dailyTokenCap: env.AI_DAILY_TOKEN_CAP,
-      tokensUsedToday: await this.costGuard.tokensUsedToday(),
+      tokensUsedToday: await this.costGuard.tokensUsedToday(user.id),
       providerConfigured,
       domains: this.registry.list().map((m) => m.id),
     };
