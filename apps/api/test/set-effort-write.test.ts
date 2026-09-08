@@ -38,7 +38,7 @@ function makeService() {
       },
     },
   };
-  const service = new FitnessService(prisma as never, { write: vi.fn(async () => {}) } as never);
+  const service = new FitnessService(prisma as never, { write: vi.fn(async () => {}) } as never, { get: async () => 'UTC' } as never);
   return { service, created };
 }
 

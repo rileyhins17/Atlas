@@ -1,3 +1,4 @@
+import { chunkItems as chunks } from '@atlas/shared';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import {
   ConnectorScopeError,
@@ -41,6 +42,7 @@ const PRIMARY = 'primary';
 const CALENDAR_FETCH_CONCURRENCY = 4;
 /** Postgres is happy with a large IN list, but not an unbounded one. */
 const ID_CHUNK = 1000;
+const DATABASE_LOOKUP_CONCURRENCY = 4;
 
 /** The calendars a sync is reading, reduced to what the mapping needs. */
 interface SyncCalendar {
@@ -57,12 +59,6 @@ interface RemoteEventData {
   endAt: Date;
   allDay: boolean;
   sourceCalendarId: string | null;
-}
-
-function chunks<T>(items: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
-  return out;
 }
 
 /** Promise.all with a ceiling on how many run at once. */
@@ -350,10 +346,16 @@ export class GoogleSyncService {
     // rather than by window: an event whose start moved out of the window is
     // still the same row, and looking it up by date would create a duplicate.
     const existing = new Map<string, Event>();
-    for (const chunk of chunks([...remoteById.keys()], ID_CHUNK)) {
-      const rows = await this.prisma.client.event.findMany({
+    const existingChunks = await mapWithConcurrency(
+      chunks([...remoteById.keys()], ID_CHUNK),
+      DATABASE_LOOKUP_CONCURRENCY,
+      (chunk) => this.prisma.client.event.findMany({
         where: { userId, source: CONNECTOR_ID, externalId: { in: chunk } },
-      });
+        // (userId, source, externalId) is unique.
+        take: chunk.length,
+      }),
+    );
+    for (const rows of existingChunks) {
       for (const row of rows) if (row.externalId) existing.set(row.externalId, row);
     }
 

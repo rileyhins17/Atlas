@@ -1,5 +1,7 @@
 'use client';
 
+import { bumpNumericInput as bump } from '@atlas/shared';
+
 import { useState } from 'react';
 import {
   RPE_CHOICES,
@@ -26,17 +28,6 @@ import { Check, Trophy, X } from 'lucide-react';
 import { useDeleteSet, useLastPerformance, useLogSet } from '@/lib/hooks/fitness';
 import { useWeightUnit } from '@/lib/hooks/settings';
 import { Button, IconButton, Input } from '@/components/ui';
-
-/**
- * Nudge a numeric field by `delta`, tolerating an empty or half-typed value.
- * Returns a string because the input is controlled by one.
- */
-function bump(value: string, delta: number, min = 0): string {
-  const n = Number(value);
-  const base = Number.isFinite(n) && value.trim() !== '' ? n : 0;
-  const next = Math.max(min, Math.round((base + delta) * 100) / 100);
-  return String(next);
-}
 
 
 /**
