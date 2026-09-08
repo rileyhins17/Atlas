@@ -1923,3 +1923,24 @@ test('a daily tracker records one rating per day, and correcting it is an edit',
     }
   });
 });
+
+test('exercise collections retain the final page of the real catalog', async ({ page }) => {
+  await go(page, '/fitness');
+  const result = await page.evaluate(async () => {
+    const base = window.location.hostname === 'localhost' ? 'http://localhost:4000' : '/api';
+    const response = await fetch(`${base}/fitness/exercises`, {
+      method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'zzzz Synthetic pagination movement' }),
+    });
+    if (!response.ok) throw new Error(`Create exercise: ${response.status}`);
+    const created = await response.json() as { id: string };
+    const listed = await fetch(`${base}/fitness/exercises`, { credentials: 'include' });
+    if (!listed.ok) throw new Error(`List exercises: ${listed.status}`);
+    const rows = await listed.json() as { id: string; name: string }[];
+    return { createdId: created.id, ids: rows.map((row) => row.id) };
+  });
+  // The shipped catalog already spans pages; the new name sorts after it.
+  expect(result.ids.length).toBeGreaterThan(250);
+  expect(result.ids).toContain(result.createdId);
+  expect(new Set(result.ids).size).toBe(result.ids.length);
+});

@@ -34,7 +34,7 @@ function makeService() {
   return { service, account, transaction, credential, timeline, connector, connectors };
 }
 
-const oneItem = [{ label: 'item-1', meta: { institution: 'Bank', cursor: 'c0' }, createdAt: new Date() }];
+const oneItem = [{ id: 'credential-1', label: 'item-1', meta: { institution: 'Bank', cursor: 'c0' }, createdAt: new Date() }];
 
 function accountsResult() {
   return {
@@ -145,8 +145,8 @@ describe('PlaidSyncService.sync', () => {
   it('aggregates across multiple linked banks', async () => {
     const { service, connector, credential } = makeService();
     credential.findMany.mockResolvedValue([
-      { label: 'item-1', meta: { cursor: 'c0' }, createdAt: new Date() },
-      { label: 'item-2', meta: { cursor: 'c0' }, createdAt: new Date() },
+      { id: 'credential-1', label: 'item-1', meta: { cursor: 'c0' }, createdAt: new Date() },
+      { id: 'credential-2', label: 'item-2', meta: { cursor: 'c0' }, createdAt: new Date() },
     ]);
     connector.getAccounts.mockResolvedValue(accountsResult());
     connector.syncTransactions.mockResolvedValue({ added: [], modified: [], removed: [], nextCursor: 'c1' });
