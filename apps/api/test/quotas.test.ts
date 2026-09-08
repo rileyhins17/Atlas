@@ -28,7 +28,7 @@ describe('goals', () => {
         goal: { count: vi.fn(async () => 100), create: vi.fn() },
       },
     };
-    const service = new GoalsService(prisma as never, timeline() as never);
+    const service = new GoalsService(prisma as never, timeline() as never, { get: async () => 'UTC' } as never);
     await expect(service.create('u1', { title: 'One more' } as never)).rejects.toBeInstanceOf(
       BadRequestException,
     );
@@ -55,7 +55,7 @@ describe('goals', () => {
         },
       },
     };
-    const service = new GoalsService(prisma as never, timeline() as never);
+    const service = new GoalsService(prisma as never, timeline() as never, { get: async () => 'UTC' } as never);
     await service.create('u1', { title: 'Fine' } as never);
     expect(prisma.client.goal.create).toHaveBeenCalled();
   });
@@ -124,7 +124,7 @@ describe('custom exercises', () => {
         exercise: { findFirst: vi.fn(async () => null), count: vi.fn(async () => count), create },
       },
     };
-    return { service: new FitnessService(prisma as never, timeline() as never), create };
+    return { service: new FitnessService(prisma as never, timeline() as never, { get: async () => 'UTC' } as never), create };
   };
 
   it('refuses past the cap, because the picker reads all of them on every open', async () => {

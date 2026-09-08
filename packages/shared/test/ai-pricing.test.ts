@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { estimateCostMicros, MODEL_RATES, rateFor } from '../src/pricing.js';
+import { estimateCostMicros, MODEL_RATES, rateFor } from '../src/ai-pricing.js';
 
 describe('rateFor', () => {
   it('returns the known rate for deepseek-chat', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assembleStats, dayKeys, type MetricRow } from '../src/modules/stats/stats.assemble.js';
+import { assembleStats, dayKeys, type MetricRow } from '../src/stats-assemble.js';
 
 const row = (metric: MetricRow['metric'], day: string, value: number): MetricRow => ({ metric, day, value });
 
