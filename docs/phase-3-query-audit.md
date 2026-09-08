@@ -10,7 +10,7 @@ assertions. No component is marked fully audited from source indicators alone.
 | AppShell.tsx | useMe | session-read-recovery: failed read avoids false sign-out and offers Retry; confirmed signed-out landmark; full and independent browser recovery passed CI 34278488365 in both themes |
 | AuthGate.tsx | useAuthConfig | auth-config-recovery: registration waits for known config, Retry, credentials retained, sign-in independent; full and independent browser config recovery passed CI 34278488365 in both themes |
 | TaskGoalChip.tsx | useGoals | task-goal-recovery: real component tests for failed-read Retry, compact pending/error linked label, unresolved linked id, recovered title and confirmed-empty unlinked task; browser persistence passed CI 34280641816, but inspected PNGs exposed -85px menu clipping; repair and stronger bounds checks pending. Old copied-expression tests are not component evidence |
-| TaskRow.tsx | useTaskDurations | Newly included root-level component; pending duration-hint state/recovery audit |
+| TaskRow.tsx | useTaskDurations | task-title-recovery: rejected title retained, explicit Save/Cancel, pending protection and no blur write; three observed-red unit cases. Browser save/GET/reload and state PNGs pending. Duration-hint query states remain unaudited |
 | atlas/AsksPanel.tsx | useAiQuestions | context-query-states: questions pending, failure, empty |
 | atlas/CommandBar.tsx | useSearch | command-search-states: active-query loading, failed search Retry, confirmed empty and stable selected action; full and independent saved-result recovery passed CI 34279919678; both-theme search PNGs inspected. Capture recovery now has eight local tests and PR #51: failed text retained, pending input protected, confirmed fallback success; browser verification is blocked by CI billing |
 | canvas/DayOverviewView.tsx | useRoutine, useTasks, useDayEvents, useDayActuals | day-overview: four source-specific pending and failed Retry cases, action ordering and timeline expansion. Child components are mocked; this proves the parent gate, not child states. Consolidated state geometry remains |
@@ -62,8 +62,9 @@ row. This inventory remains a discovery aid, not exhaustive proof for aliased or
 indirect query usage. Optional routine onboarding no
 longer issues connection-status queries; connections remain query-backed in Settings.
 
-Next high-impact gaps observed in source: TaskRow closes its title editor before
-a write succeeds; duration hints have no explicit query recovery. Command search
+Next high-impact gaps observed in source: task duration hints have no explicit
+query recovery. TaskRow now keeps failed title drafts with explicit Save/Cancel;
+its final browser and visual results are pending. Command search
 still navigates only to domain lists. Capture recovery is implemented in PR #51
 and awaits browser verification. Weight-dependent displays
 now use the settings query with explicit states; their full browser result is pending. The old pending-is-not-an-answer tests render copied expressions, not

@@ -334,6 +334,24 @@ test('capture the Life-OS screens', async ({ page }) => {
     await page.screenshot({ path: `${OUT}/calendar-connection-error-${theme}.png`, fullPage: true });
     await page.unroute('http://localhost:4000/connectors/google/status');
   }
+  const editTaskResponse = await page.request.post('http://localhost:4000/tasks', { data: { title: 'Book the next appointment' } });
+  expect(editTaskResponse.status()).toBe(201);
+  const editTask = await editTaskResponse.json() as { id: string };
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.goto('/tasks');
+    await page.reload();
+    await page.getByRole('button', { name: 'Book the next appointment — click to edit', exact: true }).click();
+    const input = page.getByRole('textbox', { name: 'Edit task title', exact: true });
+    await input.click(); await input.press('ControlOrMeta+a'); await input.pressSequentially('Book an appointment that fits next week');
+    await page.route(`http://localhost:4000/tasks/${editTask.id}`, (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.getByRole('button', { name: 'Save title', exact: true }).click();
+    await expect(page.getByText('Title was not confirmed. Your edit is kept.')).toBeVisible();
+    measurements.push(await measureScreen(page, '/tasks:title-error', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/task-title-error-${theme}.png`, fullPage: true });
+    await page.unroute(`http://localhost:4000/tasks/${editTask.id}`);
+  }
   // Session/config failures use synthetic responses, never another registration.
   for (const theme of ['light', 'dark'] as const) {
     await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);

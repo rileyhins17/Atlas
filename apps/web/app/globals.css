@@ -3835,7 +3835,7 @@ input[type='checkbox']:checked::after {
     flex-wrap: wrap;
     row-gap: 5px;
   }
-  .task-title-btn {
+  .task-title-btn, .task-title-editor {
     min-width: 11rem;
   }
 }
@@ -6433,3 +6433,8 @@ label:has(> input[type='checkbox']) {
 .habit-checkin:disabled { opacity: 0.6; cursor: wait; }
 
 .capture-save-status { margin: 0; padding: 8px 12px; font-size: 14px; line-height: 1.5; color: var(--text-muted); }
+
+.task-title-editor { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.task-title-editor .task-title-input { width: 100%; font-size: 16px; min-height: 36px; }
+.task-title-controls { display: flex; flex-wrap: wrap; gap: 6px; }
+.task-title-status { margin: 0; font-size: 14px; line-height: 1.5; color: var(--text-muted); }

@@ -2860,3 +2860,38 @@ test('calendar connection status recovers without blocking manual events in both
     await page.unroute('http://localhost:4000/connectors/google/status');
   }
 });
+
+test('task title edits retain failed drafts and persist explicit saves in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    const original = `Task edit ${theme} ${Date.now()}`;
+    const changed = `${original} saved`;
+    const created = await page.request.post('http://localhost:4000/tasks', { data: { title: original } });
+    expect(created.status()).toBe(201);
+    const task = await created.json() as { id: string };
+    await page.goto('/tasks');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    await page.getByRole('button', { name: `${original} — click to edit`, exact: true }).click();
+    const input = page.getByRole('textbox', { name: 'Edit task title', exact: true });
+    await input.click(); await input.press('ControlOrMeta+a'); await input.pressSequentially(changed);
+    await page.route(`http://localhost:4000/tasks/${task.id}`, (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.getByRole('button', { name: 'Save title', exact: true }).click();
+    await expect(page.getByText('Title was not confirmed. Your edit is kept.')).toBeVisible();
+    await expect(input).toHaveValue(changed);
+    let failures = screenFailures(await measureScreen(page, '/tasks:title-error', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await page.unroute(`http://localhost:4000/tasks/${task.id}`);
+    const saved = page.waitForResponse((response) => response.url().endsWith(`/tasks/${task.id}`) && response.request().method() === 'PATCH');
+    await page.getByRole('button', { name: 'Save title', exact: true }).click();
+    expect((await saved).ok()).toBe(true);
+    await expect(input).toBeHidden();
+    await page.reload();
+    await expect(page.getByRole('button', { name: `${changed} — click to edit`, exact: true })).toBeVisible();
+    const listed = await page.request.get('http://localhost:4000/tasks');
+    expect(listed.ok()).toBe(true);
+    expect(await listed.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: task.id, title: changed })]));
+    failures = screenFailures(await measureScreen(page, '/tasks:title-recovered', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+  }
+});
