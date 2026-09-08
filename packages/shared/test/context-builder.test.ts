@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { AiContextChunk } from '@atlas/shared';
+import type { AiContextChunk } from '../src/contracts.js';
 import { buildContext, estimateTokens } from '../src/context-builder.js';
 
 function chunk(source: string, content: string): AiContextChunk {

@@ -16,8 +16,10 @@ PRs #4–#11 are also individually green. The combined branch
 `codex/phase-1-correctness-gate` assembles them and adds the timer mutation
 regressions and repository-wide list-bound contract. Its local gates passed
 (build 6/6, forced typecheck 10/10, lint 0 errors and 3 existing warnings,
-1,367 unit tests, plus 15 Python restore tests). Combined CI is still pending;
-architecture work must wait for that PR and green CI. See
+1,367 unit tests, plus 15 Python restore tests). Combined PR #12 is green at
+`9b19cc3` in runs `34179388103` and `34179363460`: 50 browser passes, one skip,
+both independent regressions and both database checks passed. Phase 2 has
+started on `codex/phase-2-domain-contract`. See
 [`docs/phase-1-validation.md`](./docs/phase-1-validation.md) for tested commits,
 observed runs, audit scope and current verification.
 

@@ -39,3 +39,5 @@ export * from './dto/exercise-records.js';
 export * from './dto/set-effort.js';
 export * from './dto/plates.js';
 export * from './time.js';
+export * from './context-builder.js';
+export * from './domain-module.js';

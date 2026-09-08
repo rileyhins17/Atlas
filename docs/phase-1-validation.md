@@ -75,6 +75,9 @@ The eight affected test files then passed all 50 tests.
 The final local gates passed: build 6/6, forced typecheck 10/10, lint with zero
 errors and three existing warnings, and 1,367 unit tests (API 346, shared 332,
 web 587, AI 59, connectors 43). The 15 Python restore-safety tests also passed.
-Local Playwright and database checks are skipped; the combined CI result is
-pending. Phase 2 must not begin before this combined PR is open and its final
-CI run is green.
+Local Playwright and database checks were skipped. The cumulative gate is now
+verified at `9b19cc3` in PR #12: PR run `34179388103` and push run `34179363460`
+both passed. The PR run reported 50 browser passes and one skip, followed by
+one independent pass each for habit aggregation and collection pagination.
+Both database checks passed together, and synthetic restore counts matched
+across all tables. This satisfies the transition gate into Phase 2.

@@ -3,7 +3,7 @@
 Atlas is a TypeScript monorepo. One database, one API, one web app, a background of shared packages. The design optimizes for **adding life-domains and integrations forever without touching the core**.
 
 ## The four load-bearing ideas
-1. **Module = life-domain.** Each domain is a NestJS module implementing `DomainModule` (`aiContext()` + `getToolSpecs()`), self-registering into `ModuleRegistryService`. The AI brain reads the registry; it never hard-codes domains. See `docs/module-guide.md`.
+1. **Module = life-domain.** Each domain has a NestJS adapter extending `RegisteredDomainModule`, which implements the shared `DomainModule` contract (`aiContext()` + `getToolSpecs()`). Registration and summary packaging have one implementation; domains supply their metadata, summarizing service and tools. The AI brain reads `ModuleRegistryService`; it never hard-codes domains. See `docs/module-guide.md`.
 2. **Connector = external API.** Each integration implements `Connector`; secrets are AES-256-GCM encrypted in `credentials`. See `docs/connector-guide.md`.
 3. **Unified timeline.** Every meaningful mutation writes a `timeline_events` row (`TimelineService`). This append-only, cross-domain log is what the AI reads to "keep tracking your life" — compact, not the whole DB.
 4. **AI writes back.** `insights` (derived knowledge, rolling summaries) and `ai_questions` (the AI's questions to the user) are first-class tables. Spend is bounded by `CostGuard` + the `ai_usage` ledger + `AI_DAILY_TOKEN_CAP`.
@@ -25,13 +25,23 @@ apps/api (NestJS)
                  ├─ runToolLoop (packages/ai) ──→ ToolRouterService → domain services
                  └─ EmbeddingService → LocalEmbedder (in-process, no key)
                                      → embeddings (pgvector, $queryRaw)
-packages/ai  context-builder + CostGuard + runToolLoop + wire-safe tool names + LocalEmbedder
+packages/ai  CostGuard + runToolLoop + wire-safe tool names + LocalEmbedder
 packages/connectors  Connector + DeepSeek client (chat)
 packages/db  Prisma schema + client (import DB only via @atlas/db)
-packages/shared  zod DTOs + enums + contracts (browser-safe, no DB)
+packages/shared  zod DTOs + enums + contracts + pure context packing/order (browser-safe, no DB)
 ```
 
 ## The AI brain (Phase 2)
+
+`DomainModule`, context ordering, token estimation and context packing live in
+`packages/shared`. The API base adapter handles framework lifecycle and calls
+the owner-scoped service. `packages/ai/src/context-builder.ts` retains a
+compatibility export; there is one implementation and its existing tests now
+live beside it in shared. Domain ids, context titles/priorities and all ten
+tool-spec bodies are unchanged by this consolidation. The ten-adapter contract
+suite passed before and after it. This is the first architecture slice; other
+pure application calculations still need migration into shared.
+
 `OrchestratorService` is the only thing that talks to a model. It:
 1. Assembles context from every registered domain (`collectContext`) and packs it under a token budget (`buildContext`) — modules summarize, the builder caps.
 2. Calls the provider through `CostGuard` on **every** round-trip, including each turn of a tool-calling conversation, so spend can't slip past `AI_DAILY_TOKEN_CAP`.
