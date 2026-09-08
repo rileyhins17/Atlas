@@ -43,6 +43,27 @@ export interface DayBucket {
   events: EventDTO[];
 }
 
+export interface AgendaDay {
+  key: string;
+  date: Date;
+  segments: { event: EventDTO; continuesBefore: boolean; continuesAfter: boolean }[];
+}
+
+/** Include every visible day an event occupies; end timestamps are exclusive. */
+export function agendaDays(events: EventDTO[], days: Date[]): AgendaDay[] {
+  return days.map((date) => {
+    const start = startOfDay(date).getTime();
+    const end = addDays(startOfDay(date), 1).getTime();
+    return {
+      key: localDayKey(date), date,
+      segments: events
+        .filter((event) => new Date(event.startAt).getTime() < end && new Date(event.endAt).getTime() > start)
+        .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
+        .map((event) => ({ event, continuesBefore: new Date(event.startAt).getTime() < start, continuesAfter: new Date(event.endAt).getTime() > end })),
+    };
+  });
+}
+
 /** How many events fall on each local day — drives the week-strip density dots. */
 export function countsByDay(events: EventDTO[]): Map<string, number> {
   const out = new Map<string, number>();

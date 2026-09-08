@@ -24,3 +24,11 @@ it('starts an event on the chosen day instead of silently using today', () => {
   fireEvent.click(screen.getAllByRole('button', { name: /^Add event on/ })[5]!);
   expect(create).toHaveBeenCalledWith(days[5], 540);
 });
+
+it('shows overnight events on both affected days with continuation labels', () => {
+  const overnight = { ...event, startAt: new Date(2026, 8, 8, 23).toISOString(), endAt: new Date(2026, 8, 9, 1).toISOString() };
+  render(<WeekPresentation days={days} events={[overnight]} selectedDay="2026-09-08" onPickDay={vi.fn()} onOpenEvent={vi.fn()} />);
+  expect(screen.getAllByRole('button', { name: /A complete appointment title/ })).toHaveLength(2);
+  expect(screen.getByText(/Continues into the next day/)).toBeTruthy();
+  expect(screen.getByText(/Continued from the previous day/)).toBeTruthy();
+});

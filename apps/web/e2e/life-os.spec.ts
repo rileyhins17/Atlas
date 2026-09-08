@@ -2209,6 +2209,16 @@ test('mobile week shows complete events and retains time-grid access in both the
   });
   const saved = await page.request.post('http://localhost:4000/events', { data: { title, ...times } });
   expect(saved.status()).toBe(201);
+  const overnightTitle = `Overnight appointment ${Date.now()}`;
+  const overnightTimes = await page.evaluate(() => {
+    const start = new Date();
+    start.setDate(start.getDate() - ((start.getDay() + 6) % 7) + 1);
+    start.setHours(23, 0, 0, 0);
+    const end = new Date(start); end.setDate(end.getDate() + 1); end.setHours(1);
+    return { startAt: start.toISOString(), endAt: end.toISOString() };
+  });
+  const overnightSaved = await page.request.post('http://localhost:4000/events', { data: { title: overnightTitle, ...overnightTimes } });
+  expect(overnightSaved.status()).toBe(201);
   for (const theme of ['light', 'dark'] as const) {
     await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
     await page.goto('/week');
@@ -2216,6 +2226,10 @@ test('mobile week shows complete events and retains time-grid access in both the
     const event = page.locator('.week-agenda-event').filter({ hasText: title });
     await expect(event).toBeVisible();
     await expect(event.locator('.week-agenda-title')).toHaveText(title);
+    const overnight = page.locator('.week-agenda-event').filter({ hasText: overnightTitle });
+    await expect(overnight).toHaveCount(2);
+    await expect(overnight.first()).toContainText('Continues into the next day');
+    await expect(overnight.last()).toContainText('Continued from the previous day');
     const failures = screenFailures(await measureScreen(page, '/week:agenda', theme));
     expect(failures, failures.join('\n')).toEqual([]);
     await event.click();
