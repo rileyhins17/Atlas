@@ -3262,3 +3262,53 @@ test('core panels distinguish failed reads from confirmed empty data in both the
     }
   }
 });
+
+
+test('bank actions retain failures and recover without stale sync results in both themes', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  // All provider-facing actions are intercepted. No bank connection is changed.
+  for (const theme of ['light', 'dark'] as const) {
+    let connected = true;
+    let syncFails = false;
+    let disconnectFails = true;
+    const disconnectIds: string[] = [];
+    await page.route('http://localhost:4000/connectors/plaid/status', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ configured: true, connected, items: connected ? [{ itemId: 'synthetic-bank', institution: 'Example bank', connectedAt: null, lastSyncedAt: null }] : [] }) }));
+    await page.route('http://localhost:4000/connectors/plaid/sync', (route) => route.fulfill({ status: syncFails ? 503 : 200, contentType: 'application/json', body: JSON.stringify(syncFails ? { message: 'Bank sync is temporarily unavailable.' } : { connector: 'plaid', imported: 3, updated: 0, pushed: 0, deleted: 0, errors: [] }) }));
+    await page.route('http://localhost:4000/connectors/plaid/disconnect', (route) => {
+      disconnectIds.push((route.request().postDataJSON() as { itemId: string }).itemId);
+      if (!disconnectFails) connected = false;
+      return route.fulfill({ status: disconnectFails ? 503 : 200, contentType: 'application/json', body: JSON.stringify(disconnectFails ? {} : { ok: true }) });
+    });
+    await page.goto('/finance');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    await page.locator('summary').filter({ hasText: 'Connect a bank' }).click();
+    const bank = page.locator('details').filter({ hasText: 'Bank accounts (Plaid)' });
+    await bank.getByRole('button', { name: 'Sync now', exact: true }).click();
+    await expect(bank.getByText(/Synced: 3 new/)).toBeVisible();
+    syncFails = true;
+    await bank.getByRole('button', { name: 'Sync now', exact: true }).click();
+    await expect(bank.getByRole('alert')).toHaveText('Bank sync is temporarily unavailable.');
+    await expect(bank.getByText(/Synced: 3 new/)).toBeHidden();
+    let failures = screenFailures(await measureScreen(page, '/finance:bank-sync-error', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    syncFails = false;
+    await bank.getByRole('button', { name: 'Sync now', exact: true }).click();
+    await expect(bank.getByText(/Synced: 3 new/)).toBeVisible();
+    await expect(bank.getByRole('alert')).toBeHidden();
+    await bank.getByRole('button', { name: 'Disconnect', exact: true }).click();
+    await expect(bank.getByRole('alert')).toHaveText('Bank disconnection was not confirmed. Try again.');
+    await expect(bank.getByText('Example bank', { exact: true })).toBeVisible();
+    failures = screenFailures(await measureScreen(page, '/finance:bank-disconnect-error', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    disconnectFails = false;
+    await bank.getByRole('button', { name: 'Disconnect', exact: true }).click();
+    await expect(bank.getByRole('button', { name: 'Connect a bank', exact: true })).toBeVisible();
+    await expect(bank.getByRole('alert')).toBeHidden();
+    expect(disconnectIds).toEqual(['synthetic-bank', 'synthetic-bank']);
+    failures = screenFailures(await measureScreen(page, '/finance:bank-actions-recovered', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    for (const path of ['status', 'sync', 'disconnect']) await page.unroute(`http://localhost:4000/connectors/plaid/${path}`);
+  }
+});
