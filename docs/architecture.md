@@ -147,3 +147,7 @@ Docker Compose on a cheap VPS: `db` (pgvector), `api`, `web`, `caddy` (auto-HTTP
 ## Chart calculations
 
 `chart-calculations.ts` owns activity-calendar cells/bands/labels, Monday-first heatmap columns, sparkline coordinates and progress-ring geometry. Components retain markup, state and clock reads. Fourteen existing chart component tests passed before extraction; six shared cases cover month boundaries, DST alignment, future cells, counts, geometry and clock immutability. Calendar days preserve runtime-local semantics. Inline domain computations and cumulative architecture verification remain outstanding.
+
+## Domain summary formatting
+
+`domain-summaries.ts` formats all ten AI domain summaries from supplied records and timezone inputs. Services retain owner-scoped reads, list limits and early exits that avoid needless timezone/transaction reads. Existing ID/local-date summary and adapter suites passed 21 tests before extraction. Fourteen shared formatting cases cover empty-domain wording, IDs, dates, financial signs and routine labels; five API cases verify preserved empty-data query short circuits. This separates reusable context formatting from database access without changing AI-visible wording. The final architecture audit remains outstanding.

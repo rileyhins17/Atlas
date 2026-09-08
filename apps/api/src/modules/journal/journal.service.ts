@@ -1,3 +1,4 @@
+import { summarizeJournal } from '@atlas/shared';
 import { journalSnippet as snippet } from '@atlas/shared';
 import { serializeJournal as toDto } from '@atlas/shared';
 import { Injectable, NotFoundException } from '@nestjs/common';
@@ -7,7 +8,6 @@ import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
 import { MemoryService } from '../../core/memory.service.js';
 import { UserTimezoneService } from '../../core/user-timezone.service.js';
-import { dayKeyInTz } from '../ai/time.util.js';
 
 @Injectable()
 export class JournalService {
@@ -126,13 +126,8 @@ export class JournalService {
       orderBy: { entryDate: 'desc' },
       take: 7,
     });
-    if (recent.length === 0) return 'No journal entries yet.';
-    const moods = recent.map((e) => e.mood).filter((m): m is number => m != null);
-    const avg = moods.length ? (moods.reduce((a, b) => a + b, 0) / moods.length).toFixed(1) : 'n/a';
+    if (recent.length === 0) return summarizeJournal(recent, 'UTC');
     const tz = await this.timezones.get(userId);
-    const lines = recent.map((entry) =>
-      `- [${entry.id}] ${dayKeyInTz(entry.entryDate, tz)}: "${snippet(entry.body, 120)}"`,
-    );
-    return `${recent.length} recent entr(ies). Avg mood: ${avg}/5. Dates in ${tz}:\n${lines.join('\n')}`;
+    return summarizeJournal(recent, tz);
   }
 }

@@ -78,3 +78,4 @@ export * from './ai-tool-inputs.js';
 export * from './tool-contracts.js';
 export * from './ai-budget.js';
 export * from './chart-calculations.js';
+export * from './domain-summaries.js';

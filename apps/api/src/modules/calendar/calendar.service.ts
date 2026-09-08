@@ -1,3 +1,4 @@
+import { summarizeCalendar } from '@atlas/shared';
 import { expandEventSeries as expandSeries } from '@atlas/shared';
 import { serializeEvent as toDto } from '@atlas/shared';
 import { readCollection } from '../../core/collection-pages.js';
@@ -242,20 +243,6 @@ export class CalendarService {
       this.list(userId, { from: new Date(), limit: SUMMARY_EVENTS }),
       this.timezones.get(userId),
     ]);
-    if (upcoming.length === 0) return 'No upcoming events.';
-    const when = new Intl.DateTimeFormat('en-US', {
-      timeZone: tz,
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-
-    const lines = upcoming.map(
-      (e) =>
-        `- [${e.id}] ${e.title} — ${e.allDay ? 'all day' : when.format(new Date(e.startAt))}`,
-    );
-    return `Next ${upcoming.length} event(s), times in ${tz}:\n${lines.join('\n')}`;
+    return summarizeCalendar(upcoming, tz);
   }
 }

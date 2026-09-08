@@ -1,3 +1,4 @@
+import { summarizeHabits } from '@atlas/shared';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type {
   CreateHabitInput,
@@ -192,12 +193,6 @@ export class HabitsService {
   /** Compact summary for the AI context builder. */
   async summarize(userId: string): Promise<string> {
     const habits = await this.list(userId);
-    if (habits.length === 0) return 'No habits tracked.';
-    const lines = habits.map(
-      // The id is what makes habits.update / habits.delete addressable.
-      (h) =>
-        `- [${h.id}] ${h.name}: ${h.doneToday ? 'done today' : 'not yet today'}, streak ${h.streak}d`,
-    );
-    return `${habits.length} habit(s):\n${lines.join('\n')}`;
+    return summarizeHabits(habits);
   }
 }

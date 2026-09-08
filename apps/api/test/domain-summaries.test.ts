@@ -10,6 +10,46 @@ import { GoalsService } from '../src/modules/goals/goals.service.js';
 const timezone = { get: vi.fn(async () => 'America/Toronto') };
 const instant = new Date('2026-07-16T02:30:00Z'); // July 15, 10:30pm for the user.
 
+describe('empty summary reads preserve their short circuits', () => {
+  it('does not look up a timezone for an empty journal', async () => {
+    const get = vi.fn();
+    const service = new JournalService({ client: { journalEntry: { findMany: async () => [] } } } as never, {} as never, {} as never, { get } as never);
+    expect(await service.summarize('owner')).toBe('No journal entries yet.');
+    expect(get).not.toHaveBeenCalled();
+  });
+
+  it('does not look up a timezone when there are no open tasks', async () => {
+    const get = vi.fn();
+    const service = new TasksService({ client: { task: { count: async () => 0, findMany: async () => [] } } } as never, {} as never, { get } as never);
+    expect(await service.summarize('owner')).toBe('No open tasks.');
+    expect(get).not.toHaveBeenCalled();
+  });
+
+  it('does not look up a timezone when all goals are inactive', async () => {
+    const get = vi.fn();
+    const service = new GoalsService({} as never, {} as never, { get } as never);
+    vi.spyOn(service, 'list').mockResolvedValue([{ status: 'paused' }] as never);
+    expect(await service.summarize('owner')).toBe('No goals set.');
+    expect(get).not.toHaveBeenCalled();
+  });
+
+  it('does not look up a timezone when no workouts exist', async () => {
+    const get = vi.fn();
+    const service = new FitnessService({} as never, {} as never, { get } as never);
+    vi.spyOn(service, 'active').mockResolvedValue(null);
+    vi.spyOn(service, 'history').mockResolvedValue([]);
+    expect(await service.summarize('owner')).toBe('No workouts logged.');
+    expect(get).not.toHaveBeenCalled();
+  });
+
+  it('does not read transactions when no financial accounts exist', async () => {
+    const findMany = vi.fn();
+    const service = new FinanceService({ client: { account: { findMany: async () => [] }, transaction: { findMany } } } as never, {} as never);
+    expect(await service.summarize('owner')).toBe('No financial accounts connected.');
+    expect(findMany).not.toHaveBeenCalled();
+  });
+});
+
 describe('AI summaries address records in the user’s local calendar', () => {
   it('includes every recent journal id and a local entry date', async () => {
     const findMany = vi.fn(async () => [

@@ -1,5 +1,5 @@
+import { summarizeRoutine } from '@atlas/shared';
 import { shiftCalendarDayKey as shiftDay } from '@atlas/shared';
-import { routineClockLabel as fmt } from '@atlas/shared';
 import { serializeRoutineBlock as toDto } from '@atlas/shared';
 import { readCollection } from '../../core/collection-pages.js';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
@@ -18,8 +18,6 @@ import { dayKeyInTz } from '../ai/time.util.js';
  * describes and still small enough that reading them all is free.
  */
 const MAX_ROUTINE_BLOCKS = 200;
-
-const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 @Injectable()
 export class RoutineService {
@@ -101,32 +99,6 @@ export class RoutineService {
   /** Compact weekly-schedule text for the AI context ("it knows your life"). */
   async summarize(userId: string): Promise<string> {
     const blocks = await this.list(userId);
-    if (blocks.length === 0) return 'No routine set. The user has not described their typical week.';
-
-    const weekly = blocks.filter((b) => !b.onDate);
-    const dated = blocks.filter((b) => b.onDate);
-
-    const describe = (b: RoutineBlockDTO) => {
-      const when = b.onDate
-        ? b.onDate
-        : b.days === 127
-          ? 'daily'
-          : DAY_LETTERS.filter((_, i) => b.days & (1 << i)).join('');
-      const wrap = b.startMin > b.endMin ? ' (overnight)' : '';
-      const off = b.kind === 'off' ? ' — NOT working, this clears the usual block' : '';
-      // The id is what makes routine.remove_block addressable.
-      return `- [${b.id}] ${b.label}: ${fmt(b.startMin)}–${fmt(b.endMin)} ${when}${wrap}${off}`;
-    };
-
-    const parts: string[] = [];
-    if (weekly.length > 0) {
-      parts.push(
-        `Typical week (the user's routine — use this to time suggestions):\n${weekly.map(describe).join('\n')}`,
-      );
-    }
-    if (dated.length > 0) {
-      parts.push(`Specific days that differ from the usual week:\n${dated.map(describe).join('\n')}`);
-    }
-    return parts.join('\n\n');
+    return summarizeRoutine(blocks);
   }
 }

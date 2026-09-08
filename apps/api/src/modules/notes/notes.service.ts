@@ -1,3 +1,4 @@
+import { summarizeNotes } from '@atlas/shared';
 import { noteEmbeddingText as embedText } from '@atlas/shared';
 import { serializeNote as toDto } from '@atlas/shared';
 import { Injectable, NotFoundException } from '@nestjs/common';
@@ -97,9 +98,6 @@ export class NotesService {
       take: 10,
     });
     const total = await this.prisma.client.note.count({ where: { userId } });
-    if (total === 0) return 'No notes yet.';
-    if (pinned.length === 0) return `${total} note(s), none pinned as key facts.`;
-    const lines = pinned.map((n) => `- [${n.id}] ${n.title ? `${n.title}: ` : ''}${n.body.slice(0, 100)}`);
-    return `Key facts about the user (pinned notes):\n${lines.join('\n')}`;
+    return summarizeNotes(pinned, total);
   }
 }

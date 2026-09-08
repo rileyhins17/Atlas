@@ -1,3 +1,4 @@
+import { summarizeFitness } from '@atlas/shared';
 import { serializeWorkout as toWorkoutDto } from '@atlas/shared';
 import { serializeWorkoutSet as toSetDto } from '@atlas/shared';
 import { serializeExercise as toExerciseDto } from '@atlas/shared';
@@ -20,17 +21,14 @@ import {
   bestWeightGrams,
   // Pure training maths lives in @atlas/shared so the logger UI and the API
   // compute volume, records and set labels from ONE implementation.
-  describeSet,
   gramsToKg,
   exerciseRecords,
-  groupSetsByExercise,
   setVolumeGrams,
 } from '@atlas/shared';
 import type { Prisma } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
 import { UserTimezoneService } from '../../core/user-timezone.service.js';
-import { dayKeyInTz } from '../ai/time.util.js';
 import { EXERCISE_CATALOG } from './exercise-catalog.js';
 
 /** A workout row with its sets and each set's exercise, as every read needs. */
@@ -456,24 +454,8 @@ export class FitnessService {
       this.active(userId),
       this.history(userId, { limit: 3, offset: 0 }),
     ]);
-    if (!open && recent.length === 0) return 'No workouts logged.';
-
+    if (!open && recent.length === 0) return summarizeFitness(open, recent, 'UTC');
     const tz = await this.timezones.get(userId);
-    const lines: string[] = [`Workout dates in ${tz}:`];
-    if (open) {
-      lines.push(`In progress: [${open.id}] ${open.title} (${open.workingSets} sets so far).`);
-    }
-    for (const w of recent) {
-      const when = dayKeyInTz(new Date(w.startedAt), tz);
-      const top = groupSetsByExercise(w.sets)
-        .slice(0, 3)
-        .map((g) => {
-          const best = g.sets.filter((s) => !s.warmup).at(-1);
-          return best ? `${g.exerciseName} ${describeSet(best, g.kind)}` : g.exerciseName;
-        })
-        .join(', ');
-      lines.push(`- [${w.id}] ${when}: ${w.title} — ${gramsToKg(w.volumeGrams)} kg volume${top ? ` (${top})` : ''}`);
-    }
-    return lines.join('\n');
+    return summarizeFitness(open, recent, tz);
   }
 }
