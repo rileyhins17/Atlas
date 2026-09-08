@@ -343,3 +343,27 @@ query-state repair; the product's sparse-data interpretation also needs review.
 Validation for ratings/exercise recovery: build 6/6, forced typecheck 10/10,
 lint zero errors with three existing warnings, 1513 unit tests passed.
 Browser and screenshot verification of these changes is pending CI.
+
+## Habit consistency recovery
+
+Three new regressions failed before the fix: pending history must not display
+a rate, failed history must retry independently and recover, and failed habit
+listing must offer retry. All seven tests in the existing empty-state spec
+then passed. Habit history is now required before calculating a percentage;
+a successful empty history still legitimately produces zero. An empty habit
+list does not unnecessarily wait for history.
+
+An appended browser case creates and logs its own synthetic habit, intercepts
+only the history read with a 503, verifies that no percentage is displayed,
+restores the endpoint and retries to obtain a rendered rate. It also runs in
+the independent CI group. No browser pass is claimed before CI completes.
+
+Superset follow-up verification: run `34224875928` at `978f3a2` completed
+with all jobs green. Full browser suite: 52 passed, one skipped, no flaky
+result. Independent groups: 1 + 1 + 5 passed (including the superset case).
+Screenshot/measurement spec: one passed in 1.4 minutes. This is an observed
+clean run of the exact-input/save-response repair.
+
+Habit recovery local gates: build 6/6, forced typecheck 10/10, lint zero
+errors with three existing warnings, 1516 unit tests passed. Its new browser
+case and independent run remain pending CI.

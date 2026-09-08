@@ -2094,3 +2094,26 @@ test('Today keeps actions first and recovers from unavailable day data', async (
   await expect(checklist).toBeVisible();
   await expect(failure).toHaveCount(0);
 });
+
+
+test('habit consistency never reports zero from an unavailable history request', async ({ page }) => {
+  const created = await page.request.post('http://localhost:4000/habits', {
+    data: { name: `History recovery ${Date.now()}`, target: 1 },
+  });
+  expect(created.ok()).toBe(true);
+  const habit = await created.json() as { id: string };
+  const logged = await page.request.post(`http://localhost:4000/habits/${habit.id}/log`, { data: {} });
+  expect(logged.ok()).toBe(true);
+  const historyUrl = 'http://localhost:4000/habits/history?*';
+  await page.route(historyUrl, (route) => route.fulfill({
+    status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'Synthetic history outage' }),
+  }));
+  await page.goto('/progress');
+  const card = page.getByRole('region', { name: 'Habits, one by one', exact: true });
+  await expect(card.getByText('Could not load your habit history.')).toBeVisible({ timeout: 20_000 });
+  await expect(card.locator('.prog-habit-pct')).toHaveCount(0);
+  await page.unroute(historyUrl);
+  await card.getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(card.locator('.prog-habit-pct').first()).toBeVisible();
+  await expect(card.getByText('Could not load your habit history.')).toHaveCount(0);
+});
