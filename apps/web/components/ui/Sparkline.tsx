@@ -1,5 +1,7 @@
 'use client';
 
+import { sparklineGeometry } from '@atlas/shared';
+
 export interface SparklineProps {
   /** Series, oldest first. Needs ≥ 2 points to draw a line. */
   points: number[];
@@ -26,18 +28,7 @@ export function Sparkline({
   color = 'var(--brand)',
   fill = true,
 }: SparklineProps) {
-  const pad = 3;
-  const lo = min ?? Math.min(...points);
-  const hi = max ?? Math.max(...points);
-  const span = hi - lo || 1;
-  const stepX = points.length > 1 ? (width - pad * 2) / (points.length - 1) : 0;
-  const coords = points.map((p, i) => {
-    const x = pad + i * stepX;
-    const y = pad + (height - pad * 2) * (1 - (p - lo) / span);
-    return [Number(x.toFixed(2)), Number(y.toFixed(2))] as const;
-  });
-  const line = coords.map(([x, y]) => `${x},${y}`).join(' ');
-  const area = `${pad},${height - pad} ${line} ${coords.at(-1)?.[0] ?? pad},${height - pad}`;
+  const { coords, line, area } = sparklineGeometry(points, width, height, min, max);
   return (
     <svg
       width={width}

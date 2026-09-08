@@ -1,8 +1,8 @@
+import { eventToGoogleInput, googleEventRow, googleEventDiffers, selectSyncCalendars, type SyncCalendar, type RemoteEventData } from '@atlas/shared';
+import { chunkItems as chunks } from '@atlas/shared';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import {
   ConnectorScopeError,
-  isAllDay,
-  parseGoogleDate,
   type GoogleCalendarConnector,
   type GoogleCalendarSummary,
   type GoogleEvent,
@@ -41,29 +41,7 @@ const PRIMARY = 'primary';
 const CALENDAR_FETCH_CONCURRENCY = 4;
 /** Postgres is happy with a large IN list, but not an unbounded one. */
 const ID_CHUNK = 1000;
-
-/** The calendars a sync is reading, reduced to what the mapping needs. */
-interface SyncCalendar {
-  id: string;
-  primary: boolean;
-}
-
-/** The row fields Atlas derives from a Google event. */
-interface RemoteEventData {
-  title: string;
-  description: string | null;
-  location: string | null;
-  startAt: Date;
-  endAt: Date;
-  allDay: boolean;
-  sourceCalendarId: string | null;
-}
-
-function chunks<T>(items: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
-  return out;
-}
+const DATABASE_LOOKUP_CONCURRENCY = 4;
 
 /** Promise.all with a ceiling on how many run at once. */
 async function mapWithConcurrency<T, R>(
@@ -257,17 +235,6 @@ export class GoogleSyncService {
     return { removed };
   }
 
-  private toEventInput(event: Event) {
-    return {
-      title: event.title,
-      description: event.description,
-      location: event.location,
-      startAt: event.startAt,
-      endAt: event.endAt,
-      allDay: event.allDay,
-    };
-  }
-
   /** Pull from Google (Google wins), then push events Atlas has never synced. */
   async sync(userId: string): Promise<SyncResult> {
     const connector = this.connector();
@@ -350,10 +317,16 @@ export class GoogleSyncService {
     // rather than by window: an event whose start moved out of the window is
     // still the same row, and looking it up by date would create a duplicate.
     const existing = new Map<string, Event>();
-    for (const chunk of chunks([...remoteById.keys()], ID_CHUNK)) {
-      const rows = await this.prisma.client.event.findMany({
+    const existingChunks = await mapWithConcurrency(
+      chunks([...remoteById.keys()], ID_CHUNK),
+      DATABASE_LOOKUP_CONCURRENCY,
+      (chunk) => this.prisma.client.event.findMany({
         where: { userId, source: CONNECTOR_ID, externalId: { in: chunk } },
-      });
+        // (userId, source, externalId) is unique.
+        take: chunk.length,
+      }),
+    );
+    for (const rows of existingChunks) {
       for (const row of rows) if (row.externalId) existing.set(row.externalId, row);
     }
 
@@ -361,12 +334,12 @@ export class GoogleSyncService {
     const toUpdate: { id: string; data: RemoteEventData }[] = [];
     for (const id of liveIds) {
       const found = remoteById.get(id)!;
-      const data = this.toRowData(found.event, found.calendar);
+      const data = googleEventRow(found.event, found.calendar);
       if (!data) continue; // unusable times - skipping beats writing endAt < startAt
       const row = existing.get(id);
       if (!row) {
         toCreate.push({ userId, source: CONNECTOR_ID, externalId: id, ...data });
-      } else if (this.differs(row, data)) {
+      } else if (googleEventDiffers(row, data)) {
         toUpdate.push({ id: row.id, data });
       }
     }
@@ -409,7 +382,7 @@ export class GoogleSyncService {
     const pushed: { id: string; externalId: string }[] = [];
     for (const event of unsynced) {
       try {
-        const created = await connector.createEvent(ctx, this.toEventInput(event));
+        const created = await connector.createEvent(ctx, eventToGoogleInput(event));
         pushed.push({ id: event.id, externalId: created.id });
       } catch (err) {
         result.errors.push(
@@ -465,47 +438,7 @@ export class GoogleSyncService {
     const ctx = this.connectors.contextFor(userId, CONNECTOR_ID);
     const all: GoogleCalendarSummary[] = await this.connector().listCalendars(ctx);
     const chosen = await this.chosenIds(userId);
-    const wanted = all.filter((c) => {
-      if (c.accessRole === 'freeBusyReader') return false;
-      return chosen ? chosen.includes(c.id) : c.selected !== false;
-    });
-    const primary = all.find((c) => c.primary);
-    if (primary && !wanted.some((c) => c.primary)) wanted.unshift(primary);
-    return wanted.slice(0, MAX_CALENDARS).map((c) => ({ id: c.id, primary: Boolean(c.primary) }));
-  }
-
-  /** The row fields an event maps to, or null when Google gave unusable times. */
-  private toRowData(gEvent: GoogleEvent, calendar: SyncCalendar): RemoteEventData | null {
-    const startAt = parseGoogleDate(gEvent.start);
-    const endAt = parseGoogleDate(gEvent.end);
-    // Google can return events without usable times (rare, but they exist).
-    // Skipping beats writing a row that violates endAt >= startAt.
-    if (!startAt || !endAt || endAt < startAt) return null;
-    return {
-      title: gEvent.summary?.trim() || '(untitled)',
-      description: gEvent.description ?? null,
-      location: gEvent.location ?? null,
-      startAt,
-      endAt,
-      allDay: isAllDay(gEvent),
-      // Primary stays null, matching every row written before this column
-      // existed. Writing 'primary' for some and the account's own address for
-      // others would make one calendar look like two.
-      sourceCalendarId: calendar.primary ? null : calendar.id,
-    };
-  }
-
-  /** Google wins, but only write when something actually differs. */
-  private differs(row: Event, data: RemoteEventData): boolean {
-    return (
-      row.title !== data.title ||
-      row.description !== data.description ||
-      row.location !== data.location ||
-      row.startAt.getTime() !== data.startAt.getTime() ||
-      row.endAt.getTime() !== data.endAt.getTime() ||
-      row.allDay !== data.allDay ||
-      row.sourceCalendarId !== data.sourceCalendarId
-    );
+    return selectSyncCalendars(all, chosen, MAX_CALENDARS);
   }
 
   private async applyRemoteDeletion(userId: string, googleId: string): Promise<number> {
@@ -530,24 +463,8 @@ export class GoogleSyncService {
     gEvent: GoogleEvent,
     calendar: { id: string; primary: boolean } = { id: PRIMARY, primary: true },
   ): Promise<'imported' | 'updated' | 'skipped'> {
-    const startAt = parseGoogleDate(gEvent.start);
-    const endAt = parseGoogleDate(gEvent.end);
-    // Google can return events without usable times (rare, but they exist).
-    // Skipping beats writing a row that violates endAt >= startAt.
-    if (!startAt || !endAt || endAt < startAt) return 'skipped';
-
-    const data = {
-      title: gEvent.summary?.trim() || '(untitled)',
-      description: gEvent.description ?? null,
-      location: gEvent.location ?? null,
-      startAt,
-      endAt,
-      allDay: isAllDay(gEvent),
-      // Primary stays null, matching every row written before this column
-      // existed. Writing 'primary' for some and the account's own address for
-      // others would make one calendar look like two.
-      sourceCalendarId: calendar.primary ? null : calendar.id,
-    };
+    const data = googleEventRow(gEvent, calendar);
+    if (!data) return 'skipped';
 
     const existing = await this.prisma.client.event.findUnique({
       where: {
@@ -573,15 +490,7 @@ export class GoogleSyncService {
 
     // Google wins — but only write when something actually differs, so the
     // timeline isn't spammed with a no-op update on every sync.
-    if (
-      existing.title === data.title &&
-      existing.description === data.description &&
-      existing.location === data.location &&
-      existing.startAt.getTime() === data.startAt.getTime() &&
-      existing.endAt.getTime() === data.endAt.getTime() &&
-      existing.allDay === data.allDay &&
-      existing.sourceCalendarId === data.sourceCalendarId
-    ) {
+    if (!googleEventDiffers(existing, data)) {
       return 'skipped';
     }
 

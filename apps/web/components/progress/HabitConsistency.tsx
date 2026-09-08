@@ -2,7 +2,7 @@
 
 import { useHabits, useHabitHistory } from '@/lib/hooks/habits';
 import { habitRhythm } from '@/lib/progress';
-import { ListSkeleton, ProgressRing, Sparkline } from '@/components/ui';
+import { ErrorState, ListSkeleton, ProgressRing, Sparkline } from '@/components/ui';
 
 /** Six is what fits before the card becomes a list you scroll instead of a glance. */
 const SHOWN = 6;
@@ -33,12 +33,12 @@ export function HabitConsistency({ days }: { days: number }) {
   //
   // Same rule as TodayView's first-run guard: deciding an account is empty is
   // only safe from data you actually received.
-  if (habits.isPending) return <ListSkeleton rows={3} />;
+  if (habits.isPending || (!habits.isError && habits.data === undefined)) return <ListSkeleton rows={3} />;
   // A failed request is not an empty life. Without this branch the `?? []`
   // below turns a dropped connection into "you have no habits" — the same
   // sentence, from even less information.
   if (habits.isError) {
-    return <p className="prog-muted">Could not load your habits just now.</p>;
+    return <ErrorState message="Could not load your habits just now." onRetry={() => void habits.refetch()} />;
   }
 
   const list = habits.data ?? [];
@@ -47,21 +47,35 @@ export function HabitConsistency({ days }: { days: number }) {
     return <p className="prog-muted">No habits yet — start one and its consistency charts here.</p>;
   }
 
+  // The list proves habits exist; only the history response can prove a rate.
+  if (history.isError) return (
+    <ErrorState message="Could not load your habit history." onRetry={() => void history.refetch()} />
+  );
+  if (history.isPending || history.data === undefined) return (
+    <>
+      <p className="prog-muted" role="status">Loading habit history…</p>
+      <ListSkeleton rows={3} />
+    </>
+  );
+
   return (
     <div className="prog-habits">
       {list.slice(0, SHOWN).map((h) => {
         const row = history.data?.find((r) => r.habitId === h.id);
-        const { rate, weekly } = habitRhythm(row?.days ?? [], h.target || 1, days);
+        const { rate, weekly, met, periods, unit, partialPeriods } = habitRhythm(row?.days ?? [], h.target || 1, days,
+          { now: new Date(), createdAt: h.createdAt, cadence: h.cadence });
         const pct = Math.round(rate * 100);
         return (
           <div key={h.id} className="prog-habit-row">
-            <ProgressRing value={rate} size={38} strokeWidth={4} label={`${h.name}: ${pct}% of days`}>
+            <ProgressRing value={rate} size={38} strokeWidth={4} label={`${h.name}: ${pct}% of ${unit} with the target met`}>
               <span className="prog-habit-pct">{pct}</span>
             </ProgressRing>
             <div className="prog-habit-meta">
               <span className="prog-habit-name">{h.name}</span>
               <span className="prog-habit-sub">
-                {pct}% of days{h.streak > 0 ? ` · ${h.streak}-day streak` : ''}
+                {met} of {periods} {periods === 1 ? unit.slice(0, -1) : unit} with the target met
+                {unit === 'days' && h.streak > 0 ? ` · ${h.streak}-day streak` : ''}
+                {partialPeriods > 0 ? ` · includes ${partialPeriods} partial ${partialPeriods === 1 ? 'week' : 'weeks'}` : ''}
               </span>
             </div>
             {/* A one-point line is a dot: below two weeks of history there is no
