@@ -1,8 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { computeStreak, dayKey } from '../src/modules/habits/habits.util.js';
+import { describe, expect, it } from 'vitest';
+import { computeHabitStreak, utcHabitDayKey as dayKey } from '../src/habit-streak.js';
 
-// Freeze time mid-day UTC so day boundaries are stable during the test run.
+// Explicit mid-day UTC input keeps day boundaries stable without a global clock.
 const NOW = new Date('2026-07-16T12:00:00.000Z');
+const computeStreak = (days: Map<string, number>, target: number) => computeHabitStreak(days, target, NOW);
 
 /** Map of UTC day key -> logged value, where offset 0 = today, 1 = yesterday, ... */
 function days(entries: Array<[offsetDays: number, value: number]>): Map<string, number> {
@@ -16,15 +17,6 @@ function days(entries: Array<[offsetDays: number, value: number]>): Map<string, 
 }
 
 describe('computeStreak', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(NOW);
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it('counts a done-today day', () => {
     expect(computeStreak(days([[0, 1]]), 1)).toBe(1);
   });
