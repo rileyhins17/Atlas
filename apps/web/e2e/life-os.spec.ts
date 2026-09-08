@@ -1,4 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
+import { measureScreen, screenFailures } from './ui-measurements';
 import { expect, test } from '@playwright/test';
 import { clearTodaysMoods, register, resetFitness, seedWorkoutHistory } from './helpers';
 
@@ -12,6 +13,8 @@ import { clearTodaysMoods, register, resetFitness, seedWorkoutHistory } from './
  */
 
 const STATE = 'test-results/.life-os-state.json';
+
+
 
 /**
  * Navigate and wait until the app is actually INTERACTIVE, not merely painted.
@@ -2192,4 +2195,34 @@ test('manual accounts save exact typed balances without a bank connection', asyn
   expect(account?.currency).toBe('CAD');
   await page.reload();
   await expect(page.locator('.task').filter({ hasText: name })).toBeVisible();
+});
+
+test('mobile week shows complete events and retains time-grid access in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await go(page, '/week');
+  const title = `Mobile week: a complete appointment title ${Date.now()}`;
+  const times = await page.evaluate(() => {
+    const start = new Date(); start.setHours(12, 0, 0, 0);
+    const end = new Date(start); end.setHours(13);
+    return { startAt: start.toISOString(), endAt: end.toISOString() };
+  });
+  const saved = await page.request.post('http://localhost:4000/events', { data: { title, ...times } });
+  expect(saved.status()).toBe(201);
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await go(page, '/week');
+    await expect(page.locator('.week-agenda-day')).toHaveCount(7);
+    const event = page.locator('.week-agenda-event').filter({ hasText: title });
+    await expect(event).toBeVisible();
+    await expect(event.locator('.week-agenda-title')).toHaveText(title);
+    const failures = screenFailures(await measureScreen(page, '/week:agenda', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await event.click();
+    await expect(page.getByPlaceholder('Dentist, standup, gym…')).toHaveValue(title);
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Time grid', exact: true }).click();
+    await expect(page.locator('.wk-col')).toHaveCount(7);
+    await page.getByRole('button', { name: 'Agenda', exact: true }).click();
+    await expect(event).toBeVisible();
+  }
 });

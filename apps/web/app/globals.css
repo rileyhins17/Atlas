@@ -6401,3 +6401,16 @@ label:has(> input[type='checkbox']) {
 .settings-group > p { margin: 0 0 12px; font-size: 14px; }
 .settings-group .set-section { scroll-margin-top: 80px; }
 @media (min-width: 1100px) { .settings-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Readable week agenda, with the time grid still available on every screen. */
+.week-presentation { min-width: 0; }
+.week-view-picker { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; }
+.week-view-picker [aria-pressed="true"] { color: var(--brand-on-tint); background: color-mix(in srgb, var(--brand) 12%, var(--surface)); }
+.week-agenda { display: grid; gap: 12px; padding: 0 12px 12px; }
+.week-agenda-day { min-width: 0; padding: 12px; border: 1px solid var(--border-subtle); border-radius: 12px; }
+.week-agenda-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.week-agenda-head h2 { font-size: 15px; margin: 0; }
+.week-agenda-day > p { font-size: 14px; margin: 8px 0 0; }
+.week-agenda-event { display: flex; flex-direction: column; gap: 5px; width: 100%; min-height: 44px; padding: 12px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface); color: var(--text); text-align: left; cursor: pointer; }
+.week-agenda-time { font-size: 13px; color: var(--text-muted); }
+.week-agenda-title { font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
