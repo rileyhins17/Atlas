@@ -1,6 +1,7 @@
 'use client';
 
 import { WeightUnitPref } from '@atlas/shared';
+import { errorMessage } from '@/lib/api';
 import { useSettings, useUpdateSettings } from '@/lib/hooks/settings';
 import { ErrorState, Spinner } from '@/components/ui';
 
@@ -39,6 +40,7 @@ export function TrainingSettingsCard() {
           </button>
         ))}
       </div>
+      {update.error && <p role="alert" className="error">{errorMessage(update.error, 'Could not save weight preference. Try your selection again.')}</p>}
     </div>
   );
 }

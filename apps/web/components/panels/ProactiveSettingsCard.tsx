@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage } from '@/lib/api';
 import { useSettings, useUpdateSettings } from '@/lib/hooks/settings';
 import {
@@ -26,10 +26,25 @@ export function ProactiveSettingsCard() {
   }
   const [pushState, setPushState] = useState<PushState | null>(null);
   const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState(false);
+  const pushRead = useRef(0);
+  const readPushState = useCallback(async () => {
+    const request = ++pushRead.current;
+    setPushError(false);
+    setPushState(null);
+    try {
+      const next = await currentPushState();
+      if (request === pushRead.current) setPushState(next);
+    } catch {
+      if (request === pushRead.current) setPushError(true);
+    }
+  }, []);
+  const cancelPushRead = useCallback(() => { pushRead.current++; }, []);
 
   useEffect(() => {
-    void currentPushState().then(setPushState);
-  }, []);
+    void readPushState();
+    return cancelPushRead;
+  }, [readPushState, cancelPushRead]);
 
   async function togglePush() {
     setPushBusy(true);
@@ -139,7 +154,11 @@ export function ProactiveSettingsCard() {
 
           <div className="stack" style={{ gap: 4, marginTop: 4 }}>
             <span className="muted" style={{ fontSize: 12 }}>Push notifications</span>
-            {pushState === 'unsupported' ? (
+            {pushError ? (
+              <ErrorState message="Could not read notification status." onRetry={() => void readPushState()} />
+            ) : pushState === null ? (
+              <p role="status" className="muted">Checking notifications…</p>
+            ) : pushState === 'unsupported' ? (
               <span className="muted" style={{ fontSize: 13 }}>This browser doesn&apos;t support notifications.</span>
             ) : pushState === 'unconfigured' ? (
               <span className="muted" style={{ fontSize: 13 }}>Push isn&apos;t configured on this server.</span>

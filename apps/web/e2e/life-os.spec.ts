@@ -2197,6 +2197,48 @@ test('manual accounts save exact typed balances without a bank connection', asyn
   await expect(page.locator('.task').filter({ hasText: name })).toBeVisible();
 });
 
+test('settings recover notification status and failed weight saves in both themes', async ({ page }) => {
+  await page.addInitScript(() => {
+    let first = true;
+    Object.defineProperty(navigator.serviceWorker, 'getRegistration', { configurable: true, value: async () => {
+      if (first) { first = false; throw new Error('Synthetic registration read failure'); }
+      return undefined;
+    } });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    await page.goto('/settings');
+    await page.evaluate((value) => {
+      localStorage.setItem('atlas-theme', value);
+      for (const id of ['proactive', 'training']) localStorage.setItem(`atlas-settings-${id}`, '1');
+    }, theme);
+    await page.reload();
+    const proactive = page.locator('#proactive-body');
+    await expect(proactive.getByText('Could not read notification status.')).toBeVisible();
+    await proactive.getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(proactive.getByRole('button', { name: 'Enable notifications' })).toBeEnabled();
+    const training = page.locator('#training-body');
+    const prior = await training.getByRole('button', { pressed: true }).innerText();
+    const next = await training.getByRole('button', { pressed: false }).innerText();
+    await page.route('http://localhost:4000/settings', (route) => route.request().method() === 'PATCH'
+      ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'Synthetic preference failure' }) })
+      : route.continue());
+    await training.getByRole('button', { name: next, exact: true }).click();
+    await expect(training.getByRole('alert')).toHaveText('Synthetic preference failure');
+    await expect(training.getByRole('button', { name: prior, exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await page.unroute('http://localhost:4000/settings');
+    const saved = page.waitForResponse((response) => response.url().endsWith('/settings') && response.request().method() === 'PATCH');
+    await training.getByRole('button', { name: next, exact: true }).click();
+    expect((await saved).ok()).toBe(true);
+    await expect(training.getByRole('button', { name: next, exact: true })).toHaveAttribute('aria-pressed', 'true');
+    const settings = await page.request.get('http://localhost:4000/settings');
+    expect(settings.ok()).toBe(true);
+    expect(await settings.json()).toMatchObject({ weightUnit: next.includes('kg') ? 'kg' : 'lb' });
+    const failures = screenFailures(await measureScreen(page, '/settings:recovered-actions', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+  }
+});
+
 test('settings retain drafts across other saves and persist them in both themes', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   for (const theme of ['light', 'dark'] as const) {

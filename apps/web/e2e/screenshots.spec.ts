@@ -257,6 +257,16 @@ test('capture the Life-OS screens', async ({ page }) => {
     measurements.push(await measureScreen(page, '/finance:transaction', theme));
     writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
     await page.screenshot({ path: `${OUT}/manual-transaction-${theme}.png`, fullPage: true });
+    await page.evaluate(() => {
+      for (const id of ['training', 'proactive']) localStorage.setItem(`atlas-settings-${id}`, '1');
+    });
+    await page.goto('/settings');
+    await expect(page.getByRole('group', { name: 'Weight unit' })).toBeVisible();
+    await expect(page.getByRole('status').filter({ hasText: 'Checking notifications' })).toHaveCount(0);
+    await expect(page.locator('.skeleton')).toHaveCount(0);
+    measurements.push(await measureScreen(page, '/settings:actions', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/settings-actions-${theme}.png`, fullPage: true });
   }
   const failures = measurements.flatMap(screenFailures);
   expect(failures, failures.join('\n')).toEqual([]);
