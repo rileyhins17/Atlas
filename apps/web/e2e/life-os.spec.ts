@@ -3312,3 +3312,52 @@ test('bank actions retain failures and recover without stale sync results in bot
     for (const path of ['status', 'sync', 'disconnect']) await page.unroute(`http://localhost:4000/connectors/plaid/${path}`);
   }
 });
+
+
+test('AI access lets personal accounts redeem invites and explains unavailable states in both themes', async ({ page }) => {
+  test.setTimeout(240_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  // Presentation fixtures only: no actual invite is redeemed or credential changed.
+  for (const theme of ['light', 'dark'] as const) {
+    const base = { enabled: true, model: 'synthetic', dailyTokenCap: 1000, tokensUsedToday: 70, providerConfigured: true, domains: [], hostedAccess: { granted: false, revoked: false, available: true, inviteRequired: true } };
+    let status = structuredClone(base);
+    let fails = true;
+    const codes: string[] = [];
+    await page.route('http://localhost:4000/ai/status', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(status) }));
+    await page.route('http://localhost:4000/auth/redeem-invite', (route) => {
+      codes.push((route.request().postDataJSON() as { inviteCode: string }).inviteCode);
+      if (!fails) status = { ...base, hostedAccess: { ...base.hostedAccess, granted: true } };
+      return route.fulfill({ status: fails ? 503 : 200, contentType: 'application/json', body: JSON.stringify(fails ? { message: 'Invite activation is temporarily unavailable.' } : { ok: true }) });
+    });
+    await page.goto('/settings#ai');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    const panel = page.locator('#ai-body');
+    const input = panel.getByLabel('Invite code', { exact: true });
+    await input.click(); await input.pressSequentially('synthetic-invite');
+    await panel.getByRole('button', { name: 'Activate AI access', exact: true }).click();
+    await expect(panel.getByRole('alert')).toHaveText('Invite activation is temporarily unavailable.');
+    await expect(input).toHaveValue('synthetic-invite');
+    await expect(panel.getByLabel('DeepSeek API key', { exact: true })).toBeHidden();
+    let failures = screenFailures(await measureScreen(page, '/settings:personal-invite-error', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    fails = false;
+    await panel.getByRole('button', { name: 'Activate AI access', exact: true }).click();
+    await expect(panel.getByText('AI is included with your invite.', { exact: true })).toBeVisible();
+    await expect(input).toBeHidden();
+    expect(codes).toEqual(['synthetic-invite', 'synthetic-invite']);
+    failures = screenFailures(await measureScreen(page, '/settings:included-ai', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    for (const mode of ['revoked', 'unavailable', 'paused'] as const) {
+      status = { ...base, enabled: mode !== 'paused', providerConfigured: mode !== 'unavailable', hostedAccess: { ...base.hostedAccess, granted: true, revoked: mode === 'revoked', available: mode !== 'unavailable' } };
+      await page.reload();
+      await expect(panel.getByText(mode === 'revoked' ? /Hosted AI access has been revoked/ : mode === 'unavailable' ? /Your access is approved. Hosted AI is not available yet/ : /AI is currently paused/)).toBeVisible();
+      await expect(panel.getByLabel('Invite code', { exact: true })).toBeHidden();
+      await expect(panel.getByLabel('DeepSeek API key', { exact: true })).toBeHidden();
+      failures = screenFailures(await measureScreen(page, `/settings:ai-${mode}`, theme));
+      expect(failures, failures.join('\n')).toEqual([]);
+    }
+    await page.unroute('http://localhost:4000/ai/status');
+    await page.unroute('http://localhost:4000/auth/redeem-invite');
+  }
+});

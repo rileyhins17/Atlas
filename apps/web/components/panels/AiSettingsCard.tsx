@@ -7,8 +7,7 @@ import { useAiStatus, useConnectDeepSeek, useRedeemAiInvite } from '@/lib/hooks/
 import { Button, Card, ErrorState, Input, Skeleton } from '@/components/ui';
 
 /**
- * The AI provider connection, now a Settings concern — the AI itself is
- * ambient (⌘K / ⌘J / the Home brief), so the key + usage meter live here.
+ * Invite-based AI access, while keeping existing personal connections usable.
  */
 export function AiSettingsCard() {
   const [keyDraft, setKeyDraft] = useState('');
@@ -52,12 +51,6 @@ export function AiSettingsCard() {
             : !status.enabled ? <p className="muted">AI is currently paused. Your saved data and manual controls remain available.</p>
             : <p className="muted">{status.tokensUsedToday.toLocaleString()} of {status.dailyTokenCap.toLocaleString()} tokens used today. Your allowance resets at midnight UTC.</p>}
         </div>
-      ) : status.providerConfigured ? (
-        <div className="muted" style={{ fontSize: 13 }}>
-          {status.tokensUsedToday.toLocaleString()} of {status.dailyTokenCap.toLocaleString()}{' '}
-          tokens used today. Chat (⌘J) and capture (⌘K) are live; semantic memory runs locally and
-          costs nothing.
-        </div>
       ) : access?.revoked ? (
         <p role="status">Hosted AI access has been revoked for this account. Contact the person who invited you. Your saved data remains available.</p>
       ) : access?.inviteRequired ? (
@@ -71,7 +64,7 @@ export function AiSettingsCard() {
           <Button type="submit" disabled={redeem.isPending || !inviteDraft.trim()}>{redeem.isPending ? 'Activating…' : 'Activate AI access'}</Button>
           {redeem.error && <p role="alert">{errorMessage(redeem.error, 'Could not activate access. Your invite is kept; try again.')}</p>}
         </form>
-      ) : (
+      ) : status.providerConfigured ? null : (
         <form className="stack" onSubmit={submitKey}>
           <div className="muted" style={{ fontSize: 13 }}>
             Connect a DeepSeek API key to enable chat, capture routing and daily briefs. Your key
@@ -91,6 +84,12 @@ export function AiSettingsCard() {
           </div>
           {connectError && <div className="error">{connectError}</div>}
         </form>
+      )}
+      {!statusQuery.isError && !statusQuery.isPending && status?.providerConfigured && !(access?.granted && !access.revoked && access.available) && (
+        <div className="stack muted" style={{ fontSize: 13 }}>
+          <p>Your personal AI connection is saved. {status.tokensUsedToday.toLocaleString()} of {status.dailyTokenCap.toLocaleString()} tokens used today across your account.</p>
+          {!status.enabled && <p>AI is currently paused. Your saved data and manual controls remain available.</p>}
+        </div>
       )}
     </Card>
   );
