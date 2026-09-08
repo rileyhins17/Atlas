@@ -151,3 +151,7 @@ Docker Compose on a cheap VPS: `db` (pgvector), `api`, `web`, `caddy` (auto-HTTP
 ## Domain summary formatting
 
 `domain-summaries.ts` formats all ten AI domain summaries from supplied records and timezone inputs. Services retain owner-scoped reads, list limits and early exits that avoid needless timezone/transaction reads. Existing ID/local-date summary and adapter suites passed 21 tests before extraction. Fourteen shared formatting cases cover empty-domain wording, IDs, dates, financial signs and routine labels; five API cases verify preserved empty-data query short circuits. This separates reusable context formatting from database access without changing AI-visible wording. The final architecture audit remains outstanding.
+
+## History response calculations
+
+`history-calculations.ts` assembles habit totals/history, tracker DTOs/overview and exercise history/last performance from structural input records. Services retain query scopes, limits, clocks and ordering. Twenty-five existing service tests passed before extraction; five shared cases cover repeated daily totals, archived habits, ordered points, display caps and historical weight records. The habit adapter still supplies separate current-time inputs for daily status and streak calculation, preserving existing UTC day semantics. Inline domain calculations and cumulative boundary verification remain outstanding.

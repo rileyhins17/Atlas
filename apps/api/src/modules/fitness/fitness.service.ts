@@ -1,6 +1,6 @@
+import { assembleExerciseHistory, assembleLastPerformance } from '@atlas/shared';
 import { summarizeFitness } from '@atlas/shared';
 import { serializeWorkout as toWorkoutDto } from '@atlas/shared';
-import { serializeWorkoutSet as toSetDto } from '@atlas/shared';
 import { serializeExercise as toExerciseDto } from '@atlas/shared';
 import { readCollection } from '../../core/collection-pages.js';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
@@ -8,7 +8,6 @@ import type {
   CreateExerciseInput,
   ExerciseDTO,
   ExerciseHistoryDTO,
-  ExerciseSessionDTO,
   FinishWorkoutInput,
   LastPerformanceDTO,
   LogSetInput,
@@ -17,13 +16,9 @@ import type {
   WorkoutDTO,
 } from '@atlas/shared';
 import {
-  bestE1rm,
-  bestWeightGrams,
   // Pure training maths lives in @atlas/shared so the logger UI and the API
   // compute volume, records and set labels from ONE implementation.
   gramsToKg,
-  exerciseRecords,
-  setVolumeGrams,
 } from '@atlas/shared';
 import type { Prisma } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
@@ -370,51 +365,7 @@ export class FitnessService {
       include: { workout: { select: { id: true, title: true, startedAt: true } } },
     });
 
-    // The exercise is already loaded, so its name and kind are attached here
-    // rather than joined onto every row — one movement, one lookup.
-    const withExercise = (row: (typeof rows)[number]) =>
-      toSetDto({ ...row, exercise: { name: exercise.name, kind: exercise.kind } });
-
-    // Grouped in memory rather than with a query per session — the same N+1
-    // that made Google sync take five minutes.
-    const byWorkout = new Map<string, { title: string; startedAt: Date; sets: typeof rows }>();
-    for (const row of rows) {
-      const existing = byWorkout.get(row.workoutId);
-      if (existing) existing.sets.push(row);
-      else
-        byWorkout.set(row.workoutId, {
-          title: row.workout.title,
-          startedAt: row.workout.startedAt,
-          sets: [row],
-        });
-    }
-
-    const sessions: ExerciseSessionDTO[] = [...byWorkout.entries()]
-      .sort((a, b) => b[1].startedAt.getTime() - a[1].startedAt.getTime())
-      .slice(0, MAX_EXERCISE_SESSIONS)
-      .map(([workoutId, w]) => {
-        // Ascending within a session: the order you did them in is the story.
-        const sets = w.sets
-          .slice()
-          .sort((a, b) => a.completedAt.getTime() - b.completedAt.getTime())
-          .map(withExercise);
-        return {
-          workoutId,
-          workoutTitle: w.title,
-          performedAt: w.startedAt.toISOString(),
-          sets,
-          volumeGrams: setVolumeGrams(sets),
-          bestE1rmGrams: bestE1rm(sets),
-        };
-      });
-
-    return {
-      exercise: toExerciseDto(exercise),
-      sessions,
-      // Records span every set read, not only the sessions shown, so a best
-      // from further back is not quietly forgotten by the cap above.
-      records: exerciseRecords([{ sets: rows.map(withExercise) }]),
-    };
+    return assembleExerciseHistory(exercise, rows, MAX_EXERCISE_SESSIONS);
   }
 
   async lastPerformance(
@@ -428,24 +379,7 @@ export class FitnessService {
       orderBy: { completedAt: 'desc' },
       take: 200,
     });
-    if (previous.length === 0) return null;
-
-    const latestWorkoutId = previous[0]!.workoutId;
-    const lastSets = previous
-      .filter((s) => s.workoutId === latestWorkoutId)
-      .sort((a, b) => a.completedAt.getTime() - b.completedAt.getTime());
-
-    return {
-      exerciseId,
-      performedAt: previous[0]!.completedAt.toISOString(),
-      sets: lastSets.map((s) => ({
-        weightGrams: s.weightGrams,
-        reps: s.reps,
-        durationSec: s.durationSec,
-        distanceM: s.distanceM,
-      })),
-      bestWeightGrams: bestWeightGrams(previous),
-    };
+    return assembleLastPerformance(exerciseId, previous);
   }
 
   /** Compact summary used by the AI context builder. */

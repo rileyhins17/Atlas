@@ -1,3 +1,4 @@
+import { serializeHabit, groupHabitTotals, assembleHabitHistory, type HabitDayTotal } from '@atlas/shared';
 import { summarizeHabits } from '@atlas/shared';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type {
@@ -10,16 +11,9 @@ import type {
 import { Prisma, type Habit } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
-import { computeStreak, dayKey } from './habits.util.js';
 
 /** How far back streak math ever needs to look. */
 const STREAK_WINDOW_DAYS = 400;
-
-interface HabitDayTotal {
-  habitId: string;
-  day: string;
-  value: number;
-}
 
 @Injectable()
 export class HabitsService {
@@ -36,23 +30,7 @@ export class HabitsService {
   }
 
   private toDto(habit: Habit, logs: HabitDayTotal[]): HabitDTO {
-    const perDay = new Map<string, number>();
-    for (const log of logs) {
-      const k = log.day;
-      perDay.set(k, (perDay.get(k) ?? 0) + log.value);
-    }
-    const todayCount = perDay.get(dayKey(new Date())) ?? 0;
-    return {
-      id: habit.id,
-      name: habit.name,
-      cadence: habit.cadence,
-      target: habit.target,
-      active: habit.active,
-      todayCount,
-      doneToday: todayCount >= habit.target,
-      streak: computeStreak(perDay, habit.target),
-      createdAt: habit.createdAt.toISOString(),
-    };
+    return serializeHabit(habit, logs, new Date(), new Date());
   }
 
   /**
@@ -96,12 +74,7 @@ export class HabitsService {
     });
     if (habits.length === 0) return [];
     const logs = await this.dailyTotals(userId, habits.map((h) => h.id), HabitsService.streakWindowStart());
-    const byHabit = new Map<string, HabitDayTotal[]>();
-    for (const log of logs) {
-      const arr = byHabit.get(log.habitId) ?? [];
-      arr.push(log);
-      byHabit.set(log.habitId, arr);
-    }
+    const byHabit = groupHabitTotals(logs);
     return habits.map((h) => this.toDto(h, byHabit.get(h.id) ?? []));
   }
 
@@ -174,20 +147,7 @@ export class HabitsService {
     const since = new Date();
     since.setUTCDate(since.getUTCDate() - days);
     const logs = await this.dailyTotals(userId, habits.map((h) => h.id), since);
-    const perHabit = new Map<string, Map<string, number>>(habits.map((h) => [h.id, new Map()]));
-    for (const log of logs) {
-      const dayMap = perHabit.get(log.habitId);
-      if (!dayMap) continue; // log for an archived habit
-      const k = log.day;
-      dayMap.set(k, (dayMap.get(k) ?? 0) + log.value);
-    }
-    return habits.map((h) => ({
-      habitId: h.id,
-      days: [...(perHabit.get(h.id) ?? new Map<string, number>())].map(([day, count]) => ({
-        day,
-        count,
-      })),
-    }));
+    return assembleHabitHistory(habits, logs);
   }
 
   /** Compact summary for the AI context builder. */

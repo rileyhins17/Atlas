@@ -1,13 +1,11 @@
+import { serializeTracker, serializeTrackerEntry, assembleTrackerOverview } from '@atlas/shared';
 import { summarizeTrackers } from '@atlas/shared';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   MAX_TRACKERS,
-  describeTracker,
-  summariseTracker,
   type CreateTrackerInput,
   type LogTrackerInput,
   type TrackerDTO,
-  type TrackerDirection,
   type TrackerEntryDTO,
   type UpdateTrackerInput,
 } from '@atlas/shared';
@@ -51,18 +49,7 @@ export class TrackersService {
   }
 
   private toDto(row: Tracker, todayValue: number | null): TrackerDTO {
-    return {
-      id: row.id,
-      name: row.name,
-      emoji: row.emoji,
-      direction: row.direction as TrackerDirection,
-      lowLabel: row.lowLabel,
-      highLabel: row.highLabel,
-      active: row.active,
-      position: row.position,
-      createdAt: row.createdAt.toISOString(),
-      todayValue,
-    };
+    return serializeTracker(row, todayValue);
   }
 
   /**
@@ -191,13 +178,7 @@ export class TrackersService {
   }
 
   private toEntryDto(row: TrackerEntry): TrackerEntryDTO {
-    return {
-      id: row.id,
-      trackerId: row.trackerId,
-      dayKey: row.dayKey,
-      value: row.value,
-      note: row.note,
-    };
+    return serializeTrackerEntry(row);
   }
 
   /** One tracker's recent days, oldest first, for a chart. */
@@ -233,18 +214,7 @@ export class TrackersService {
       select: { trackerId: true, dayKey: true, value: true },
     });
 
-    const byTracker = new Map<string, { dayKey: string; value: number }[]>();
-    for (const r of rows) {
-      const list = byTracker.get(r.trackerId) ?? [];
-      list.push({ dayKey: r.dayKey, value: r.value });
-      byTracker.set(r.trackerId, list);
-    }
-
-    return trackers.map((tracker) => {
-      const points = (byTracker.get(tracker.id) ?? []).slice().reverse();
-      const summary = summariseTracker(points, tracker.direction);
-      return { tracker, points, sentence: describeTracker(tracker.name, summary, tracker.direction) };
-    });
+    return assembleTrackerOverview(trackers, rows);
   }
 
   /** What the AI is told. One line per tracker, and nothing when there are none. */
