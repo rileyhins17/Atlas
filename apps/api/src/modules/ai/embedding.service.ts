@@ -1,6 +1,7 @@
 import { Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { EMBEDDING_MODEL, LocalEmbedder } from '@atlas/ai';
+import { Prisma } from '@atlas/db';
 import { ActivityService } from '../../core/activity.service.js';
 import { PrismaService } from '../../core/prisma.service.js';
 
@@ -128,28 +129,21 @@ export class EmbeddingService implements OnApplicationBootstrap {
     });
     if (pending.length === 0) return { processed: 0, failed: 0 };
 
-    let processed = 0;
-    let failed = 0;
+    const updates: Prisma.Sql[] = [];
 
     // Batch through the model: one call per chunk rather than per row.
     for (let i = 0; i < pending.length; i += EMBED_CHUNK) {
       const chunk = pending.slice(i, i + EMBED_CHUNK);
       try {
         const vectors = await this.embedder.embed(chunk.map((row) => row.content));
-        await Promise.all(
-          chunk.map((row, idx) => {
-            const vector = vectors[idx];
-            if (!vector) throw new Error('Embedder returned no vector for a queued row');
-            return this.prisma.client.$executeRaw`
-              UPDATE embeddings
-              SET embedding = ${this.toVectorLiteral(vector)}::vector, model = ${EMBEDDING_MODEL}
-              WHERE id = ${row.id}
-            `;
-          }),
-        );
-        processed += chunk.length;
+        const chunkUpdates = chunk.map((row, idx) => {
+          const vector = vectors[idx];
+          if (!vector) throw new Error('Embedder returned no vector for a queued row');
+          return Prisma.sql`(${row.id}, ${row.userId}, ${row.content}, ${this.toVectorLiteral(vector)}::vector)`;
+        });
+        // Do not stage a partial chunk if inference omitted any vector.
+        updates.push(...chunkUpdates);
       } catch (err) {
-        failed += chunk.length;
         this.logger.warn(
           `Embedding backfill failed for ${chunk.length} row(s): ${
             err instanceof Error ? err.message : 'unknown error'
@@ -157,7 +151,25 @@ export class EmbeddingService implements OnApplicationBootstrap {
         );
       }
     }
-    return { processed, failed };
+    if (updates.length === 0) return { processed: 0, failed: pending.length };
+
+    try {
+      // One atomic write for the bounded batch. Content and owner must still
+      // match the inference input; an edit during model work stays pending.
+      const processed = await this.prisma.client.$executeRaw(Prisma.sql`
+        UPDATE embeddings AS target
+        SET embedding = source.vector, model = ${EMBEDDING_MODEL}
+        FROM (VALUES ${Prisma.join(updates)}) AS source(id, "userId", content, vector)
+        WHERE target.id = source.id
+          AND target."userId" = source."userId"
+          AND target.content = source.content
+          AND target.model = 'pending'
+      `);
+      return { processed, failed: pending.length - processed };
+    } catch (err) {
+      this.logger.warn(`Embedding batch write failed: ${err instanceof Error ? err.message : 'unknown error'}`);
+      return { processed: 0, failed: pending.length };
+    }
   }
 
   /** Semantic search over this user's embedded content, nearest first. */

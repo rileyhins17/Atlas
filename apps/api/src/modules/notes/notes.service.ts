@@ -1,25 +1,12 @@
+import { summarizeNotes } from '@atlas/shared';
+import { noteEmbeddingText as embedText } from '@atlas/shared';
+import { serializeNote as toDto } from '@atlas/shared';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { CreateNoteInput, NoteDTO, UpdateNoteInput } from '@atlas/shared';
 import type { Note } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
 import { MemoryService } from '../../core/memory.service.js';
-
-function toDto(n: Note): NoteDTO {
-  return {
-    id: n.id,
-    title: n.title,
-    body: n.body,
-    tags: n.tags,
-    pinned: n.pinned,
-    createdAt: n.createdAt.toISOString(),
-    updatedAt: n.updatedAt.toISOString(),
-  };
-}
-
-function embedText(n: Note): string {
-  return n.title ? `${n.title}\n${n.body}` : n.body;
-}
 
 @Injectable()
 export class NotesService {
@@ -111,9 +98,6 @@ export class NotesService {
       take: 10,
     });
     const total = await this.prisma.client.note.count({ where: { userId } });
-    if (total === 0) return 'No notes yet.';
-    if (pinned.length === 0) return `${total} note(s), none pinned as key facts.`;
-    const lines = pinned.map((n) => `- ${n.title ? `${n.title}: ` : ''}${n.body.slice(0, 100)}`);
-    return `Key facts about the user (pinned notes):\n${lines.join('\n')}`;
+    return summarizeNotes(pinned, total);
   }
 }

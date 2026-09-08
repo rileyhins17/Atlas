@@ -5,6 +5,7 @@ import { LoginInput, RegisterInput } from '@atlas/shared';
 import { errorMessage } from '@/lib/api';
 import { useAuthConfig, useLogin, useRegister } from '@/lib/hooks/auth';
 import { Logo } from '@/components/Logo';
+import { ErrorState } from '@/components/ui';
 
 export function AuthGate() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -16,7 +17,8 @@ export function AuthGate() {
   const login = useLogin();
   const register = useRegister();
   const authConfig = useAuthConfig();
-  const inviteRequired = authConfig.data?.inviteRequired ?? false;
+  const registrationReady = authConfig.isSuccess && authConfig.data !== undefined;
+  const inviteRequired = registrationReady && authConfig.data.inviteRequired;
 
   const active = mode === 'login' ? login : register;
   const busy = active.isPending;
@@ -25,7 +27,7 @@ export function AuthGate() {
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (busy) return;
+    if (busy || (mode === 'register' && !registrationReady)) return;
     // Same zod schemas the API enforces — catch it before the round-trip.
     const schema = mode === 'login' ? LoginInput : RegisterInput;
     const parsed = schema.safeParse({ email, password });
@@ -122,6 +124,10 @@ export function AuthGate() {
             {mode === 'register' && <span className="gate-hint">At least 8 characters.</span>}
           </label>
 
+          {mode === 'register' && !registrationReady && (authConfig.isError
+            ? <ErrorState message="Sign-up requirements could not be loaded." onRetry={() => void authConfig.refetch()} />
+            : <p className="gate-hint" role="status">Checking sign-up requirements…</p>)}
+
           {mode === 'register' && inviteRequired && (
             <label className="gate-field">
               <span className="gate-label">Invite code</span>
@@ -152,7 +158,7 @@ export function AuthGate() {
             </div>
           )}
 
-          <button className="gate-submit" type="submit" disabled={busy}>
+          <button className="gate-submit" type="submit" disabled={busy || (mode === 'register' && !registrationReady)}>
             {busy ? 'One moment…' : mode === 'login' ? 'Sign in' : 'Create account'}
           </button>
 

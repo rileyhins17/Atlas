@@ -1,31 +1,14 @@
+import { summarizeGoals } from '@atlas/shared';
+import { serializeGoal as toDto } from '@atlas/shared';
+import { readCollection } from '../../core/collection-pages.js';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { CreateGoalInput, GoalDTO, UpdateGoalInput } from '@atlas/shared';
 import type { Goal } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
+import { UserTimezoneService } from '../../core/user-timezone.service.js';
 
 const MAX_GOALS = 100;
-
-type GoalRow = Goal & { _count?: { tasks: number } };
-
-function toDto(g: GoalRow, doneTaskCount = 0): GoalDTO {
-  return {
-    id: g.id,
-    title: g.title,
-    description: g.description,
-    horizon: g.horizon === 'long' ? 'long' : 'short',
-    status: (['active', 'achieved', 'paused', 'dropped'] as const).includes(
-      g.status as GoalDTO['status'],
-    )
-      ? (g.status as GoalDTO['status'])
-      : 'active',
-    targetDate: g.targetDate ? g.targetDate.toISOString() : null,
-    position: g.position,
-    taskCount: g._count?.tasks ?? 0,
-    doneTaskCount,
-    createdAt: g.createdAt.toISOString(),
-  };
-}
 
 /**
  * Goals: the layer above tasks that says why any of this matters.
@@ -40,6 +23,7 @@ export class GoalsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly timeline: TimelineService,
+    private readonly timezones: UserTimezoneService,
   ) {}
 
   async owned(userId: string, id: string): Promise<Goal> {
@@ -49,11 +33,12 @@ export class GoalsService {
   }
 
   async list(userId: string): Promise<GoalDTO[]> {
-    const goals = await this.prisma.client.goal.findMany({
+    const goals = await readCollection((page) => this.prisma.client.goal.findMany({
+      take: page.take, cursor: page.cursor, skip: page.skip,
       where: { userId },
-      orderBy: [{ horizon: 'asc' }, { position: 'asc' }, { createdAt: 'asc' }],
+      orderBy: [{ horizon: 'asc' }, { position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
       include: { _count: { select: { tasks: true } } },
-    });
+    }));
     if (goals.length === 0) return [];
 
     // One grouped count rather than a query per goal.
@@ -133,17 +118,8 @@ export class GoalsService {
   /** Compact context for the AI: what the user is actually working toward. */
   async summarize(userId: string): Promise<string> {
     const goals = await this.list(userId);
-    const active = goals.filter((g) => g.status === 'active');
-    if (active.length === 0) return 'No goals set.';
-    const line = (g: GoalDTO) =>
-      `- [${g.id}] ${g.title}` +
-      (g.targetDate ? ` (by ${g.targetDate.slice(0, 10)})` : '') +
-      ` — ${g.taskCount === 0 ? 'nothing linked yet' : `${g.doneTaskCount}/${g.taskCount} tasks done`}`;
-    const short = active.filter((g) => g.horizon === 'short');
-    const long = active.filter((g) => g.horizon === 'long');
-    const parts: string[] = [];
-    if (short.length > 0) parts.push(`Short-term goals:\n${short.map(line).join('\n')}`);
-    if (long.length > 0) parts.push(`Long-term goals:\n${long.map(line).join('\n')}`);
-    return parts.join('\n\n');
+    if (!goals.some((g) => g.status === 'active')) return summarizeGoals(goals, 'UTC');
+    const tz = await this.timezones.get(userId);
+    return summarizeGoals(goals, tz);
   }
 }
