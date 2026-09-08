@@ -1,12 +1,14 @@
+import { shiftCalendarDayKey as shiftDay } from '@atlas/shared';
+import { routineClockLabel as fmt } from '@atlas/shared';
+import { serializeRoutineBlock as toDto } from '@atlas/shared';
+import { readCollection } from '../../core/collection-pages.js';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type {
   ReplaceRoutineInput,
   RoutineBlockDTO,
   RoutineBlockInput,
-  RoutineKind,
   UpdateRoutineBlockInput,
 } from '@atlas/shared';
-import type { RoutineBlock } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { UserTimezoneService } from '../../core/user-timezone.service.js';
 import { dayKeyInTz } from '../ai/time.util.js';
@@ -17,33 +19,7 @@ import { dayKeyInTz } from '../ai/time.util.js';
  */
 const MAX_ROUTINE_BLOCKS = 200;
 
-function toDto(b: RoutineBlock): RoutineBlockDTO {
-  return {
-    id: b.id,
-    label: b.label,
-    kind: b.kind as RoutineKind,
-    days: b.days,
-    onDate: b.onDate,
-    startMin: b.startMin,
-    endMin: b.endMin,
-  };
-}
-
-function fmt(min: number): string {
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
-
 const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-
-/** YYYY-MM-DD arithmetic without touching timezones. */
-function shiftDay(day: string, delta: number): string {
-  const [y, m, d] = day.split('-').map(Number);
-  const t = new Date(Date.UTC(y!, m! - 1, d!));
-  t.setUTCDate(t.getUTCDate() + delta);
-  return t.toISOString().slice(0, 10);
-}
 
 @Injectable()
 export class RoutineService {
@@ -63,10 +39,11 @@ export class RoutineService {
    */
   async list(userId: string): Promise<RoutineBlockDTO[]> {
     const from = shiftDay(await this.today(userId), -1);
-    const blocks = await this.prisma.client.routineBlock.findMany({
+    const blocks = await readCollection((page) => this.prisma.client.routineBlock.findMany({
+      take: page.take, cursor: page.cursor, skip: page.skip,
       where: { userId, OR: [{ onDate: null }, { onDate: { gte: from } }] },
-      orderBy: [{ onDate: 'asc' }, { startMin: 'asc' }],
-    });
+      orderBy: [{ onDate: 'asc' }, { startMin: 'asc' }, { id: 'asc' }],
+    }));
     return blocks.map(toDto);
   }
 
