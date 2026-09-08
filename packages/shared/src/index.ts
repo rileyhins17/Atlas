@@ -41,3 +41,8 @@ export * from './dto/plates.js';
 export * from './time.js';
 export * from './context-builder.js';
 export * from './domain-module.js';
+export * from './plan-reply.js';
+export * from './habit-streak.js';
+export * from './ai-pricing.js';
+export * from './ai-tools.js';
+export * from './tool-fingerprint.js';

@@ -25,10 +25,10 @@ apps/api (NestJS)
                  ├─ runToolLoop (packages/ai) ──→ ToolRouterService → domain services
                  └─ EmbeddingService → LocalEmbedder (in-process, no key)
                                      → embeddings (pgvector, $queryRaw)
-packages/ai  CostGuard + runToolLoop + wire-safe tool names + LocalEmbedder
+packages/ai  CostGuard + runToolLoop + LocalEmbedder
 packages/connectors  Connector + DeepSeek client (chat)
 packages/db  Prisma schema + client (import DB only via @atlas/db)
-packages/shared  zod DTOs + enums + contracts + pure context packing/order (browser-safe, no DB)
+packages/shared  zod DTOs + contracts + pure domain/provider calculations (browser-safe, no DB)
 ```
 
 ## The AI brain (Phase 2)
@@ -39,15 +39,23 @@ the owner-scoped service. `packages/ai/src/context-builder.ts` retains a
 compatibility export; there is one implementation and its existing tests now
 live beside it in shared. Domain ids, context titles/priorities and all ten
 tool-spec bodies are unchanged by this consolidation. The ten-adapter contract
-suite passed before and after it. This is the first architecture slice; other
-pure application calculations still need migration into shared.
+suite passed before and after it.
+
+Plan-reply parsing, habit streaks, configured token-cost arithmetic, tool-name
+conversion and tool-call fingerprints also live in shared. Existing API/AI
+paths re-export them for compatibility. The habit API supplies the current
+date explicitly; the shared calculation owns no clock and preserves the
+existing UTC habit-day semantics. Provider prices and fingerprint normalization
+are unchanged. The 30 existing calculation tests moved alongside their code;
+the orchestrator still tests deduplication and provider failures at its boundary.
+Other pure application calculations still need migration before Phase 2 is done.
 
 `OrchestratorService` is the only thing that talks to a model. It:
 1. Assembles context from every registered domain (`collectContext`) and packs it under a token budget (`buildContext`) — modules summarize, the builder caps.
 2. Calls the provider through `CostGuard` on **every** round-trip, including each turn of a tool-calling conversation, so spend can't slip past `AI_DAILY_TOKEN_CAP`.
 3. Delegates the tool-calling loop to `runToolLoop` (`packages/ai/src/orchestrator.ts`) — provider-agnostic and DB-free, so it's unit-testable with fake `chat`/`executeTool` functions. Tool calls land in `ToolRouterService`, which re-validates arguments with the same zod DTOs the HTTP boundary uses: **the model is an untrusted caller**.
 
-Tool names are dotted (`tasks.create`) everywhere in Atlas, but some providers reject non-alphanumeric function names, so `packages/ai/src/tools.ts` maps them to a wire-safe form (`tasks__create`) at the provider boundary only.
+Tool names are dotted (`tasks.create`) everywhere in Atlas, but some providers reject non-alphanumeric function names. The shared `ai-tools.ts` maps them to a wire-safe form (`tasks__create`) at the provider boundary; `packages/ai/src/tools.ts` retains compatibility exports.
 
 **Provider split — chat is remote, memory is local.** Chat runs on **DeepSeek direct** (`api.deepseek.com`, model `deepseek-v4-flash`) via `DeepSeekConnector`, because that's where the credits are; connectors speak an OpenAI-compatible shape and share one response parser (`packages/connectors/src/chat.ts`), so swapping or adding a chat provider is a connector, not a refactor. **Embeddings run locally in-process** (`LocalEmbedder`, `bge-base-en-v1.5`, 768-dim to match the `vector(768)` column): DeepSeek offers no embeddings endpoint, and paying a second provider purely for vectors would undercut both the <$5/mo target and the self-hosted premise. Local embedding is free and offline, so — unlike every chat path — `EmbeddingService` has no cost guard: there is no spend to bound.
 
