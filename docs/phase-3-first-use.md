@@ -129,3 +129,10 @@ suite pass. The thirteen-route sweep did not execute in this run.
 Selector correction local gates: build 6/6, forced typecheck 10/10, lint
 zero errors with three existing warnings, 1523 unit tests passed. Corrected
 screenshot-suite completion remains pending CI.
+
+Verified completion of the corrected run: `34227770139` at `cd63d41` passed
+all CI jobs, 53 browser tests with one skipped, independent groups 1 + 1 + 6,
+and the screenshot/measurement spec in 1.4 minutes. Artifact `10056713959`
+contains 61 PNGs and 28 measurements (first use plus thirteen routes, both
+themes). All measurements recorded zero overflow, undersized targets, undersized
+inputs and axe violations. This does not complete the overall Phase 3 state audit.

@@ -2117,3 +2117,39 @@ test('habit consistency never reports zero from an unavailable history request',
   await expect(card.locator('.prog-habit-pct').first()).toBeVisible();
   await expect(card.getByText('Could not load your habit history.')).toHaveCount(0);
 });
+
+
+test('a workout finishes with notes while history is unavailable', async ({ page }) => {
+  await resetFitness(page);
+  const catalog = await page.request.get('http://localhost:4000/fitness/exercises');
+  expect(catalog.ok()).toBe(true);
+  const exercises = await catalog.json() as { id: string; kind: string }[];
+  const exercise = exercises.find((row) => row.kind === 'weight_reps');
+  expect(exercise).toBeTruthy();
+  const started = await page.request.post('http://localhost:4000/fitness/workouts', {
+    data: { title: `History unavailable ${Date.now()}` },
+  });
+  expect(started.ok()).toBe(true);
+  const workout = await started.json() as { id: string };
+  const set = await page.request.post(`http://localhost:4000/fitness/workouts/${workout.id}/sets`, {
+    data: { exerciseId: exercise!.id, weightGrams: 10000, reps: 5 },
+  });
+  expect(set.ok()).toBe(true);
+  const historyUrl = 'http://localhost:4000/fitness/workouts?*';
+  await page.route(historyUrl, (route) => route.fulfill({ status: 503,
+    contentType: 'application/json', body: JSON.stringify({ message: 'Synthetic history outage' }) }));
+  await go(page, '/fitness');
+  await expect(page.getByText('Earlier sessions could not be loaded. You can still finish this workout without comparisons.')).toBeVisible({ timeout: 20_000 });
+  const notes = page.getByLabel('How did it go?');
+  await notes.click();
+  await notes.pressSequentially('Steady session despite the missing history');
+  await page.locator('.fit-active').getByRole('button', { name: 'Finish', exact: true }).click();
+  await expect(page.getByRole('dialog').getByText('Workout saved. Earlier sessions were unavailable, so records and volume comparisons were not checked.')).toBeVisible();
+  await page.unroute(historyUrl);
+  const history = await page.request.get('http://localhost:4000/fitness/workouts?limit=20');
+  expect(history.ok()).toBe(true);
+  const saved = (await history.json() as { id: string; endedAt: string | null; notes: string; volumeGrams: number }[]).find((row) => row.id === workout.id);
+  expect(saved?.endedAt).toBeTruthy();
+  expect(saved?.notes).toBe('Steady session despite the missing history');
+  expect(saved?.volumeGrams).toBe(50000);
+});

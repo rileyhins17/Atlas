@@ -12,7 +12,7 @@ import { SplitSetup } from '@/components/fitness/SplitSetup';
 import { WorkoutSummaryDialog } from '@/components/fitness/WorkoutSummaryDialog';
 import { TrainingProgress } from '@/components/fitness/TrainingProgress';
 import { DayBuilder } from '@/components/fitness/DayBuilder';
-import { Button, Card, ErrorState, Input, ListSkeleton } from '@/components/ui';
+import { Button, Card, ErrorState, Input, ListSkeleton, QueryState } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
 import { NO_EXERCISES } from '@/components/fitness/helpers';
 import { ActiveWorkout } from '@/components/fitness/ActiveWorkout';
@@ -89,6 +89,7 @@ export function FitnessPanel() {
               untitled blank session, and almost everybody starts the day they
               have left the longest. Naming a workout is now the quiet option at
               the bottom, where the rare thing belongs. */}
+          <QueryState query={templates} errorFallback="Saved workout days could not be loaded." skeleton={<ListSkeleton rows={2} />}>
           {suggested.length > 0 && (
             <div className="fit-quick" role="group" aria-label="Start a saved day">
               {suggested.map((t, i) => (
@@ -142,6 +143,7 @@ export function FitnessPanel() {
             </div>
           )}
 
+          </QueryState>
           <form
             className="fit-blank"
             onSubmit={(e) => {
@@ -192,7 +194,8 @@ export function FitnessPanel() {
         </div>
       )}
 
-      {!workout && (history.data?.length ?? 0) === 0 && !history.isPending && (
+      {!workout && history.isError && <ErrorState message="Workout history could not be loaded." onRetry={() => void history.refetch()} />}
+      {!workout && !history.isError && history.data !== undefined && history.data.length === 0 && !history.isPending && (
         <section className="fit-pitch" aria-label="What Atlas tracks">
           <h2 className="section-title" style={{ marginTop: 20 }}>
             What you get once you log one
@@ -225,7 +228,7 @@ export function FitnessPanel() {
         onClose={() => setSummary(null)}
       />
 
-      {!workout && ((history.data?.length ?? 0) > 0 || history.isPending) && (
+      {!workout && !history.isError && ((history.data?.length ?? 0) > 0 || history.isPending) && (
         <>
           <div className="cal-scope" role="group" aria-label="Training view" style={{ marginTop: 22 }}>
             <button
@@ -249,12 +252,14 @@ export function FitnessPanel() {
           <div style={{ marginTop: 14 }}>
             {tab === 'train' ? (
               <WorkoutHistory />
-            ) : (
+            ) : history.isPending || history.data === undefined ? <ListSkeleton rows={3} /> : (
+              <QueryState query={exercisesQuery} errorFallback="Exercises for training progress could not be loaded." skeleton={<ListSkeleton rows={3} />}>
               <TrainingProgress
                 workouts={history.data ?? []}
                 exercises={exercisesQuery.data ?? NO_EXERCISES}
                 unit={unit}
               />
+              </QueryState>
             )}
           </div>
         </>

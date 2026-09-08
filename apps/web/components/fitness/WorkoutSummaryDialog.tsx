@@ -53,6 +53,9 @@ export function WorkoutSummaryDialog({
           </div>
         </div>
 
+        {summary.historyAvailable === false && (
+          <p className="prog-muted">Workout saved. Earlier sessions were unavailable, so records and volume comparisons were not checked.</p>
+        )}
         {prCount > 0 && (
           <p className="wo-pr">
             <Trophy size={15} aria-hidden />
