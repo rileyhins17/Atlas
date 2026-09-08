@@ -1,15 +1,14 @@
 'use client';
 
+import { calendarHourLabel } from '@atlas/shared';
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { EventDTO } from '@atlas/shared';
-import { fmt, formatClock, localDayKey } from '@/lib/dates';
+import { fmt, formatClock, localDayKey, displayTimezone } from '@/lib/dates';
 import { placeDayEvents, visibleHourRange, weekdayShort } from '@/lib/calendar-view';
 
-/** "9 AM" — 12-hour, in the user's timezone, without minutes on the hour. */
 function hourLabel(hour: number): string {
-  const d = new Date();
-  d.setHours(hour, 0, 0, 0);
-  return d.toLocaleTimeString('en-US', fmt({ hour: 'numeric', hour12: true }));
+  return calendarHourLabel(hour, new Date(), displayTimezone());
 }
 
 /**
