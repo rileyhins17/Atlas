@@ -3361,3 +3361,46 @@ test('AI access lets personal accounts redeem invites and explains unavailable s
     await page.unroute('http://localhost:4000/auth/redeem-invite');
   }
 });
+
+
+test('mood check-ins retain failed saves and confirm retried readings in both themes', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    await page.goto('/today');
+    const minutes = await page.evaluate(() => new Date().getHours() * 60 + new Date().getMinutes());
+    const wake = (minutes - 30 + 1440) % 1440;
+    await page.route('http://localhost:4000/routine', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify([{ id: 'synthetic-sleep', label: 'Sleep', kind: 'sleep', days: 127, onDate: null, startMin: (wake - 480 + 1440) % 1440, endMin: wake }]) }));
+    let fails = true;
+    let saved: { id: string; mood: number; body: string } | null = null;
+    await page.route('http://localhost:4000/journal', async (route) => {
+      if (route.request().method() === 'GET') return route.fulfill({ contentType: 'application/json', body: JSON.stringify(saved ? [saved] : []) });
+      if (route.request().method() !== 'POST') return route.continue();
+      if (fails) return route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+      const response = await route.fetch();
+      expect(response.status()).toBe(201);
+      saved = await response.json() as { id: string; mood: number; body: string };
+      return route.fulfill({ response });
+    });
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    const mood = page.locator('.mood-checkin');
+    await mood.getByRole('button', { name: 'Good — 4 out of 5', exact: true }).click();
+    await expect(mood.getByRole('alert')).toHaveText('Mood was not confirmed. Choose a mood to try again.');
+    let failures = screenFailures(await measureScreen(page, '/today:mood-save-error', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    fails = false;
+    await mood.getByRole('button', { name: 'Good — 4 out of 5', exact: true }).click();
+    await expect(mood).toBeHidden();
+    expect(saved).not.toBeNull();
+    const savedId = (saved as unknown as { id: string }).id;
+    failures = screenFailures(await measureScreen(page, '/today:mood-save-recovered', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await page.unroute('http://localhost:4000/journal');
+    await page.reload();
+    const entries = await page.request.get('http://localhost:4000/journal');
+    expect(entries.ok()).toBe(true);
+    expect(await entries.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: savedId, mood: 4, body: '' })]));
+    await page.unroute('http://localhost:4000/routine');
+  }
+});

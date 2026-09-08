@@ -109,6 +109,7 @@ export function MoodCheckIn() {
           </button>
         ))}
       </div>
+      {create.isError && <p className="mood-checkin-error error" role="alert">Mood was not confirmed. Choose a mood to try again.</p>}
       <p className="mood-checkin-why">{why(window, nowMin, Boolean(sleep))}</p>
     </section>
   );
