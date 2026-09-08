@@ -3,6 +3,7 @@ import { HabitsService } from '../src/modules/habits/habits.service.js';
 import { dayKey } from '../src/modules/habits/habits.util.js';
 
 function makeService(opts: {
+  timezone?: string;
   habits: Array<{ id: string }>;
   logs: Array<{ habitId: string; loggedAt: Date; value: number }>;
 }) {
@@ -30,8 +31,9 @@ function makeService(opts: {
     },
   };
   const timeline = { write: vi.fn() };
+  const timezones = { get: vi.fn().mockResolvedValue(opts.timezone ?? 'UTC') };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const service = new HabitsService(prisma as any, timeline as any);
+  const service = new HabitsService(prisma as any, timeline as any, timezones as any);
   return { service, habitFindMany, logFindMany, queryRaw };
 }
 
@@ -114,3 +116,37 @@ describe('HabitsService.history', () => {
     expect(queryRaw).not.toHaveBeenCalled();
   });
 });
+
+for (const [instant, since] of [
+  ['2026-03-08T18:00:00Z', '2026-03-02T05:00:00.000Z'],
+  ['2026-11-01T18:00:00Z', '2026-10-26T04:00:00.000Z'],
+]) {
+  it(`binds Toronto day aggregation and complete local-day boundaries at ${instant}`, async () => {
+    vi.setSystemTime(new Date(instant!));
+    try {
+      const { service, queryRaw } = makeService({ habits: [{ id: 'h1' }], logs: [], timezone: 'America/Toronto' });
+      await service.history('user-1', 7);
+      const sql = queryRaw.mock.calls[0]![0];
+      expect(sql.values).toContain('America/Toronto');
+      expect(sql.sql).toContain("AT TIME ZONE 'UTC'");
+      expect(sql.sql).toContain('AT TIME ZONE ?');
+      expect(sql.values.filter((value: unknown) => value instanceof Date).map((value: Date) => value.toISOString())).toEqual([since]);
+    } finally { vi.useRealTimers(); }
+  });
+}
+
+for (const [timezone, instant, day] of [
+  ['America/Toronto', '2026-09-09T01:00:00Z', '2026-09-08'],
+  ['Asia/Tokyo', '2026-09-08T18:00:00Z', '2026-09-09'],
+]) {
+  it(`passes ${timezone} through from account lookup into the list response`, async () => {
+    vi.setSystemTime(new Date(instant!));
+    try {
+      const { service, queryRaw } = makeService({ habits: [{ id: 'h1' }], logs: [], timezone });
+      queryRaw.mockResolvedValue([{ habitId: 'h1', day, value: 1 }]);
+      const result = await service.list('user-1');
+      expect(result[0]).toMatchObject({ todayCount: 1, doneToday: true, streak: 1 });
+      expect(queryRaw.mock.calls[0]![0].values).toContain(timezone);
+    } finally { vi.useRealTimers(); }
+  });
+}

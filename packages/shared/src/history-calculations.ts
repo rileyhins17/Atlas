@@ -5,7 +5,8 @@ import type { ExerciseHistoryDTO, ExerciseSessionDTO, LastPerformanceDTO } from 
 import { bestWeightGrams } from './dto/fitness-util.js';
 import { bestE1rm, exerciseRecords, setVolumeGrams } from './dto/exercise-records.js';
 import { serializeExercise as toExerciseDto, serializeWorkoutSet as toSetDto, type ExerciseRecord } from './fitness-serialization.js';
-import { utcHabitDayKey as dayKey, computeHabitStreak } from './habit-streak.js';
+import { dayKeyInTz } from './time.js';
+import { computeHabitStreak } from './habit-streak.js';
 import type { TrackerSummaryOverview } from './domain-summaries.js';
 
 export type HabitRecord = Omit<HabitDTO, 'todayCount' | 'doneToday' | 'streak' | 'createdAt'> & { createdAt: Date };
@@ -15,13 +16,13 @@ export type TrackerHistoryRow = { trackerId: string; dayKey: string; value: numb
 export type PreviousWorkoutSet = Omit<Parameters<typeof toSetDto>[0], 'exercise'> & { workoutId: string };
 export type ExerciseHistoryRow = PreviousWorkoutSet & { workout: { id: string; title: string; startedAt: Date } };
 
-export function serializeHabit(habit: HabitRecord, logs: HabitDayTotal[], todayNow: Date, streakNow: Date): HabitDTO {
+export function serializeHabit(habit: HabitRecord, logs: HabitDayTotal[], todayNow: Date, streakNow: Date, timezone = 'UTC'): HabitDTO {
   const perDay = new Map<string, number>();
   for (const log of logs) {
     const k = log.day;
     perDay.set(k, (perDay.get(k) ?? 0) + log.value);
   }
-  const todayCount = perDay.get(dayKey(todayNow)) ?? 0;
+  const todayCount = perDay.get(dayKeyInTz(todayNow, timezone)) ?? 0;
   return {
     id: habit.id,
     name: habit.name,
@@ -30,7 +31,7 @@ export function serializeHabit(habit: HabitRecord, logs: HabitDayTotal[], todayN
     active: habit.active,
     todayCount,
     doneToday: todayCount >= habit.target,
-    streak: computeHabitStreak(perDay, habit.target, streakNow),
+    streak: computeHabitStreak(perDay, habit.target, streakNow, timezone),
     createdAt: habit.createdAt.toISOString(),
   };
 }

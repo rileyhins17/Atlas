@@ -51,7 +51,8 @@ was observed making three database calls before the fix and one afterwards.
 Habit check-ins are additive: 2,001 logs on one day must contribute 2,001 to
 that day's total. Adding `take: 2000` to the old reads would report 2,000 and
 could change whether a habit met its target. The service now asks Postgres for
-one summed row per habit and UTC day, preserving the existing day-key semantics.
+one summed row per habit and day. Phase 1 preserved UTC day keys; the Phase 3
+habit calendar audit then aligned those keys with the account timezone.
 The user id, selected habit ids and time window are bound SQL parameters.
 
 History, checklist counts and the reads after logging/editing use this same
@@ -59,6 +60,21 @@ query. A regression with 2,001 synthetic check-ins was observed loading raw
 logs before the fix and now preserves the total without a raw-log read. The
 real SQL is exercised by the authenticated habit-history e2e case, both within
 the full CI suite and independently; mocks alone cannot verify column names.
+
+## Habit calendars and counts must use the same local day
+
+The calendar used browser-local dates while habit aggregation and today's count
+used UTC. A Toronto evening check-in could appear under tomorrow and reset the
+visible count early. Habit reads now bind UserTimezoneService's account timezone
+in SQL and use it for shared count/streak serialization. Raw loggedAt timestamps
+are unchanged. History windows start at local midnight and include the requested
+number of calendar dates, including today, across both DST transitions.
+
+Five regressions were observed failing before the fix. SQL-shape mocks do not
+execute Postgres: `.github/scripts/check-habit-local-days.mjs` separately runs
+public service reads against synthetic CI rows for Toronto, Tokyo and both DST
+changes, with tenant isolation and unchanged-row assertions. Its actual database
+execution remains pending while GitHub Actions cannot start jobs.
 
 Append every new setup/build snag here (root cause + fix) so no future thread wastes tokens re-hitting it. The canonical short list also lives in `../CLAUDE.md`; this file is the long form.
 

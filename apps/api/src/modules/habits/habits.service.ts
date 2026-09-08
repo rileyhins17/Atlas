@@ -1,4 +1,4 @@
-import { serializeHabit, groupHabitTotals, assembleHabitHistory, type HabitDayTotal } from '@atlas/shared';
+import { serializeHabit, groupHabitTotals, assembleHabitHistory, type HabitDayTotal, localDayStartUtc } from '@atlas/shared';
 import { summarizeHabits } from '@atlas/shared';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type {
@@ -11,6 +11,7 @@ import type {
 import { Prisma, type Habit } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
+import { UserTimezoneService } from '../../core/user-timezone.service.js';
 
 /** How far back streak math ever needs to look. */
 const STREAK_WINDOW_DAYS = 400;
@@ -20,6 +21,7 @@ export class HabitsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly timeline: TimelineService,
+    private readonly timezones: UserTimezoneService,
   ) {}
 
   /** Ownership-scoped read, shared with the AI tool router for undo state. */
@@ -29,40 +31,29 @@ export class HabitsService {
     return habit;
   }
 
-  private toDto(habit: Habit, logs: HabitDayTotal[]): HabitDTO {
-    return serializeHabit(habit, logs, new Date(), new Date());
-  }
-
-  /**
-   * Streaks only ever look back over recent history, so bound every log read to
-   * the same window. Without this, a long-lived habit's log query grows without
-   * limit and gets slower every day it's used.
-   */
-  private static streakWindowStart(): Date {
-    const since = new Date();
-    since.setUTCDate(since.getUTCDate() - STREAK_WINDOW_DAYS);
-    return since;
+  private toDto(habit: Habit, logs: HabitDayTotal[], timezone: string, now = new Date()): HabitDTO {
+    return serializeHabit(habit, logs, now, now, timezone);
   }
 
   /** Aggregate before crossing the database boundary: never truncate check-ins.
-   * loggedAt is Prisma's timestamp without timezone, stored as UTC. Preserve
-   * the existing UTC day-key semantics while reducing rows to habit/day totals.
+   * loggedAt is Prisma's timestamp without timezone, stored as UTC. Convert
+   * to the owner's bound timezone before grouping; raw timestamps stay intact.
    */
-  private dailyTotals(userId: string, habitIds: string[], since: Date): Promise<HabitDayTotal[]> {
+  private dailyTotals(userId: string, habitIds: string[], since: Date, timezone: string): Promise<HabitDayTotal[]> {
     if (habitIds.length === 0) return Promise.resolve([]);
     return this.prisma.client.$queryRaw<HabitDayTotal[]>(Prisma.sql`
-      SELECT "habitId", to_char("loggedAt"::date, 'YYYY-MM-DD') AS day,
+      SELECT "habitId", ((("loggedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${timezone})::date)::text AS day,
              SUM(value)::float AS value
       FROM habit_logs
       WHERE "userId" = ${userId} AND "habitId" IN (${Prisma.join(habitIds)})
         AND "loggedAt" >= ${since}
-      GROUP BY "habitId", "loggedAt"::date
-      ORDER BY "loggedAt"::date ASC
+      GROUP BY 1, 2
+      ORDER BY 2 ASC
     `);
   }
 
-  private logsForHabit(userId: string, habitId: string): Promise<HabitDayTotal[]> {
-    return this.dailyTotals(userId, [habitId], HabitsService.streakWindowStart());
+  private logsForHabit(userId: string, habitId: string, timezone: string, now: Date): Promise<HabitDayTotal[]> {
+    return this.dailyTotals(userId, [habitId], localDayStartUtc(timezone, now, -(STREAK_WINDOW_DAYS - 1)), timezone);
   }
 
   async list(userId: string): Promise<HabitDTO[]> {
@@ -73,9 +64,11 @@ export class HabitsService {
       take: 200,
     });
     if (habits.length === 0) return [];
-    const logs = await this.dailyTotals(userId, habits.map((h) => h.id), HabitsService.streakWindowStart());
+    const timezone = await this.timezones.get(userId);
+    const now = new Date();
+    const logs = await this.dailyTotals(userId, habits.map((h) => h.id), localDayStartUtc(timezone, now, -(STREAK_WINDOW_DAYS - 1)), timezone);
     const byHabit = groupHabitTotals(logs);
-    return habits.map((h) => this.toDto(h, byHabit.get(h.id) ?? []));
+    return habits.map((h) => this.toDto(h, byHabit.get(h.id) ?? [], timezone, now));
   }
 
   async create(userId: string, input: CreateHabitInput): Promise<HabitDTO> {
@@ -90,13 +83,15 @@ export class HabitsService {
       refType: 'habit',
       refId: habit.id,
     });
-    return this.toDto(habit, []);
+    return this.toDto(habit, [], await this.timezones.get(userId));
   }
 
   async update(userId: string, id: string, input: UpdateHabitInput): Promise<HabitDTO> {
     await this.owned(userId, id);
     const habit = await this.prisma.client.habit.update({ where: { id }, data: input });
-    return this.toDto(habit, await this.logsForHabit(userId, id));
+    const timezone = await this.timezones.get(userId);
+    const now = new Date();
+    return this.toDto(habit, await this.logsForHabit(userId, id, timezone, now), timezone, now);
   }
 
   async log(userId: string, id: string, input: LogHabitInput): Promise<HabitDTO> {
@@ -113,7 +108,9 @@ export class HabitsService {
       refId: habit.id,
       payload: { value: input.value },
     });
-    return this.toDto(habit, await this.logsForHabit(userId, id));
+    const timezone = await this.timezones.get(userId);
+    const now = new Date();
+    return this.toDto(habit, await this.logsForHabit(userId, id, timezone, now), timezone, now);
   }
 
   async remove(userId: string, id: string): Promise<{ ok: true }> {
@@ -144,9 +141,9 @@ export class HabitsService {
       take: 200,
     });
     if (habits.length === 0) return [];
-    const since = new Date();
-    since.setUTCDate(since.getUTCDate() - days);
-    const logs = await this.dailyTotals(userId, habits.map((h) => h.id), since);
+    const timezone = await this.timezones.get(userId);
+    const since = localDayStartUtc(timezone, new Date(), -(days - 1));
+    const logs = await this.dailyTotals(userId, habits.map((h) => h.id), since, timezone);
     return assembleHabitHistory(habits, logs);
   }
 

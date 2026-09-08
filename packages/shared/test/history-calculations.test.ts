@@ -57,3 +57,21 @@ describe('history response calculations', () => {
     expect(assembleLastPerformance(exercise.id, [])).toBeNull();
   });
 });
+
+it('uses the owner day for an evening habit count and an unfinished-day streak', () => {
+  const instant = new Date('2026-09-09T01:00:00Z');
+  const habit = { id: 'habit', name: 'Synthetic habit', cadence: 'DAILY' as const, target: 2, active: true, createdAt: instant };
+  const logs = [{ habitId: 'habit', day: '2026-09-07', value: 2 }, { habitId: 'habit', day: '2026-09-08', value: 1 }];
+  const result = serializeHabit(habit, logs, instant, instant, 'America/Toronto');
+  expect({ count: result.todayCount, done: result.doneToday, streak: result.streak }).toEqual({ count: 1, done: false, streak: 1 });
+});
+for (const instant of ['2026-03-09T02:00:00Z', '2026-11-02T03:00:00Z']) {
+  it(`keeps the transition-day evening in its local day at ${instant}`, () => {
+    const now = new Date(instant);
+    const day = instant.startsWith('2026-03') ? '2026-03-08' : '2026-11-01';
+    const result = serializeHabit({ id: 'habit', name: 'Synthetic habit', cadence: 'DAILY', target: 1, active: true, createdAt: now }, [{ habitId: 'habit', day, value: 1 }], now, now, 'America/Toronto');
+    expect(result.todayCount).toBe(1);
+    expect(result.doneToday).toBe(true);
+    expect(result.streak).toBe(1);
+  });
+}

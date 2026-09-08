@@ -1,14 +1,16 @@
+import { dayKeyInTz } from './time.js';
 import type { HabitDTO } from './dto/habit.js';
 
-/** UTC day key (YYYY-MM-DD) for grouping habit logs. */
+/** UTC key for calendar cursor arithmetic and legacy callers. */
 export function utcHabitDayKey(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
 /** Consecutive days (ending today or yesterday) whose total value met `target`. */
-export function computeHabitStreak(perDay: Map<string, number>, target: number, now: Date): number {
+export function computeHabitStreak(perDay: Map<string, number>, target: number, now: Date, timezone = 'UTC'): number {
   let streak = 0;
-  const cursor = new Date(now);
+  // Encode the owner calendar date in UTC solely to step date labels across DST.
+  const cursor = new Date(`${dayKeyInTz(now, timezone)}T12:00:00Z`);
   // If today isn't done yet, start counting from yesterday so an in-progress day
   // doesn't break an existing streak.
   if ((perDay.get(utcHabitDayKey(cursor)) ?? 0) < target) {

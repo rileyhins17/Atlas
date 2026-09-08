@@ -192,6 +192,9 @@ jobs:
       - name: Verify Plaid batches against Postgres
         run: node .github/scripts/check-plaid-batches.mjs
 
+      - name: Verify habit local days against Postgres
+        run: node .github/scripts/check-habit-local-days.mjs
+
       - name: Run e2e
         run: pnpm --filter @atlas/web test:e2e
 
