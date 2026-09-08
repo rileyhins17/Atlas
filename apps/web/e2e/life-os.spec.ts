@@ -1890,12 +1890,14 @@ test('a daily tracker records one rating per day, and correcting it is an edit',
     });
   });
 
-  // Nothing set up: Today must not nag about a feature nobody asked for.
+  // Nothing set up: wait for the settled empty state, not the loading gap.
   // Re-loaded so the assertion lands on the real overview rather than on the
   // wizard, where it would pass without meaning anything.
   await go(page, '/today');
   await expect(page.locator('.ov-block').first()).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator('.trk-card')).toHaveCount(0);
+  await expect(page.getByText('No personal ratings set up.')).toBeVisible();
+  await expect(page.locator('.trk-card').getByRole('radio')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Choose what to track' })).toBeVisible();
 
   await go(page, '/settings');
   await page.getByRole('button', { name: /Daily check-ins/i }).click();

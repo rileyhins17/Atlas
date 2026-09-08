@@ -254,3 +254,24 @@ real keystrokes and asserts 100000 grams in the persisted workout. It is include
 in the independent regression group as well as the full suite. The final local gate passed: build 6/6, forced typecheck 10/10, lint zero errors
 with three existing warnings, and 1501 unit tests. Current-head CI verification
 remains pending.
+
+
+## CI corrections after the exercise-entry change
+
+Run `34223042242` created no jobs: the new `fitness: ...` grep alternative was in
+a YAML plain scalar, so its colon was parsed as mapping syntax. The installed
+ESLint YAML parser reproduced the failure at line 205. The command is now a block
+scalar and parses as the intended string. No dependency was added.
+
+Run `34222508018` exposed an older tracker assertion expecting zero cards before
+the empty tracker read had reliably settled. The explicit setup state introduced
+earlier requires waiting for its message and asserting no rating controls. That
+assertion is corrected, and the tracker journey joins the independent group.
+Earlier green runs do not prove the old zero-card assertion waited for data.
+
+Detailed incomplete axe diagnostics from green run `34222072737` identify:
+- Today: background gradient prevents background-color calculation.
+- Habits: a labelled span has no suitable role.
+- Progress: a labelled legend div has no suitable role; short percentage text
+  was not automatically evaluated for contrast.
+These remain unresolved checks, not passes.
