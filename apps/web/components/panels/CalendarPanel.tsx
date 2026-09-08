@@ -258,7 +258,7 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
           <div className="stack" style={{ gap: 18 }}>
             {visible.map((bucket) => (
               <section key={bucket.key} aria-label={bucket.date.toLocaleDateString()}>
-                <h3 className="focus-group-title" style={{ marginBottom: 6 }}>
+                <h2 className="focus-group-title" style={{ marginBottom: 6 }}>
                   {bucket.key === todayKey
                     ? 'Today'
                     : bucket.date.toLocaleDateString(undefined, {
@@ -266,7 +266,7 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
                         month: 'long',
                         day: 'numeric',
                       })}
-                </h3>
+                </h2>
                 {bucket.events.map((ev) => {
                   const start = new Date(ev.startAt);
                   const end = new Date(ev.endAt);

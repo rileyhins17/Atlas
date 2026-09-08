@@ -243,12 +243,12 @@ export function TasksPanel() {
           <>
             {groups.map((g) => (
               <section key={g.key} aria-label={g.label}>
-                <h3
+                <h2
                   className={`focus-group-title ${g.overdue ? 'overdue' : ''}`}
                   style={{ marginTop: 10 }}
                 >
                   {g.label} · {g.tasks.length}
-                </h3>
+                </h2>
                 {g.tasks.map((t) => (
                   <TaskRow key={t.id} task={t} />
                 ))}
@@ -280,9 +280,9 @@ export function TasksPanel() {
                   ) : (
                     <ChevronRight size={14} aria-hidden />
                   )}
-                  <h3 className="section-title" style={{ margin: 0 }}>
+                  <h2 className="section-title" style={{ margin: 0 }}>
                     Done · {done.length}
-                  </h3>
+                  </h2>
                 </button>
                 {doneOpen && done.map((t) => <TaskRow key={t.id} task={t} />)}
               </>

@@ -10,6 +10,7 @@ import {
 import { useCreateJournalEntry, useJournal } from '@/lib/hooks/journal';
 import { useRoutine } from '@/lib/hooks/routine';
 import { dayBit, localDayKey } from '@/lib/dates';
+import { ErrorState, ListSkeleton } from '@/components/ui';
 
 const FACES = [
   { value: 1, label: 'Rough' },
@@ -55,7 +56,15 @@ export function MoodCheckIn() {
   // query is still loading would ask someone who answered an hour ago, or ask
   // at the wrong time of day — the same mistake as "No habits yet" on a page
   // that is still loading.
-  if (journal.isPending || journal.isError || routine.isPending || routine.isError) return null;
+  const failed = [journal, routine].filter((query) => query.isError);
+  if (failed.length > 0) return (
+    <section className="mood-checkin" aria-label="Mood check-in">
+      <ErrorState message="Mood check-in could not be loaded." onRetry={() => {
+        for (const query of failed) void query.refetch();
+      }} />
+    </section>
+  );
+  if (journal.isPending || routine.isPending) return <ListSkeleton rows={1} circle={false} />;
 
   const now = new Date();
   const nowMin = now.getHours() * 60 + now.getMinutes();

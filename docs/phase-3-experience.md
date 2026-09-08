@@ -157,3 +157,27 @@ independent execution with its own synthetic task baseline.
 
 Local gate: build 6/6, forced typecheck 10/10, lint zero errors with three existing
 warnings, 1466 unit tests. Browser verification of this iteration remains pending.
+
+
+## First measured fixes and check-in recovery
+
+Run `34219771626` tested `72836a6`: all 26 route/theme combinations have zero
+horizontal overflow, zero targets below 24x24 and zero inputs below 16px.
+Settings hints no longer extend beyond the viewport in either theme. Axe found
+four remaining heading-order violations, one each on Tasks and Calendar in both
+themes: their h3 sections followed the new h1 page headings. The section headings
+are now h2; verification of that correction is pending. The full browser suite
+passed 51 tests with one skipped, and provider-free planning passed independently.
+See [first-fix measurements](./evidence/phase-3-first-fixes.json).
+
+Mood read failures now offer retry without prematurely asking for another mood.
+Ratings distinguish loading, failed reads and no configured trackers, with a
+setup link for the last case. Four new cases were observed red before these
+fixes and the targeted check-in suite now passes 20 tests. These changes do not
+establish complete state coverage across the remaining query-backed components.
+
+
+Run `34220373479` exposed a bug in the new mobile test's navigation: it called
+the desktop helper, which requires the sidebar name to be visible at 390px.
+The test now waits for the visible capture field. Its failure happened before
+the new journey assertions, so those assertions still require observed CI proof.

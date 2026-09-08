@@ -2018,7 +2018,8 @@ test('Today keeps actions first and recovers from unavailable day data', async (
   } });
   expect(seeded.ok()).toBe(true);
   await page.setViewportSize({ width: 390, height: 844 });
-  await go(page, '/today');
+  await page.goto('/today');
+  await expect(page.getByLabel('Capture anything')).toBeVisible();
   const fullDay = page.getByRole('button', { name: 'Full day, hour by hour' });
   await expect(fullDay).toHaveAttribute('aria-expanded', 'false');
   const checklist = page.getByRole('region', { name: 'Checklist' });
