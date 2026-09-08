@@ -1,3 +1,5 @@
+import { serializeTransaction as toTransactionDto } from '@atlas/shared';
+import { serializeAccount as toAccountDto } from '@atlas/shared';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type {
   AccountDTO,
@@ -11,37 +13,6 @@ import type {
 import type { Account, Transaction } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
-
-function toAccountDto(a: Account): AccountDTO {
-  return {
-    id: a.id,
-    name: a.name,
-    type: a.type,
-    currency: a.currency,
-    // Minor units fit comfortably in a JS number for any realistic balance.
-    balanceMinor: Number(a.balanceMinor),
-    mask: a.mask,
-    institution: a.institution,
-    source: a.source,
-    createdAt: a.createdAt.toISOString(),
-  };
-}
-
-function toTransactionDto(t: Transaction): TransactionDTO {
-  return {
-    id: t.id,
-    accountId: t.accountId,
-    amountMinor: Number(t.amountMinor),
-    currency: t.currency,
-    description: t.description,
-    category: t.category,
-    merchantName: t.merchantName,
-    postedAt: t.postedAt.toISOString(),
-    pending: t.pending,
-    source: t.source,
-    createdAt: t.createdAt.toISOString(),
-  };
-}
 
 @Injectable()
 export class FinanceService {
@@ -178,7 +149,7 @@ export class FinanceService {
     const lines = accounts.map((a) => {
       const bal = (Number(a.balanceMinor) / 100).toFixed(2);
       const where = a.institution ? ` (${a.institution}${a.mask ? ` ••${a.mask}` : ''})` : '';
-      return `- ${a.name}${where}: ${bal} ${a.currency}`;
+      return `- [${a.id}] ${a.name}${where}: ${bal} ${a.currency}`;
     });
     const flow = `Last 7 days: out ${(outMinor / 100).toFixed(2)}, in ${(inMinor / 100).toFixed(2)}.`;
     return `Accounts (${accounts.length}):\n${lines.join('\n')}\n${flow}`;

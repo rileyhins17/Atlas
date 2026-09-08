@@ -1,3 +1,5 @@
+import { serializeEvent as toDto } from '@atlas/shared';
+import { readCollection } from '../../core/collection-pages.js';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   nextOccurrences,
@@ -14,22 +16,6 @@ import { PrismaService } from '../../core/prisma.service.js';
 import { UserTimezoneService } from '../../core/user-timezone.service.js';
 import { dayKeyInTz, safeTz } from '../ai/time.util.js';
 import { TimelineService } from '../../core/timeline.service.js';
-
-function toDto(e: Event): EventDTO {
-  return {
-    id: e.id,
-    title: e.title,
-    description: e.description,
-    location: e.location,
-    startAt: e.startAt.toISOString(),
-    endAt: e.endAt.toISOString(),
-    allDay: e.allDay,
-    source: e.source,
-    recurrence: e.recurrence,
-    taskId: e.taskId,
-    createdAt: e.createdAt.toISOString(),
-  };
-}
 
 const MAX_PAGE = 100;
 /** Ceiling on instances generated from one rule inside a single window. */
@@ -216,10 +202,11 @@ export class CalendarService {
     // 36 hours is a generous over-fetch that cannot miss the end of the local
     // day under any offset; the day-key filter below is what actually decides.
     const horizon = new Date(from.getTime() + 36 * 60 * 60 * 1000);
-    const candidates = await this.prisma.client.event.findMany({
+    const candidates = await readCollection((page) => this.prisma.client.event.findMany({
+      take: page.take, cursor: page.cursor, skip: page.skip,
       where: { userId, startAt: { gte: from, lt: horizon } },
-      orderBy: { startAt: 'asc' },
-    });
+      orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
+    }));
     const today = candidates.filter((e) => dayKey(e.startAt) === dayKey(from));
 
     const plan = planShift(today, { minutes: input.minutes, from, dayKey });

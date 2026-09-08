@@ -1,7 +1,6 @@
-import { Injectable, type OnModuleInit } from '@nestjs/common';
-import type { AiContextChunk, AiToolSpec } from '@atlas/shared';
-import { estimateTokens } from '@atlas/ai';
-import { DomainModule, ModuleRegistryService } from '../../core/domain-module.js';
+import { Injectable } from '@nestjs/common';
+import type { AiToolSpec } from '@atlas/shared';
+import { RegisteredDomainModule, ModuleRegistryService } from '../../core/domain-module.js';
 import { RoutineService } from './routine.service.js';
 
 /**
@@ -10,23 +9,17 @@ import { RoutineService } from './routine.service.js';
  * No tools — the routine is edited by the human, not the model.
  */
 @Injectable()
-export class RoutineAiAdapter implements DomainModule, OnModuleInit {
+export class RoutineAiAdapter extends RegisteredDomainModule {
   readonly id = 'routine';
+  readonly contextTitle = 'Routine';
   /** See DEFAULT_CONTEXT_PRIORITY for what this ordering is for. */
   readonly contextPriority = 10;
 
   constructor(
-    private readonly routine: RoutineService,
-    private readonly registry: ModuleRegistryService,
-  ) {}
-
-  onModuleInit(): void {
-    this.registry.register(this);
-  }
-
-  async aiContext(userId: string): Promise<AiContextChunk> {
-    const content = await this.routine.summarize(userId);
-    return { source: this.id, title: 'Routine', content, tokensEstimate: estimateTokens(content) };
+    routine: RoutineService,
+    registry: ModuleRegistryService,
+  ) {
+    super(registry, routine);
   }
 
   getToolSpecs(): AiToolSpec[] {
