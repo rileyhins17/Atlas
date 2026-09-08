@@ -9,6 +9,16 @@ function major(minor: number): number {
   return Math.abs(minor) / 100;
 }
 
+/** Parse a complete decimal amount without floating-point multiplication. */
+export function parseMoneyInput(value: string): number | null {
+  const match = /^(-?)(\d+)(?:\.(\d{1,2}))?$/.exec(value.trim());
+  if (!match) return null;
+  const cents = BigInt(match[2]!) * 100n + BigInt((match[3] ?? '').padEnd(2, '0'));
+  const signed = match[1] ? -cents : cents;
+  const result = Number(signed);
+  return Number.isSafeInteger(result) ? result : null;
+}
+
 /**
  * Full ledger formatting with an explicit sign and the row's own currency:
  * -1234 (USD) → "-$12.34", 500 (CAD) → "+CA$5.00". Used where the direction of
