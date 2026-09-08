@@ -216,3 +216,19 @@ failed and pending reads from missing content. Five regressions were observed
 red before their recovery states were added; the focused suite was then green.
 Independent weekly decisions stay visible while the prose review loads or fails.
 The local gate passed: build 6/6, forced typecheck 10/10, lint zero errors with three existing warnings, and 1491 unit tests. Browser verification of this iteration remains pending.
+
+
+## Brief and saved preference failures
+
+Four observed red regressions covered failed AI availability, failed brief reads,
+failed weight-preference reads and failed name-settings reads. The daily brief
+and settings forms now offer retry; no unavailable response is presented as an
+unconfigured provider, missing brief, pounds preference or empty saved name.
+The no-provider message now states that capture and planning already work.
+The targeted eight-case suite passes. Final local checks passed: build 6/6, forced typecheck 10/10, lint zero errors with three existing warnings, and 1495 unit tests. Current-head browser verification remains pending.
+
+Further source finding for the fitness state audit: `useWeightUnit()` still
+returns pounds when settings are unavailable, and ExerciseBlock passes that unit
+to `unitToGrams()` on submission. Its comment claiming that the temporary default
+cannot affect stored data is not sufficient evidence. The exercise-entry flow
+needs a regression and a read-state gate before fitness state coverage is complete.
