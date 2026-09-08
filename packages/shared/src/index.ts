@@ -74,3 +74,6 @@ export * from './response-serialization.js';
 export * from './fitness-serialization.js';
 export * from './service-calculations.js';
 export * from './exercise-catalog.js';
+export * from './ai-tool-inputs.js';
+export * from './tool-contracts.js';
+export * from './ai-budget.js';
