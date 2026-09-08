@@ -194,7 +194,9 @@ export function whatChanged(data: StatsDTO, days: number, limit = 5): Change[] {
   if (now.moodAvg !== null) {
     const delta = before.moodAvg === null ? 0 : now.moodAvg - before.moodAvg;
     const shown = Math.round(now.moodAvg * 10) / 10;
-    if (Math.abs(delta) >= 0.3) {
+    if (before.moodAvg === null) {
+      add('mood', `Your mood averaged ${shown} out of 5. No mood baseline was logged in the previous ${days} days.`, 'flat', 'flat', 0.04);
+    } else if (Math.abs(delta) >= 0.3) {
       add(
         'mood',
         `Your mood averaged ${shown} out of 5 — ${delta > 0 ? 'up' : 'down'} ${Math.abs(Math.round(delta * 10) / 10)} of a point.`,

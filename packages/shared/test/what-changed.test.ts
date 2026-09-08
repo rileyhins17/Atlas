@@ -123,6 +123,13 @@ describe('whatChanged', () => {
     expect(text(stats({ moodAvg: 3.4 }, { moodAvg: 3.3 }))).toMatch(/3\.4 out of 5, steady/);
   });
 
+  it('does not call mood steady when the previous period has no mood baseline', () => {
+    const out = text(stats({ moodAvg: 3.7 }, { moodAvg: null }));
+    expect(out).toContain('3.7 out of 5');
+    expect(out).toContain('No mood baseline');
+    expect(out).not.toMatch(/steady|up|down/);
+  });
+
   /**
    * The page must not only report improvement. A gap is the most actionable
    * line on it, and it outranks good news.

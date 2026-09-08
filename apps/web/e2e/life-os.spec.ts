@@ -2197,6 +2197,36 @@ test('manual accounts save exact typed balances without a bank connection', asyn
   await expect(page.locator('.task').filter({ hasText: name })).toBeVisible();
 });
 
+test('mood patterns show loading, failure and recoverable empty history', async ({ page }) => {
+  const entry = await page.request.post('http://localhost:4000/journal', { data: { body: 'Synthetic progress state baseline', mood: 3 } });
+  expect(entry.status()).toBe(201);
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    await page.goto('/progress');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    let fail = true;
+    await page.route('**/stats/patterns', async (route) => {
+      await pending;
+      await route.fulfill({ status: fail ? 503 : 200, contentType: 'application/json', body: JSON.stringify(fail
+        ? { message: 'Synthetic patterns outage' }
+        : { daysLogged: 0, daysNeeded: 14, patterns: [] }) });
+    });
+    await page.reload();
+    await expect(page.getByRole('status').filter({ hasText: 'Loading mood patterns' })).toBeVisible();
+    release();
+    const error = page.getByText('Could not load mood patterns.', { exact: true });
+    await expect(error).toBeVisible({ timeout: 20_000 });
+    fail = false;
+    await error.locator('..').getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(page.getByText(/0 of 14 days logged/)).toBeVisible();
+    const failures = screenFailures(await measureScreen(page, '/progress:empty-patterns', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await page.unroute('**/stats/patterns');
+  }
+});
+
 test('manual transactions persist exact spending and income in both themes', async ({ page }) => {
   const accountResponse = await page.request.post('http://localhost:4000/finance/accounts', { data: { name: `Manual ledger ${Date.now()}`, type: 'cash', currency: 'CAD', balanceMinor: 20000 } });
   expect(accountResponse.status()).toBe(201);

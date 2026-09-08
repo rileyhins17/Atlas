@@ -41,7 +41,7 @@ assertions. No component is marked fully audited from source indicators alone.
 | panels/WeeklyDecisions.tsx | useSlippedTasks, useGoals, useHabits, useHabitHistory | decision-query-states: per-source pending and retry |
 | panels/WritingPanel.tsx | useJournal, useNotes | Pending consolidated loading / empty / error and recovery audit |
 | progress/HabitConsistency.tsx | useHabits, useHabitHistory | progress-empty-states: list/history pending, failure, empty, retry; CI 34225605840 |
-| progress/MoodPatterns.tsx | useMoodPatterns | Pending consolidated loading / empty / error and recovery audit |
+| progress/MoodPatterns.tsx | useMoodPatterns | mood-pattern-states: observed-red pending, error/retry and empty tests; browser state journey pending CI |
 | progress/TrackerTrends.tsx | useTrackerOverview, useTrackerPatterns | tracker-trends-states: overview/pattern pending, failure, empty |
 | progress/WeeklyReviewCard.tsx | useInsights | context-query-states: review pending and failure |
 | stream/ConnectionCard.tsx | useStats | Pending consolidated loading / empty / error and recovery audit |
