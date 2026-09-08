@@ -1,20 +1,12 @@
 'use client';
 
+import { canvasDayTitle } from '@atlas/shared';
+
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { addDays, fmt, localDayKey } from '@/lib/dates';
+import { displayTimezone } from '@/lib/dates';
 
 function dayTitle(day: Date, now: Date): string {
-  const key = localDayKey(day);
-  const nowKey = localDayKey(now);
-  // Same DST reason as the pager itself: on a 25-hour day the fixed-ms form
-  // makes "tomorrow" resolve to today, so the heading reads Today twice.
-  const yesterday = localDayKey(addDays(now, -1));
-  const tomorrow = localDayKey(addDays(now, 1));
-  const pretty = day.toLocaleDateString('en-US', fmt({ weekday: 'long', month: 'long', day: 'numeric' }));
-  if (key === nowKey) return `Today · ${pretty}`;
-  if (key === yesterday) return `Yesterday · ${pretty}`;
-  if (key === tomorrow) return `Tomorrow · ${pretty}`;
-  return pretty;
+  return canvasDayTitle(day, now, displayTimezone());
 }
 
 /**
@@ -37,14 +29,16 @@ export function DayPager({
       <button type="button" className="day-pager-arrow" aria-label="Previous day" onClick={() => onPage(-1)}>
         <ChevronLeft size={18} aria-hidden />
       </button>
-      <button
-        type="button"
-        className={`day-pager-title ${isToday ? 'is-today' : ''}`}
-        onClick={onToday}
-        title={isToday ? undefined : 'Back to today'}
-      >
-        {dayTitle(day, new Date())}
-      </button>
+      <h1 className="day-pager-heading">
+        <button
+          type="button"
+          className={`day-pager-title ${isToday ? 'is-today' : ''}`}
+          onClick={onToday}
+          title={isToday ? undefined : 'Back to today'}
+        >
+          {dayTitle(day, new Date())}
+        </button>
+      </h1>
       <button type="button" className="day-pager-arrow" aria-label="Next day" onClick={() => onPage(1)}>
         <ChevronRight size={18} aria-hidden />
       </button>

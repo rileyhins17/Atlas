@@ -7,7 +7,7 @@ import { ArrowRight, CalendarPlus, ListChecks, Trash2 } from 'lucide-react';
 import { useGoals } from '@/lib/hooks/goals';
 import { useDeleteHabit, useHabitHistory, useHabits } from '@/lib/hooks/habits';
 import { useRollForward, useSlippedTasks } from '@/lib/hooks/tasks';
-import { useToast } from '@/components/ui';
+import { ErrorState, ListSkeleton, useToast } from '@/components/ui';
 
 /** Long enough to tell a lapse from a pause. */
 const HISTORY_DAYS = 30;
@@ -20,8 +20,8 @@ const HISTORY_DAYS = 30;
  * button that resolves it. The decisions are deterministic rather than parsed
  * out of the model's prose — a button that acts on your data has to be right.
  *
- * Renders nothing when there is nothing to decide, which is the point. A
- * review that always has three chores is one you stop opening.
+ * A settled empty result says there are no decisions; unavailable data offers
+ * retry instead of inventing a clear week.
  */
 export function WeeklyDecisions() {
   const slipped = useSlippedTasks();
@@ -57,7 +57,13 @@ export function WeeklyDecisions() {
     [slipped.data, goals.data, habits.data, daysSinceHabit],
   );
 
-  if (decisions.length === 0) return null;
+  const queries = [slipped, goals, habits, history];
+  const failed = queries.filter((query) => query.isError);
+  if (failed.length > 0) return <ErrorState message="Weekly decisions could not be loaded." onRetry={() => {
+    for (const query of failed) void query.refetch();
+  }} />;
+  if (queries.some((query) => query.isPending || query.data === undefined)) return <ListSkeleton rows={2} circle={false} />;
+  if (decisions.length === 0) return <p className="prog-muted">No unfinished decisions to review this week.</p>;
 
   const slippedIds = (slipped.data ?? []).map((t) => t.id);
 

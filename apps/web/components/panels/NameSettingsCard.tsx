@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSettings, useUpdateSettings } from '@/lib/hooks/settings';
 import { useMe } from '@/lib/hooks/auth';
-import { Button, Input, Spinner } from '@/components/ui';
+import { Button, ErrorState, Input, Spinner } from '@/components/ui';
 import { firstNameFrom } from '@/lib/name';
 import { greeting } from '@/lib/dates';
 
@@ -29,7 +29,11 @@ export function NameSettingsCard() {
   // so typing is never clobbered by an unrelated re-render.
   useEffect(() => setName(saved), [saved]);
 
-  if (settings.isPending) return <Spinner />;
+  const failed = [settings, me].filter((query) => query.isError);
+  if (failed.length > 0) return <ErrorState message="Your profile settings could not be loaded." onRetry={() => {
+    for (const query of failed) void query.refetch();
+  }} />;
+  if (settings.isPending || me.isPending || settings.data === undefined || me.data === undefined) return <Spinner />;
 
   const trimmed = name.trim();
   const dirty = trimmed !== saved;
