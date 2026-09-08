@@ -93,10 +93,12 @@ describe('SlippedTasks', () => {
     );
   });
 
-  it('says nothing at all when nothing slipped', async () => {
+  it('confirms nothing slipped without presenting task actions', async () => {
     vi.spyOn(TasksApi, 'slipped').mockResolvedValue([]);
-    const { container } = render(<SlippedTasks />, { wrapper: wrapper() });
-    await waitFor(() => expect(container).toBeEmptyDOMElement());
+    render(<SlippedTasks />, { wrapper: wrapper() });
+    await screen.findByText('No unfinished work carried over.');
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Move .* to today/i })).toBeNull();
   });
 
   it('"Not now" hides it for today only, not for good', async () => {

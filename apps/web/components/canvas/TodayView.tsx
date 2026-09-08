@@ -6,7 +6,7 @@ import { useHabits } from '@/lib/hooks/habits';
 import { useTasks } from '@/lib/hooks/tasks';
 import { useRoutine } from '@/lib/hooks/routine';
 import { useEstablished } from '@/lib/hooks/established';
-import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
+import { FirstRunWelcome } from '@/components/onboarding/FirstRunWelcome';
 import { BriefBlock } from '@/components/stream/TodayHeader';
 import { ConnectionCard } from '@/components/stream/ConnectionCard';
 import { ChangeStrip } from '@/components/stream/ChangeStrip';
@@ -62,7 +62,7 @@ export function TodayView() {
   if (isFirstRun) {
     return (
       <div className="stream">
-        <OnboardingWizard />
+        <FirstRunWelcome />
       </div>
     );
   }

@@ -16,10 +16,14 @@ export function ProactiveSettingsCard() {
   const settingsQuery = useSettings();
   const update = useUpdateSettings();
 
-  const [tz, setTz] = useState('');
-  const [hour, setHour] = useState(7);
-  const [enabled, setEnabled] = useState(true);
-  const [dirty, setDirty] = useState(false);
+  const [draft, setDraft] = useState<{ timezone: string; briefHour: number; proactiveEnabled: boolean } | null>(null);
+  const tz = draft?.timezone ?? settingsQuery.data?.timezone ?? '';
+  const hour = draft?.briefHour ?? settingsQuery.data?.briefHour ?? 7;
+  const enabled = draft?.proactiveEnabled ?? settingsQuery.data?.proactiveEnabled ?? true;
+  const dirty = draft !== null;
+  function edit(patch: Partial<NonNullable<typeof draft>>) {
+    setDraft({ timezone: tz, briefHour: hour, proactiveEnabled: enabled, ...patch });
+  }
   const [pushState, setPushState] = useState<PushState | null>(null);
   const [pushBusy, setPushBusy] = useState(false);
 
@@ -43,30 +47,21 @@ export function ProactiveSettingsCard() {
     }
   }
 
-  useEffect(() => {
-    if (settingsQuery.data) {
-      setTz(settingsQuery.data.timezone);
-      setHour(settingsQuery.data.briefHour);
-      setEnabled(settingsQuery.data.proactiveEnabled);
-      setDirty(false);
-    }
-  }, [settingsQuery.data]);
-
   function detectTz() {
     try {
-      setTz(Intl.DateTimeFormat().resolvedOptions().timeZone);
-      setDirty(true);
+      edit({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
     } catch {
       /* ignore — user can type it */
     }
   }
 
   function save() {
+    if (update.isPending || !dirty) return;
     update.mutate(
       { timezone: tz.trim(), briefHour: hour, proactiveEnabled: enabled },
       {
         onSuccess: () => {
-          setDirty(false);
+          setDraft(null);
           toast('Settings saved', 'success');
         },
       },
@@ -98,9 +93,9 @@ export function ProactiveSettingsCard() {
             <input
               type="checkbox"
               checked={enabled}
+              disabled={update.isPending}
               onChange={(e) => {
-                setEnabled(e.target.checked);
-                setDirty(true);
+                edit({ proactiveEnabled: e.target.checked });
               }}
             />
             <span>Enable proactive briefs &amp; reviews</span>
@@ -111,13 +106,13 @@ export function ProactiveSettingsCard() {
             <div className="row" style={{ gap: 8 }}>
               <Input
                 value={tz}
+                disabled={update.isPending}
                 placeholder="America/Toronto"
                 onChange={(e) => {
-                  setTz(e.target.value);
-                  setDirty(true);
+                  edit({ timezone: e.target.value });
                 }}
               />
-              <Button variant="ghost" onClick={detectTz}>Detect</Button>
+              <Button variant="ghost" onClick={detectTz} disabled={update.isPending}>Detect</Button>
             </div>
           </label>
 
@@ -128,9 +123,9 @@ export function ProactiveSettingsCard() {
               min={0}
               max={23}
               value={hour}
+              disabled={update.isPending}
               onChange={(e) => {
-                setHour(Math.max(0, Math.min(23, Number(e.target.value) || 0)));
-                setDirty(true);
+                edit({ briefHour: Math.max(0, Math.min(23, Number(e.target.value) || 0)) });
               }}
             />
           </label>
