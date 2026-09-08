@@ -181,3 +181,15 @@ Run `34220373479` exposed a bug in the new mobile test's navigation: it called
 the desktop helper, which requires the sidebar name to be visible at 390px.
 The test now waits for the visible capture field. Its failure happened before
 the new journey assertions, so those assertions still require observed CI proof.
+
+
+## Decision surfaces: loading is not a clear list
+
+WeeklyDecisions, SlippedTasks and TodayChecklist also used empty-array fallbacks
+before handling query failure. Ten focused component cases were observed red:
+four failed weekly-review sources, four pending sources, failed habits in the
+checklist, and failed unfinished-task retrieval. These surfaces now show loading,
+retry failed reads and identify a genuinely empty result after success. The
+expanded 13-case suite passes. Explicit dismissal still suppresses the unfinished
+work card for the current day; that user choice remains distinct from an empty
+query result. The full local gate passed: build 6/6, forced typecheck 10/10, lint zero errors with three existing warnings, 1483 unit tests. Browser verification is pending.
