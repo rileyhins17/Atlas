@@ -1,5 +1,7 @@
 'use client';
 
+import { describeRoutineDays as describeDays, ROUTINE_DAY_NAMES as DAY_NAMES, localDayKey } from '@atlas/shared';
+
 import { useMemo, useState } from 'react';
 import type { RoutineBlockDTO, RoutineBlockInput, RoutineKind } from '@atlas/shared';
 import { CalendarOff, Plus, Trash2 } from 'lucide-react';
@@ -15,7 +17,6 @@ import { minToTime, timeToMin, DAILY, WEEKDAYS } from '@/lib/onboarding';
 
 /** Monday-first, matching the 7-bit day mask (bit 0 = Monday). */
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const KINDS: { value: RoutineKind; label: string }[] = [
   { value: 'work', label: 'Work' },
@@ -29,17 +30,7 @@ const KINDS: { value: RoutineKind; label: string }[] = [
 
 /** Today as YYYY-MM-DD in the browser's local frame — `onDate` is a local date. */
 function todayKey(): string {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
-
-function describeDays(days: number): string {
-  if (days === DAILY) return 'Every day';
-  if (days === WEEKDAYS) return 'Weekdays';
-  const on = DAY_NAMES.filter((_, i) => days & (1 << i));
-  if (on.length === 0) return 'Never';
-  return on.map((d) => d.slice(0, 3)).join(', ');
+  return localDayKey(new Date());
 }
 
 /** One editable row. Saves on blur/change — no separate save button to forget. */

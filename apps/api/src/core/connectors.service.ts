@@ -68,12 +68,35 @@ export class ConnectorsService {
     return this.registry.get(id);
   }
 
+  async hostedAiAccess(userId: string) {
+    const env = loadEnv();
+    const user = await this.prisma.client.user.findUnique({
+      where: { id: userId },
+      select: { aiAccessGrantedAt: true, aiAccessRevokedAt: true },
+    });
+    return {
+      granted: Boolean(user?.aiAccessGrantedAt),
+      revoked: Boolean(user?.aiAccessRevokedAt),
+      available: Boolean(env.ATLAS_DEEPSEEK_API_KEY),
+      inviteRequired: Boolean(env.INVITE_CODE),
+    };
+  }
+
   /** Build a ConnectorContext bound to a user's stored credential. */
   contextFor(userId: string, connectorId: string, label = 'default'): ConnectorContext {
     const prisma = this.prisma;
     const crypto = this.crypto;
+    const sharedKey = connectorId === 'deepseek' && label === 'default'
+      ? loadEnv().ATLAS_DEEPSEEK_API_KEY : undefined;
     return {
       async getSecret() {
+        if (sharedKey) {
+          const user = await prisma.client.user.findUnique({
+            where: { id: userId },
+            select: { aiAccessGrantedAt: true, aiAccessRevokedAt: true },
+          });
+          if (user?.aiAccessGrantedAt && !user.aiAccessRevokedAt) return { apiKey: sharedKey };
+        }
         const cred = await prisma.client.credential.findUnique({
           where: { userId_connector_label: { userId, connector: connectorId, label } },
         });
