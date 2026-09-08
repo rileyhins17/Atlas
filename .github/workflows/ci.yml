@@ -129,6 +129,9 @@ jobs:
       - name: Install Playwright browser
         run: pnpm --filter @atlas/web exec playwright install --with-deps chromium
 
+      - name: Verify embedding batches against pgvector
+        run: node .github/scripts/check-embedding-batch.mjs
+
       - name: Run e2e
         run: pnpm --filter @atlas/web test:e2e
 
