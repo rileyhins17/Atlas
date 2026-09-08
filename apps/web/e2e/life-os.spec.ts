@@ -2197,6 +2197,51 @@ test('manual accounts save exact typed balances without a bank connection', asyn
   await expect(page.locator('.task').filter({ hasText: name })).toBeVisible();
 });
 
+test('goals and habits recover missing detail reads in both themes', async ({ page }) => {
+  const marker = Date.now();
+  const goalTitle = `Detail recovery ${marker}`;
+  const goalResponse = await page.request.post('http://localhost:4000/goals', { data: { title: goalTitle, horizon: 'short' } });
+  expect(goalResponse.status()).toBe(201);
+  const goal = await goalResponse.json() as { id: string };
+  const taskTitle = `Persisted goal step ${marker}`;
+  const task = await page.request.post('http://localhost:4000/tasks', { data: { title: taskTitle, goalId: goal.id } });
+  expect(task.status()).toBe(201);
+  const habitName = `History recovery ${marker}`;
+  const habitResponse = await page.request.post('http://localhost:4000/habits', { data: { name: habitName, target: 1 } });
+  expect(habitResponse.status()).toBe(201);
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    await page.goto('/goals');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.route('http://localhost:4000/tasks', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'Could not load linked tasks.' }) }));
+    await page.reload();
+    const goalRow = page.locator('.goal-row').filter({ hasText: goalTitle });
+    await goalRow.getByRole('button', { name: goalTitle, exact: true }).click();
+    await expect(goalRow.getByText('Could not load linked tasks.')).toBeVisible({ timeout: 20_000 });
+    await expect(goalRow.getByText(/Break this into work/)).toHaveCount(0);
+    const draft = goalRow.getByRole('textbox');
+    await draft.click(); await draft.pressSequentially('Keep this draft');
+    await page.unroute('http://localhost:4000/tasks');
+    await goalRow.getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(goalRow.locator('.goal-task')).toContainText(taskTitle);
+    await expect(draft).toHaveValue('Keep this draft');
+    let failures = screenFailures(await measureScreen(page, '/goals:linked-tasks', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await page.route('http://localhost:4000/habits/history?*', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.goto('/habits');
+    await expect(page.getByText('Could not load habit history. You can still check in.')).toBeVisible({ timeout: 20_000 });
+    const habitCard = page.locator('.habit-card').filter({ hasText: habitName });
+    await expect(habitCard.locator('.habit-heatmap')).toHaveCount(0);
+    await expect(habitCard.getByRole('button', { name: `Check in "${habitName}"` })).toBeEnabled();
+    await page.unroute('http://localhost:4000/habits/history?*');
+    await page.getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(habitCard.locator('.habit-heatmap')).toBeVisible();
+    await expect(habitCard).toContainText('No check-ins recorded in the last 26 weeks.');
+    failures = screenFailures(await measureScreen(page, '/habits:history-recovered', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+  }
+});
+
 test('settings recover notification status and failed weight saves in both themes', async ({ page, context }) => {
   // Headless Chromium may deny notifications by default; this case exercises a
   // registration read failure, so establish its own browser permission baseline.
