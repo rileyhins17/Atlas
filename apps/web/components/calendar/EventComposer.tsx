@@ -1,13 +1,13 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { EventDTO } from '@atlas/shared';
+import { draftOverlaps, type EventDTO } from '@atlas/shared';
 import { Trash2 } from 'lucide-react';
 import { useCreateEvent, useDeleteEvent, useUpdateEvent } from '@/lib/hooks/events';
 import { Button, Dialog, Input, RecurrencePicker, useToast } from '@/components/ui';
 import { useSubmitLatch } from '@/lib/hooks/submit-latch';
 import { formatClock } from '@/lib/dates';
-import { DURATION_PRESETS, combineLocal, findOverlaps, formatDuration } from '@/lib/calendar-view';
+import { DURATION_PRESETS, combineLocal, formatDuration } from '@/lib/calendar-view';
 import { draftToPayload, type Draft } from '@/lib/event-draft';
 
 /**
@@ -46,12 +46,7 @@ export function EventComposer({
 
   const busy = create.isPending || update.isPending;
 
-  const overlaps = useMemo(() => {
-    if (!draft || draft.allDay || !draft.title.trim()) return [];
-    const start = combineLocal(draft.day, draft.startTime);
-    const end = new Date(start.getTime() + draft.durationMin * 60_000);
-    return findOverlaps(events, start, end, draft.id ?? undefined);
-  }, [draft, events]);
+  const overlaps = useMemo(() => draftOverlaps(draft, events), [draft, events]);
 
   function save() {
     if (!draft || busy) return;

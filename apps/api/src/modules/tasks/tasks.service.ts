@@ -1,3 +1,5 @@
+import { summarizeTasks } from '@atlas/shared';
+import { serializeTask as toDto } from '@atlas/shared';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import {
   nextOccurrence,
@@ -12,24 +14,6 @@ import { PrismaService } from '../../core/prisma.service.js';
 import { UserTimezoneService } from '../../core/user-timezone.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
 import { localDayStartUtc } from '../ai/time.util.js';
-
-function toDto(t: Task): TaskDTO {
-  return {
-    id: t.id,
-    title: t.title,
-    notes: t.notes,
-    status: t.status,
-    priority: t.priority,
-    dueAt: t.dueAt?.toISOString() ?? null,
-    completedAt: t.completedAt?.toISOString() ?? null,
-    tags: t.tags,
-    goalId: t.goalId,
-    recurrence: t.recurrence,
-    recurrenceParentId: t.recurrenceParentId,
-    createdAt: t.createdAt.toISOString(),
-    updatedAt: t.updatedAt.toISOString(),
-  };
-}
 
 @Injectable()
 export class TasksService {
@@ -148,6 +132,7 @@ export class TasksService {
     // one that belongs to someone else must simply not match.
     const tasks = await this.prisma.client.task.findMany({
       where: { id: { in: taskIds }, userId, status: { in: ['TODO', 'IN_PROGRESS'] } },
+      take: new Set(taskIds).size,
     });
     if (tasks.length === 0) return { action, count: 0 };
     const ids = tasks.map((t) => t.id);
@@ -155,7 +140,8 @@ export class TasksService {
     if (action === 'today') {
       // End of the user's local day, so a rolled task reads as "today" on every
       // surface rather than landing at midnight and looking overdue again.
-      const due = new Date((await this.dayStart(userId)).getTime() + 86_400_000 - 60_000);
+      const timezone = await this.timezones.get(userId);
+      const due = new Date(localDayStartUtc(timezone, new Date(), 1).getTime() - 60_000);
       await this.prisma.client.task.updateMany({ where: { id: { in: ids } }, data: { dueAt: due } });
     } else {
       await this.prisma.client.task.updateMany({
@@ -321,12 +307,8 @@ export class TasksService {
         take: 5,
       }),
     ]);
-    if (open === 0) return 'No open tasks.';
-    // The id is what makes tasks.update / tasks.delete usable at all — without
-    // it the model can name a task but cannot address one.
-    const lines = dueSoon.map(
-      (t) => `- [${t.id}] ${t.title}${t.dueAt ? ` (due ${t.dueAt.toISOString().slice(0, 10)})` : ''}`,
-    );
-    return `${open} open task(s). Next up:\n${lines.join('\n') || '(none with due dates)'}`;
+    if (open === 0) return summarizeTasks(open, dueSoon, 'UTC');
+    const tz = await this.timezones.get(userId);
+    return summarizeTasks(open, dueSoon, tz);
   }
 }
