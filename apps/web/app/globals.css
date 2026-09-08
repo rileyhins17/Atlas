@@ -6392,3 +6392,12 @@ label:has(> input[type='checkbox']) {
   /* no-op: `.canvas-card` does the styling; these mark which kind it is. */
   position: relative;
 }
+
+/* Settings overview: editors stay behind explicit section actions. */
+.settings-shortcuts { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.settings-groups { display: grid; gap: 20px; align-items: start; }
+.settings-group { min-width: 0; border: 1px solid var(--border-subtle); border-radius: 18px; padding: 18px; background: var(--surface); }
+.settings-group > h2 { margin: 0 0 6px; font-size: 18px; }
+.settings-group > p { margin: 0 0 12px; font-size: 14px; }
+.settings-group .set-section { scroll-margin-top: 80px; }
+@media (min-width: 1100px) { .settings-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

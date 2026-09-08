@@ -407,7 +407,7 @@ test('a workout logs sets, badges a real PR, and lands in history when finished'
 });
 
 test('the routine editor fixes work hours, per-day patterns, and one-off shifts', async ({ page }) => {
-  await go(page, '/settings');
+  await go(page, '/settings#routine');
 
   // A brand-new account has no routine, so seed one through the editor itself —
   // which is also the "I never onboarded properly" path this screen exists for.
@@ -756,6 +756,7 @@ test('connectors are offered on their own pages, not only in Settings', async ({
   else await expect(googleButton).toHaveCount(0);
 
   await go(page, '/finance');
+  await page.locator('summary').filter({ hasText: 'Connect a bank' }).click();
   // Same story as Google: no Plaid credentials on the server means the card
   // says so instead of offering a button that cannot work. CI has none.
   const plaidConfigured = await page.evaluate(async () => {
@@ -770,7 +771,7 @@ test('connectors are offered on their own pages, not only in Settings', async ({
   ).toBeVisible();
   // Either way the empty state must point at this page, not send you to
   // Settings — that copy is what the whole change was about.
-  await expect(page.getByText(/Connect a bank above/)).toBeVisible();
+  await expect(page.getByText(/Add an account above/)).toBeVisible();
 
   // Settings still offers both — one component, rendered twice. Settings shows
   // the card unconditionally, so an unconfigured server explains itself there
@@ -2152,4 +2153,43 @@ test('a workout finishes with notes while history is unavailable', async ({ page
   expect(saved?.endedAt).toBeTruthy();
   expect(saved?.notes).toBe('Steady session despite the missing history');
   expect(saved?.volumeGrams).toBe(50000);
+});
+
+
+test('settings opens as an overview with explicit routine editing', async ({ page }) => {
+  await go(page, '/settings');
+  await page.evaluate(() => {
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith('atlas-settings-')) localStorage.removeItem(key);
+    }
+  });
+  await go(page, '/settings');
+  await expect(page.getByRole('heading', { name: 'Your account', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your day', exact: true })).toBeVisible();
+  await expect(page.locator('#routine-body')).toBeHidden();
+  await page.getByRole('link', { name: 'Edit my week' }).click();
+  await expect(page.locator('#routine-body')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Add to my week/i })).toBeVisible();
+});
+
+test('manual accounts save exact typed balances without a bank connection', async ({ page }) => {
+  const name = `Manual reserve ${Date.now()}`;
+  await go(page, '/finance');
+  await page.getByRole('button', { name: 'Add account', exact: true }).click();
+  await page.getByLabel('Account name', { exact: true }).click();
+  await page.getByLabel('Account name', { exact: true }).pressSequentially(name);
+  await page.getByLabel('Recorded balance', { exact: true }).click();
+  await page.getByLabel('Recorded balance', { exact: true }).pressSequentially('185.29');
+  const saved = page.waitForResponse((res) => res.url().endsWith('/finance/accounts') && res.request().method() === 'POST');
+  await page.getByRole('button', { name: 'Save account', exact: true }).click();
+  expect((await saved).status()).toBe(201);
+  await expect(page.locator('.task').filter({ hasText: name })).toBeVisible();
+  const response = await page.request.get('http://localhost:4000/finance/accounts');
+  expect(response.ok()).toBeTruthy();
+  const account = (await response.json() as { id: string; name: string; balanceMinor: number; currency: string }[]).find((row) => row.name === name);
+  expect(account?.id).toBeTruthy();
+  expect(account?.balanceMinor).toBe(18529);
+  expect(account?.currency).toBe('CAD');
+  await page.reload();
+  await expect(page.locator('.task').filter({ hasText: name })).toBeVisible();
 });

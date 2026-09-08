@@ -203,7 +203,7 @@ jobs:
 
       - name: Verify Today and exercise-entry regressions independently
         run: >-
-          pnpm --filter @atlas/web exec playwright test e2e/life-os.spec.ts --grep "day planning works without AI|Today keeps actions first|fitness: set up a split|a daily tracker|a superset is one round|habit consistency never reports zero|a workout finishes with notes while history is unavailable"
+          pnpm --filter @atlas/web exec playwright test e2e/life-os.spec.ts --grep "day planning works without AI|Today keeps actions first|fitness: set up a split|a daily tracker|a superset is one round|habit consistency never reports zero|a workout finishes with notes while history is unavailable|settings opens as an overview|manual accounts save exact typed balances"
 
       - name: Capture synthetic UI baseline
         env:

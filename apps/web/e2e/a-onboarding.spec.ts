@@ -45,6 +45,6 @@ test('a fresh account chooses two-step routine setup without a provider', async 
   // The work block is asserted through the routine editor, NOT the canvas:
   // onboarding writes Work on weekdays only, so a canvas assertion silently
   // depends on which day the suite happens to run.
-  await page.goto('/settings');
+  await page.goto('/settings#routine');
   await expect(page.locator('.routine-summary')).toContainText('09:30–17:30');
 });
