@@ -1,3 +1,4 @@
+import { readCollection } from '../../core/collection-pages.js';
 import { Injectable, Logger } from '@nestjs/common';
 import webpush from 'web-push';
 import type { PushSubscriptionInput } from '@atlas/shared';
@@ -86,7 +87,11 @@ export class PushService {
   /** Push to all of a user's devices. Returns how many were delivered. */
   async sendToUser(userId: string, payload: PushPayload): Promise<number> {
     if (!this.configured) return 0;
-    const subs = await this.prisma.client.pushSubscription.findMany({ where: { userId } });
+    const subs = await readCollection((page) => this.prisma.client.pushSubscription.findMany({
+      take: page.take, cursor: page.cursor, skip: page.skip,
+      orderBy: { id: 'asc' },
+      where: { userId },
+    }));
     const body = JSON.stringify(payload);
     let sent = 0;
     /** Endpoints the push service says are gone; removed once, after the sends. */

@@ -1,27 +1,20 @@
-import { Injectable, type OnModuleInit } from '@nestjs/common';
-import type { AiContextChunk, AiToolSpec } from '@atlas/shared';
-import { estimateTokens } from '@atlas/ai';
-import { DomainModule, ModuleRegistryService } from '../../core/domain-module.js';
+import { Injectable } from '@nestjs/common';
+import type { AiToolSpec } from '@atlas/shared';
+import { RegisteredDomainModule, ModuleRegistryService } from '../../core/domain-module.js';
 import { FitnessService } from './fitness.service.js';
 
 @Injectable()
-export class FitnessAiAdapter implements DomainModule, OnModuleInit {
+export class FitnessAiAdapter extends RegisteredDomainModule {
   readonly id = 'fitness';
+  readonly contextTitle = 'Training';
   /** See DEFAULT_CONTEXT_PRIORITY for what this ordering is for. */
   readonly contextPriority = 80;
 
   constructor(
-    private readonly fitness: FitnessService,
-    private readonly registry: ModuleRegistryService,
-  ) {}
-
-  onModuleInit(): void {
-    this.registry.register(this);
-  }
-
-  async aiContext(userId: string): Promise<AiContextChunk> {
-    const content = await this.fitness.summarize(userId);
-    return { source: this.id, title: 'Training', content, tokensEstimate: estimateTokens(content) };
+    fitness: FitnessService,
+    registry: ModuleRegistryService,
+  ) {
+    super(registry, fitness);
   }
 
   /**
