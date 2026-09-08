@@ -2197,6 +2197,50 @@ test('manual accounts save exact typed balances without a bank connection', asyn
   await expect(page.locator('.task').filter({ hasText: name })).toBeVisible();
 });
 
+test('settings retain drafts across other saves and persist them in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    await page.goto('/settings');
+    await page.evaluate((value) => {
+      localStorage.setItem('atlas-theme', value);
+      for (const id of ['you', 'proactive', 'training']) localStorage.setItem(`atlas-settings-${id}`, '1');
+    }, theme);
+    await page.reload();
+    const name = `Draft ${theme} ${Date.now()}`;
+    const nameInput = page.locator('#you-body').getByRole('textbox');
+    await nameInput.click(); await nameInput.press('ControlOrMeta+a'); await nameInput.pressSequentially(name);
+    const hour = page.locator('#proactive-body').getByRole('spinbutton');
+    await hour.click(); await hour.press('ControlOrMeta+a'); await hour.pressSequentially('19');
+    await page.route('http://localhost:4000/settings', async (route) => {
+      if (route.request().method() !== 'PATCH') return route.continue();
+      const response = await route.fetch();
+      const body = await response.json() as Record<string, unknown>;
+      await route.fulfill({ response, json: { ...body, displayName: 'Synthetic remote profile change' } });
+    });
+    const savedUnit = page.waitForResponse((response) => response.url().endsWith('/settings') && response.request().method() === 'PATCH');
+    await page.getByRole('group', { name: 'Weight unit' }).getByRole('button', { pressed: false }).click();
+    expect((await savedUnit).ok()).toBe(true);
+    await expect(nameInput).toHaveValue(name);
+    await expect(hour).toHaveValue('19');
+    await page.unroute('http://localhost:4000/settings');
+    const savedName = page.waitForResponse((response) => response.url().endsWith('/settings') && response.request().method() === 'PATCH');
+    await page.locator('#you-body').getByRole('button', { name: 'Save', exact: true }).click();
+    expect((await savedName).ok()).toBe(true);
+    await expect(hour).toHaveValue('19');
+    const savedBrief = page.waitForResponse((response) => response.url().endsWith('/settings') && response.request().method() === 'PATCH');
+    await page.locator('#proactive-body').getByRole('button', { name: 'Save', exact: true }).click();
+    expect((await savedBrief).ok()).toBe(true);
+    const settings = await page.request.get('http://localhost:4000/settings');
+    expect(settings.ok()).toBe(true);
+    expect(await settings.json()).toMatchObject({ displayName: name, briefHour: 19 });
+    await page.reload();
+    await expect(nameInput).toHaveValue(name);
+    await expect(hour).toHaveValue('19');
+    const failures = screenFailures(await measureScreen(page, '/settings:editors', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+  }
+});
+
 test('habit progress respects creation dates and weekly targets in both themes', async ({ page }) => {
   const entry = await page.request.post('http://localhost:4000/journal', { data: { body: 'Synthetic habit progress baseline', mood: 3 } });
   expect(entry.status()).toBe(201);

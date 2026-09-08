@@ -15,7 +15,7 @@ assertions. No component is marked fully audited from source indicators alone.
 | canvas/TodayChecklist.tsx | useHabits | Pending consolidated loading / empty / error and recovery audit |
 | canvas/TodayView.tsx | useTasks, useEvents, useHabits, useRoutine, useEstablished | Pending consolidated loading / empty / error and recovery audit |
 | connectors/GoogleCalendarCard.tsx | useGoogleStatus | Pending consolidated loading / empty / error and recovery audit |
-| connectors/GoogleCalendarPicker.tsx | useGoogleCalendars | Pending consolidated loading / empty / error and recovery audit |
+| connectors/GoogleCalendarPicker.tsx | useGoogleCalendars | google-calendar-picker plus settings-draft-refresh: selection writes, warnings, draft refresh and empty calendar result; consolidated browser provider-state audit remains |
 | fitness/ActiveWorkout.tsx | useWorkoutHistory, useWeightUnit, useWorkoutTemplates, useExercises | Pending consolidated loading / empty / error and recovery audit |
 | fitness/DayBuilder.tsx | useExercises | Pending consolidated loading / empty / error and recovery audit |
 | fitness/ExerciseBlock.tsx | useSettings, useLastPerformance | exercise-entry-units: delayed units, errors, retained draft |
@@ -30,9 +30,9 @@ assertions. No component is marked fully audited from source indicators alone.
 | panels/FitnessPanel.tsx | useActiveWorkout, useWorkoutHistory, useWorkoutTemplates, useWeightUnit, useExercises | Pending consolidated loading / empty / error and recovery audit |
 | panels/GoalsPanel.tsx | useTasks, useGoals | Pending consolidated loading / empty / error and recovery audit |
 | panels/HabitsPanel.tsx | useHabits, useHabitHistory | Pending consolidated loading / empty / error and recovery audit |
-| panels/NameSettingsCard.tsx | useSettings, useMe | Pending consolidated loading / empty / error and recovery audit |
+| panels/NameSettingsCard.tsx | useSettings, useMe | settings-read-failures and settings-draft-refresh: read failure/retry and background profile draft retention; save/reload journey pending CI |
 | panels/PlaidCard.tsx | usePlaidStatus | Pending consolidated loading / empty / error and recovery audit |
-| panels/ProactiveSettingsCard.tsx | useSettings | Pending consolidated loading / empty / error and recovery audit |
+| panels/ProactiveSettingsCard.tsx | useSettings | settings-draft-refresh: edited hour retained across unrelated server responses; save/reload journey pending CI; push-state recovery remains |
 | panels/ProgressPanel.tsx | useStats | Pending consolidated loading / empty / error and recovery audit |
 | panels/RoutineEditor.tsx | useRoutine | Pending consolidated loading / empty / error and recovery audit |
 | panels/SettingsPanel.tsx | useGoogleStatus | Pending consolidated loading / empty / error and recovery audit |
