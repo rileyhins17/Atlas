@@ -1,5 +1,7 @@
 'use client';
 
+import type { ReactNode } from 'react';
+
 import { formatSessionMinutes as duration } from '@atlas/shared';
 
 import {
@@ -25,11 +27,13 @@ export function WorkoutSummaryDialog({
   summary,
   title,
   unit,
+  unitStatus,
   onClose,
 }: {
   summary: WorkoutSummaryDTO | null;
   title: string;
-  unit: WeightUnit;
+  unit: WeightUnit | null;
+  unitStatus?: ReactNode;
   onClose: () => void;
 }) {
   if (!summary) return null;
@@ -38,6 +42,7 @@ export function WorkoutSummaryDialog({
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()} title={`${title} — done`}>
       <div className="stack" style={{ gap: 16 }}>
+        {unitStatus}
         <div className="wo-stats">
           <div className="wo-stat">
             <span className="wo-stat-n">{duration(summary.durationMin)}</span>
@@ -48,7 +53,7 @@ export function WorkoutSummaryDialog({
             <span className="wo-stat-l">sets</span>
           </div>
           <div className="wo-stat">
-            <span className="wo-stat-n">{formatVolume(summary.volumeGrams, unit)}</span>
+            <span className="wo-stat-n">{unit ? formatVolume(summary.volumeGrams, unit) : '—'}</span>
             <span className="wo-stat-l">lifted</span>
           </div>
         </div>
@@ -80,7 +85,7 @@ export function WorkoutSummaryDialog({
             <li key={e.exerciseId} className="wo-row">
               <span className="wo-row-name">{e.name}</span>
               <span className="wo-row-best">
-                {e.bestWeightGrams != null && e.bestReps != null
+                {unit && e.bestWeightGrams != null && e.bestReps != null
                   ? `${formatWeight(e.bestWeightGrams, unit)} × ${e.bestReps}`
                   : `${e.sets} ${e.sets === 1 ? 'set' : 'sets'}`}
               </span>

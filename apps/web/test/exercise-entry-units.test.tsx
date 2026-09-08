@@ -7,7 +7,7 @@ const state = vi.hoisted(() => ({
   last: { data: null as null | undefined, isPending: false, isError: false, refetch: vi.fn() },
   log: vi.fn(),
 }));
-vi.mock('@/lib/hooks/settings', () => ({ useSettings: () => state.settings, useWeightUnit: () => state.settings.data?.weightUnit ?? 'lb' }));
+vi.mock('@/lib/hooks/settings', () => ({ useSettings: () => state.settings }));
 vi.mock('@/lib/hooks/fitness', () => ({ useLastPerformance: () => state.last, useLogSet: () => ({ mutate: state.log }), useDeleteSet: () => ({ mutate: vi.fn() }) }));
 import { ExerciseBlock } from '@/components/fitness/ExerciseBlock';
 const sets = [{ id: 'set-1', exerciseId: 'exercise-1', exerciseName: 'Press', kind: 'weight_reps', weightGrams: 100000, reps: 5, position: 0, warmup: false, setType: 'normal', rpe: null, completedAt: '2026-09-08T10:00:00Z' }] as WorkoutDTO['sets'];

@@ -7,7 +7,8 @@ import { type WorkoutSummaryDTO, type WorkoutTemplateDTO } from '@atlas/shared';
 import { Dumbbell, Plus, Sparkles } from 'lucide-react';
 import { errorMessage } from '@/lib/api';
 import { useActiveWorkout, useExercises, useStartWorkout, useWorkoutHistory, useWorkoutTemplates } from '@/lib/hooks/fitness';
-import { useWeightUnit } from '@/lib/hooks/settings';
+import { useSettings } from '@/lib/hooks/settings';
+import { WeightPreference, WeightPreferenceStatus } from '@/components/fitness/WeightPreference';
 import { SplitSetup } from '@/components/fitness/SplitSetup';
 import { WorkoutSummaryDialog } from '@/components/fitness/WorkoutSummaryDialog';
 import { TrainingProgress } from '@/components/fitness/TrainingProgress';
@@ -30,7 +31,7 @@ export function FitnessPanel() {
   const start = useStartWorkout();
   const history = useWorkoutHistory();
   const templates = useWorkoutTemplates();
-  const unit = useWeightUnit();
+  const settings = useSettings();
   // Warm the catalog while the start screen is on show. ActiveWorkout needs it
   // to render a template's movements as blocks, and fetching only on mount
   // meant a templated session appeared empty for a beat before filling in.
@@ -224,7 +225,8 @@ export function FitnessPanel() {
       <WorkoutSummaryDialog
         summary={summary}
         title={finishedTitle}
-        unit={unit}
+        unit={settings.data?.weightUnit ?? null}
+        unitStatus={<WeightPreferenceStatus query={settings} />}
         onClose={() => setSummary(null)}
       />
 
@@ -254,11 +256,11 @@ export function FitnessPanel() {
               <WorkoutHistory />
             ) : history.isPending || history.data === undefined ? <ListSkeleton rows={3} /> : (
               <QueryState query={exercisesQuery} errorFallback="Exercises for training progress could not be loaded." skeleton={<ListSkeleton rows={3} />}>
-              <TrainingProgress
+              <WeightPreference query={settings}>{(unit) => <TrainingProgress
                 workouts={history.data ?? []}
                 exercises={exercisesQuery.data ?? NO_EXERCISES}
                 unit={unit}
-              />
+              />}</WeightPreference>
               </QueryState>
             )}
           </div>

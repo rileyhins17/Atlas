@@ -1,16 +1,25 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 const state = vi.hoisted(() => ({
+  settings: { data: { weightUnit: 'kg' } as { weightUnit: 'kg' | 'lb' } | undefined, isPending: false, isError: false, error: null, refetch: vi.fn() },
   history: { data: [] as unknown[], isPending: false, isError: false, error: null, refetch: vi.fn() },
   templates: { data: [], isPending: false, isError: false, error: null, refetch: vi.fn() },
   catalog: { data: [], isPending: false, isError: false, error: null, refetch: vi.fn() },
 }));
 vi.mock('@/lib/hooks/fitness', () => ({ useActiveWorkout: () => ({ data: null }), useStartWorkout: () => ({ mutate: vi.fn() }), useWorkoutHistory: () => state.history, useWorkoutTemplates: () => state.templates, useExercises: () => state.catalog }));
-vi.mock('@/lib/hooks/settings', () => ({ useWeightUnit: () => 'kg' }));
+vi.mock('@/lib/hooks/settings', () => ({ useSettings: () => state.settings }));
 vi.mock('@/components/fitness/WorkoutHistory', () => ({ WorkoutHistory: () => <p>History list</p> }));
 vi.mock('@/components/fitness/TrainingProgress', () => ({ TrainingProgress: () => <p>Training comparison</p> }));
 import { FitnessPanel } from '@/components/panels/FitnessPanel';
-beforeEach(() => { state.history.data = []; for (const q of Object.values(state)) { q.isPending = false; q.isError = false; q.refetch.mockClear(); } });
+beforeEach(() => { state.settings.data = { weightUnit: 'kg' }; state.history.data = []; for (const q of Object.values(state)) { q.isPending = false; q.isError = false; q.refetch.mockClear(); } });
+it.each(['pending', 'error'] as const)('does not show training comparison with an unknown weight unit: %s', (kind) => {
+  state.history.data = [{}]; state.settings.data = undefined;
+  state.settings.isPending = kind === 'pending'; state.settings.isError = kind === 'error';
+  render(<FitnessPanel />);
+  fireEvent.click(screen.getByRole('button', { name: 'Progress' }));
+  expect(screen.queryByText('Training comparison')).toBeNull();
+  expect(screen.getByText(kind === 'pending' ? 'Loading weight units…' : 'Weight units could not be loaded.')).toBeVisible();
+});
 it('does not substitute quick starts for unavailable saved days', () => {
   state.templates.isError = true;
   render(<FitnessPanel />);

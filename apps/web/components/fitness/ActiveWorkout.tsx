@@ -16,7 +16,8 @@ import {
 } from '@atlas/shared';
 import { Plus } from 'lucide-react';
 import { useExercises, useFinishWorkout, useWorkoutHistory, useWorkoutTemplates } from '@/lib/hooks/fitness';
-import { useWeightUnit } from '@/lib/hooks/settings';
+import { useSettings } from '@/lib/hooks/settings';
+import { WeightPreferenceStatus } from './WeightPreference';
 import { Button, Card, ErrorState } from '@/components/ui';
 import { RestTimer } from '@/components/fitness/RestTimer';
 import { elapsed } from './helpers';
@@ -56,7 +57,8 @@ export function ActiveWorkout({
   // the numbers, and it was the one thing there was nowhere to put.
   const [notes, setNotes] = useState('');
   const history = useWorkoutHistory();
-  const unit = useWeightUnit();
+  const settings = useSettings();
+  const unit = settings.data?.weightUnit;
   const templates = useWorkoutTemplates();
   const exercises = useExercises();
 
@@ -133,8 +135,8 @@ export function ActiveWorkout({
           <div>
             <h2 className="fit-active-title">{workout.title}</h2>
             <p className="fit-active-sub">
-              {elapsed(workout.startedAt)} · {workout.workingSets} sets ·{' '}
-              {formatVolume(workout.volumeGrams, unit)} volume
+              {elapsed(workout.startedAt)} · {workout.workingSets} sets
+              {unit && ` · ${formatVolume(workout.volumeGrams, unit)} volume`}
             </p>
           </div>
           <Button
@@ -160,6 +162,7 @@ export function ActiveWorkout({
             Finish
           </Button>
         </header>
+        <WeightPreferenceStatus query={settings} />
 
         <label className="fit-notes">
           <span className="fit-notes-label">How did it go?</span>

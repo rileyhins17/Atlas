@@ -2722,3 +2722,59 @@ test('task goal links survive unavailable details and persist a recovered choice
     expect(failures, failures.join('\n')).toEqual([]);
   }
 });
+
+test('workouts finish during a weight-settings outage and recover saved kilograms in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const configured = await page.request.patch('http://localhost:4000/settings', { data: { weightUnit: 'kg' } });
+  expect(configured.ok()).toBe(true);
+  const activeResponse = await page.request.get('http://localhost:4000/fitness/workouts/active');
+  expect(activeResponse.ok()).toBe(true);
+  const activeText = await activeResponse.text();
+  const existing = activeText ? JSON.parse(activeText) as { id: string } | null : null;
+  if (existing) expect((await page.request.post(`http://localhost:4000/fitness/workouts/${existing.id}/finish`, { data: {} })).ok()).toBe(true);
+  const catalogResponse = await page.request.get('http://localhost:4000/fitness/exercises');
+  expect(catalogResponse.ok()).toBe(true);
+  const catalog = await catalogResponse.json() as { id: string; name: string; kind: string }[];
+  const exercise = catalog.find((row) => row.kind === 'weight_reps');
+  expect(exercise).toBeDefined();
+  for (const theme of ['light', 'dark'] as const) {
+    const title = `Weight recovery ${theme} ${Date.now()}`;
+    const created = await page.request.post('http://localhost:4000/fitness/workouts', { data: { title } });
+    expect(created.status()).toBe(201);
+    const workout = await created.json() as { id: string };
+    const logged = await page.request.post(`http://localhost:4000/fitness/workouts/${workout.id}/sets`, { data: { exerciseId: exercise!.id, weightGrams: 100000, reps: 5 } });
+    expect(logged.status()).toBe(201);
+    await page.route('http://localhost:4000/settings', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.goto('/fitness');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    const live = page.locator('.fit-active');
+    await expect(live.getByText('Weight units could not be loaded.')).toBeVisible({ timeout: 20_000 });
+    await expect(live.locator('.fit-active-sub')).not.toContainText('lb');
+    const notes = `Units recovered ${theme}`;
+    await live.getByLabel('How did it go?').click();
+    await live.getByLabel('How did it go?').pressSequentially(notes);
+    const finished = page.waitForResponse((response) => response.url().endsWith(`/fitness/workouts/${workout.id}/finish`) && response.request().method() === 'POST');
+    await live.getByRole('button', { name: 'Finish', exact: true }).click();
+    expect((await finished).ok()).toBe(true);
+    const summary = page.getByRole('dialog', { name: `${title} — done` });
+    await expect(summary.getByText('Weight units could not be loaded.')).toBeVisible();
+    await expect(summary.locator('.wo-stat-n').last()).toHaveText('—');
+    let failures = screenFailures(await measureScreen(page, '/fitness:summary-unit-error', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await page.unroute('http://localhost:4000/settings');
+    await summary.getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(summary.locator('.wo-stat-n').last()).toHaveText('500 kg');
+    failures = screenFailures(await measureScreen(page, '/fitness:summary-unit-recovered', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await summary.getByRole('button', { name: 'Done', exact: true }).click();
+    await page.reload();
+    const savedRow = page.getByRole('region', { name: title, exact: true });
+    await expect(savedRow).toContainText('500 kg');
+    const listed = await page.request.get('http://localhost:4000/fitness/workouts');
+    expect(listed.ok()).toBe(true);
+    const saved = (await listed.json() as { id: string; notes: string; sets: { weightGrams: number }[] }[]).find((row) => row.id === workout.id);
+    expect(saved).toEqual(expect.objectContaining({ id: workout.id, notes }));
+    expect(saved!.sets).toEqual(expect.arrayContaining([expect.objectContaining({ weightGrams: 100000 })]));
+  }
+});

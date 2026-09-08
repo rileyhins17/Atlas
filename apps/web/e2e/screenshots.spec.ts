@@ -308,6 +308,21 @@ test('capture the Life-OS screens', async ({ page }) => {
     await page.screenshot({ path: `${OUT}/goal-error-${theme}.png`, fullPage: true });
     await page.unroute('http://localhost:4000/goals');
   }
+  const weightWorkoutResponse = await page.request.post('http://localhost:4000/fitness/workouts', { data: { title: 'Saved training session' } });
+  expect(weightWorkoutResponse.status()).toBe(201);
+  const weightWorkout = await weightWorkoutResponse.json() as { id: string };
+  expect((await page.request.post(`http://localhost:4000/fitness/workouts/${weightWorkout.id}/finish`, { data: {} })).ok()).toBe(true);
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.route('http://localhost:4000/settings', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.goto('/fitness');
+    await page.reload();
+    await expect(page.getByText('Weight units could not be loaded.')).toBeVisible({ timeout: 20_000 });
+    measurements.push(await measureScreen(page, '/fitness:history-unit-error', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/history-unit-error-${theme}.png`, fullPage: true });
+    await page.unroute('http://localhost:4000/settings');
+  }
   // Session/config failures use synthetic responses, never another registration.
   for (const theme of ['light', 'dark'] as const) {
     await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
