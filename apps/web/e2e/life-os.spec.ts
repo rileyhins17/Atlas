@@ -1873,12 +1873,26 @@ test('a daily tracker records one rating per day, and correcting it is an edit',
   await expect(card).toBeVisible({ timeout: 20_000 });
   await expect(card).toContainText('Soreness');
 
-  await page.getByRole('radio', { name: 'Soreness: 7 out of 10' }).click();
-  await expect(page.locator('.trk-answered')).toHaveText('7/10', { timeout: 20_000 });
+  // Wait for the WRITE, not for the chip. The chip renders optimistic state, so
+  // it says 3/10 the instant you tap and proves nothing about persistence —
+  // exactly the trap this repo has fallen into before with a controlled
+  // textarea. Waiting on the response is what makes the read below meaningful.
+  const rate = async (value: number) => {
+    await Promise.all([
+      page.waitForResponse(
+        (response) =>
+          /\/trackers\/[^/]+\/log$/.test(new URL(response.url()).pathname) &&
+          response.request().method() === 'POST',
+        { timeout: 20_000 },
+      ),
+      page.getByRole('radio', { name: `Soreness: ${value} out of 10` }).click(),
+    ]);
+    await expect(page.locator('.trk-answered')).toHaveText(`${value}/10`, { timeout: 20_000 });
+  };
 
+  await rate(7);
   // Change your mind. This is the assertion the feature turns on.
-  await page.getByRole('radio', { name: 'Soreness: 3 out of 10' }).click();
-  await expect(page.locator('.trk-answered')).toHaveText('3/10', { timeout: 20_000 });
+  await rate(3);
 
   const stored = await page.evaluate(async () => {
     const base = window.location.hostname === 'localhost' ? 'http://localhost:4000' : '/api';

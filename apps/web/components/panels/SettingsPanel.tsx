@@ -17,7 +17,7 @@ import { GoogleCalendarCard } from '@/components/connectors/GoogleCalendarCard';
 
 export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
   // Only the section hint needs status now; GoogleCalendarCard owns the flow.
-  const status = useGoogleStatus().data ?? null;
+  const google = useGoogleStatus();
 
   return (
     <>
@@ -56,7 +56,13 @@ export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
       <SettingsSection
         id="google"
         title="Google Calendar"
-        hint={status?.connected ? 'connected' : 'not connected'}
+        /* Three states, not two. `data ?? null` made a PENDING query read as
+           "not connected", so anyone who was connected opened Settings and was
+           told they were not, until the request came back. Saying nothing is
+           the honest answer while the answer is unknown. */
+        hint={
+          google.isSuccess ? (google.data?.connected ? 'connected' : 'not connected') : undefined
+        }
       >
         <GoogleCalendarCard />
       </SettingsSection>

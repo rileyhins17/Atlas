@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { CreateGoalInput, GoalDTO, UpdateGoalInput } from '@atlas/shared';
 import type { Goal } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
@@ -68,7 +68,13 @@ export class GoalsService {
 
   async create(userId: string, input: CreateGoalInput): Promise<GoalDTO> {
     const count = await this.prisma.client.goal.count({ where: { userId } });
-    if (count >= MAX_GOALS) throw new NotFoundException('Too many goals');
+    // 400, not 404. A 404 made the UI say the goal could not be FOUND when
+    // the real answer was that there are already a hundred of them.
+    if (count >= MAX_GOALS) {
+      throw new BadRequestException(
+        `You can have ${MAX_GOALS} goals at once. Archive one to add another.`,
+      );
+    }
     const goal = await this.prisma.client.goal.create({
       data: {
         userId,

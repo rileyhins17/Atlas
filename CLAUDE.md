@@ -4,7 +4,18 @@
 
 > Owner: Riley (rileyhinsperger@gmail.com). The global CLAUDE.md forces **caveman mode** for chat replies — terse. Code, comments, commits and PRs are always normal English.
 >
-> **Remote:** `origin` = https://github.com/rileyhins17/Atlas (private). Work on `claude/session-check-in-mbo5om`, keep `main` fast-forwarded to it, push both. `.env` is gitignored — never commit it.
+> **Remote:** `origin` = https://github.com/rileyhins17/Atlas. Work on `main`. `.env` is gitignored — never commit it.
+>
+> **It was PUBLIC until 6 Sep 2026, and this file said it was private.** That
+> wrong belief is what made the incident below thinkable: three production dumps
+> — journals, finance rows, emails and password hashes — were committed by a
+> `git add -A` and pushed, and sat publicly readable for seventeen hours. History
+> was rewritten to purge them and the repo is private now. **Verify visibility
+> before trusting any statement about it, including this one:**
+> `gh repo view rileyhins17/Atlas --json isPrivate`.
+>
+> Backups live in `%LOCALAPPDATA%\Atlasackups`, never in the tree, and
+> `infra/hooks/pre-commit` refuses to commit a `*.dump` (`pnpm run hooks:install`).
 
 ---
 
@@ -173,6 +184,91 @@ in light. The rule to apply when writing it is *whenever a `color-mix` of `--bra
 background, the text on it is `--brand-on-tint`* — the sibling `.cal-day` rule guards the same
 combination with `:not(.on)`.
 
+**Every authenticated request costs two round trips, and it used to cost four.**
+`SessionGuard` resolves the session with one hand-written join
+(`AuthService.userFromToken`) rather than `include: { user: true }`, which
+Prisma issues as two queries — measured 27ms + 28ms on endpoints whose own work
+is ~56ms. And `UserTimezoneService` (in `core/`, `@Global`) holds the user's
+timezone, which six services were each re-reading with their own
+`SELECT timezone FROM users`. The guard primes that cache from the session row
+on every request, so it refreshes itself from the authoritative read and cannot
+go stale; Settings invalidates it on write. Endpoints measure ~55ms warm.
+
+**Benchmark against `127.0.0.1`, never `localhost`.** On this machine curl
+resolves `localhost` to `::1`, waits, and falls back — 218ms versus 60ms for
+the identical request. Cross-check any number against the API's own
+`durationMs` log line. `PRISMA_LOG_QUERIES=1` prints every statement and its
+duration, which is how the two findings above were found.
+
+**`await this.prisma` inside a loop is guarded by a test now**
+(`apps/api/test/no-n-plus-one.test.ts`). It reads the source, so it cannot prove
+absence — what it does is make a new one loud the moment it is written. Three
+loops are allow-listed BY REASON rather than by line number: chunked id lookups
+in the Google sync (that loop IS the batching), one Plaid remote call per item
+(a network call that cannot be batched), and one nested write per workout day
+(bounded by MAX_TEMPLATES). Watched red against a reintroduced N+1 before being
+trusted.
+
+**The account export streams.** It used to read fourteen unbounded tables into
+memory and `JSON.stringify` the lot — the whole account, twice, in a
+single-process API. It now pages each table by id and writes JSON fragments, so
+memory is one page whatever the account holds. Headers go out with the first
+chunk, so a mid-stream failure destroys the socket rather than pretending to be
+a 500: a truncated document that looks complete is the worse outcome.
+
+**Four things could be created without limit, and every one of them is read
+whole somewhere.** Routine blocks are now capped at 200, open AI questions at
+20, custom exercises at 200, and the goals quota throws a 400 rather than the
+404 that made the UI say a goal could not be found. The routine cap is the one
+that matters most: `routine.add_block` is a tool the MODEL can call and the
+routine is fed back into its context on the next call, so uncapped it inflates
+its own future prompt. When adding an unpaginated `findMany`, the question is
+not "should this paginate" but "what stops this list growing forever".
+
+**Which domain the AI stops being able to see is a DECISION now.** Every
+`DomainModule` declares `contextPriority`, and `collectContext` returns them
+lowest-first: routine, calendar, tasks, notes, habits, goals, trackers, fitness,
+journal, finance. `buildContext` fills a fixed budget in the order it is handed
+and trims or drops the rest, so this used to be settled by where a line sat in
+`app.module.ts` — a chatty domain early in the import list could push Calendar
+out entirely, after which the model answered "you have nothing scheduled" with
+complete confidence. A domain that forgets to declare one lands in the middle;
+a test fails if any real domain omits it or two claim the same number.
+
+**Phase 0 of the audit is done and re-verified against the code**, not assumed:
+the token cap is per-user, `/ai/dry-run` bills under an unbilled purpose,
+`DailyTokenCapError` maps to a real status, the push upsert can no longer rebind
+another user's row, the Plaid cursor only advances past a page that was fully
+written, the proactive sweep is gated on `ActivityService`, and `pnpm audit`
+reports **no known vulnerabilities** (it was 24).
+
+**Phase 6 of the audit has findings behind it now.** It had never been run.
+The sweep found fifteen classNames with no CSS rule — five of them the SOLE
+class on their element, so the onboarding's explanatory paragraphs and the
+Google card's status message were rendering at browser defaults. It also found
+two components stating something false while a query was still pending:
+Settings said "not connected" for Google Calendar until the status arrived, and
+the goal picker said "No active goals yet". Both are now three-state.
+
+Two tests keep it that way: `class-has-a-rule.test.ts` fails on a className with
+no rule (markers and e2e hooks are allow-listed BY REASON), and
+`pending-is-not-an-answer.test.tsx` pins that a pending query is never rendered
+as a negative answer. At 390px across all thirteen routes in both themes the
+sweep now reports zero overflow, zero tap target under 24x24, and zero
+text input under 16px.
+
+**The e2e suite cleans up after itself.** `uniqueEmail()` records every address
+it hands out and `e2e/global-teardown.ts` deletes exactly those — by list, never
+by pattern. It works with the 5/min delete throttle rather than around it:
+anything it cannot remove stays in the ledger for the next run. Measured: a full
+48-test run leaves the user count where it found it.
+
+**Phase 7's parallelism was dropped on purpose.** Its premise was an 8.5-minute
+suite; the database move made it 2.4 without touching a test. The remaining
+minute is not worth giving 48 coupled specs their own accounts, and it is
+certainly not worth adding a sign-up-throttle bypass to a production codebase.
+Revisit past five minutes.
+
 ### Known gaps — tracked, not hidden
 **`docs/production-readiness.md` is the authoritative list**, written from a 154-assertion API stress
 pass and a full-route UI pass. It is ordered by what blocks shipping and says what was measured
@@ -194,15 +290,32 @@ The short version of what is STILL open:
   **PostgreSQL 17 is now installed**, so the blocking step is done. What remains is
   `powershell -File infra/atlas-backup.ps1 -Register`, an off-machine destination, and a restore
   drill — an unrestored backup is a hypothesis.
-- **Moving to `ca-central-1` is half done.** 383ms per round trip from Oregon is the single largest
-  cause of the app feeling slow. The new Supabase project exists (`dieyrvswjgvocauixvwi`) and a full
-  dump of us-west-2 is taken and verified (2,194 tasks, 636 journal entries, 2,698 timeline rows,
-  147 workouts, in `.db-moves/`). `infra/db-move.py` does the dump and restore with credentials in
-  PG* env vars rather than argv — `db-switch.ps1` only moves the POINTER, which is right for an
-  empty target and very wrong here. Remaining: `supabase-connect.ps1 -ProjectRef
-  dieyrvswjgvocauixvwi -Region ca-central-1 -WriteOnly` (prompts for the password without echoing
-  it), restore, compare `db-move.py counts` on both hosts, then switch. A running origin holds its
-  DB config in memory, so it keeps serving the old host throughout — the move needs no downtime.
+- ~~Moving to `ca-central-1`~~ — **done, 5 Sep 2026, and it is also why the
+  connection string changed shape.** Restored with `db-move.py`, all 27 tables
+  compared row-for-row against us-west-2 before the switch, `verify.mjs` green
+  on the new host (pgvector 0.8.2, `embeddings.embedding` really a `vector`,
+  19/19 migrations). Measured, same machine, same minute:
+
+  | connection | round trip |
+  |---|---|
+  | us-west-2, pooled (6543) | **387 ms** |
+  | ca-central-1, pooled (6543) | 135 ms |
+  | ca-central-1, session (5432) | **26 ms** |
+
+  `DATABASE_URL` now points at the **session** endpoint, not the transaction
+  pooler, with `connection_limit=10`. Supavisor's transaction pooler exists to
+  share a small number of Postgres connections between many short-lived clients;
+  Atlas is one long-lived API process with Prisma's own pool, so it was buying
+  nothing and costing 109 ms on every query. API endpoints went 540 ms → 310 ms
+  from that change alone, on top of the region move.
+  **The pgvector trap is real and bit here:** us-west-2 has the extension in
+  `public`, so the dump declares `public.vector(768)`. Creating it in
+  `extensions` on the target — which is where Supabase puts it by default, and
+  where `pgcrypto` already was — makes `pg_restore` fail on the `embeddings`
+  table with `type "public.vector" does not exist` while every other table
+  restores fine. Create the extension in the schema the SOURCE used.
+  The old project still holds the data as of the switch; do not delete it until
+  the new one has been running for a while.
 - **Rotate the Plaid production secret** — it was pasted into a chat transcript. Needs Riley's Plaid
   login; nobody else can do it.
 - **`SENTRY_DSN` is unset**, so the error reporting that is now wired in reports nothing.

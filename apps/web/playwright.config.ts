@@ -83,6 +83,8 @@ export default defineConfig({
   // have collapsed entirely.
   timeout: 90_000,
   expect: { timeout: 10_000 },
+  // Deletes exactly the accounts this run created — see e2e/global-teardown.ts.
+  globalTeardown: './e2e/global-teardown.ts',
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,

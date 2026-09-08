@@ -7,6 +7,8 @@ import { NotesService } from './notes.service.js';
 @Injectable()
 export class NotesAiAdapter implements DomainModule, OnModuleInit {
   readonly id = 'notes';
+  /** See DEFAULT_CONTEXT_PRIORITY for what this ordering is for. */
+  readonly contextPriority = 40;
 
   constructor(
     private readonly notes: NotesService,

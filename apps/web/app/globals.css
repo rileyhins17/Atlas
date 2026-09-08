@@ -6326,3 +6326,64 @@ label:has(> input[type='checkbox']) {
   line-height: 1.5;
   color: var(--text-primary);
 }
+
+/* ── Classes that were rendering as browser defaults ──────────────────────
+   Found by the Phase 6 sweep: a className with no rule does not render as
+   nothing, it renders as the element's default — which is how a nag once
+   became the largest text on Today. Each of these was the SOLE class on its
+   element, so nothing else was styling it. */
+
+/* The connect/disconnect result on the Google card. A bare <div> with default
+   block margins, sitting above the card's own heading. */
+.connect-flash {
+  margin: 0 0 var(--space-2);
+  padding: 8px 11px;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in oklab, var(--brand) 26%, transparent);
+  background: color-mix(in oklab, var(--brand) 7%, transparent);
+  color: var(--brand-on-tint);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+/* `.gcal-list` already removes the marker; this only needs to not reintroduce
+   list spacing between rows. */
+.gcal-item {
+  margin: 0;
+  padding: 0;
+}
+
+/* The exercise NAME in the picker, which had no weight of its own while the
+   muscle label beside it did — so the label read as the more important half. */
+.fit-picker-name {
+  font-size: var(--text-base);
+  font-weight: 560;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+/* Onboarding prose. These are the first sentences a new account reads, and
+   they were rendering at default paragraph size with default margins next to a
+   26px question. `.onb-hint` is the established voice for this; these match it
+   and allow a little more width, because they carry more than a hint does. */
+.onb-help,
+.onb-sub {
+  margin: 0;
+  max-width: 460px;
+  font-size: var(--text-base);
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+.onb-sub strong {
+  color: var(--text-primary);
+  font-weight: 640;
+}
+
+/* Modifiers that exist so a card can be told apart in the DOM and by a test.
+   They intentionally carry no paint of their own — declared here so the sweep
+   stops reporting them and the next reader knows it is deliberate. */
+.canvas-card-event,
+.canvas-card-task {
+  /* no-op: `.canvas-card` does the styling; these mark which kind it is. */
+  position: relative;
+}

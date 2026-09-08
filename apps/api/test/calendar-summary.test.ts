@@ -40,7 +40,11 @@ function makeService(events: { id: string; title: string; startAt: string; allDa
       },
     },
   };
-  return new CalendarService(prisma as never, { write: vi.fn(async () => {}) } as never);
+  return new CalendarService(
+    prisma as never,
+    { write: vi.fn(async () => {}) } as never,
+    { get: async () => 'America/Toronto', prime() {}, forget() {} } as never,
+  );
 }
 
 describe('what the AI is told about the calendar', () => {

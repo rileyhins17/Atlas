@@ -7,6 +7,8 @@ import { GoalsService } from './goals.service.js';
 @Injectable()
 export class GoalsAiAdapter implements DomainModule, OnModuleInit {
   readonly id = 'goals';
+  /** See DEFAULT_CONTEXT_PRIORITY for what this ordering is for. */
+  readonly contextPriority = 60;
 
   constructor(
     private readonly goals: GoalsService,

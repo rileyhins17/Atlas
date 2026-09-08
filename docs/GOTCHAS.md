@@ -376,3 +376,287 @@ fallback, so a brand-new account's first capture writes nothing — the most
 expensive bug this project has shipped, arriving by a new route. The guard is
 `if (toolExecutions.length === 0) throw err;` and three e2e specs fail without
 it.
+
+## Switching DATABASE_URL without restoring takes the site down silently
+
+The region move is two steps — point `.env` at the new project, and restore the
+data into it — and doing only the first leaves a state that looks fine from
+every angle except the one that matters.
+
+`supabase-connect.ps1 -WriteOnly` rewrote `.env` to `ca-central-1`. The restore
+was never run, so that project had no `public` schema at all. What followed:
+
+- The site kept serving, because the running API held its connection from boot.
+  It only broke when the process restarted hours later — so the failure appeared
+  disconnected in time from the change that caused it.
+- `/api/health` reported `db: ok` throughout. It tests that the connection
+  works, not that the tables exist, and the connection was perfect.
+- Every sign-in returned **500**, not 401 — `public.users does not exist` is an
+  infrastructure error, not a credentials one, so it never reached the auth
+  logic that would have said "invalid password".
+- The 03:30 backup dumped the empty project and logged `ok`.
+
+Recovery is a pointer, not a migration: `supabase-connect.ps1` writes
+`.env.bak.<timestamp>` before it edits, and that file differs from the current
+one **only** in the two DB URLs. Copy those two lines back, restart, done — the
+data was never touched.
+
+Two rules follow. Restore and verify counts BEFORE switching the pointer, never
+after. And if the site is up but every login 500s, check which database `.env`
+names before looking at anything in the auth code.
+
+## pg_restore: `type "public.vector" does not exist` on one table only
+
+Moving a Supabase database, 26 of 27 tables restore cleanly and `embeddings`
+fails with:
+
+```
+ERROR:  type "public.vector" does not exist
+LINE 8:     embedding public.vector(768),
+```
+
+It looks like a corrupt dump. It is not. `pg_dump` writes the type
+schema-qualified as the SOURCE has it, and us-west-2 has pgvector installed in
+`public`. Creating the extension on the target with
+`CREATE EXTENSION vector WITH SCHEMA extensions` — which is Supabase's default
+and where `pgcrypto` already sits — puts the type somewhere the dump does not
+reference.
+
+Create it where the source had it:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;
+```
+
+Then `pg_restore --table embeddings` the one table that failed, rather than
+re-running the whole restore, which would duplicate the 26 that worked.
+
+`packages/db/scripts/verify.mjs` is what confirms the result: it checks the
+extension exists AND that `embeddings.embedding` is really typed `vector`, which
+a clean `migrate deploy` does not.
+
+## Supabase's transaction pooler costs ~110ms a query, for nothing Atlas needs
+
+Measured on one machine within one minute, same database, same query:
+
+| endpoint | round trip |
+|---|---|
+| `…pooler.supabase.com:6543` (transaction) | 135 ms |
+| `…pooler.supabase.com:5432` (session) | 26 ms |
+
+Supavisor's transaction pooler exists so that many short-lived clients —
+serverless functions, per-request lambdas — can share a small number of Postgres
+connections. Atlas is one long-lived NestJS process with Prisma's own connection
+pool, so the pooler adds a hop and solves a problem the app does not have. API
+endpoints measured 540 ms → 310 ms purely from moving `DATABASE_URL` to 5432.
+
+Pin `?connection_limit=10` when you do, or Prisma defaults to cores × 2 + 1 and
+opens more session connections than a free tier is happy to hand out.
+
+## `pg_restore --table` leaves the indexes behind
+
+Recovering one table from a dump with `--table embeddings` restores the table
+and its rows and **not** its primary key, unique indexes or foreign keys —
+those are separate TOC entries and `--table` does not select them.
+
+Nothing complains. Row counts match, reads work, `verify.mjs` passes. The first
+symptom is a 500 on the first write that needs a constraint: `embedding.upsert`
+requires `embeddings_ownerType_ownerId_key`, so after the ca-central-1 move
+every journal entry, note and mood check-in failed while the rest of the app
+looked perfect. Three e2e specs caught it; the row-count comparison did not,
+because the rows were all there.
+
+`python infra/db-move.py verify <src-key> <dst-key>` compares every index and
+constraint in `public` between two hosts and exits non-zero on a difference.
+Run it after any partial restore, not just after a full one. Matching row counts
+are not a matching database.
+
+## `include: { user: true }` is two queries, not one
+
+Prisma's default relation strategy fetches the parent, then fetches the
+relation in a second round trip. It reads as one query and bills as two.
+
+That matters most on the hottest path in the app. `SessionGuard` runs on every
+authenticated request and called
+`session.findUnique({ where: { tokenHash }, include: { user: true } })`, which
+measured 27ms + 28ms against ca-central-1 — on endpoints whose own useful work
+is around 56ms. A third of every response was spent resolving the session.
+
+It is now one hand-written join in `AuthService.userFromToken`. The
+`relationJoins` preview feature fixes the same thing generally, but a preview
+flag on the path that gates the whole API is a worse trade than four lines of
+SQL. The explicit column list is a second win: `include: { user: true }` was
+loading `passwordHash` into memory on every single request.
+
+Check with `PRISMA_LOG_QUERIES=1` before assuming a query count.
+
+## Measuring HTTP on `localhost` from Windows adds ~155ms of nothing
+
+`curl http://localhost:4000/...` resolves `localhost` to `::1` first, waits,
+and falls back to `127.0.0.1`. Measured on this machine, same endpoint, same
+moment:
+
+| target | time |
+|---|---|
+| `http://localhost:4000/tasks` | 218 ms |
+| `http://127.0.0.1:4000/tasks` | 60 ms |
+
+The request logger said `durationMs: 56` throughout, which is what gave it
+away: if the handler and the client disagree by 150ms on a loopback request,
+the client is measuring its own DNS.
+
+Always benchmark against `127.0.0.1`, and cross-check against the API's own
+`durationMs` log line before believing a number.
+
+## The account export was one object in memory, on a single-process API
+
+`GET /account/export` read fourteen unbounded tables into one `Promise.all`,
+built a single object, and handed it to `JSON.stringify(…, null, 2)`. Peak
+memory was the whole account, twice, plus indentation — in an API that is one
+Node process serving every user. The people most likely to want an export are
+the ones whose export is largest, so the failure mode was "one person exports
+their data and the origin dies for everybody".
+
+It streams now, paging each table by id with a stable cursor, so memory is one
+page whatever the account holds. Two things that are easy to get wrong when
+turning a `JSON.stringify` into text:
+
+- **The commas.** A section with exactly one row is where a naive
+  `join(',')` breaks. `account-export.test.ts` covers empty, one row, and 1201
+  rows across three pages, and asserts the result still `JSON.parse`s.
+- **The status code is gone before the data is.** Headers go out with the first
+  chunk, so a failure halfway cannot become a 500. The handler destroys the
+  socket instead, because a truncated JSON document that looks finished is
+  worse than a broken download.
+
+`res.write()` returning false is honoured with a `drain` wait. Without that, a
+fast database and a slow client buffer the whole export in the socket, which is
+the memory problem the streaming was meant to remove.
+
+## Every list this app reads whole needs a ceiling on what can be written into it
+
+Not "pagination on every endpoint" — a cap on what can be CREATED, because the
+read side is deliberately unpaginated in several places and that is fine as long
+as the write side is bounded. Four were not:
+
+| what | why it grew | cap |
+|---|---|---|
+| routine blocks | `routine.add_block` is a tool the MODEL can call | 200 |
+| AI questions | generated on every brief; nothing forces an answer | 20 open |
+| custom exercises | created as a side effect of importing a split | 200 |
+| goals | had a cap, but threw the wrong error | 100 |
+
+The routine one is the interesting case. The routine is part of the context the
+model is handed on the NEXT call, and the model can add to it — so uncapped, a
+chatty brain-dump inflates its own future context, costs tokens on every request
+afterwards, and slowly crowds the other domains out of the budget. A quota on a
+tool the model can call is not the same kind of limit as a quota on a button.
+
+And the goals one is a reminder that the status code is part of the message:
+`NotFoundException('Too many goals')` rendered in the UI as the goal not being
+FOUND. A quota is a 400.
+
+When adding a `findMany` with no `take`, the question to answer is not "should
+this paginate" but "what stops this list from growing forever, and is that thing
+written down".
+
+## The AI's context order was an accident of `app.module.ts`
+
+`buildContext` fills a fixed token budget in the order it is handed and trims or
+drops whatever does not fit. `ModuleRegistryService.collectContext` returned
+modules in NestJS registration order — which is the order of the import list —
+so which domain the model could still SEE under a tight budget was decided by
+where a line sat in a file.
+
+The failure that produces is quiet and confident: Calendar gets dropped, the
+model is handed a context with no calendar in it and no way to tell that apart
+from an empty calendar, and it answers "you have nothing scheduled".
+
+Every `DomainModule` now declares `contextPriority`, lowest first:
+
+    routine 10 · calendar 20 · tasks 30 · notes 40 · habits 50
+    goals 60 · trackers 70 · fitness 80 · journal 90 · finance 100
+
+The ordering answers one question — if the model can only be told SOME of this,
+what does it need to answer "what should I do now" without being wrong? Routine
+first, because without it "2pm is free" is a guess.
+
+A domain that omits it defaults to the middle, and `context-priority.test.ts`
+fails if any shipped domain forgets or if two claim the same number. Fetching
+stays parallel; only the result is ordered.
+
+## The e2e suite left ~30 accounts behind every run
+
+The database reached 181 rows of which three were real people, and every attempt
+to tidy that by hand runs into this project's hard rule: an address that looked
+like test junk once held the only live Google Calendar credential.
+
+`e2e/global-teardown.ts` now deletes what the run created — by an EXACT LIST,
+never a pattern. `uniqueEmail()` appends each address to
+`test-results/.e2e-accounts`; teardown reads that file, logs in as each with the
+suite's own password, and deletes. An account it did not create is an account it
+cannot name, so it cannot touch it.
+
+Two things worth knowing if it ever stops working:
+
+- `POST /account/delete` requires `confirm: 'DELETE'` as well as the password.
+  That is an intent guard on the endpoint, and a request that omits it gets a
+  400 that reads like a credentials problem.
+- Teardown reports failures and does not throw. A green suite followed by a red
+  teardown reads as a failed run, and a few leftover rows is a much smaller
+  problem than making people distrust the result.
+
+Measured: a run that registers two accounts now leaves the user count exactly
+where it found it.
+
+## Phase 7's parallelism stopped being worth it
+
+The audit proposed bypassing the sign-up throttle in tests so Playwright could
+run `fullyParallel`, on the basis that the suite took 8.5 minutes. Moving the
+database to ca-central-1 took it to 2.4 without touching a test.
+
+What remains on the table is roughly a minute, in exchange for giving 48 tests
+their own accounts — and the audit's own warning applies: "a spec that passes in
+a full run and fails alone is the dangerous shape, because it hides in green".
+Adding a throttle bypass to a production codebase for that trade is not worth
+it. Revisit if the suite grows past five minutes again.
+
+## `.gitignore` does not untrack what is already staged
+
+On 5 September 2026 three production database dumps — journals, finance rows,
+email addresses and password hashes — were committed and pushed to what turned
+out to be a **public** GitHub repository, where they were readable for about
+seventeen hours.
+
+Every ingredient was already documented as forbidden. `.github/scripts/restore_backup.py`,
+`.github/workflows/ci.yml` and `docs/backup-restore-drill.md` all say in prose that
+the real dumps never leave the machine. `.gitignore` contained `backups/`. The
+commit that shipped them is titled *"prove the restore mechanism without shipping
+anyone's journal to CI"*.
+
+Three things combined:
+
+1. **`infra/atlas-backup.ps1` defaulted its destination to `<repo>\backups`** — a
+   backup directory inside a working tree is one careless `git add -A` away from
+   being published.
+2. **`.gitignore` only ignores UNTRACKED files.** Adding the pattern after the
+   files were staged changes nothing; `git add -A` had already picked them up.
+3. **`CLAUDE.md` asserted the remote was private.** It was public from creation.
+   A written claim about a security property is not a security property.
+
+Fixes, all of them enforcement rather than prose:
+
+- Default destination is now `%LOCALAPPDATA%\Atlas\backups`, outside git's reach.
+- `infra/hooks/pre-commit` refuses any staged `*.dump`, `*.sql`, `*.sqlite`, `*.db`,
+  `*.bak`, or anything under `backups/` or `.db-moves/`. Install with
+  `pnpm run hooks:install`. Watched refusing a real staged dump before being trusted.
+- `CLAUDE.md` now says to verify visibility with `gh repo view` rather than
+  asserting it.
+
+Worth knowing for the post-mortem: `SESSION_SECRET` was **not** compromised — it
+signs Google OAuth state (`google.controller.ts:49`) and never touched `.env` in
+git. Session tokens in the dump are SHA-256 hashes of 32 random bytes and are not
+reversible, so sessions did not need invalidating. `APP_ENCRYPTION_KEY` was never
+committed either, so the AES-256-GCM connector credentials stayed encrypted. What
+genuinely leaked was personal data and `passwordHash` (Node `scrypt` defaults,
+N=16384 — crackable offline).

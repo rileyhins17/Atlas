@@ -21,7 +21,7 @@ class DbMoveTests(unittest.TestCase):
     def test_restore_failure_exits_nonzero_and_targets_url_database(self):
         failure = subprocess.CompletedProcess([], 1, '', 'private COPY row')
         with patch.object(move, 'url_for', return_value='postgresql://test:test@localhost/restore_target'), patch.object(
-            move, 'run', return_value=failure
+            move, 'run', side_effect=[subprocess.CompletedProcess([], 0, '', ''), failure]
         ) as run:
             with self.assertRaises(SystemExit):
                 move.cmd_restore('RESTORE_TEST_URL', 'synthetic.dump')
@@ -45,6 +45,16 @@ class DbMoveTests(unittest.TestCase):
         self.assertEqual(env['PGDATABASE'], 'fixture')
         self.assertEqual(env['PGSSLMODE'], 'disable')
         self.assertEqual(move.pg_env('postgresql://user:pw@remote/db')['PGSSLMODE'], 'require')
+
+    def test_restore_omits_only_creation_of_the_existing_public_schema(self):
+        toc = ('5; 2615 2200 SCHEMA - public postgres\n'
+               '6; 2615 2201 SCHEMA - other postgres\n'
+               '7; 1259 100 TABLE public tasks postgres\n'
+               '8; 0 100 TABLE DATA public tasks postgres\n')
+        filtered = move.restore_list(toc)
+        self.assertNotIn('SCHEMA - public', filtered)
+        for line in toc.splitlines()[1:]:
+            self.assertIn(line, filtered)
 
 
 if __name__ == '__main__':

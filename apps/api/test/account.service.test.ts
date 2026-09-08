@@ -39,10 +39,18 @@ function makePrisma(overrides: Record<string, unknown> = {}) {
   return { service: new AccountService({ client } as any), client, findMany };
 }
 
-describe('AccountService.exportData', () => {
+/** Drain the export stream; the assertions below are about how it read, not
+ *  what it wrote. */
+async function drain(service: AccountService, userId = 'u1'): Promise<string> {
+  let out = '';
+  for await (const chunk of service.streamExport(userId)) out += chunk;
+  return out;
+}
+
+describe('AccountService.streamExport', () => {
   it('scopes every collection query to the requesting user', async () => {
     const { service, findMany } = makePrisma();
-    await service.exportData('u1');
+    await drain(service);
     // Every table read must carry where: { userId }.
     for (const call of findMany.mock.calls) {
       expect((call[0] as { where: { userId: string } }).where.userId).toBe('u1');
@@ -52,7 +60,7 @@ describe('AccountService.exportData', () => {
   it('never selects secret columns (password hash, session tokens, credential ciphertext)', async () => {
     const credentialFindMany = vi.fn(async (_args?: unknown) => [] as unknown[]);
     const { service, client } = makePrisma({ credential: { findMany: credentialFindMany } });
-    await service.exportData('u1');
+    await drain(service);
 
     // credential export must select explicit non-secret fields and NOT dataEnc.
     const credSelect = (credentialFindMany.mock.calls[0]![0] as { select: Record<string, boolean> }).select;
@@ -71,7 +79,7 @@ describe('AccountService.exportData', () => {
 
   it('produces a versioned, timestamped envelope with connections (not credentials)', async () => {
     const { service } = makePrisma();
-    const out = await service.exportData('u1');
+    const out = JSON.parse(await drain(service)) as Record<string, unknown>;
     expect(out.format).toBe('atlas.account-export.v1');
     expect(typeof out.exportedAt).toBe('string');
     expect(out).toHaveProperty('connections');

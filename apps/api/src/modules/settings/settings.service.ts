@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type { SettingsDTO, UpdateSettingsInput } from '@atlas/shared';
 import { PrismaService } from '../../core/prisma.service.js';
+import { UserTimezoneService } from '../../core/user-timezone.service.js';
 
 const SELECT = {
   displayName: true,
@@ -12,7 +13,9 @@ const SELECT = {
 
 @Injectable()
 export class SettingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService,
+    private readonly timezones: UserTimezoneService,
+  ) {}
 
   async get(userId: string): Promise<SettingsDTO> {
     const row = await this.prisma.client.user.findUniqueOrThrow({
@@ -31,6 +34,9 @@ export class SettingsService {
       data: input,
       select: SELECT,
     });
+    // Otherwise changing your timezone in Settings appears to do nothing until
+    // the next request re-primes the cache.
+    if (input.timezone !== undefined) this.timezones.forget(userId);
     return toDto(row);
   }
 }

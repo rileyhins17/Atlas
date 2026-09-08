@@ -7,6 +7,8 @@ import { JournalService } from './journal.service.js';
 @Injectable()
 export class JournalAiAdapter implements DomainModule, OnModuleInit {
   readonly id = 'journal';
+  /** See DEFAULT_CONTEXT_PRIORITY for what this ordering is for. */
+  readonly contextPriority = 90;
 
   constructor(
     private readonly journal: JournalService,

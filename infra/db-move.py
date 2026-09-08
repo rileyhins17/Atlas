@@ -13,6 +13,7 @@ first, then the gitignored .env outside CI. CI uses synthetic data only.
     python infra/db-move.py dump                 # snapshot the current database
     python infra/db-move.py restore <env-key>    # load it into the host in that key
     python infra/db-move.py counts <env-key>     # row counts, to compare the two
+    python infra/db-move.py verify <src> <dst>  # indexes and constraints must match too
 
 Nothing here writes .env or restarts the origin: switching over is a separate,
 deliberate step, so a failed restore leaves the live site pointed at the
@@ -22,9 +23,11 @@ database that still works.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
@@ -127,6 +130,13 @@ def cmd_dump(destination: str | None = None) -> None:
     print(f'OK  {size:,} bytes  {out}')
 
 
+def restore_list(toc: str) -> str:
+    # A fresh Postgres database already has public. Retain every table, row,
+    # index and constraint while omitting only its redundant CREATE SCHEMA.
+    return '\n'.join(line for line in toc.splitlines()
+                     if not re.match(r'^\d+; \d+ \d+ SCHEMA - public ', line)) + '\n'
+
+
 def cmd_restore(key: str, dump: str | None) -> None:
     url = url_for(key)
     if os.environ.get('CI') and not dump:
@@ -134,19 +144,19 @@ def cmd_restore(key: str, dump: str | None) -> None:
     path = Path(dump) if dump else max(DUMP_DIR.glob('atlas-*.dump'), key=lambda p: p.stat().st_mtime)
     print(f'Restoring {path.name} -> {describe(url)}')
 
-    res = run(
-        'pg_restore',
-        [
-            '--no-owner',
-            '--no-privileges',
-            '--exit-on-error',
-            '--single-transaction',
-            '--dbname',
-            pg_env(url)['PGDATABASE'],
-            str(path),
-        ],
-        pg_env(url),
-    )
+    env = pg_env(url)
+    listing = run('pg_restore', ['--list', str(path)], env)
+    if listing.returncode:
+        raise SystemExit('pg_restore could not read the archive; nothing was restored.')
+    with tempfile.TemporaryDirectory() as temporary:
+        toc = Path(temporary) / 'restore.list'
+        toc.write_text(restore_list(listing.stdout), encoding='utf-8')
+        res = run(
+            'pg_restore',
+            ['--no-owner', '--no-privileges', '--exit-on-error', '--single-transaction',
+             '--use-list', str(toc), '--dbname', env['PGDATABASE'], str(path)],
+            env,
+        )
     if res.returncode != 0:
         # COPY failures can contain private rows. Report failure without them.
         raise SystemExit(f'pg_restore failed (exit {res.returncode}); restore was rolled back.')
@@ -163,11 +173,60 @@ ORDER BY tablename
 """
 
 
+SQL_SCHEMA = """
+SELECT 'index :: ' || tablename || ' :: ' || indexdef
+FROM pg_indexes WHERE schemaname = 'public'
+UNION ALL
+SELECT 'constraint :: ' || c.relname || ' :: ' || pg_get_constraintdef(con.oid)
+FROM pg_constraint con
+JOIN pg_class c ON c.oid = con.conrelid
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public'
+ORDER BY 1
+"""
+
+
+def schema_lines(url: str) -> set[str]:
+    res = run('psql', ['--tuples-only', '--no-align', '--command', SQL_SCHEMA], pg_env(url))
+    if res.returncode != 0:
+        print(res.stderr[-2000:], file=sys.stderr)
+        raise SystemExit('psql failed.')
+    return {line for line in res.stdout.splitlines() if line.strip()}
+
+
+def cmd_verify(source_key: str, target_key: str) -> None:
+    """Compare the SHAPE of two databases, not just how many rows are in them.
+
+    Matching row counts are not a matching database. `pg_restore --table`
+    carries a table and its data and leaves its indexes, unique constraints and
+    foreign keys behind — and that is invisible until something upserts. It
+    happened on the ca-central-1 move: all 27 tables matched exactly, and
+    `embeddings` had lost its primary key, its unique index and its foreign key,
+    so every journal write 500ed while every read looked fine.
+    """
+    source, target = url_for(source_key), url_for(target_key)
+    src, dst = schema_lines(source), schema_lines(target)
+    missing = sorted(src - dst)
+    extra = sorted(dst - src)
+
+    print(f'-- source {describe(source)}: {len(src)} indexes + constraints')
+    print(f'-- target {describe(target)}: {len(dst)} indexes + constraints')
+    for line in missing:
+        print(f'MISSING FROM TARGET  {line}')
+    for line in extra:
+        print(f'ONLY ON TARGET       {line}')
+    if missing or extra:
+        raise SystemExit(
+            f'{len(missing)} missing and {len(extra)} unexpected. '
+            'The data may be there and the database is still not the same shape.'
+        )
+    print('OK  every index and constraint matches.')
+
+
 def cmd_counts(key: str) -> None:
     url = url_for(key)
     # --command cannot mix SQL and psql's \gexec; a file can. Identifiers and
     # literals are quoted by Postgres format(), not interpolated by Python.
-    import tempfile
     with tempfile.TemporaryDirectory() as temporary:
         sql = Path(temporary) / 'counts.sql'
         sql.write_text(SQL_COUNTS, encoding='utf-8')
@@ -189,6 +248,10 @@ def main() -> None:
         cmd_restore(sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else None)
     elif action == 'counts':
         cmd_counts(sys.argv[2])
+    elif action == 'verify':
+        if len(sys.argv) < 4:
+            raise SystemExit(__doc__)
+        cmd_verify(sys.argv[2], sys.argv[3])
     else:
         raise SystemExit(__doc__)
 

@@ -118,19 +118,35 @@ export class AuthService {
     }
   }
 
-  /** Resolve a raw session token to a user, or null if invalid/expired. */
+  /**
+   * Resolve a raw session token to a user, or null if invalid/expired.
+   *
+   * ONE round trip, by hand, because this runs on every authenticated request
+   * and is the floor under every response time in the app.
+   *
+   * `findUnique({ include: { user: true } })` reads as one query and is two:
+   * Prisma's default relation strategy fetches the session, then fetches the
+   * user separately. Measured against ca-central-1 that was 27ms + 28ms on a
+   * request whose own work was 60ms — a third of the response spent before the
+   * endpoint began. The `relationJoins` preview feature would also fix it; a
+   * hand-written join on the hottest path in the codebase is worth more than a
+   * preview flag, and it is four lines.
+   *
+   * The expiry comparison stays in SQL so an expired session costs nothing to
+   * reject, and the column list is explicit: `passwordHash` must never be
+   * loaded on a path this hot, and `include: { user: true }` was loading it on
+   * every single request.
+   */
   async userFromToken(token: string): Promise<AuthedUser | null> {
-    const session = await this.prisma.client.session.findUnique({
-      where: { tokenHash: hashToken(token) },
-      include: { user: true },
-    });
-    if (!session || session.expiresAt < new Date()) return null;
-    const { user } = session;
-    return {
-      id: user.id,
-      email: user.email,
-      displayName: user.displayName,
-      timezone: user.timezone,
-    };
+    const rows = await this.prisma.client.$queryRaw<
+      { id: string; email: string; displayName: string | null; timezone: string }[]
+    >`
+      SELECT u."id", u."email", u."displayName", u."timezone"
+      FROM "sessions" s
+      JOIN "users" u ON u."id" = s."userId"
+      WHERE s."tokenHash" = ${hashToken(token)} AND s."expiresAt" >= NOW()
+      LIMIT 1
+    `;
+    return rows[0] ?? null;
   }
 }

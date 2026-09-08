@@ -7,6 +7,8 @@ import { FitnessService } from './fitness.service.js';
 @Injectable()
 export class FitnessAiAdapter implements DomainModule, OnModuleInit {
   readonly id = 'fitness';
+  /** See DEFAULT_CONTEXT_PRIORITY for what this ordering is for. */
+  readonly contextPriority = 80;
 
   constructor(
     private readonly fitness: FitnessService,

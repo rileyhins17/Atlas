@@ -25,9 +25,22 @@
   sensitive as the database itself.
 #>
 param(
-  # Where dumps are written. Prefer a different physical drive to this one; a
-  # backup that dies with the disk it was protecting against is not a backup.
-  [string]$Dest = (Join-Path (Split-Path -Parent $PSScriptRoot) 'backups'),
+  # Where dumps are written. OUTSIDE the repository, deliberately.
+  #
+  # This defaulted to <repo>\backups, and on 5 Sep 2026 a `git add -A` put three
+  # production dumps — journals, finance rows, emails and password hashes — into
+  # a commit that was pushed to a PUBLIC GitHub repository. `.gitignore` had
+  # `backups/` in it and did nothing, because gitignore does not untrack what is
+  # already staged. The dumps sat there for seventeen hours.
+  #
+  # A backup destination inside a working tree is one careless `git add` away
+  # from being published, however many comments forbid it. The default is now
+  # somewhere git cannot reach, and `infra/hooks/pre-commit` refuses to commit a
+  # dump even if someone points -Dest back inside the repo.
+  #
+  # Still worth doing: point this at a DIFFERENT PHYSICAL DRIVE. A backup that
+  # dies with the disk it was protecting against is not a backup.
+  [string]$Dest = (Join-Path $env:LOCALAPPDATA 'Atlas\backups'),
   [switch]$Register,
   [switch]$Unregister
 )
@@ -139,9 +152,38 @@ finally {
 
 if (-not (Test-Path $file)) { Fail 'pg_dump reported success but wrote no file.' }
 $sizeMb = [math]::Round((Get-Item $file).Length / 1MB, 2)
-# A dump far smaller than the last one is the shape a silent failure takes, so
-# the size is recorded every night rather than only when something breaks.
-Note "ok  $([System.IO.Path]::GetFileName($file))  ${sizeMb} MB"
+
+# ── Prove the dump contains Atlas, not just a reachable database ─────────────
+#
+# This check exists because the alternative happened. DATABASE_URL was pointed
+# at a freshly created, EMPTY project while a migration was half-finished, and
+# the 03:30 run dumped it perfectly happily: pg_dump succeeded, a 0.2 MB file
+# appeared, and the log recorded "ok". It contained Supabase's own auth and
+# storage schemas and NOT ONE application table. Left alone, the 14-day
+# rotation would have quietly replaced every good backup with that.
+#
+# "The dump is the right size" is not the check — an empty database still
+# produces a plausible-looking file. The check is that the tables holding the
+# data are in there.
+$restore = Join-Path (Split-Path -Parent $pgDump) 'pg_restore.exe'
+if (Test-Path $restore) {
+  $toc = & $restore -l $file 2>&1
+  $publicTables = @($toc | Select-String -Pattern 'TABLE DATA public' -SimpleMatch).Count
+  # Deliberately low. The point is to catch "none of it", not to break the
+  # backup every time a migration adds or removes a table.
+  $minTables = 15
+  if ($publicTables -lt $minTables) {
+    Note "FAIL  $([System.IO.Path]::GetFileName($file))  ${sizeMb} MB  only $publicTables public tables"
+    Fail ("The dump holds $publicTables application tables, expected at least $minTables. " +
+          "It is being kept as $file for inspection, but it is NOT a usable backup — " +
+          "check that DIRECT_DATABASE_URL in .env points at the database Atlas is actually serving.")
+  }
+  Note "ok  $([System.IO.Path]::GetFileName($file))  ${sizeMb} MB  $publicTables tables"
+}
+else {
+  # Still record it, and say why it was not verified, rather than implying it was.
+  Note "ok  $([System.IO.Path]::GetFileName($file))  ${sizeMb} MB  (unverified: pg_restore not found)"
+}
 
 # ── Retention ────────────────────────────────────────────────────────────────
 #
@@ -153,9 +195,25 @@ $all = @(Get-ChildItem $Dest -Filter 'atlas-*.dump' | Sort-Object LastWriteTime 
 $keep = [System.Collections.Generic.HashSet[string]]::new()
 $now = Get-Date
 foreach ($f in $all) { if (($now - $f.LastWriteTime).TotalDays -le 14) { [void]$keep.Add($f.FullName) } }
+# `w` is NOT a .NET custom format specifier, so `.ToString('yyyy-ww')` returned
+# the literal string "2026-ww" for every date ever passed to it. Every dump older
+# than 14 days therefore landed in ONE group, `-First 8` selected that single
+# group, and only its newest member survived. Real retention was 14 daily plus
+# exactly one — almost precisely the failure the comment above warns against.
+# Verified on this machine: '2026-09-06' -> '2026-ww'; the calendar call below
+# gives '2026-36'.
+$weekKey = {
+  param($date)
+  $cal = [System.Globalization.CultureInfo]::InvariantCulture.Calendar
+  $week = $cal.GetWeekOfYear(
+    $date,
+    [System.Globalization.CalendarWeekRule]::FirstFourDayWeek,
+    [System.DayOfWeek]::Monday)
+  '{0:d4}-{1:d2}' -f $date.Year, $week
+}
 $weeklies = $all |
   Where-Object { ($now - $_.LastWriteTime).TotalDays -gt 14 } |
-  Group-Object { (Get-Date $_.LastWriteTime).ToString('yyyy-ww') } |
+  Group-Object { & $weekKey $_.LastWriteTime } |
   Select-Object -First 8
 foreach ($week in $weeklies) { [void]$keep.Add(($week.Group | Sort-Object LastWriteTime -Descending)[0].FullName) }
 

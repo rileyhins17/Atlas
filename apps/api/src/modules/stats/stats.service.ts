@@ -16,6 +16,7 @@ import {
   type TrackerPatternsDTO,
 } from '@atlas/shared';
 import { PrismaService } from '../../core/prisma.service.js';
+import { UserTimezoneService } from '../../core/user-timezone.service.js';
 import { dayKeyInTz, localDayStartUtc } from '../ai/time.util.js';
 import { assembleStats, type MetricRow, type StatsMetric } from './stats.assemble.js';
 
@@ -42,14 +43,13 @@ const PATTERN_WINDOW_DAYS = 90;
 
 @Injectable()
 export class StatsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly timezones: UserTimezoneService,
+  ) {}
 
   private async timezone(userId: string): Promise<string> {
-    const user = await this.prisma.client.user.findUnique({
-      where: { id: userId },
-      select: { timezone: true },
-    });
-    return user?.timezone || 'UTC';
+    return this.timezones.get(userId);
   }
 
   async rollup(userId: string, days: number): Promise<StatsDTO> {

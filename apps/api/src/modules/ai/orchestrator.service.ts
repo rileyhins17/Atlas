@@ -5,11 +5,12 @@ import type { AiToolSpec, InsightDTO, PlanDayDTO, PlanProposalDTO } from '@atlas
 import { describeEnergy, durationKey } from '@atlas/shared';
 import { buildContext, CostGuard, runToolLoop, type ToolLoopResult } from '@atlas/ai';
 import { PrismaService } from '../../core/prisma.service.js';
+import { UserTimezoneService } from '../../core/user-timezone.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
 import { ModuleRegistryService } from '../../core/domain-module.js';
 import { ConnectorsService } from '../../core/connectors.service.js';
 import { loadEnv } from '../../config/env.js';
-import { safeTz } from './time.util.js';
+
 import { StatsService } from '../stats/stats.service.js';
 import { TaskDurationService } from '../tasks/task-duration.service.js';
 import { ToolRouterService } from './tool-router.service.js';
@@ -198,6 +199,7 @@ export class OrchestratorService {
     private readonly embeddings: EmbeddingService,
     private readonly stats: StatsService,
     private readonly durations: TaskDurationService,
+    private readonly timezones: UserTimezoneService,
   ) {}
 
   private async chatCall(
@@ -283,11 +285,7 @@ you cannot see that part right now.`,
    */
   /** The user's timezone, defaulted and validated. Everything local hangs off this. */
   private async timezoneOf(userId: string): Promise<string> {
-    const user = await this.prisma.client.user.findUnique({
-      where: { id: userId },
-      select: { timezone: true },
-    });
-    return safeTz(user?.timezone || 'UTC');
+    return this.timezones.get(userId);
   }
 
   private async nowBlock(userId: string): Promise<string> {

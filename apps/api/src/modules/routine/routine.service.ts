@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type {
   ReplaceRoutineInput,
   RoutineBlockDTO,
@@ -8,7 +8,14 @@ import type {
 } from '@atlas/shared';
 import type { RoutineBlock } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
-import { dayKeyInTz, safeTz } from '../ai/time.util.js';
+import { UserTimezoneService } from '../../core/user-timezone.service.js';
+import { dayKeyInTz } from '../ai/time.util.js';
+
+/**
+ * A week has 168 hours in it. Two hundred blocks is far more than anyone
+ * describes and still small enough that reading them all is free.
+ */
+const MAX_ROUTINE_BLOCKS = 200;
 
 function toDto(b: RoutineBlock): RoutineBlockDTO {
   return {
@@ -40,14 +47,13 @@ function shiftDay(day: string, delta: number): string {
 
 @Injectable()
 export class RoutineService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly timezones: UserTimezoneService,
+  ) {}
 
   private async today(userId: string): Promise<string> {
-    const user = await this.prisma.client.user.findUnique({
-      where: { id: userId },
-      select: { timezone: true },
-    });
-    return dayKeyInTz(new Date(), safeTz(user?.timezone ?? 'UTC'));
+    return dayKeyInTz(new Date(), await this.timezones.get(userId));
   }
 
   /**
@@ -80,6 +86,17 @@ export class RoutineService {
   }
 
   async addBlock(userId: string, input: RoutineBlockInput): Promise<RoutineBlockDTO> {
+    // Capped, and this one matters more than a typical quota: `routine.add_block`
+    // is a tool the MODEL can call, and the routine is part of the context the
+    // model is given on the next call. Uncapped, a chatty brain-dump can inflate
+    // its own future context without limit, which costs tokens on every request
+    // afterwards and slowly crowds every other domain out of the budget.
+    const count = await this.prisma.client.routineBlock.count({ where: { userId } });
+    if (count >= MAX_ROUTINE_BLOCKS) {
+      throw new BadRequestException(
+        `Your week already has ${MAX_ROUTINE_BLOCKS} blocks in it. Remove one to add another.`,
+      );
+    }
     const created = await this.prisma.client.routineBlock.create({
       data: { userId, ...input, onDate: input.onDate ?? null },
     });

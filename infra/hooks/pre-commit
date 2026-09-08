@@ -1,0 +1,42 @@
+#!/usr/bin/env sh
+#
+# Refuse to commit a database dump.
+#
+# On 5 September 2026 a `git add -A` put three production dumps — journals,
+# finance rows, email addresses and password hashes — into a commit that was
+# pushed to a PUBLIC repository, where they sat for seventeen hours. The commit
+# was titled "prove the restore mechanism without shipping anyone's journal to
+# CI". `.gitignore` already contained `backups/`; it did nothing, because
+# gitignore does not untrack what is already staged.
+#
+# Three separate files in this repo forbid shipping real dumps in prose. Prose
+# does not fail a commit. This does.
+#
+# Install: pnpm run hooks:install   (sets core.hooksPath to infra/hooks)
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+
+# Extensions that carry data rather than code.
+blocked=$(printf '%s\n' "$staged" | grep -iE '\.(dump|sql|sqlite|sqlite3|db|bak)$' || true)
+
+# And anything under a directory whose whole job is holding backups.
+blocked="$blocked
+$(printf '%s\n' "$staged" | grep -iE '(^|/)(backups|\.db-moves)/' || true)"
+
+blocked=$(printf '%s\n' "$blocked" | sed '/^$/d' | sort -u)
+
+if [ -n "$blocked" ]; then
+  echo "pre-commit: refusing to commit a database dump." >&2
+  echo >&2
+  printf '  %s\n' $blocked >&2
+  echo >&2
+  echo "These files can hold real user data. Backups belong outside the repository —" >&2
+  echo "infra/atlas-backup.ps1 writes to %LOCALAPPDATA%\Atlas\backups by default." >&2
+  echo >&2
+  echo "If this is genuinely not user data, unstage it and commit deliberately:" >&2
+  echo "  git restore --staged <file>" >&2
+  echo "To override once (you had better be certain): git commit --no-verify" >&2
+  exit 1
+fi
+
+exit 0
