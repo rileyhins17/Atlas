@@ -1,14 +1,15 @@
 # Invited, owner-funded Atlas AI
 
-Requested by Riley on 8 September. This is an implementation specification and
-source audit; the hosted-access feature is not implemented or deployed yet.
+Requested by Riley on 8 September. This records the implementation contract,
+baseline audit and current progress. Hosted access is not deployed or fully
+verified yet.
 
 The product contract is straightforward: enter an invite when joining Atlas,
 then use chat, capture, planning and reviews without managing a provider key.
 Existing members can redeem the invite from their authenticated account. Access
 is attached to that account rather than resubmitting the code with each prompt.
 
-## Verified starting points
+## Verified starting points before implementation
 
 - AuthController checks INVITE_CODE at registration when configured, but stores
   no evidence of a valid invite. Existing accounts cannot be assumed eligible.
@@ -66,3 +67,23 @@ replace the broader redesign.
 Deployment configuration is a separate final step after implementation and CI.
 Do not inspect or copy an existing secret, rotate credentials, alter the live
 origin or claim hosted AI is enabled as part of this source-only work.
+
+## Implementation progress
+
+Foundation checkpoint 11086ef adds nullable grant/revocation timestamps,
+registration grants after validated invites, authenticated redemption and
+grant-scoped shared credential selection. The offline migration diff was read
+and contains only the two nullable additions. No migration was run against a
+database. Eleven focused tests pass; invited credential selection was observed
+failing before its fix. Its local gate passed 1556 unit tests.
+
+The next changes connect Settings to redemption and included-access status,
+handle failed status reads explicitly, and select active hosted members for
+scheduled briefs while retaining the activity gate and 50-user bound. Three
+Settings tests and one scheduled-eligibility test were observed failing before
+their fixes. Full validation results are recorded at the commit checkpoint.
+
+Still required: owner-facing access revocation controls, concurrency-aware
+budget admission, real synthetic database migration/redemption proof, provider
+isolation in CI, the full invited-user browser journey and visual measurements.
+No shared key is configured here, and no real provider call has been made.

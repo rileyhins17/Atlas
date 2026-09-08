@@ -386,6 +386,7 @@ export const AiQuestionsApi = {
 };
 
 export interface AiStatus {
+  hostedAccess?: { granted: boolean; revoked: boolean; available: boolean; inviteRequired: boolean };
   enabled: boolean;
   model: string;
   dailyTokenCap: number;
@@ -521,6 +522,7 @@ export const PushApi = {
 
 export const AiApi = {
   status: () => request<AiStatus>('/ai/status'),
+  redeemInvite: (inviteCode: string) => request<{ ok: true }>('/auth/redeem-invite', { method: 'POST', body: JSON.stringify({ inviteCode }) }),
   connectDeepSeek: (apiKey: string) =>
     request<{ ok: true }>('/ai/connect/deepseek', { method: 'POST', body: JSON.stringify({ apiKey }) }),
   chat: (message: string, history: ChatMessageDTO[]) =>

@@ -68,6 +68,20 @@ export class ConnectorsService {
     return this.registry.get(id);
   }
 
+  async hostedAiAccess(userId: string) {
+    const env = loadEnv();
+    const user = await this.prisma.client.user.findUnique({
+      where: { id: userId },
+      select: { aiAccessGrantedAt: true, aiAccessRevokedAt: true },
+    });
+    return {
+      granted: Boolean(user?.aiAccessGrantedAt),
+      revoked: Boolean(user?.aiAccessRevokedAt),
+      available: Boolean(env.ATLAS_DEEPSEEK_API_KEY),
+      inviteRequired: Boolean(env.INVITE_CODE),
+    };
+  }
+
   /** Build a ConnectorContext bound to a user's stored credential. */
   contextFor(userId: string, connectorId: string, label = 'default'): ConnectorContext {
     const prisma = this.prisma;

@@ -6,7 +6,7 @@ it('reports only the signed-in member usage against their allowance', async () =
   const tokensUsedToday = vi.fn(async (id?: string) => id === 'member' ? 70 : 990);
   const controller = new AiController(
     { list: () => [] } as never,
-    { deepseek: { verify: async () => true }, contextFor: () => ({}) } as never,
+    { deepseek: { verify: async () => true }, contextFor: () => ({}), hostedAiAccess: async () => ({ granted: false, revoked: false, available: false, inviteRequired: false }) } as never,
     { enabled: true, tokensUsedToday } as never,
     {} as never, {} as never, {} as never,
   );
