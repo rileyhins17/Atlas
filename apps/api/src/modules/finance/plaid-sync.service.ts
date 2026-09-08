@@ -1,3 +1,4 @@
+import { readCollection } from '../../core/collection-pages.js';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import {
   PlaidApiError,
@@ -65,10 +66,11 @@ export class PlaidSyncService {
 
   /** The banks this user has linked (from their plaid credentials' metadata). */
   async listItems(userId: string): Promise<PlaidItemSummary[]> {
-    const creds = await this.prisma.client.credential.findMany({
+    const creds = await readCollection((page) => this.prisma.client.credential.findMany({
+      take: page.take, cursor: page.cursor, skip: page.skip,
       where: { userId, connector: CONNECTOR_ID },
-      orderBy: { createdAt: 'asc' },
-    });
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    }));
     return creds.map((c) => {
       const meta = (c.meta as Record<string, unknown> | null) ?? {};
       return {

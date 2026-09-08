@@ -1,3 +1,4 @@
+import { readCollection } from '../../core/collection-pages.js';
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@atlas/db';
 import {
@@ -234,10 +235,12 @@ export class StatsService {
     const fromKey = dayKeyInTz(from, tz);
     const [factors, entries] = await Promise.all([
       this.factorsFor(userId, tz, from),
-      this.prisma.client.trackerEntry.findMany({
+      readCollection((page) => this.prisma.client.trackerEntry.findMany({
+        take: page.take, cursor: page.cursor, skip: page.skip,
+        orderBy: { id: 'asc' },
         where: { userId, dayKey: { gte: fromKey }, trackerId: { in: trackers.map((t) => t.id) } },
-        select: { trackerId: true, dayKey: true, value: true },
-      }),
+        select: { id: true, trackerId: true, dayKey: true, value: true },
+      })),
     ]);
 
     const byTracker = new Map<string, TrackerDay[]>();

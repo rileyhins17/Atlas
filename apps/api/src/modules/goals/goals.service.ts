@@ -1,3 +1,4 @@
+import { readCollection } from '../../core/collection-pages.js';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { CreateGoalInput, GoalDTO, UpdateGoalInput } from '@atlas/shared';
 import type { Goal } from '@atlas/db';
@@ -49,11 +50,12 @@ export class GoalsService {
   }
 
   async list(userId: string): Promise<GoalDTO[]> {
-    const goals = await this.prisma.client.goal.findMany({
+    const goals = await readCollection((page) => this.prisma.client.goal.findMany({
+      take: page.take, cursor: page.cursor, skip: page.skip,
       where: { userId },
-      orderBy: [{ horizon: 'asc' }, { position: 'asc' }, { createdAt: 'asc' }],
+      orderBy: [{ horizon: 'asc' }, { position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
       include: { _count: { select: { tasks: true } } },
-    });
+    }));
     if (goals.length === 0) return [];
 
     // One grouped count rather than a query per goal.

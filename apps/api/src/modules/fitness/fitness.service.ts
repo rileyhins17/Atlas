@@ -1,3 +1,4 @@
+import { readCollection } from '../../core/collection-pages.js';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type {
   CreateExerciseInput,
@@ -150,10 +151,12 @@ export class FitnessService {
    * name check has to be explicit.
    */
   async seedCatalog(): Promise<number> {
-    const existing = await this.prisma.client.exercise.findMany({
+    const existing = await readCollection((page) => this.prisma.client.exercise.findMany({
+      take: page.take, cursor: page.cursor, skip: page.skip,
+      orderBy: { id: 'asc' },
       where: { userId: null },
       select: { id: true, name: true, target: true, equipment: true },
-    });
+    }));
     const byName = new Map(existing.map((e) => [e.name, e]));
 
     const missing = EXERCISE_CATALOG.filter((e) => !byName.has(e.name));
@@ -187,10 +190,11 @@ export class FitnessService {
 
   /** The shared catalog plus this user's own additions, alphabetical. */
   async listExercises(userId: string): Promise<ExerciseDTO[]> {
-    const rows = await this.prisma.client.exercise.findMany({
+    const rows = await readCollection((page) => this.prisma.client.exercise.findMany({
+      take: page.take, cursor: page.cursor, skip: page.skip,
       where: { OR: [{ userId: null }, { userId }] },
-      orderBy: { name: 'asc' },
-    });
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    }));
     return rows.map(toExerciseDto);
   }
 

@@ -1,3 +1,4 @@
+import { readCollection } from '../../core/collection-pages.js';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   nextOccurrences,
@@ -216,10 +217,11 @@ export class CalendarService {
     // 36 hours is a generous over-fetch that cannot miss the end of the local
     // day under any offset; the day-key filter below is what actually decides.
     const horizon = new Date(from.getTime() + 36 * 60 * 60 * 1000);
-    const candidates = await this.prisma.client.event.findMany({
+    const candidates = await readCollection((page) => this.prisma.client.event.findMany({
+      take: page.take, cursor: page.cursor, skip: page.skip,
       where: { userId, startAt: { gte: from, lt: horizon } },
-      orderBy: { startAt: 'asc' },
-    });
+      orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
+    }));
     const today = candidates.filter((e) => dayKey(e.startAt) === dayKey(from));
 
     const plan = planShift(today, { minutes: input.minutes, from, dayKey });
