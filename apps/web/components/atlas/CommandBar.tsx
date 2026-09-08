@@ -89,10 +89,9 @@ export function CommandBar() {
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Reset per open so a stale query never flashes.
+  // Preserve unfinished text when the dialog is reopened.
   useEffect(() => {
     if (commandOpen) {
-      setQuery('');
       setSelectedId(null);
     }
   }, [commandOpen]);
@@ -152,9 +151,16 @@ export function CommandBar() {
         title: `Capture: “${trimmed}”`,
         hint: 'Atlas files it for you',
         run: () => {
+          if (brainDump.isPending) return;
           const text = trimmed;
           brainDump.mutate(text, {
             onSuccess: (res) => {
+              setQuery('');
+              setCommandOpen(false);
+              if (res.source === 'local') {
+                recordChanges([{ summary: res.content, undo: [] }]);
+                return;
+              }
               const changes = res.toolExecutions.filter((t) => t.ok);
               const ran = changes.map((t) => t.name);
               // Prefer the server's plain-language summary, same as the dock.
@@ -189,11 +195,8 @@ export function CommandBar() {
               // potentially stale — this path invalidated nothing at all.
               void qc.invalidateQueries();
             },
-            // Failure is handled in useBrainDump. It has to be: the next line
-            // closes the command bar, which unmounts the listener a mutate()
-            // callback needs, so an onError written here could never fire.
+            // Persistence and fallback stay in the hook if the dialog is dismissed.
           });
-          setCommandOpen(false);
         },
       });
       list.push({
@@ -222,6 +225,10 @@ export function CommandBar() {
   const searching = !isAsk && trimmed.length >= 2;
 
   function onKeyDown(e: React.KeyboardEvent) {
+    if (brainDump.isPending) {
+      if (e.key === 'Enter') e.preventDefault();
+      return;
+    }
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setSelectedId(items[Math.min(items.length - 1, active + 1)]?.id ?? null);
@@ -270,11 +277,14 @@ export function CommandBar() {
               aria-controls="command-results"
               aria-activedescendant={items[active] ? `command-item-${items[active].id}` : undefined}
               value={query}
-              onChange={(e) => { setQuery(e.target.value); setSelectedId(null); }}
+              readOnly={brainDump.isPending}
+              onChange={(e) => { if (brainDump.isError) brainDump.reset(); setQuery(e.target.value); setSelectedId(null); }}
               onKeyDown={onKeyDown}
             />
             <Kbd>esc</Kbd>
           </div>
+          {brainDump.isError && <p className="capture-save-status" role="alert">Capture was not confirmed. Your text is kept.</p>}
+          {brainDump.isPending && <p className="capture-save-status" role="status">Saving your capture…</p>}
           {searching && (
             <div className="command-search-status">
               {search.isError
@@ -304,6 +314,7 @@ export function CommandBar() {
                   role="option"
                   aria-selected={i === active}
                   className={`command-item ${i === active ? 'active' : ''}`}
+                  disabled={brainDump.isPending}
                   onClick={item.run}
                   onMouseMove={() => setSelectedId(item.id)}
                 >

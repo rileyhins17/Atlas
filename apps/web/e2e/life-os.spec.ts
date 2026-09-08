@@ -3,6 +3,7 @@ import { measureScreen, screenFailures } from './ui-measurements';
 import { expect, test } from '@playwright/test';
 import { clearTodaysMoods, register, resetFitness, seedWorkoutHistory } from './helpers';
 
+
 /**
  * The Life-OS shell: command bar, chat rail, sidebar, the Today overview (v4
  * home) and History (the reverse-chron feed). One registered user is shared across
@@ -2776,5 +2777,47 @@ test('workouts finish during a weight-settings outage and recover saved kilogram
     const saved = (await listed.json() as { id: string; notes: string; sets: { weightGrams: number }[] }[]).find((row) => row.id === workout.id);
     expect(saved).toEqual(expect.objectContaining({ id: workout.id, notes }));
     expect(saved!.sets).toEqual(expect.arrayContaining([expect.objectContaining({ weightGrams: 100000 })]));
+  }
+});
+
+test('capture retains failed drafts and confirms local writes in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const baseline = await page.request.post('http://localhost:4000/tasks', { data: { title: `Capture baseline ${Date.now()}` } });
+  expect(baseline.status()).toBe(201);
+  await page.route('http://localhost:4000/ai/brain-dump', (route) => route.fulfill({ status: 424, contentType: 'application/json', body: '{}' }));
+  for (const theme of ['light', 'dark'] as const) {
+    for (const surface of ['dock', 'command'] as const) {
+      await page.goto('/tasks');
+      await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+      await page.reload();
+      await expect(page.locator('.capture-dock')).toBeVisible();
+      if (surface === 'command') await page.keyboard.press('ControlOrMeta+k');
+      const input = surface === 'command' ? page.getByRole('combobox', { name: 'Command input' }) : page.getByRole('textbox', { name: 'Capture anything' });
+      const title = `Buy capture supplies ${theme} ${surface} ${Date.now()}`;
+      await input.click();
+      await input.pressSequentially(title);
+      const submit = surface === 'command' ? page.getByRole('option', { name: /Capture:/ }) : page.getByRole('button', { name: 'Capture', exact: true });
+      await page.route('http://localhost:4000/tasks', (route) => route.request().method() === 'POST'
+        ? route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }) : route.continue());
+      await submit.click();
+      await expect(page.getByText('Capture was not confirmed. Your text is kept.')).toBeVisible();
+      await expect(input).toHaveValue(title);
+      const failures = screenFailures(await measureScreen(page, `/tasks:capture-${surface}-error`, theme));
+      expect(failures, failures.join('\n')).toEqual([]);
+      await page.unroute('http://localhost:4000/tasks');
+      const saved = page.waitForResponse((response) => response.url().endsWith('/tasks') && response.request().method() === 'POST');
+      await submit.click();
+      const response = await saved;
+      expect(response.status()).toBe(201);
+      const row = await response.json() as { id: string };
+      if (surface === 'command') await expect(input).toBeHidden();
+      else await expect(input).toHaveValue('');
+      await page.reload();
+      const listed = await page.request.get('http://localhost:4000/tasks');
+      expect(listed.ok()).toBe(true);
+      const rows = await listed.json() as { id: string; title: string }[];
+      expect(rows.filter((entry) => entry.title === title)).toEqual([expect.objectContaining({ id: row.id, title })]);
+      await expect(page.locator('.task').filter({ hasText: title })).toBeVisible();
+    }
   }
 });

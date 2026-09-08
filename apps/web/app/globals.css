@@ -6431,3 +6431,5 @@ label:has(> input[type='checkbox']) {
 }
 .habit-checkin:hover:not(:disabled) { border-color: var(--brand); }
 .habit-checkin:disabled { opacity: 0.6; cursor: wait; }
+
+.capture-save-status { margin: 0; padding: 8px 12px; font-size: 14px; line-height: 1.5; color: var(--text-muted); }
