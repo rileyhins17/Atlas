@@ -87,7 +87,7 @@ test('capture the Life-OS screens', async ({ page }) => {
   expect(await routine.json()).toEqual([]);
   await page.getByRole('region', { name: 'First capture complete' }).getByRole('link', { name: 'Review my tasks' }).click();
   await expect(page).toHaveURL(/\/tasks$/);
-  await expect(page.getByText(marker, { exact: false })).toBeVisible();
+  await expect(page.locator('.task-title-btn').filter({ hasText: marker })).toBeVisible();
   await page.evaluate(() => localStorage.setItem('atlas-theme', 'light'));
   await page.setViewportSize({ width: 1440, height: 900 });
 

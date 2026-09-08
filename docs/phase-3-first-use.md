@@ -106,3 +106,26 @@ Lifecycle verification local gates: build 6/6, forced typecheck 10/10, lint
 zero errors with three existing warnings, 1523 unit tests passed. The refreshed
 query audit ledger tracks 43 query-backed component files without treating
 source indicators as verified coverage.
+
+## First rendered proof and selector correction
+
+Run `34226952240` at `00315a4` passed 53 browser tests with one skipped,
+independent groups 1 + 1 + 6, and the two-theme routine persistence journey.
+The screenshot run then verified first capture persisted, no routine was
+created, and the Review my tasks link reached Tasks. Its final text assertion
+failed because both the saved task button and the success toast contained the
+marker. The assertion now targets `.task-title-btn`, which can only represent
+a saved task, preserving the persistence assertion instead of accepting any
+matching text.
+
+Artifact `10056333131` contains four PNGs; all four were inspected. The phone
+first-use screen fits at 390px, with capture and the optional routine choice
+visible without scrolling. Light and dark measurements both recorded zero
+overflow, targets below 24px, inputs below 16px and axe violations. The reports
+are retained in `docs/evidence/phase-3-first-use.json`. These are completed
+measurements from a failed overall screenshot run, not a claimed screenshot
+suite pass. The thirteen-route sweep did not execute in this run.
+
+Selector correction local gates: build 6/6, forced typecheck 10/10, lint
+zero errors with three existing warnings, 1523 unit tests passed. Corrected
+screenshot-suite completion remains pending CI.
