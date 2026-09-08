@@ -77,3 +77,4 @@ export * from './exercise-catalog.js';
 export * from './ai-tool-inputs.js';
 export * from './tool-contracts.js';
 export * from './ai-budget.js';
+export * from './chart-calculations.js';

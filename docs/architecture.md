@@ -143,3 +143,7 @@ Docker Compose on a cheap VPS: `db` (pgvector), `api`, `web`, `caddy` (auto-HTTP
 ## AI tool contracts and budget calculations
 
 `ai-tool-inputs.ts` centralizes AI request schemas, event duration normalization and undo payload selection/builders. `tool-contracts.ts` provides the execution/result types; `packages/ai` keeps compatibility exports. `ai-budget.ts` contains typed budget errors and an explicit-clock UTC day calculation, with the clock read and ledger operations in CostGuard. Existing API/AI suites passed 58 tests before the move. Six shared characterization cases (12 assertions) were also observed against the original router and budget helper bodies. The router write paths and first-capture throw guard remain unchanged. Inline business calculations and a cumulative boundary review remain before Phase 2 completion.
+
+## Chart calculations
+
+`chart-calculations.ts` owns activity-calendar cells/bands/labels, Monday-first heatmap columns, sparkline coordinates and progress-ring geometry. Components retain markup, state and clock reads. Fourteen existing chart component tests passed before extraction; six shared cases cover month boundaries, DST alignment, future cells, counts, geometry and clock immutability. Calendar days preserve runtime-local semantics. Inline domain computations and cumulative architecture verification remain outstanding.
