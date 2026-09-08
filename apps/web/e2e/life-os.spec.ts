@@ -2199,7 +2199,8 @@ test('manual accounts save exact typed balances without a bank connection', asyn
 
 test('mobile week shows complete events and retains time-grid access in both themes', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await go(page, '/week');
+  await page.goto('/week');
+  await expect(page.getByRole('group', { name: 'Week layout' })).toBeVisible();
   const title = `Mobile week: a complete appointment title ${Date.now()}`;
   const times = await page.evaluate(() => {
     const start = new Date(); start.setHours(12, 0, 0, 0);
@@ -2210,7 +2211,7 @@ test('mobile week shows complete events and retains time-grid access in both the
   expect(saved.status()).toBe(201);
   for (const theme of ['light', 'dark'] as const) {
     await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
-    await go(page, '/week');
+    await page.goto('/week');
     await expect(page.locator('.week-agenda-day')).toHaveCount(7);
     const event = page.locator('.week-agenda-event').filter({ hasText: title });
     await expect(event).toBeVisible();
