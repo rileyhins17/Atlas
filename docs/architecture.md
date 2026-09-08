@@ -89,6 +89,14 @@ two transaction-ordering characterization tests live in shared; all ten passed
 against the original component implementations before extraction. Grouping
 labels, ordering, date boundaries and input-preservation behavior are unchanged.
 
+Numeric field nudges, activity thresholds, empty-series detection, tool-run
+summaries, canvas item/remaining-time text, duration/week labels and mood-check-in
+wording now live in `component-calculations.ts`. React components retain rendering
+and effects. Ten characterization assertions passed against the original
+component functions and are retained as five shared tests; the existing
+component suites continue to exercise their consumers. Distinct duration
+formats remain distinct, preserving existing wording.
+
 The shared connector transformations parse chat completions, normalize Plaid
 amounts/account types/currencies, and convert Google Calendar date shapes.
 Connectors retain compatibility exports plus HTTP calls, cancellation options,
