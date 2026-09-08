@@ -1,8 +1,9 @@
 'use client';
 
 import { WeightUnitPref } from '@atlas/shared';
+import { errorMessage } from '@/lib/api';
 import { useSettings, useUpdateSettings } from '@/lib/hooks/settings';
-import { Spinner } from '@/components/ui';
+import { ErrorState, Spinner } from '@/components/ui';
 
 const OPTIONS = WeightUnitPref.options;
 
@@ -16,7 +17,8 @@ export function TrainingSettingsCard() {
   const update = useUpdateSettings();
   const current = settings.data?.weightUnit ?? 'lb';
 
-  if (settings.isPending) return <Spinner />;
+  if (settings.isError) return <ErrorState message="Training preferences could not be loaded." onRetry={() => void settings.refetch()} />;
+  if (settings.isPending || settings.data === undefined) return <Spinner />;
 
   return (
     <div className="stack" style={{ gap: 8 }}>
@@ -38,6 +40,7 @@ export function TrainingSettingsCard() {
           </button>
         ))}
       </div>
+      {update.error && <p role="alert" className="error">{errorMessage(update.error, 'Could not save weight preference. Try your selection again.')}</p>}
     </div>
   );
 }

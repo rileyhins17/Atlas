@@ -26,6 +26,44 @@ const gEvent = (id: string) => ({
   end: { dateTime: '2026-09-10T10:00:00.000Z' },
 });
 
+it('bounds each existing-event read to its unique external id chunk', async () => {
+  const { service, prisma, created } = makeService({
+    calendars: [{ id: 'primary', primary: true, selected: true, accessRole: 'owner' }],
+    eventsByCalendar: { primary: Array.from({ length: 1001 }, (_, i) => gEvent(`event-${i}`)) },
+  });
+  await service.sync('u1');
+  const reads = prisma.client.event.findMany.mock.calls.map(([args]) => args)
+    .filter((args) => args.where.source === 'google-calendar');
+  expect(reads).toHaveLength(2);
+  for (const args of reads) {
+    expect(args).toEqual(expect.objectContaining({
+      take: (args.where.externalId as { in: string[] }).in.length,
+    }));
+  }
+  expect(created).toHaveLength(1001);
+});
+
+it.each([[1001, 2], [5001, 4]])('overlaps lookup chunks for %i events with at most four in flight', async (count, concurrent) => {
+  const { service, prisma } = makeService({
+    calendars: [{ id: 'primary', primary: true, selected: true, accessRole: 'owner' }],
+    eventsByCalendar: { primary: Array.from({ length: count }, (_, i) => gEvent(`event-${i}`)) },
+  });
+  let started = 0;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  prisma.client.event.findMany.mockImplementation(async ({ where }) => {
+    if (where.source === 'google-calendar') { started++; await gate; }
+    return [];
+  });
+  const sync = service.sync('u1');
+  try {
+    await vi.waitFor(() => expect(started).toBe(concurrent), { timeout: 500 });
+  } finally {
+    release();
+    await sync;
+  }
+});
+
 /** A service wired to fakes, plus handles on what the connector was asked. */
 function makeService(opts: {
   calendars?: unknown;

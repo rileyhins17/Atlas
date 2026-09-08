@@ -1,0 +1,42 @@
+{
+  "commit": "00315a45d78e03623a484a2eb2b4997d8fd1f906",
+  "run": 34226952240,
+  "artifact": 10056333131,
+  "status": "Partial screenshot run: later saved-row assertion matched both task and toast. These two first-use measurements completed; overall screenshot test failed.",
+  "screens": [
+    {
+      "route": "/today:first-use",
+      "resolvedUrl": "http://localhost:3000/today",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 844,
+      "controlCount": 6,
+      "undersizedTargets": [],
+      "textInputCount": 1,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/today:first-use",
+      "resolvedUrl": "http://localhost:3000/today",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "pageHeight": 844,
+      "controlCount": 6,
+      "undersizedTargets": [],
+      "textInputCount": 1,
+      "undersizedInputs": [],
+      "overflowingElements": [],
+      "supplementalContrast": [],
+      "violations": [],
+      "incomplete": []
+    }
+  ]
+}

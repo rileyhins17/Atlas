@@ -5,9 +5,31 @@ was just changed and why, and what is genuinely still open. Read
 [`AGENTS.md`](./AGENTS.md) for the rules and [`docs/GOTCHAS.md`](./docs/GOTCHAS.md)
 for traps already paid for.
 
+The active refactor's expanded objective is recorded in
+[`docs/REFACTOR-GOAL.md`](./docs/REFACTOR-GOAL.md): rethink the product and implement
+it end to end, while retaining the safety and verification gates.
+
+## Active refactor update — 7 September 2026
+
+Phase 0's synthetic restore path is verified in CI in PR #3. Phase 1's focused
+PRs #4–#11 are also individually green. The combined branch
+`codex/phase-1-correctness-gate` assembles them and adds the timer mutation
+regressions and repository-wide list-bound contract. Its local gates passed
+(build 6/6, forced typecheck 10/10, lint 0 errors and 3 existing warnings,
+1,367 unit tests, plus 15 Python restore tests). Combined PR #12 is green at
+`9b19cc3` in runs `34179388103` and `34179363460`: 50 browser passes, one skip,
+both independent regressions and both database checks passed. Phase 2 has
+started on `codex/phase-2-domain-contract`. See
+[`docs/phase-1-validation.md`](./docs/phase-1-validation.md) for tested commits,
+observed runs, audit scope and current verification.
+
+The historical status and measurements below are retained for context. They
+are not fresh observations of the live origin or production database. The
+private production dump remains off limits to agents and CI.
+
 ---
 
-## State at handoff
+## Historical state at the original handoff
 
 Green on `main` at `8de8e20`:
 
@@ -96,23 +118,13 @@ work on UI consistency, run the sweep rather than trusting the checklist.
 
 These cannot be done by an agent and are listed so nobody re-discovers them:
 
-**Phase 0 restore gate — partly done.** CI runs a synthetic restore drill on
-every push: it builds a database from this repo's own migrations, seeds known
-counts, dumps and restores it, and checks pgvector and the `embeddings.embedding`
-column type. That proves the mechanism, needs no secrets, and works on a fork.
-
-What it deliberately does NOT do is restore the production dump. An earlier
-version of this gate downloaded that dump into the runner from a signed URL in a
-GitHub secret; it was replaced, because the file holds three people's journals,
-finance transactions and fitness logs, and anyone who can add a workflow to this
-repo can print a secret.
-
-Still outstanding, and needs a person: an actual restore of a real backup.
-Docker Desktop does not start on this machine and the local PostgreSQL 17 server
-needs a superuser password that is not in `.env`. Until one of those is fixed the
-real dump is verified by inspection only — `pg_restore --list` shows 27 `public`
-tables, and `atlas-backup.ps1` now fails any dump holding fewer than 15. See
-[`docs/backup-restore-drill.md`](./docs/backup-restore-drill.md).
+**Phase 0 restore gate:** CI uses `infra/db-move.py` to dump and restore synthetic
+domain rows in disposable pgvector and requires exact counts for every public
+table. No production dump or secret is involved. Its scope and limits are in
+[`docs/backup-restore-drill.md`](./docs/backup-restore-drill.md). Do not start the
+later refactor phases until the Phase 0 PR has an observed green restore job
+and the remaining CI checks pass. This proves the mechanism, not the private
+production archive's integrity or the nightly backup schedule.
 
 1. **Nightly backups are not running.** `infra/atlas-backup.ps1` is written and
    tested, and PostgreSQL 17 is now installed, so the blocker is gone. Someone

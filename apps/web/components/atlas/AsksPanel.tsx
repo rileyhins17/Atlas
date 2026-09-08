@@ -5,7 +5,7 @@ import * as RadixDialog from '@radix-ui/react-dialog';
 import type { AiQuestionDTO } from '@atlas/shared';
 import { Bell, Check, Sparkles, X } from 'lucide-react';
 import { useAiQuestions, useAnswerQuestion, useDismissQuestion } from '@/lib/hooks/ai-questions';
-import { Button, IconButton, Input } from '@/components/ui';
+import { Button, IconButton, Input, ListSkeleton, QueryState } from '@/components/ui';
 
 /**
  * "Atlas wants to know" — the self-curation loop, reachable from every page via
@@ -23,7 +23,7 @@ export function AsksBell() {
   return (
     <RadixDialog.Root open={open} onOpenChange={setOpen}>
       <RadixDialog.Trigger asChild>
-        <IconButton label={count > 0 ? `Atlas has ${count} question(s)` : 'Atlas has no questions'}>
+        <IconButton label={questions.isPending || questions.isError ? 'Atlas questions' : count > 0 ? `Atlas has ${count} question(s)` : 'Atlas has no questions'}>
           <span className="asks-bell">
             <Bell size={17} aria-hidden />
             {count > 0 && <span className="asks-badge">{count > 9 ? '9+' : count}</span>}
@@ -51,6 +51,7 @@ export function AsksBell() {
           </header>
 
           <div className="asks-panel-body">
+            <QueryState query={questions} errorFallback="Questions could not be loaded." skeleton={<ListSkeleton rows={2} circle={false} />}>
             {count === 0 ? (
               <p className="asks-empty">
                 Nothing to ask right now — Atlas will ask when it spots a gap.
@@ -58,6 +59,7 @@ export function AsksBell() {
             ) : (
               questions.data?.map((q) => <AskCard key={q.id} question={q} />)
             )}
+            </QueryState>
           </div>
         </RadixDialog.Content>
       </RadixDialog.Portal>

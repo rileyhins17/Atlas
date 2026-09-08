@@ -2615,6 +2615,8 @@ input[type='checkbox']:checked::after {
 
 /* ══ v4: The Day Canvas ═══════════════════════════════════════════════════ */
 .day-pager { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.day-pager-heading { flex: 1; min-width: 0; margin: 0; font: inherit; }
+.day-pager-heading .day-pager-title { width: 100%; }
 .day-pager-arrow {
   border: 1px solid var(--border-subtle); background: transparent; color: var(--text-muted);
   width: 34px; height: 34px; border-radius: 10px; cursor: pointer;
@@ -2911,7 +2913,7 @@ input[type='checkbox']:checked::after {
 .nownext {
   display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px;
   padding: 18px 20px; border-radius: 18px;
-  background: linear-gradient(135deg,
+  background: linear-gradient(135deg in srgb,
     color-mix(in srgb, var(--brand) 13%, var(--surface-raised)),
     var(--surface-raised) 62%);
   border: 1px solid color-mix(in srgb, var(--brand) 28%, transparent);
@@ -2920,7 +2922,7 @@ input[type='checkbox']:checked::after {
 .nownext-eyebrow {
   display: inline-flex; align-items: center; gap: 7px;
   font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--brand);
+  color: var(--brand-on-tint);
 }
 .nownext-dot {
   width: 8px; height: 8px; border-radius: 50%; background: var(--brand);
@@ -2931,9 +2933,8 @@ input[type='checkbox']:checked::after {
 .nownext-title { margin: 0; font-size: 27px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
 .nownext-title.nownext-open { color: var(--text-muted); }
 .nownext-sub { font-size: 14.5px; color: var(--text-muted); }
-/* "Running late" — one tap to push the rest of today. Sits under the now-line
-   because that is the moment it is needed. Pills rather than the standard
-   Button so three of them fit on a phone without wrapping the now-block. */
+/* Schedule adjustments follow the checklist and missed commitments. Keep the
+   control available without consuming the daily orientation card. */
 .runlate {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
   width: 100%; margin-top: 12px;
@@ -3630,6 +3631,7 @@ input[type='checkbox']:checked::after {
 }
 .slipped-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .slipped-later {
+  min-width: 24px; min-height: 24px;
   border: 0; background: none; padding: 0; cursor: pointer;
   font: inherit; font-size: 13px; font-weight: 600; color: var(--text-muted);
 }
@@ -3670,7 +3672,7 @@ input[type='checkbox']:checked::after {
 .routine-label { flex: 1; min-width: 130px; }
 .routine-kind {
   border: 1px solid var(--border-subtle); border-radius: 10px; padding: 7px 9px;
-  background: var(--surface-sunken); color: var(--text-primary); font: inherit; font-size: 14px;
+  background: var(--surface-sunken); color: var(--text-primary); font: inherit; font-size: 16px;
 }
 .routine-time input[type='time'] {
   border: 1px solid var(--border-subtle); border-radius: 10px; padding: 6px 8px;
@@ -3860,7 +3862,8 @@ input[type='checkbox']:checked::after {
   .set-head svg { margin-top: 3px; }
   .set-title { flex: 1 1 auto; }
   .set-hint {
-    flex: 1 0 100%;
+    flex: 1 0 calc(100% - 25px);
+    min-width: 0;
     margin-left: 25px;
     text-align: left;
   }
@@ -4529,6 +4532,7 @@ input[type='checkbox']:checked::after {
 }
 
 .wk-event {
+  min-width: 24px; min-height: 24px;
   position: absolute; z-index: 1;
   display: flex; flex-direction: column; gap: 0;
   overflow: hidden;
@@ -6387,3 +6391,25 @@ label:has(> input[type='checkbox']) {
   /* no-op: `.canvas-card` does the styling; these mark which kind it is. */
   position: relative;
 }
+
+/* Settings overview: editors stay behind explicit section actions. */
+.settings-shortcuts { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.settings-groups { display: grid; gap: 20px; align-items: start; }
+.settings-group { min-width: 0; border: 1px solid var(--border-subtle); border-radius: 18px; padding: 18px; background: var(--surface); }
+.settings-group > h2 { margin: 0 0 6px; font-size: 18px; }
+.settings-group > p { margin: 0 0 12px; font-size: 14px; }
+.settings-group .set-section { scroll-margin-top: 80px; }
+@media (min-width: 1100px) { .settings-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Readable week agenda, with the time grid still available on every screen. */
+.week-presentation { min-width: 0; }
+.week-view-picker { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; }
+.week-view-picker [aria-pressed="true"] { color: var(--brand-on-tint); background: color-mix(in srgb, var(--brand) 12%, var(--surface)); }
+.week-agenda { display: grid; gap: 12px; padding: 0 12px 12px; }
+.week-agenda-day { min-width: 0; padding: 12px; border: 1px solid var(--border-subtle); border-radius: 12px; }
+.week-agenda-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.week-agenda-head h2 { font-size: 15px; margin: 0; }
+.week-agenda-day > p { font-size: 14px; margin: 8px 0 0; }
+.week-agenda-event { display: flex; flex-direction: column; gap: 5px; width: 100%; min-height: 44px; padding: 12px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface); color: var(--text); text-align: left; cursor: pointer; }
+.week-agenda-time { font-size: 13px; color: var(--text-muted); }
+.week-agenda-title { font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
