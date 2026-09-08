@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { ExerciseDTO, WorkoutTemplateDTO } from '@atlas/shared';
-import { pickerSections, recentExerciseIds } from '../lib/exercise-order';
+import type { ExerciseDTO, WorkoutTemplateDTO } from '../src/index.js';
+import { pickerSections, recentExerciseIds } from '../src/exercise-order.js';
 
 function ex(id: string, name: string): ExerciseDTO {
   // Unclassified on purpose: these cases are about ORDER, and a target here

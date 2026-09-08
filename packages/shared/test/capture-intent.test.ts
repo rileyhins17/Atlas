@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detectCaptureIntent, stripAskPrefix } from '../lib/capture-intent';
+import { detectCaptureIntent, stripAskPrefix } from '../src/capture-intent.js';
 
 describe('detectCaptureIntent', () => {
   it('treats a trailing question mark as a question', () => {

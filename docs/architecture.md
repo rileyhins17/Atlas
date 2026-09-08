@@ -68,6 +68,12 @@ from task-duration formatting (`formatCalendarDuration`), preserving both
 existing output contracts. One hundred pure tests moved to shared, including
 the Toronto DST cases; timezone-state and auth-sync tests remain in web.
 
+Task filtering and quick-add horizons, capture intent, exercise-picker ordering,
+navigation destination matching and greeting-name derivation also live in
+shared. Web modules retain compatibility exports. These moves preserve their
+existing rules and all 51 existing tests; they do not redesign navigation or
+change the capture heuristic during the architecture phase.
+
 The shared connector transformations parse chat completions, normalize Plaid
 amounts/account types/currencies, and convert Google Calendar date shapes.
 Connectors retain compatibility exports plus HTTP calls, cancellation options,

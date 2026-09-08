@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { TaskDTO } from '@atlas/shared';
-import { filterTasks, quickAddDueDate } from '@/lib/tasks-filter';
+import type { TaskDTO } from '../src/index.js';
+import { filterTasks, quickAddDueDate } from '../src/tasks-filter.js';
 
 const NOW = new Date(2026, 6, 15, 12, 0); // Wed Jul 15 2026, noon local
 

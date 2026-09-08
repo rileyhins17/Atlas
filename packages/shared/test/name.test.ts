@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { firstNameFrom } from '../lib/name';
+import { firstNameFrom } from '../src/name.js';
 
 /**
  * The rule under test is "a derived name has to earn its place". Today greets

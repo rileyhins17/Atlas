@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DESTINATIONS, EVERYTHING, SECTIONS, sectionFor, tabFor } from '../lib/sections';
+import { DESTINATIONS, EVERYTHING, SECTIONS, sectionFor, tabFor } from '../src/sections.js';
 
 describe('sections', () => {
   it('has exactly three destinations', () => {

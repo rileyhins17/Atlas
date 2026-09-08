@@ -57,3 +57,8 @@ export * from './local-dates.js';
 export * from './calendar-view.js';
 export * from './canvas.js';
 export * from './event-draft.js';
+export * from './tasks-filter.js';
+export * from './capture-intent.js';
+export * from './exercise-order.js';
+export * from './sections.js';
+export * from './name.js';
