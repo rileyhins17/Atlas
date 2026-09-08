@@ -2821,3 +2821,42 @@ test('capture retains failed drafts and confirms local writes in both themes', a
     }
   }
 });
+
+test('calendar connection status recovers without blocking manual events in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    let failed = true;
+    await page.route('http://localhost:4000/connectors/google/status', (route) => route.fulfill({
+      status: failed ? 503 : 200, contentType: 'application/json',
+      body: JSON.stringify(failed ? { message: 'Calendar connection could not be checked.' } : { configured: true, connected: false }),
+    }));
+    await page.goto('/calendar');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    await expect(page.getByText('Calendar connection could not be checked.')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole('button', { name: 'Connect Google Calendar', exact: true })).toBeHidden();
+    let failures = screenFailures(await measureScreen(page, '/calendar:connection-error', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    const title = `Manual event during connection failure ${theme} ${Date.now()}`;
+    await page.getByRole('button', { name: /New/ }).click();
+    const input = page.getByPlaceholder('Dentist, standup, gym…');
+    await input.click(); await input.pressSequentially(title);
+    const saved = page.waitForResponse((response) => response.url().endsWith('/events') && response.request().method() === 'POST');
+    await page.getByRole('button', { name: 'Add event', exact: true }).click();
+    const response = await saved;
+    expect(response.status()).toBe(201);
+    const event = await response.json() as { id: string };
+    await expect(page.locator('.cal-event').filter({ hasText: title })).toBeVisible();
+    failed = false;
+    await page.locator('.gc-inline').getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Connect Google Calendar', exact: true })).toBeVisible();
+    failures = screenFailures(await measureScreen(page, '/calendar:connection-recovered', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await page.reload();
+    await expect(page.locator('.cal-event').filter({ hasText: title })).toBeVisible();
+    const listed = await page.request.get('http://localhost:4000/events');
+    expect(listed.ok()).toBe(true);
+    expect(await listed.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: event.id, title })]));
+    await page.unroute('http://localhost:4000/connectors/google/status');
+  }
+});

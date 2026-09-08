@@ -12,13 +12,13 @@ assertions. No component is marked fully audited from source indicators alone.
 | TaskGoalChip.tsx | useGoals | task-goal-recovery: real component tests for failed-read Retry, compact pending/error linked label, unresolved linked id, recovered title and confirmed-empty unlinked task; browser persistence passed CI 34280641816, but inspected PNGs exposed -85px menu clipping; repair and stronger bounds checks pending. Old copied-expression tests are not component evidence |
 | TaskRow.tsx | useTaskDurations | Newly included root-level component; pending duration-hint state/recovery audit |
 | atlas/AsksPanel.tsx | useAiQuestions | context-query-states: questions pending, failure, empty |
-| atlas/CommandBar.tsx | useSearch | command-search-states: active-query loading, failed search Retry, confirmed empty and stable selected action; full and independent saved-result recovery passed CI 34279919678; both-theme search PNGs inspected. Capture failure draft recovery remains separate |
-| canvas/DayOverviewView.tsx | useRoutine, useTasks, useDayEvents, useDayActuals | Pending consolidated loading / empty / error and recovery audit |
+| atlas/CommandBar.tsx | useSearch | command-search-states: active-query loading, failed search Retry, confirmed empty and stable selected action; full and independent saved-result recovery passed CI 34279919678; both-theme search PNGs inspected. Capture recovery now has eight local tests and PR #51: failed text retained, pending input protected, confirmed fallback success; browser verification is blocked by CI billing |
+| canvas/DayOverviewView.tsx | useRoutine, useTasks, useDayEvents, useDayActuals | day-overview: four source-specific pending and failed Retry cases, action ordering and timeline expansion. Child components are mocked; this proves the parent gate, not child states. Consolidated state geometry remains |
 | canvas/MoodCheckIn.tsx | useJournal, useRoutine | Pending consolidated loading / empty / error and recovery audit |
 | canvas/SlippedTasks.tsx | useSlippedTasks | decision-query-states: pending skeleton, failed read Retry, settled empty message; consolidated state geometry remains to audit |
 | canvas/TodayChecklist.tsx | useHabits | decision-query-states: habit pending and failure avoid false empty, Retry invokes failed source, settled empty message; real check-in and position journeys also exist. Consolidated state geometry remains to audit |
 | canvas/TodayView.tsx | useTasks, useEvents, useHabits, useRoutine, useEstablished | Pending consolidated loading / empty / error and recovery audit |
-| connectors/GoogleCalendarCard.tsx | useGoogleStatus | Pending consolidated loading / empty / error and recovery audit |
+| connectors/GoogleCalendarCard.tsx | useGoogleStatus | google-connection-states: actual inline pending, three layouts failed-read Retry, cached-unconfigured failed refresh; four observed-red regressions and six passing local cases. Browser manual-event persistence and both-theme error PNGs added but not run |
 | connectors/GoogleCalendarPicker.tsx | useGoogleCalendars | google-calendar-picker plus settings-draft-refresh: selection writes, warnings, draft refresh and empty calendar result; consolidated browser provider-state audit remains |
 | fitness/ActiveWorkout.tsx | useWorkoutHistory, useSettings, useWorkoutTemplates, useExercises | active-workout-recovery: pending plans, failed catalog Retry, retained finish notes and unavailable-comparison explanation; weight-display tests now prove unknown preference states without blocking Finish; summary/browser recovery pending |
 | fitness/DayBuilder.tsx | useExercises | workout-builder-recovery: pending and empty catalog, failed refresh Retry, retained draft and selected exercise ids |
@@ -28,7 +28,7 @@ assertions. No component is marked fully audited from source indicators alone.
 | fitness/WorkoutHistory.tsx | useWorkoutHistory, useSettings | workout-weight-preference: actual history waits for units, failed units Retry, recovered kilograms; browser finish/summary/history recovery pending |
 | home/HeroBrief.tsx | useAiStatus, useInsights | hero-brief: real hooks with mocked API prove config pending, config failure and positive Retry, unconfigured fallback, insight pending/error and rendered brief. Configured-success empty and state geometry remain to audit |
 | panels/AdminPanel.tsx | useQuery | Pending consolidated loading / empty / error and recovery audit |
-| panels/AiSettingsCard.tsx | useAiStatus | Pending consolidated loading / empty / error and recovery audit |
+| panels/AiSettingsCard.tsx | useAiStatus | ai-access-settings: invite redemption callback, included access and error Retry; pending and revoked/unavailable coverage and real redemption browser proof remain |
 | panels/CalendarPanel.tsx | useEventsRange | Pending consolidated loading / empty / error and recovery audit |
 | panels/FinancePanel.tsx | useAccounts, useTransactions | Pending consolidated loading / empty / error and recovery audit |
 | panels/FitnessPanel.tsx | useActiveWorkout, useWorkoutHistory, useWorkoutTemplates, useSettings, useExercises | fitness-panel-recovery: templates pending/error exclude false quick starts, history failure excludes newcomer claim, catalog error excludes comparison. added preference pending/error cases exclude comparison; active-workout states and mocked child coverage remain unproven here |
@@ -51,7 +51,7 @@ assertions. No component is marked fully audited from source indicators alone.
 | stream/Feed.tsx | useTasks | Pending consolidated loading / empty / error and recovery audit |
 | stream/FirstCapture.tsx | useTasks, useEvents | context-query-states; first-capture-handoff; first-use lifecycle |
 | stream/TodayHeader.tsx | useMe | Pending consolidated loading / empty / error and recovery audit |
-| trackers/TrackerCheckIn.tsx | useTrackers | Pending consolidated loading / empty / error and recovery audit |
+| trackers/TrackerCheckIn.tsx | useTrackers | tracker-checkin: real component pending skeleton, failed-read Retry and confirmed-empty setup link. Browser state geometry remains |
 | trackers/TrackerManager.tsx | useTrackers | tracker-setup-states: loading/error exclude starter suggestions, Retry, retained draft, pending-save protection; full and independent browser read/save/reload journey passed CI 34276808982 in both themes |
 
 Current inventory: 37 query-backed hook functions and 46 component files.
@@ -62,8 +62,10 @@ row. This inventory remains a discovery aid, not exhaustive proof for aliased or
 indirect query usage. Optional routine onboarding no
 longer issues connection-status queries; connections remain query-backed in Settings.
 
-Next high-impact gaps observed in source: CommandBar still closes before capture
-completion and search navigates only to domain lists. Weight-dependent displays
+Next high-impact gaps observed in source: TaskRow closes its title editor before
+a write succeeds; duration hints have no explicit query recovery. Command search
+still navigates only to domain lists. Capture recovery is implemented in PR #51
+and awaits browser verification. Weight-dependent displays
 now use the settings query with explicit states; their full browser result is pending. The old pending-is-not-an-answer tests render copied expressions, not
 GoogleCalendarCard or TaskGoalChip, and do not prove those components' states.
 

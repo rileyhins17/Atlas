@@ -323,6 +323,17 @@ test('capture the Life-OS screens', async ({ page }) => {
     await page.screenshot({ path: `${OUT}/history-unit-error-${theme}.png`, fullPage: true });
     await page.unroute('http://localhost:4000/settings');
   }
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.route('http://localhost:4000/connectors/google/status', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'Calendar connection could not be checked.' }) }));
+    await page.goto('/calendar');
+    await page.reload();
+    await expect(page.getByText('Calendar connection could not be checked.')).toBeVisible({ timeout: 20_000 });
+    measurements.push(await measureScreen(page, '/calendar:connection-error', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/calendar-connection-error-${theme}.png`, fullPage: true });
+    await page.unroute('http://localhost:4000/connectors/google/status');
+  }
   // Session/config failures use synthetic responses, never another registration.
   for (const theme of ['light', 'dark'] as const) {
     await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
