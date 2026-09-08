@@ -72,8 +72,17 @@ export class ConnectorsService {
   contextFor(userId: string, connectorId: string, label = 'default'): ConnectorContext {
     const prisma = this.prisma;
     const crypto = this.crypto;
+    const sharedKey = connectorId === 'deepseek' && label === 'default'
+      ? loadEnv().ATLAS_DEEPSEEK_API_KEY : undefined;
     return {
       async getSecret() {
+        if (sharedKey) {
+          const user = await prisma.client.user.findUnique({
+            where: { id: userId },
+            select: { aiAccessGrantedAt: true, aiAccessRevokedAt: true },
+          });
+          if (user?.aiAccessGrantedAt && !user.aiAccessRevokedAt) return { apiKey: sharedKey };
+        }
         const cred = await prisma.client.credential.findUnique({
           where: { userId_connector_label: { userId, connector: connectorId, label } },
         });
