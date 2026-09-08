@@ -97,3 +97,9 @@ describe('duplicate habit names', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 });
+
+it('exposes the streak label through an image role', async () => {
+  vi.mocked(HabitsApi.list).mockResolvedValue([{ ...habit('streak', 'Gym'), streak: 3 }]);
+  render(<HabitsPanel />, { wrapper: wrapper() });
+  expect(await screen.findByRole('img', { name: '3 day streak' })).toBeTruthy();
+});

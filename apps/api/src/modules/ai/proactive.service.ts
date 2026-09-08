@@ -1,3 +1,5 @@
+import { serviceErrorText as errText } from '@atlas/shared';
+import { truncateNotification as truncate } from '@atlas/shared';
 import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import type { InsightDTO } from '@atlas/shared';
@@ -6,6 +8,7 @@ import { ActivityService } from '../../core/activity.service.js';
 import { PushService } from '../push/push.service.js';
 import { OrchestratorService } from './orchestrator.service.js';
 import { localDayStartUtc, localHour, localWeekStartUtc } from './time.util.js';
+import { loadEnv } from '../../config/env.js';
 
 /**
  * Phase 4 — proactive engine. Instead of waiting for a button press, this sweep
@@ -100,12 +103,17 @@ export class ProactiveService {
     }
   }
 
-  /** Opted-in users with AI configured (a DeepSeek credential). Bounded. */
+  /** Opted-in personal or invited hosted users. Bounded and activity-gated. */
   private eligibleUsers(): Promise<Array<{ id: string; timezone: string; briefHour: number }>> {
     return this.prisma.client.user.findMany({
       where: {
         proactiveEnabled: true,
-        credentials: { some: { connector: 'deepseek', status: 'active' } },
+        ...(loadEnv().ATLAS_DEEPSEEK_API_KEY ? {
+          OR: [
+            { credentials: { some: { connector: 'deepseek', status: 'active' } } },
+            { aiAccessGrantedAt: { not: null }, aiAccessRevokedAt: null },
+          ],
+        } : { credentials: { some: { connector: 'deepseek', status: 'active' } } }),
       },
       select: { id: true, timezone: true, briefHour: true },
       take: MAX_USERS_PER_SWEEP,
@@ -142,12 +150,4 @@ export class ProactiveService {
       this.logger.warn(`Proactive push failed for ${userId}: ${errText(err)}`);
     }
   }
-}
-
-function truncate(s: string, max: number): string {
-  return s.length <= max ? s : `${s.slice(0, max - 1).trimEnd()}…`;
-}
-
-function errText(err: unknown): string {
-  return err instanceof Error ? err.message : 'unknown error';
 }
