@@ -2,7 +2,12 @@
 
 Append every new setup/build snag here (root cause + fix) so no future thread wastes tokens re-hitting it. The canonical short list also lives in `../CLAUDE.md`; this file is the long form.
 
+## Calendar recurrence intervals
+
+- **Every-other-Monday recurrence moved to the wrong week after spring DST.** The weekly scheduler divided elapsed milliseconds since Monday midnight by a fixed seven-day duration. After spring forward, Monday was one hour short of that duration and belonged to the previous interval week. Count the loop's calendar-day steps plus the seed's weekday instead. Regression evidence: a March 2, 2026 Toronto seed returned March 9 instead of March 16; both the Monday-only and Monday/Wednesday cases were observed failing before the fix. Explicit Toronto timezone tests also retain COUNT and wall-clock time through fall back.
+
 ## Toolchain / install
+
 - **pnpm ignores dependency build scripts** → `ERR_PNPM_IGNORED_BUILDS`, Prisma engine missing at runtime. **Fix:** add an `allowBuilds:` map (pnpm 11 key) in `pnpm-workspace.yaml` with `'@prisma/client': true`, `'@prisma/engines': true`, `prisma: true`. Add any future script-needing dep there — local embeddings also needed `onnxruntime-node` (native binary) and `protobufjs` (install-time codegen).
 - **`@huggingface/transformers` throws `ERR_MODULE_NOT_FOUND: Cannot find package 'onnxruntime-common'` at boot.** Root cause: a **phantom dependency** — `transformers.node.mjs` imports `onnxruntime-common` but the package only declares `onnxruntime-node`/`onnxruntime-web` (which depend on `-common`). That works under a hoisted `node_modules` but not under pnpm's strict linking, because Node resolves the import starting from the transformers package's **own** dir in the `.pnpm` store. **Adding `onnxruntime-common` to `packages/ai` does NOT fix it** — it must be visible to *transformers*. **Fix:** declare it on the package's behalf in `pnpm-workspace.yaml`:
   ```yaml
