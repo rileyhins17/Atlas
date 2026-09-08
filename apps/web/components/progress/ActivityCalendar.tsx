@@ -1,5 +1,7 @@
 'use client';
 
+import { activityThresholds as thresholds } from '@atlas/shared';
+
 import { useMemo, useState } from 'react';
 import type { StatsDayDTO } from '@atlas/shared';
 import { dayActivity } from '@/lib/what-changed';
@@ -31,19 +33,6 @@ interface Cell {
   date: Date;
   count: number;
   future: boolean;
-}
-
-/** The four bands, chosen from the data so the scale means something. */
-function thresholds(counts: number[]): [number, number, number] {
-  const busy = counts.filter((n) => n > 0).sort((a, b) => a - b);
-  if (busy.length === 0) return [1, 2, 3];
-  const at = (q: number) => busy[Math.min(busy.length - 1, Math.floor(busy.length * q))] ?? 1;
-  // Quartiles, deduplicated and monotonic — a flat distribution must not
-  // produce three identical bands that all render as the darkest shade.
-  const a = Math.max(1, at(0.25));
-  const b = Math.max(a + 1, at(0.55));
-  const c = Math.max(b + 1, at(0.8));
-  return [a, b, c];
 }
 
 export function ActivityCalendar({ days }: { days: StatsDayDTO[] }) {

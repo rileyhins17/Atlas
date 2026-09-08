@@ -1923,3 +1923,60 @@ test('a daily tracker records one rating per day, and correcting it is an edit',
     }
   });
 });
+
+test('habit history preserves summed check-ins through the real database', async ({ page }) => {
+  await go(page, '/habits');
+  const result = await page.evaluate(async () => {
+    const base = window.location.hostname === 'localhost' ? 'http://localhost:4000' : '/api';
+    const call = async (path: string, method = 'GET', body?: unknown) => {
+      const response = await fetch(`${base}${path}`, {
+        method, credentials: 'include', headers: { 'content-type': 'application/json' },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+      if (!response.ok) throw new Error(`${method} ${path}: ${response.status}`);
+      return response.json();
+    };
+    // Own baseline, so this test works alone and after any other test.
+    const habit = await call('/habits', 'POST', { name: 'Synthetic aggregate check', target: 5 });
+    const empty = await call('/habits', 'POST', { name: 'Synthetic unrated habit' });
+    await call(`/habits/${habit.id}/log`, 'POST', { value: 2 });
+    await call(`/habits/${habit.id}/log`, 'POST', { value: 3 });
+    const updated = await call(`/habits/${habit.id}`, 'PATCH', { name: 'Verified aggregate check' });
+    const habits = await call('/habits') as { id: string; name: string; todayCount: number }[];
+    const history = await call('/habits/history?days=84') as {
+      habitId: string; days: { day: string; count: number }[];
+    }[];
+    return {
+      updatedName: updated.name,
+      saved: habits.find((row) => row.id === habit.id),
+      totals: history.find((row) => row.habitId === habit.id)?.days,
+      empty: history.find((row) => row.habitId === empty.id)?.days,
+    };
+  });
+  expect(result.updatedName).toBe('Verified aggregate check');
+  expect(result.saved?.name).toBe('Verified aggregate check');
+  // Sum across days so running across UTC midnight cannot change the assertion.
+  expect(result.totals?.reduce((sum, day) => sum + day.count, 0)).toBe(5);
+  expect(result.empty).toEqual([]);
+});
+
+test('exercise collections retain the final page of the real catalog', async ({ page }) => {
+  await go(page, '/fitness');
+  const result = await page.evaluate(async () => {
+    const base = window.location.hostname === 'localhost' ? 'http://localhost:4000' : '/api';
+    const response = await fetch(`${base}/fitness/exercises`, {
+      method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'zzzz Synthetic pagination movement' }),
+    });
+    if (!response.ok) throw new Error(`Create exercise: ${response.status}`);
+    const created = await response.json() as { id: string };
+    const listed = await fetch(`${base}/fitness/exercises`, { credentials: 'include' });
+    if (!listed.ok) throw new Error(`List exercises: ${listed.status}`);
+    const rows = await listed.json() as { id: string; name: string }[];
+    return { createdId: created.id, ids: rows.map((row) => row.id) };
+  });
+  // The shipped catalog already spans pages; the new name sorts after it.
+  expect(result.ids.length).toBeGreaterThan(250);
+  expect(result.ids).toContain(result.createdId);
+  expect(new Set(result.ids).size).toBe(result.ids.length);
+});
