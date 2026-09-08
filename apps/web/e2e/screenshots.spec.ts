@@ -40,6 +40,8 @@ test('capture the Life-OS screens', async ({ page }) => {
   test.setTimeout(600_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await register(page);
+  const measurements: Awaited<ReturnType<typeof measureScreen>>[] = [];
+  mkdirSync(OUT, { recursive: true });
 
   // FIRST, before any data exists: the first-run wizard. It is the only screen
   // every paying user is guaranteed to see, and it is the one the rig could
@@ -57,6 +59,35 @@ test('capture the Life-OS screens', async ({ page }) => {
   await expect(wizard).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/p-00-onboarding.png`, fullPage: true });
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    await expect(page.getByRole('region', { name: 'Start using Atlas' })).toBeVisible();
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+    measurements.push(await measureScreen(page, '/today:first-use', theme));
+    writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+    await page.screenshot({ path: `${OUT}/first-use-${theme}.png`, fullPage: true });
+  }
+
+  // This account has no provider or routine. Prove first value through the
+  // actual capture path before seeding the richer screenshot fixture.
+  const marker = `FirstUse${Date.now()}`;
+  const firstCapture = page.getByRole('region', { name: 'Start using Atlas' });
+  await firstCapture.getByLabel('Capture anything').click();
+  await firstCapture.getByLabel('Capture anything').pressSequentially(`buy groceries ${marker}`);
+  await firstCapture.getByRole('button', { name: 'Capture', exact: true }).click();
+  await expect(firstCapture).toHaveCount(0, { timeout: 30_000 });
+  const savedTasks = await page.request.get('http://localhost:4000/tasks');
+  expect(savedTasks.ok()).toBe(true);
+  const saved = await savedTasks.json() as { id: string; title: string }[];
+  expect(saved.some((task) => task.id && task.title.includes(marker))).toBe(true);
+  const routine = await page.request.get('http://localhost:4000/routine');
+  expect(routine.ok()).toBe(true);
+  expect(await routine.json()).toEqual([]);
+  await page.goto('/tasks');
+  await expect(page.getByText(marker, { exact: false })).toBeVisible();
+  await page.evaluate(() => localStorage.setItem('atlas-theme', 'light'));
   await page.setViewportSize({ width: 1440, height: 900 });
 
   // Seed a believable day straight through the API (cookie-authed). A routine
@@ -194,7 +225,6 @@ test('capture the Life-OS screens', async ({ page }) => {
   // The original 33-image rig was run and all PNGs inspected at 1b60239 before
   // adding this stricter baseline. Collect every route before asserting, so a
   // single broken control cannot hide findings on the remaining screens.
-  const measurements: Awaited<ReturnType<typeof measureScreen>>[] = [];
   mkdirSync(OUT, { recursive: true });
   for (const theme of ['light', 'dark'] as const) {
     await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
