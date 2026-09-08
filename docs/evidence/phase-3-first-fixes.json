@@ -1,0 +1,858 @@
+{
+  "commit": "72836a6180a072fd6c6fd4792d22060e2ca9dfd2",
+  "run": 34219771626,
+  "artifact": 10053503339,
+  "status": "geometry passed; four heading-order findings remain",
+  "screens": [
+    {
+      "route": "/today",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              ".nownext-eyebrow"
+            ],
+            [
+              ".nownext-title"
+            ],
+            [
+              ".nownext-sub"
+            ],
+            [
+              ".nownext-next-label"
+            ],
+            [
+              ".nownext-next-title"
+            ],
+            [
+              ".nownext-next-meta"
+            ],
+            [
+              ".runlate-label"
+            ],
+            [
+              ".canvas-kind-sleep > .canvas-rail > .canvas-rail-time"
+            ],
+            [
+              ".canvas-kind-sleep > .canvas-body > .canvas-sec-head > .canvas-sec-label"
+            ],
+            [
+              ".canvas-kind-sleep > .canvas-body > .canvas-sec-head > .canvas-sec-len"
+            ],
+            [
+              "section[aria-label=\"Breakfast, 7:00 AM \u2013 7:30 AM\"] > .canvas-rail > .canvas-rail-time"
+            ],
+            [
+              "section[aria-label=\"Breakfast, 7:00 AM \u2013 7:30 AM\"] > .canvas-body > .canvas-sec-head > .canvas-sec-label"
+            ],
+            [
+              "section[aria-label=\"Breakfast, 7:00 AM \u2013 7:30 AM\"] > .canvas-body > .canvas-sec-head > .canvas-sec-len"
+            ],
+            [
+              "section[aria-label=\"Open, 7:30 AM \u2013 9:00 AM\"] > .canvas-rail > .canvas-rail-time"
+            ],
+            [
+              "section[aria-label=\"Open, 7:30 AM \u2013 9:00 AM\"] > .canvas-body > .canvas-sec-head > .canvas-sec-label"
+            ],
+            [
+              "section[aria-label=\"Open, 7:30 AM \u2013 9:00 AM\"] > .canvas-body > .canvas-sec-head > .canvas-sec-len"
+            ],
+            [
+              "button[aria-label=\"Plan 7:30 AM \u2013 9:00 AM\"]"
+            ],
+            [
+              ".canvas-kind-work > .canvas-rail > .canvas-rail-time"
+            ],
+            [
+              ".canvas-kind-work > .canvas-body > .canvas-sec-head > .canvas-sec-label"
+            ],
+            [
+              ".canvas-kind-work > .canvas-body > .canvas-sec-head > .canvas-sec-len"
+            ],
+            [
+              ".canvas-sec-nowchip"
+            ],
+            [
+              ".canvas-body > .canvas-card-event.canvas-card:nth-child(2) > .canvas-card-time"
+            ],
+            [
+              ".canvas-body > .canvas-card-event.canvas-card:nth-child(2) > .canvas-card-title"
+            ],
+            [
+              ".canvas-body > .canvas-card-event.canvas-card:nth-child(2) > .canvas-card-meta"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(3) > .canvas-card-title"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(3) > .canvas-card-time-right"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(4) > .canvas-card-title"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(4) > .canvas-card-time-right"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(5) > .canvas-card-meta"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(5) > .canvas-card-time-right"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(6) > .canvas-card-title"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(6) > .canvas-card-time-right"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(7) > .canvas-card-title"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(7) > .canvas-card-meta"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(7) > .canvas-card-time-right"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(8) > .canvas-card-title"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(8) > .canvas-card-meta"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(8) > .canvas-card-time-right"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(9) > .canvas-card-title"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(9) > .canvas-card-time-right"
+            ],
+            [
+              ".canvas-card-event.canvas-card:nth-child(10) > .canvas-card-time"
+            ],
+            [
+              ".canvas-card-event.canvas-card:nth-child(10) > .canvas-card-title"
+            ],
+            [
+              ".canvas-card-event.canvas-card:nth-child(10) > .canvas-card-meta"
+            ],
+            [
+              ".canvas-card-task.canvas-card:nth-child(11) > .canvas-card-title"
+            ],
+            [
+              ".canvas-card-task.canvas-card:nth-child(11) > .canvas-card-meta"
+            ],
+            [
+              ".canvas-card-task.canvas-card:nth-child(12) > .canvas-card-title"
+            ],
+            [
+              ".canvas-card-task.canvas-card:nth-child(12) > .canvas-card-meta"
+            ],
+            [
+              ".canvas-card-event.canvas-card:nth-child(13) > .canvas-card-time"
+            ],
+            [
+              ".canvas-card-event.canvas-card:nth-child(13) > .canvas-card-title"
+            ],
+            [
+              ".canvas-card-event.canvas-card:nth-child(13) > .canvas-card-meta:nth-child(3)"
+            ],
+            [
+              ".canvas-card-event.canvas-card:nth-child(13) > .canvas-card-meta:nth-child(4)"
+            ],
+            [
+              "section[aria-label=\"Open, 5:00 PM \u2013 6:00 PM\"] > .canvas-rail > .canvas-rail-time"
+            ],
+            [
+              "section[aria-label=\"Open, 5:00 PM \u2013 6:00 PM\"] > .canvas-body > .canvas-sec-head > .canvas-sec-label"
+            ],
+            [
+              "section[aria-label=\"Open, 5:00 PM \u2013 6:00 PM\"] > .canvas-body > .canvas-sec-head > .canvas-sec-len"
+            ],
+            [
+              "button[aria-label=\"Plan 5:00 PM \u2013 6:00 PM\"]"
+            ],
+            [
+              ".canvas-kind-exercise > .canvas-rail > .canvas-rail-time"
+            ],
+            [
+              ".canvas-kind-exercise > .canvas-body > .canvas-sec-head > .canvas-sec-label"
+            ],
+            [
+              ".canvas-kind-exercise > .canvas-body > .canvas-sec-head > .canvas-sec-len"
+            ],
+            [
+              "section[aria-label=\"Dinner, 7:00 PM \u2013 7:45 PM\"] > .canvas-rail > .canvas-rail-time"
+            ],
+            [
+              "section[aria-label=\"Dinner, 7:00 PM \u2013 7:45 PM\"] > .canvas-body > .canvas-sec-head > .canvas-sec-label"
+            ],
+            [
+              "section[aria-label=\"Dinner, 7:00 PM \u2013 7:45 PM\"] > .canvas-body > .canvas-sec-head > .canvas-sec-len"
+            ],
+            [
+              "section[aria-label=\"Open, 7:45 PM \u2013 10:00 PM\"] > .canvas-rail > .canvas-rail-time"
+            ],
+            [
+              "section[aria-label=\"Open, 7:45 PM \u2013 10:00 PM\"] > .canvas-body > .canvas-sec-head > .canvas-sec-label"
+            ],
+            [
+              "section[aria-label=\"Open, 7:45 PM \u2013 10:00 PM\"] > .canvas-body > .canvas-sec-head > .canvas-sec-len"
+            ],
+            [
+              "button[aria-label=\"Plan 7:45 PM \u2013 10:00 PM\"]"
+            ],
+            [
+              ".canvas-kind-winddown > .canvas-rail > .canvas-rail-time"
+            ],
+            [
+              ".canvas-kind-winddown > .canvas-body > .canvas-sec-head > .canvas-sec-label"
+            ],
+            [
+              ".canvas-kind-winddown > .canvas-body > .canvas-sec-head > .canvas-sec-len"
+            ],
+            [
+              "section[aria-label=\"Open, 11:30 PM \u2013 midnight\"] > .canvas-rail > .canvas-rail-time"
+            ],
+            [
+              "section[aria-label=\"Open, 11:30 PM \u2013 midnight\"] > .canvas-body > .canvas-sec-head > .canvas-sec-label"
+            ],
+            [
+              "section[aria-label=\"Open, 11:30 PM \u2013 midnight\"] > .canvas-body > .canvas-sec-head > .canvas-sec-len"
+            ],
+            [
+              "button[aria-label=\"Plan 11:30 PM \u2013 midnight\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/tasks",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "description": "Ensure the order of headings is semantically correct",
+          "nodes": [
+            {
+              "target": [
+                "section[aria-label=\"Overdue\"] > .overdue"
+              ],
+              "failureSummary": "Fix any of the following:\n  Heading order invalid"
+            }
+          ]
+        }
+      ],
+      "incomplete": []
+    },
+    {
+      "route": "/calendar",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "description": "Ensure the order of headings is semantically correct",
+          "nodes": [
+            {
+              "target": [
+                "h3"
+              ],
+              "failureSummary": "Fix any of the following:\n  Heading order invalid"
+            }
+          ]
+        }
+      ],
+      "incomplete": []
+    },
+    {
+      "route": "/goals",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/habits",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "aria-prohibited-attr",
+          "targets": [
+            [
+              ".pill"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/journal",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/notes",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/fitness",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/finance",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/progress",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "aria-prohibited-attr",
+          "targets": [
+            [
+              ".cal-key"
+            ]
+          ]
+        },
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              "div[aria-label=\"Gym: 3% of days\"] > .ring-center > .prog-habit-pct"
+            ],
+            [
+              "div[aria-label=\"Read: 0% of days\"] > .ring-center > .prog-habit-pct"
+            ],
+            [
+              "div[aria-label=\"Water: 0% of days\"] > .ring-center > .prog-habit-pct"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/everything",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/week",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/settings",
+      "theme": "light",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/today",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              ".nownext-eyebrow"
+            ],
+            [
+              ".nownext-title"
+            ],
+            [
+              ".nownext-sub"
+            ],
+            [
+              ".nownext-next-label"
+            ],
+            [
+              ".nownext-next-title"
+            ],
+            [
+              ".nownext-next-meta"
+            ],
+            [
+              ".runlate-label"
+            ],
+            [
+              ".canvas-kind-sleep > .canvas-rail > .canvas-rail-time"
+            ],
+            [
+              ".canvas-kind-sleep > .canvas-body > .canvas-sec-head > .canvas-sec-label"
+            ],
+            [
+              ".canvas-kind-sleep > .canvas-body > .canvas-sec-head > .canvas-sec-len"
+            ],
+            [
+              "section[aria-label=\"Breakfast, 7:00 AM \u2013 7:30 AM\"] > .canvas-rail > .canvas-rail-time"
+            ],
+            [
+              "section[aria-label=\"Breakfast, 7:00 AM \u2013 7:30 AM\"] > .canvas-body > .canvas-sec-head > .canvas-sec-label"
+            ],
+            [
+              "section[aria-label=\"Breakfast, 7:00 AM \u2013 7:30 AM\"] > .canvas-body > .canvas-sec-head > .canvas-sec-len"
+            ],
+            [
+              "section[aria-label=\"Open, 7:30 AM \u2013 9:00 AM\"] > .canvas-rail > .canvas-rail-time"
+            ],
+            [
+              "section[aria-label=\"Open, 7:30 AM \u2013 9:00 AM\"] > .canvas-body > .canvas-sec-head > .canvas-sec-label"
+            ],
+            [
+              "section[aria-label=\"Open, 7:30 AM \u2013 9:00 AM\"] > .canvas-body > .canvas-sec-head > .canvas-sec-len"
+            ],
+            [
+              "button[aria-label=\"Plan 7:30 AM \u2013 9:00 AM\"]"
+            ],
+            [
+              ".canvas-kind-work > .canvas-rail > .canvas-rail-time"
+            ],
+            [
+              ".canvas-kind-work > .canvas-body > .canvas-sec-head > .canvas-sec-label"
+            ],
+            [
+              ".canvas-kind-work > .canvas-body > .canvas-sec-head > .canvas-sec-len"
+            ],
+            [
+              ".canvas-sec-nowchip"
+            ],
+            [
+              ".canvas-body > .canvas-card-event.canvas-card:nth-child(2) > .canvas-card-time"
+            ],
+            [
+              ".canvas-body > .canvas-card-event.canvas-card:nth-child(2) > .canvas-card-title"
+            ],
+            [
+              ".canvas-body > .canvas-card-event.canvas-card:nth-child(2) > .canvas-card-meta"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(3) > .canvas-card-title"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(3) > .canvas-card-time-right"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(4) > .canvas-card-title"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(4) > .canvas-card-time-right"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(5) > .canvas-card-meta"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(5) > .canvas-card-time-right"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(6) > .canvas-card-title"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(6) > .canvas-card-time-right"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(7) > .canvas-card-title"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(7) > .canvas-card-meta"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(7) > .canvas-card-time-right"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(8) > .canvas-card-title"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(8) > .canvas-card-meta"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(8) > .canvas-card-time-right"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(9) > .canvas-card-title"
+            ],
+            [
+              ".canvas-card-actual.canvas-card[type=\"button\"]:nth-child(9) > .canvas-card-time-right"
+            ],
+            [
+              ".canvas-card-event.canvas-card:nth-child(10) > .canvas-card-time"
+            ],
+            [
+              ".canvas-card-event.canvas-card:nth-child(10) > .canvas-card-title"
+            ],
+            [
+              ".canvas-card-event.canvas-card:nth-child(10) > .canvas-card-meta"
+            ],
+            [
+              ".canvas-card-task.canvas-card:nth-child(11) > .canvas-card-title"
+            ],
+            [
+              ".canvas-card-task.canvas-card:nth-child(11) > .canvas-card-meta"
+            ],
+            [
+              ".canvas-card-task.canvas-card:nth-child(12) > .canvas-card-title"
+            ],
+            [
+              ".canvas-card-task.canvas-card:nth-child(12) > .canvas-card-meta"
+            ],
+            [
+              ".canvas-card-event.canvas-card:nth-child(13) > .canvas-card-time"
+            ],
+            [
+              ".canvas-card-event.canvas-card:nth-child(13) > .canvas-card-title"
+            ],
+            [
+              ".canvas-card-event.canvas-card:nth-child(13) > .canvas-card-meta:nth-child(3)"
+            ],
+            [
+              ".canvas-card-event.canvas-card:nth-child(13) > .canvas-card-meta:nth-child(4)"
+            ],
+            [
+              "section[aria-label=\"Open, 5:00 PM \u2013 6:00 PM\"] > .canvas-rail > .canvas-rail-time"
+            ],
+            [
+              "section[aria-label=\"Open, 5:00 PM \u2013 6:00 PM\"] > .canvas-body > .canvas-sec-head > .canvas-sec-label"
+            ],
+            [
+              "section[aria-label=\"Open, 5:00 PM \u2013 6:00 PM\"] > .canvas-body > .canvas-sec-head > .canvas-sec-len"
+            ],
+            [
+              "button[aria-label=\"Plan 5:00 PM \u2013 6:00 PM\"]"
+            ],
+            [
+              ".canvas-kind-exercise > .canvas-rail > .canvas-rail-time"
+            ],
+            [
+              ".canvas-kind-exercise > .canvas-body > .canvas-sec-head > .canvas-sec-label"
+            ],
+            [
+              ".canvas-kind-exercise > .canvas-body > .canvas-sec-head > .canvas-sec-len"
+            ],
+            [
+              "section[aria-label=\"Dinner, 7:00 PM \u2013 7:45 PM\"] > .canvas-rail > .canvas-rail-time"
+            ],
+            [
+              "section[aria-label=\"Dinner, 7:00 PM \u2013 7:45 PM\"] > .canvas-body > .canvas-sec-head > .canvas-sec-label"
+            ],
+            [
+              "section[aria-label=\"Dinner, 7:00 PM \u2013 7:45 PM\"] > .canvas-body > .canvas-sec-head > .canvas-sec-len"
+            ],
+            [
+              "section[aria-label=\"Open, 7:45 PM \u2013 10:00 PM\"] > .canvas-rail > .canvas-rail-time"
+            ],
+            [
+              "section[aria-label=\"Open, 7:45 PM \u2013 10:00 PM\"] > .canvas-body > .canvas-sec-head > .canvas-sec-label"
+            ],
+            [
+              "section[aria-label=\"Open, 7:45 PM \u2013 10:00 PM\"] > .canvas-body > .canvas-sec-head > .canvas-sec-len"
+            ],
+            [
+              "button[aria-label=\"Plan 7:45 PM \u2013 10:00 PM\"]"
+            ],
+            [
+              ".canvas-kind-winddown > .canvas-rail > .canvas-rail-time"
+            ],
+            [
+              ".canvas-kind-winddown > .canvas-body > .canvas-sec-head > .canvas-sec-label"
+            ],
+            [
+              ".canvas-kind-winddown > .canvas-body > .canvas-sec-head > .canvas-sec-len"
+            ],
+            [
+              "section[aria-label=\"Open, 11:30 PM \u2013 midnight\"] > .canvas-rail > .canvas-rail-time"
+            ],
+            [
+              "section[aria-label=\"Open, 11:30 PM \u2013 midnight\"] > .canvas-body > .canvas-sec-head > .canvas-sec-label"
+            ],
+            [
+              "section[aria-label=\"Open, 11:30 PM \u2013 midnight\"] > .canvas-body > .canvas-sec-head > .canvas-sec-len"
+            ],
+            [
+              "button[aria-label=\"Plan 11:30 PM \u2013 midnight\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/tasks",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "description": "Ensure the order of headings is semantically correct",
+          "nodes": [
+            {
+              "target": [
+                "section[aria-label=\"Overdue\"] > .overdue"
+              ],
+              "failureSummary": "Fix any of the following:\n  Heading order invalid"
+            }
+          ]
+        }
+      ],
+      "incomplete": []
+    },
+    {
+      "route": "/calendar",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "description": "Ensure the order of headings is semantically correct",
+          "nodes": [
+            {
+              "target": [
+                "h3"
+              ],
+              "failureSummary": "Fix any of the following:\n  Heading order invalid"
+            }
+          ]
+        }
+      ],
+      "incomplete": []
+    },
+    {
+      "route": "/goals",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/habits",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "aria-prohibited-attr",
+          "targets": [
+            [
+              ".pill"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/journal",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/notes",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/fitness",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/finance",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/progress",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "aria-prohibited-attr",
+          "targets": [
+            [
+              ".cal-key"
+            ]
+          ]
+        },
+        {
+          "id": "color-contrast",
+          "targets": [
+            [
+              "div[aria-label=\"Gym: 3% of days\"] > .ring-center > .prog-habit-pct"
+            ],
+            [
+              "div[aria-label=\"Read: 0% of days\"] > .ring-center > .prog-habit-pct"
+            ],
+            [
+              "div[aria-label=\"Water: 0% of days\"] > .ring-center > .prog-habit-pct"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/everything",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/week",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "route": "/settings",
+      "theme": "dark",
+      "viewportWidth": 390,
+      "scrollWidth": 390,
+      "overflow": 0,
+      "undersizedTargets": [],
+      "undersizedInputs": [],
+      "violations": [],
+      "incomplete": []
+    }
+  ]
+}

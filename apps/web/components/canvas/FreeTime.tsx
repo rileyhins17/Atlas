@@ -1,16 +1,11 @@
 'use client';
 
+import { formatFreeMinutes as duration } from '@atlas/shared';
+
 import Link from 'next/link';
 import { Sparkles, Sun } from 'lucide-react';
 import type { DayOverview } from '@/lib/canvas';
 import { formatClock } from '@/lib/dates';
-
-function duration(minutes: number): string {
-  if (minutes < 60) return `${minutes} min`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m === 0 ? `${h}h` : `${h}h ${m}m`;
-}
 
 /**
  * The windows still open today, and the one button that fills them.

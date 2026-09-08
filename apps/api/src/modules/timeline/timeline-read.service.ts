@@ -1,6 +1,6 @@
+import { assembleTimelinePage } from '@atlas/shared';
 import { Injectable } from '@nestjs/common';
-import type { TimelineEventDTO, TimelinePageDTO, TimelineQuery } from '@atlas/shared';
-import type { TimelineEvent } from '@atlas/db';
+import type { TimelinePageDTO, TimelineQuery } from '@atlas/shared';
 import { PrismaService } from '../../core/prisma.service.js';
 
 /**
@@ -13,19 +13,6 @@ import { PrismaService } from '../../core/prisma.service.js';
 export class TimelineReadService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private toDto(e: TimelineEvent): TimelineEventDTO {
-    return {
-      id: e.id,
-      type: e.type,
-      source: e.source,
-      title: e.title,
-      summary: e.summary,
-      refType: e.refType,
-      refId: e.refId,
-      occurredAt: e.occurredAt.toISOString(),
-    };
-  }
-
   async list(userId: string, query: TimelineQuery): Promise<TimelinePageDTO> {
     const rows = await this.prisma.client.timelineEvent.findMany({
       where: {
@@ -37,7 +24,6 @@ export class TimelineReadService {
       skip: query.offset,
       take: query.limit + 1,
     });
-    const hasMore = rows.length > query.limit;
-    return { events: rows.slice(0, query.limit).map((e) => this.toDto(e)), hasMore };
+    return assembleTimelinePage(rows, query.limit);
   }
 }

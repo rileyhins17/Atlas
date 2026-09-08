@@ -1,21 +1,11 @@
 'use client';
 
+import { remainingTimePhrase as untilPhrase, canvasItemTitle as itemTitle } from '@atlas/shared';
+
 import type { ReactNode } from 'react';
 import { ArrowRight, MapPin } from 'lucide-react';
-import type { CanvasItem, DayOverview } from '@/lib/canvas';
+import type { DayOverview } from '@/lib/canvas';
 import { formatClock } from '@/lib/dates';
-
-function untilPhrase(until: Date, now: Date): string {
-  const mins = Math.max(0, Math.round((until.getTime() - now.getTime()) / 60_000));
-  if (mins < 60) return `${mins} min left`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m === 0 ? `${h}h left` : `${h}h ${m}m left`;
-}
-
-function itemTitle(item: CanvasItem): string {
-  return item.type === 'actual' ? item.row.title : item.title;
-}
 
 /**
  * The single most important thing on the page: what you're in right now, and
