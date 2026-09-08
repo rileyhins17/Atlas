@@ -91,3 +91,18 @@ it does not remove the persistence proof. CI verification remains pending.
 Final local gates for the handoff and browser-contract correction: build 6/6,
 forced typecheck 10/10, lint zero errors with three existing warnings, 1522
 unit tests passed. CI and PNG review remain pending for this revision.
+
+## Handoff lifecycle verification
+
+The first-use test now uses the actual FirstCapture and useEstablished hook
+rather than mocking both away. A cache-data transition from an empty account
+to saved data exits the welcome screen, retains the Review my tasks link across
+another render and records the established-account marker. All four tests
+passed. This test was green on introduction: it verifies a suspected lifecycle
+risk and is not presented as an observed-red regression. Browser and PNG
+verification still depend on the corrected CI run.
+
+Lifecycle verification local gates: build 6/6, forced typecheck 10/10, lint
+zero errors with three existing warnings, 1523 unit tests passed. The refreshed
+query audit ledger tracks 43 query-backed component files without treating
+source indicators as verified coverage.
