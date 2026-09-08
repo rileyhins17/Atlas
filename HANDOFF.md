@@ -5,6 +5,10 @@ was just changed and why, and what is genuinely still open. Read
 [`AGENTS.md`](./AGENTS.md) for the rules and [`docs/GOTCHAS.md`](./docs/GOTCHAS.md)
 for traps already paid for.
 
+The active refactor's expanded objective is recorded in
+[`docs/REFACTOR-GOAL.md`](./docs/REFACTOR-GOAL.md): rethink the product and implement
+it end to end, while retaining the safety and verification gates.
+
 ---
 
 ## State at handoff
@@ -96,23 +100,13 @@ work on UI consistency, run the sweep rather than trusting the checklist.
 
 These cannot be done by an agent and are listed so nobody re-discovers them:
 
-**Phase 0 restore gate — partly done.** CI runs a synthetic restore drill on
-every push: it builds a database from this repo's own migrations, seeds known
-counts, dumps and restores it, and checks pgvector and the `embeddings.embedding`
-column type. That proves the mechanism, needs no secrets, and works on a fork.
-
-What it deliberately does NOT do is restore the production dump. An earlier
-version of this gate downloaded that dump into the runner from a signed URL in a
-GitHub secret; it was replaced, because the file holds three people's journals,
-finance transactions and fitness logs, and anyone who can add a workflow to this
-repo can print a secret.
-
-Still outstanding, and needs a person: an actual restore of a real backup.
-Docker Desktop does not start on this machine and the local PostgreSQL 17 server
-needs a superuser password that is not in `.env`. Until one of those is fixed the
-real dump is verified by inspection only — `pg_restore --list` shows 27 `public`
-tables, and `atlas-backup.ps1` now fails any dump holding fewer than 15. See
-[`docs/backup-restore-drill.md`](./docs/backup-restore-drill.md).
+**Phase 0 restore gate:** CI uses `infra/db-move.py` to dump and restore synthetic
+domain rows in disposable pgvector and requires exact counts for every public
+table. No production dump or secret is involved. Its scope and limits are in
+[`docs/backup-restore-drill.md`](./docs/backup-restore-drill.md). Do not start the
+later refactor phases until the Phase 0 PR has an observed green restore job
+and the remaining CI checks pass. This proves the mechanism, not the private
+production archive's integrity or the nightly backup schedule.
 
 1. **Nightly backups are not running.** `infra/atlas-backup.ps1` is written and
    tested, and PostgreSQL 17 is now installed, so the blocker is gone. Someone
