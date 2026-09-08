@@ -52,6 +52,12 @@ describe('slipped', () => {
 });
 
 describe('rollForward', () => {
+  it('bounds the lookup to the distinct requested task ids', async () => {
+    const { service, findMany } = makeService();
+    await service.rollForward('u1', ['t1', 't2', 't1'], 'today');
+    expect(findMany.mock.calls[0]![0].take).toBe(2);
+  });
+
   it('moves the chosen tasks to the end of the user’s local day', async () => {
     const { service, updateMany } = makeService({
       tasks: [task('t1'), task('t2')],

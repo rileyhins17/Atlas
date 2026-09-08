@@ -93,6 +93,7 @@ export class WorkoutTemplatesService {
     if (ids.length === 0) return [];
     const found = await this.prisma.client.exercise.findMany({
       where: { id: { in: ids }, OR: [{ userId: null }, { userId }] },
+      take: new Set(ids).size,
       select: { id: true },
     });
     const allowed = new Set(found.map((e) => e.id));

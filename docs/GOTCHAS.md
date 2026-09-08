@@ -1,5 +1,22 @@
 # GOTCHAS — solved once, never rediscover
 
+## Bound a lookup by its keys, and batch independent database work
+
+An `IN` predicate is not an explicit query limit. For unique task/exercise ids,
+use the distinct requested id count as `take`; for a tracker's daily rating,
+the `(trackerId, dayKey)` constraint bounds the result to one row per tracker.
+Google sync's `(userId, source, externalId)` constraint likewise makes each
+1,000-id chunk safe to read with `take: chunk.length`. These bounds preserve
+every valid match. Do not apply the same reasoning to non-unique names.
+
+Google sync now overlaps at most four independent lookup chunks using its
+existing bounded worker helper. A regression held the first query unresolved
+and observed that the old code never started the second. The replacement is
+also checked with six chunks to enforce its concurrency ceiling. Plaid
+disconnect now removes the exact requested credential labels in one
+owner-scoped batch after remote revocation attempts; its three-item regression
+was observed making three database calls before the fix and one afterwards.
+
 Append every new setup/build snag here (root cause + fix) so no future thread wastes tokens re-hitting it. The canonical short list also lives in `../CLAUDE.md`; this file is the long form.
 
 ## Toolchain / install

@@ -321,8 +321,12 @@ export class PlaidSyncService {
       } catch (err) {
         this.logger.warn(`Plaid item/remove failed for ${id}: ${errText(err)}`);
       }
+    }
+    if (items.length > 0) {
+      // One exact owner-scoped batch after revoking the remote items. Keep the
+      // existing best-effort revocation policy, including failed remote calls.
       await this.prisma.client.credential.deleteMany({
-        where: { userId, connector: CONNECTOR_ID, label: id },
+        where: { userId, connector: CONNECTOR_ID, label: { in: items } },
       });
     }
     // Local account/transaction rows stay — they're the user's data.
