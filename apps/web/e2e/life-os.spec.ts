@@ -3128,3 +3128,60 @@ test('task timing recovers once per list without losing the task draft in both t
     await page.unroute('http://localhost:4000/tasks/durations');
   }
 });
+
+
+test('writing preserves pending journal and note drafts through retry in both themes', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    for (const note of [false, true]) {
+      await page.goto('/journal');
+      await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+      await page.reload();
+      const endpoint = `http://localhost:4000/${note ? 'notes' : 'journal'}`;
+      const body = `Preserved writing ${note ? 'note' : 'journal'} ${theme} ${Date.now()}`;
+      const title = `Lasting context ${theme}`;
+      if (note) {
+        await page.getByRole('checkbox', { name: 'Atlas should always remember this, not just today', exact: true }).check();
+        const titleInput = page.getByRole('textbox', { name: 'What this note is about', exact: true });
+        await titleInput.click(); await titleInput.pressSequentially(title);
+      } else await page.getByRole('button', { name: 'Mood 4 out of 5', exact: true }).click();
+      const input = page.getByRole('textbox', { name: 'What are you writing?', exact: true });
+      await input.click(); await input.pressSequentially(body);
+      const form = input.locator('xpath=ancestor::form');
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => { release = resolve; });
+      await page.route(endpoint, async (route) => {
+        if (route.request().method() !== 'POST') return route.continue();
+        await held;
+        return route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+      });
+      try {
+        await form.getByRole('button', { name: 'Save', exact: true }).click();
+        await expect(input).toHaveAttribute('readonly', '');
+        await expect(form.getByRole('status')).toHaveText('Saving your writing…');
+        await expect(form.getByRole('checkbox')).toBeDisabled();
+        await input.pressSequentially(' must not replace my writing');
+        await expect(input).toHaveValue(body);
+        if (note) await expect(form.getByRole('textbox', { name: 'What this note is about', exact: true })).toHaveAttribute('readonly', '');
+        else await expect(form.getByRole('button', { name: 'Mood 4 out of 5', exact: true })).toBeDisabled();
+      } finally { release(); }
+      await expect(form.getByRole('alert')).toHaveText('Your writing was not confirmed. Your draft is kept.');
+      await expect(input).toHaveValue(body);
+      const failures = screenFailures(await measureScreen(page, `/journal:${note ? 'note' : 'entry'}-save-error`, theme));
+      expect(failures, failures.join('\n')).toEqual([]);
+      await page.unroute(endpoint);
+      const saved = page.waitForResponse((response) => response.url() === endpoint && response.request().method() === 'POST');
+      await form.getByRole('button', { name: 'Save', exact: true }).click();
+      const response = await saved;
+      expect(response.status()).toBe(201);
+      const row = await response.json() as { id: string };
+      await expect(input).toHaveValue('');
+      await page.reload();
+      await expect(page.locator('.wr-list .card').filter({ hasText: body })).toBeVisible();
+      const listed = await page.request.get(endpoint);
+      expect(listed.ok()).toBe(true);
+      expect(await listed.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: row.id, body, ...(note ? { title, pinned: true } : { mood: 4 }) })]));
+    }
+  }
+});

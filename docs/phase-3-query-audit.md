@@ -89,3 +89,8 @@ drafts during writes and expose persistent retryable failures. Four actual-hook
 regressions failed first; browser pending/failure/retry and persistence checks
 are configured in life-os.spec.ts but remain unverified. See
 [task creation](phase-3-task-creation.md).
+
+WritingPanel creation now protects body/title/mood/mode during pending saves
+and retains failed drafts with a persistent alert. Four actual-hook regression
+cases were observed red first; browser persistence checks remain unverified.
+See [Writing draft recovery](phase-3-writing-drafts.md).

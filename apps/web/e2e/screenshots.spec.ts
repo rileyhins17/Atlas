@@ -334,6 +334,29 @@ test('capture the Life-OS screens', async ({ page }) => {
     await page.screenshot({ path: `${OUT}/calendar-connection-error-${theme}.png`, fullPage: true });
     await page.unroute('http://localhost:4000/connectors/google/status');
   }
+  for (const theme of ['light', 'dark'] as const) {
+    for (const note of [false, true]) {
+      await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+      await page.goto('/journal');
+      await page.reload();
+      if (note) {
+        await page.getByRole('checkbox', { name: 'Atlas should always remember this, not just today', exact: true }).check();
+        const title = page.getByRole('textbox', { name: 'What this note is about', exact: true });
+        await title.click(); await title.pressSequentially('What helps me plan');
+      } else await page.getByRole('button', { name: 'Mood 4 out of 5', exact: true }).click();
+      const input = page.getByRole('textbox', { name: 'What are you writing?', exact: true });
+      await input.click(); await input.pressSequentially('A short list helped me make room for the things that mattered today.');
+      const endpoint = `http://localhost:4000/${note ? 'notes' : 'journal'}`;
+      await page.route(endpoint, (route) => route.request().method() === 'POST'
+        ? route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }) : route.continue());
+      await page.getByRole('button', { name: 'Save', exact: true }).click();
+      await expect(page.getByText('Your writing was not confirmed. Your draft is kept.')).toBeVisible();
+      measurements.push(await measureScreen(page, `/journal:${note ? 'note' : 'entry'}-save-error`, theme));
+      writeFileSync(`${OUT}/measurements.json`, JSON.stringify(measurements, null, 2));
+      await page.screenshot({ path: `${OUT}/writing-${note ? 'note' : 'entry'}-error-${theme}.png`, fullPage: true });
+      await page.unroute(endpoint);
+    }
+  }
   const editTaskResponse = await page.request.post('http://localhost:4000/tasks', { data: { title: 'Book the next appointment' } });
   expect(editTaskResponse.status()).toBe(201);
   const editTask = await editTaskResponse.json() as { id: string };
