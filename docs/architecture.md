@@ -50,6 +50,15 @@ are unchanged. The 30 existing calculation tests moved alongside their code;
 the orchestrator still tests deduplication and provider failures at its boundary.
 Other pure application calculations still need migration before Phase 2 is done.
 
+Statistics assembly and Progress derivation now share the same package too:
+`stats-assemble.ts` zero-fills day buckets and splits current/previous totals;
+`progress.ts` computes trend series; `what-changed.ts` ranks measured changes;
+and `money.ts` owns signed minor-unit display formatting. Existing API/web paths
+re-export these functions. The 51 existing tests moved alongside them without
+changing their assertions. SQL aggregation, query hooks and React rendering
+stay in their application layers. Locale defaults and existing display wording
+are preserved in this architecture pass.
+
 The shared connector transformations parse chat completions, normalize Plaid
 amounts/account types/currencies, and convert Google Calendar date shapes.
 Connectors retain compatibility exports plus HTTP calls, cancellation options,

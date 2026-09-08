@@ -39,5 +39,7 @@ describe('database query contracts across runtime source', () => {
     }
     expect(inspected).toBeGreaterThan(0);
     expect(missing).toEqual([]);
-  });
+  // This parses the entire monorepo while other suites run. The default 5s
+  // timed out at 6.5s on Windows; retain full coverage with a bounded 30s budget.
+  }, 30_000);
 });
