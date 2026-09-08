@@ -26,7 +26,9 @@ import {
 import { IconButton } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
 import { useSubmitLatch } from '@/lib/hooks/submit-latch';
-import { localDayKey } from '@/lib/dates';
+
+import { weekCells } from '@atlas/shared';
+export { weekCells } from '@atlas/shared';
 
 const HISTORY_DAYS = 84; // 12 weeks of heatmap
 
@@ -239,23 +241,6 @@ export function HabitsPanel() {
   );
 }
 
-/** Last 7 local days (oldest first) with done-ness for the mini week grid. */
-export function weekCells(
-  counts: Map<string, number> | undefined,
-  target: number,
-  today: Date,
-): Array<{ day: string; done: boolean; count: number }> {
-  const cells: Array<{ day: string; done: boolean; count: number }> = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    const key = localDayKey(d);
-    const count = counts?.get(key) ?? 0;
-    cells.push({ day: key, done: count >= Math.max(1, target), count });
-  }
-  return cells;
-}
-
 function HabitCard({
   habit,
   counts,
@@ -306,7 +291,7 @@ function HabitCard({
           ))}
         </div>
         {habit.streak > 0 && (
-          <Badge className="streak" aria-label={`${habit.streak} day streak`}>
+          <Badge className="streak" role="img" aria-label={`${habit.streak} day streak`}>
             <Flame size={13} aria-hidden />
             {habit.streak}
           </Badge>

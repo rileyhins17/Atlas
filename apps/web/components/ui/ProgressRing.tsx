@@ -1,5 +1,7 @@
 'use client';
 
+import { progressRingGeometry } from '@atlas/shared';
+
 import type { ReactNode } from 'react';
 
 export interface ProgressRingProps {
@@ -27,9 +29,7 @@ export function ProgressRing({
   label,
   color = 'var(--brand)',
 }: ProgressRingProps) {
-  const clamped = Math.max(0, Math.min(1, value));
-  const r = (size - strokeWidth) / 2;
-  const c = 2 * Math.PI * r;
+  const { clamped, r, c } = progressRingGeometry(value, size, strokeWidth);
   return (
     <div
       className="ring"

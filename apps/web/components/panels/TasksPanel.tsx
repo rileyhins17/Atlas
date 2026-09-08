@@ -16,83 +16,13 @@ import {
 } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
 import { TaskRow } from '@/components/TaskRow';
-import { dayDiff } from '@/lib/dates';
+import { groupTasks, GROUPS_WORTH_ADDING_TO } from '@atlas/shared';
+export { groupTasks, GROUPS_WORTH_ADDING_TO } from '@atlas/shared';
 import { filterTasks, quickAddDueDate, TASK_FILTERS, type TaskFilter } from '@/lib/tasks-filter';
 import { useSubmitLatch } from '@/lib/hooks/submit-latch';
 
-const PRIORITY_WEIGHT: Record<TaskDTO['priority'], number> = {
-  URGENT: 0,
-  HIGH: 1,
-  MEDIUM: 2,
-  LOW: 3,
-};
-
 /** Offered on the quick-add row so priority is a tap, never typed. */
 const QUICK_PRIORITIES: TaskDTO['priority'][] = ['LOW', 'MEDIUM', 'HIGH'];
-
-interface Group {
-  key: string;
-  label: string;
-  overdue?: boolean;
-  tasks: TaskDTO[];
-}
-
-/** Bucket open tasks by due horizon, each bucket due-then-priority sorted. */
-export function groupTasks(tasks: TaskDTO[], now: Date): { groups: Group[]; done: TaskDTO[] } {
-  const open = tasks.filter((t) => t.status !== 'DONE');
-  const done = tasks.filter((t) => t.status === 'DONE');
-  const buckets: Record<string, TaskDTO[]> = { overdue: [], today: [], week: [], later: [], someday: [] };
-  for (const t of open) {
-    if (!t.dueAt) {
-      buckets.someday.push(t);
-      continue;
-    }
-    const days = dayDiff(now, new Date(t.dueAt));
-    if (days < 0) buckets.overdue.push(t);
-    else if (days === 0) buckets.today.push(t);
-    else if (days < 7) buckets.week.push(t);
-    else buckets.later.push(t);
-  }
-  const order = (a: TaskDTO, b: TaskDTO) => {
-    const ad = a.dueAt ? new Date(a.dueAt).getTime() : Infinity;
-    const bd = b.dueAt ? new Date(b.dueAt).getTime() : Infinity;
-    if (ad !== bd) return ad - bd;
-    return PRIORITY_WEIGHT[a.priority] - PRIORITY_WEIGHT[b.priority];
-  };
-  for (const key of Object.keys(buckets)) buckets[key].sort(order);
-  const groups: Group[] = [
-    { key: 'overdue', label: 'Overdue', overdue: true, tasks: buckets.overdue },
-    { key: 'today', label: 'Today', tasks: buckets.today },
-    { key: 'week', label: 'This week', tasks: buckets.week },
-    { key: 'later', label: 'Later', tasks: buckets.later },
-    { key: 'someday', label: 'No date', tasks: buckets.someday },
-  ].filter((g) => g.tasks.length > 0);
-  return { groups, done };
-}
-
-/**
- * Add a task straight into a group — the due date comes from the group itself,
- * so a dated task costs one line of typing and zero date-picking.
- */
-/**
- * The groups whose quick-add does something the top composer does not.
- *
- * There were six ways to add a task on one phone screen — the composer at the
- * top, one per group, and the capture dock — and two of them were duplicates
- * rather than choices:
- *
- *   - "Add to no date" creates a task with no due date. So does the composer at
- *     the top of the page, which is always visible and always first.
- *   - "Add to overdue" reads as though it back-dates something, and does not:
- *     `quickAddDueDate('overdue')` returns the END OF TODAY, exactly like
- *     "Add to today" directly beneath it. Nobody deliberately creates an
- *     overdue task, and a control whose label disagrees with its behaviour is
- *     worse than one that is missing.
- *
- * The three that remain each set a due date nothing else on the screen sets, so
- * each is a genuine shortcut rather than another door to the same room.
- */
-export const GROUPS_WORTH_ADDING_TO = new Set(['today', 'week', 'later']);
 
 function QuickAdd({ groupKey, groupLabel }: { groupKey: string; groupLabel: string }) {
   const [open, setOpen] = useState(false);
@@ -313,12 +243,12 @@ export function TasksPanel() {
           <>
             {groups.map((g) => (
               <section key={g.key} aria-label={g.label}>
-                <h3
+                <h2
                   className={`focus-group-title ${g.overdue ? 'overdue' : ''}`}
                   style={{ marginTop: 10 }}
                 >
                   {g.label} · {g.tasks.length}
-                </h3>
+                </h2>
                 {g.tasks.map((t) => (
                   <TaskRow key={t.id} task={t} />
                 ))}
@@ -350,9 +280,9 @@ export function TasksPanel() {
                   ) : (
                     <ChevronRight size={14} aria-hidden />
                   )}
-                  <h3 className="section-title" style={{ margin: 0 }}>
+                  <h2 className="section-title" style={{ margin: 0 }}>
                     Done · {done.length}
-                  </h3>
+                  </h2>
                 </button>
                 {doneOpen && done.map((t) => <TaskRow key={t.id} task={t} />)}
               </>

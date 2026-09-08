@@ -1,29 +1,18 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { AccountDTO, TransactionDTO } from '@atlas/shared';
 import { Landmark, Wallet } from 'lucide-react';
 import { useAccounts, useTransactions } from '@/lib/hooks/finance';
-import { Card, EmptyState, ListSkeleton, QueryState } from '@/components/ui';
+import { Button, Card, EmptyState, ListSkeleton, QueryState } from '@/components/ui';
+import { ManualAccountForm } from './ManualAccountForm';
+import { ManualTransactionForm } from './ManualTransactionForm';
 import { PageHeader } from '@/components/PageHeader';
 import { PlaidCard } from './PlaidCard';
-import { formatDayHeading, localDayKey } from '@/lib/dates';
+import { formatDayHeading } from '@/lib/dates';
+import { groupTransactionsByDay } from '@atlas/shared';
+export { groupTransactionsByDay } from '@atlas/shared';
 import { formatMoney } from '@/lib/money';
-
-/** Transactions grouped by local calendar day, most recent first. */
-export function groupTransactionsByDay(txns: TransactionDTO[]): Array<[string, TransactionDTO[]]> {
-  const byDay = new Map<string, TransactionDTO[]>();
-  const sorted = [...txns].sort(
-    (a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime(),
-  );
-  for (const t of sorted) {
-    const key = localDayKey(new Date(t.postedAt));
-    const arr = byDay.get(key) ?? [];
-    arr.push(t);
-    byDay.set(key, arr);
-  }
-  return [...byDay.entries()];
-}
 
 function AccountCard({ account }: { account: AccountDTO }) {
   const where = account.institution
@@ -51,6 +40,8 @@ function AccountCard({ account }: { account: AccountDTO }) {
 const NO_TXNS: TransactionDTO[] = [];
 
 export function FinancePanel() {
+  const [addingAccount, setAddingAccount] = useState(false);
+  const [addingTransaction, setAddingTransaction] = useState(false);
   const accountsQuery = useAccounts();
   const txnsQuery = useTransactions();
 
@@ -66,9 +57,12 @@ export function FinancePanel() {
           link appeared to land somewhere else. The route stays /finance. */}
       <PageHeader title="Money" subtitle="Accounts and spending." />
 
-      {/* The connect flow belongs here, not behind a Settings hunt. */}
       <div style={{ marginBottom: 14 }}>
-        <PlaidCard />
+        {addingAccount ? (
+          <Card><ManualAccountForm onSaved={() => setAddingAccount(false)} onCancel={() => setAddingAccount(false)} /></Card>
+        ) : (
+          <Button onClick={() => setAddingAccount(true)}>Add account</Button>
+        )}
       </div>
 
       <Card stack>
@@ -81,7 +75,7 @@ export function FinancePanel() {
               <EmptyState
                 icon={Wallet}
                 title="No accounts yet"
-                hint="Connect a bank above to pull your accounts and transactions in, or add one by hand."
+                hint="Add an account above to start tracking by hand. You can also connect a bank below."
               />
             )
           }
@@ -94,7 +88,21 @@ export function FinancePanel() {
         </QueryState>
       </Card>
 
+      <details style={{ marginTop: 14 }}>
+        <summary className="btn secondary">Connect a bank</summary>
+        <PlaidCard />
+      </details>
+
       <Card style={{ marginTop: 14 }}>
+        <h2>Transactions</h2>
+        {addingTransaction ? (
+          <ManualTransactionForm accounts={accounts} onSaved={() => setAddingTransaction(false)} onCancel={() => setAddingTransaction(false)} />
+        ) : (
+          <div className="stack" style={{ marginBottom: 14 }}>
+            <Button disabled={accountsQuery.isPending || accountsQuery.isError || accounts.length === 0} onClick={() => setAddingTransaction(true)}>Add transaction</Button>
+            {!accountsQuery.isPending && !accountsQuery.isError && accounts.length === 0 && <p className="muted">Add an account first to record spending or income.</p>}
+          </div>
+        )}
         <QueryState
           query={txnsQuery}
           errorFallback="Failed to load transactions"
@@ -104,7 +112,7 @@ export function FinancePanel() {
               <EmptyState
                 icon={Wallet}
                 title="No transactions"
-                hint="Once a bank is connected and synced, your transactions show up here."
+                hint="Record spending or income above, or sync transactions from a connected bank."
               />
             )
           }

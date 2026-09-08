@@ -2,16 +2,16 @@
 
 import type { ReactNode } from 'react';
 import { Plus } from 'lucide-react';
-import { formatDuration } from '@atlas/shared';
+import { canvasSpanLabel, clockOrMidnightInTimezone, formatDuration } from '@atlas/shared';
 import type { CanvasSection, DayFlavor } from '@/lib/canvas';
-import { formatClock } from '@/lib/dates';
+import { displayTimezone, formatClock } from '@/lib/dates';
 
 function clockOrMidnight(d: Date): string {
-  return d.getHours() === 0 && d.getMinutes() === 0 ? 'midnight' : formatClock(d);
+  return clockOrMidnightInTimezone(d, displayTimezone());
 }
 
 function spanLabel(s: CanvasSection): string {
-  return `${clockOrMidnight(s.start)} – ${clockOrMidnight(s.end)}`;
+  return canvasSpanLabel(s, displayTimezone());
 }
 
 /**
