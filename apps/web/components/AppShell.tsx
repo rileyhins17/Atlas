@@ -6,7 +6,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { LayoutGrid, LogOut, MessageCircle, PanelLeft, Search } from 'lucide-react';
 import { useMe, useLogout } from '@/lib/hooks/auth';
 import { useTimezoneSync } from '@/lib/hooks/timezone';
-import { IconButton, Kbd, Skeleton } from '@/components/ui';
+import { ErrorState, IconButton, Kbd, Skeleton } from '@/components/ui';
 import { Logo } from '@/components/Logo';
 import { AuthGate } from '@/components/AuthGate';
 import { NavBar } from '@/components/NavBar';
@@ -35,6 +35,17 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   if (me.isPending) return <BootScreen />;
 
+  if (me.isError && !me.data) return (
+    <div className="gate-shell">
+      <main className="gate-body">
+        <div className="gate-inner">
+          <h1 className="gate-heading">Could not load your session</h1>
+          <ErrorState message="Atlas could not check your session. Retry to continue." onRetry={() => void me.refetch()} />
+        </div>
+      </main>
+    </div>
+  );
+
   if (!me.data) {
     return (
       <div className="gate-shell">
@@ -45,9 +56,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             sign-in composition. The shell used to render its own copy as well,
             which produced two stacked Atlas headers and a screen of dead space
             between them. */}
-        <div className="gate-body">
+        <main className="gate-body">
           <AuthGate />
-        </div>
+        </main>
       </div>
     );
   }
@@ -55,7 +66,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const name = me.data.displayName ?? me.data.email;
   return (
     <AtlasUiProvider>
-      <Frame name={name}>{children}</Frame>
+      <Frame name={name}>
+        {me.isError && <ErrorState message="Account details could not be refreshed." onRetry={() => void me.refetch()} />}
+        {children}
+      </Frame>
     </AtlasUiProvider>
   );
 }
@@ -223,9 +237,9 @@ function BootScreen() {
   if (!returning) {
     return (
       <div className="gate-shell">
-        <div className="gate-body">
+        <main className="gate-body">
           <AtlasLoadingScreen messages={['Waking Atlas…']} />
-        </div>
+        </main>
       </div>
     );
   }

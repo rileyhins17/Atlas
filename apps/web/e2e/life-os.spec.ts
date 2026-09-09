@@ -1,6 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
+import { measureScreen, screenFailures } from './ui-measurements';
 import { expect, test } from '@playwright/test';
 import { clearTodaysMoods, register, resetFitness, seedWorkoutHistory } from './helpers';
+
 
 /**
  * The Life-OS shell: command bar, chat rail, sidebar, the Today overview (v4
@@ -12,6 +14,8 @@ import { clearTodaysMoods, register, resetFitness, seedWorkoutHistory } from './
  */
 
 const STATE = 'test-results/.life-os-state.json';
+
+
 
 /**
  * Navigate and wait until the app is actually INTERACTIVE, not merely painted.
@@ -407,7 +411,7 @@ test('a workout logs sets, badges a real PR, and lands in history when finished'
 });
 
 test('the routine editor fixes work hours, per-day patterns, and one-off shifts', async ({ page }) => {
-  await go(page, '/settings');
+  await go(page, '/settings#routine');
 
   // A brand-new account has no routine, so seed one through the editor itself —
   // which is also the "I never onboarded properly" path this screen exists for.
@@ -554,6 +558,8 @@ test('calendar: navigating weeks reaches the past and comes back', async ({ page
 });
 
 test('fitness: set up a split, then train it', async ({ page }) => {
+  const baselineUnit = await page.request.patch('http://localhost:4000/settings', { data: { weightUnit: 'lb' } });
+  expect(baselineUnit.ok()).toBe(true);
   await go(page, '/fitness');
 
   // Describe the split once. Matching is local, so this works with no API key.
@@ -611,6 +617,40 @@ test('fitness: set up a split, then train it', async ({ page }) => {
 
   await bench.getByRole('button', { name: 'Log set' }).click();
   await expect(bench.locator('.fit-set-body')).toContainText('185 lb × 5');
+
+  // A late unit preference must not reinterpret a pounds-prefilled number as kg.
+  const preference = await page.request.patch('http://localhost:4000/settings', { data: { weightUnit: 'kg' } });
+  expect(preference.ok()).toBe(true);
+  let releaseSettings!: () => void;
+  const heldSettings = new Promise<void>((resolve) => { releaseSettings = resolve; });
+  let sawSettings!: () => void;
+  const requestedSettings = new Promise<void>((resolve) => { sawSettings = resolve; });
+  await page.route('http://localhost:4000/settings', async (route) => {
+    sawSettings();
+    await heldSettings;
+    await route.continue();
+  });
+  await page.reload();
+  await requestedSettings;
+  await expect(page.getByRole('button', { name: 'Log set', exact: true })).toHaveCount(0);
+  releaseSettings();
+  const kilograms = bench.getByLabel(/^Weight in kg/);
+  await expect(kilograms).toBeVisible();
+  await kilograms.click();
+  await kilograms.press('ControlOrMeta+a');
+  await kilograms.pressSequentially('100');
+  await expect(kilograms).toHaveValue('100');
+  await bench.getByRole('button', { name: 'Log set' }).click();
+  await expect(bench.locator('.fit-set-body').last()).toContainText('100 kg × 5');
+  const savedWorkout = await page.request.get('http://localhost:4000/fitness/workouts/active');
+  expect(savedWorkout.ok()).toBe(true);
+  expect((await savedWorkout.json()).sets).toEqual(expect.arrayContaining([
+    expect.objectContaining({ weightGrams: 100000, reps: 5 }),
+  ]));
+  await page.unroute('http://localhost:4000/settings');
+  const restoredUnit = await page.request.patch('http://localhost:4000/settings', { data: { weightUnit: 'lb' } });
+  expect(restoredUnit.ok()).toBe(true);
+
 });
 
 test('the nav is three destinations, and every old route still resolves', async ({ page }) => {
@@ -682,7 +722,9 @@ test('goals split into short and long term', async ({ page }) => {
   // "nothing linked yet" forever and its bar could not fill.
   await expect(page.locator('.goal-meta').first()).toContainText('nothing linked yet');
   await page.locator('.goal-open').first().click();
-  await page.getByLabel(/Add a task toward/).fill('Run 5k without stopping');
+  const stepInput = page.getByRole('textbox', { name: /Add a task toward/ });
+  await stepInput.click();
+  await stepInput.pressSequentially('Run 5k without stopping');
   await page.locator('.goal-tasks button[type=submit]').click();
   await expect(page.locator('.goal-task span').first()).toContainText('Run 5k');
   // The count is computed server-side, so this also pins that a task mutation
@@ -720,6 +762,7 @@ test('connectors are offered on their own pages, not only in Settings', async ({
   else await expect(googleButton).toHaveCount(0);
 
   await go(page, '/finance');
+  await page.locator('summary').filter({ hasText: 'Connect a bank' }).click();
   // Same story as Google: no Plaid credentials on the server means the card
   // says so instead of offering a button that cannot work. CI has none.
   const plaidConfigured = await page.evaluate(async () => {
@@ -734,7 +777,7 @@ test('connectors are offered on their own pages, not only in Settings', async ({
   ).toBeVisible();
   // Either way the empty state must point at this page, not send you to
   // Settings — that copy is what the whole change was about.
-  await expect(page.getByText(/Connect a bank above/)).toBeVisible();
+  await expect(page.getByText(/Add an account above/)).toBeVisible();
 
   // Settings still offers both — one component, rendered twice. Settings shows
   // the card unconditionally, so an unconfigured server explains itself there
@@ -1730,6 +1773,8 @@ test('Atlas asks how you are at your own waking and bedtime, not the clock', asy
  */
 test('a superset is one round, and the rest timer waits for the end of it', async ({ page }) => {
   await resetFitness(page);
+  const unit = await page.request.patch('http://localhost:4000/settings', { data: { weightUnit: 'lb' } });
+  expect(unit.ok()).toBe(true);
   await go(page, '/fitness');
 
   await page.getByRole('button', { name: 'New workout day' }).click();
@@ -1792,10 +1837,19 @@ test('a superset is one round, and the rest timer waits for the end of it', asyn
     // Typed, not filled: a controlled input can swallow a one-shot value, and
     // a click alone must change nothing.
     await fields.nth(0).click();
+    await fields.nth(0).press('ControlOrMeta+a');
     await fields.nth(0).pressSequentially(weight);
+    await expect(fields.nth(0)).toHaveValue(weight);
     await fields.nth(1).click();
+    await fields.nth(1).press('ControlOrMeta+a');
     await fields.nth(1).pressSequentially(reps);
-    await block.getByRole('button', { name: /log set/i }).click();
+    await expect(fields.nth(1)).toHaveValue(reps);
+    const [saved] = await Promise.all([
+      page.waitForResponse((response) => /\/fitness\/workouts\/[^/]+\/sets$/.test(new URL(response.url()).pathname)
+        && response.request().method() === 'POST'),
+      block.getByRole('button', { name: /log set/i }).click(),
+    ]);
+    expect(saved.status(), 'the superset set must persist before checking the rest timer').toBe(201);
     await expect(block.locator('.fit-set')).toHaveCount(before + 1, { timeout: 20_000 });
   };
 
@@ -1854,12 +1908,14 @@ test('a daily tracker records one rating per day, and correcting it is an edit',
     });
   });
 
-  // Nothing set up: Today must not nag about a feature nobody asked for.
+  // Nothing set up: wait for the settled empty state, not the loading gap.
   // Re-loaded so the assertion lands on the real overview rather than on the
   // wizard, where it would pass without meaning anything.
   await go(page, '/today');
   await expect(page.locator('.ov-block').first()).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator('.trk-card')).toHaveCount(0);
+  await expect(page.getByText('No personal ratings set up.')).toBeVisible();
+  await expect(page.locator('.trk-card').getByRole('radio')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Choose what to track' })).toBeVisible();
 
   await go(page, '/settings');
   await page.getByRole('button', { name: /Daily check-ins/i }).click();
@@ -1922,4 +1978,1499 @@ test('a daily tracker records one rating per day, and correcting it is an edit',
       await fetch(`${base}/trackers/${t.id}`, { method: 'DELETE', credentials: 'include' });
     }
   });
+});
+
+test('habit history preserves summed check-ins through the real database', async ({ page }) => {
+  await go(page, '/habits');
+  const result = await page.evaluate(async () => {
+    const base = window.location.hostname === 'localhost' ? 'http://localhost:4000' : '/api';
+    const call = async (path: string, method = 'GET', body?: unknown) => {
+      const response = await fetch(`${base}${path}`, {
+        method, credentials: 'include', headers: { 'content-type': 'application/json' },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+      if (!response.ok) throw new Error(`${method} ${path}: ${response.status}`);
+      return response.json();
+    };
+    // Own baseline, so this test works alone and after any other test.
+    const habit = await call('/habits', 'POST', { name: 'Synthetic aggregate check', target: 5 });
+    const empty = await call('/habits', 'POST', { name: 'Synthetic unrated habit' });
+    await call(`/habits/${habit.id}/log`, 'POST', { value: 2 });
+    await call(`/habits/${habit.id}/log`, 'POST', { value: 3 });
+    const updated = await call(`/habits/${habit.id}`, 'PATCH', { name: 'Verified aggregate check' });
+    const habits = await call('/habits') as { id: string; name: string; todayCount: number }[];
+    const history = await call('/habits/history?days=84') as {
+      habitId: string; days: { day: string; count: number }[];
+    }[];
+    return {
+      updatedName: updated.name,
+      saved: habits.find((row) => row.id === habit.id),
+      totals: history.find((row) => row.habitId === habit.id)?.days,
+      empty: history.find((row) => row.habitId === empty.id)?.days,
+    };
+  });
+  expect(result.updatedName).toBe('Verified aggregate check');
+  expect(result.saved?.name).toBe('Verified aggregate check');
+  // Sum across days so running across UTC midnight cannot change the assertion.
+  expect(result.totals?.reduce((sum, day) => sum + day.count, 0)).toBe(5);
+  expect(result.empty).toEqual([]);
+});
+
+test('exercise collections retain the final page of the real catalog', async ({ page }) => {
+  await go(page, '/fitness');
+  const result = await page.evaluate(async () => {
+    const base = window.location.hostname === 'localhost' ? 'http://localhost:4000' : '/api';
+    const response = await fetch(`${base}/fitness/exercises`, {
+      method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'zzzz Synthetic pagination movement' }),
+    });
+    if (!response.ok) throw new Error(`Create exercise: ${response.status}`);
+    const created = await response.json() as { id: string };
+    const listed = await fetch(`${base}/fitness/exercises`, { credentials: 'include' });
+    if (!listed.ok) throw new Error(`List exercises: ${listed.status}`);
+    const rows = await listed.json() as { id: string; name: string }[];
+    return { createdId: created.id, ids: rows.map((row) => row.id) };
+  });
+  // The shipped catalog already spans pages; the new name sorts after it.
+  expect(result.ids.length).toBeGreaterThan(250);
+  expect(result.ids).toContain(result.createdId);
+  expect(new Set(result.ids).size).toBe(result.ids.length);
+});
+
+test('day planning works without AI and accepted blocks retain their task link', async ({ page }) => {
+  const origin = 'http://localhost:4000';
+  const title = `Local planning ${Date.now()}`;
+  // The fixed historical due date puts this spec's own task in the bounded
+  // candidate set, independently of work left by the rest of the shared suite.
+  const created = await page.request.post(`${origin}/tasks`, { data: {
+    title, priority: 'URGENT', dueAt: '1900-01-01T12:00:00.000Z',
+  } });
+  expect(created.ok()).toBe(true);
+  const task = await created.json();
+  const startAt = new Date(Date.now() + 3_600_000).toISOString();
+  const endAt = new Date(Date.now() + 7_200_000).toISOString();
+  const planned = await page.request.post(`${origin}/ai/plan-day`, { data: { gaps: [{ startAt, endAt }] } });
+  expect(planned.ok()).toBe(true);
+  const result = await planned.json();
+  const proposal = result.proposals.find((p: { taskId: string }) => p.taskId === task.id);
+  expect(proposal, 'the no-provider plan must contain this real task').toBeDefined();
+  expect(new Date(proposal.startAt).getTime()).toBeGreaterThanOrEqual(new Date(startAt).getTime());
+  expect(new Date(proposal.endAt).getTime()).toBeLessThanOrEqual(new Date(endAt).getTime());
+  const accepted = await page.request.post(`${origin}/events`, { data: {
+    taskId: proposal.taskId, title: proposal.title, startAt: proposal.startAt, endAt: proposal.endAt,
+  } });
+  expect(accepted.ok()).toBe(true);
+  const event = await accepted.json();
+  expect(event).toMatchObject({ taskId: task.id, title, startAt: proposal.startAt, endAt: proposal.endAt });
+  const events = await page.request.get(`${origin}/events`);
+  expect(events.ok()).toBe(true);
+  expect(await events.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: event.id, taskId: task.id })]));
+});
+
+
+test('Today keeps actions first and recovers from unavailable day data', async ({ page }) => {
+  const marker = Date.now();
+  const seeded = await page.request.post('http://localhost:4000/tasks', { data: {
+    title: `Overview baseline ${marker}`,
+  } });
+  expect(seeded.ok()).toBe(true);
+  const habit = await page.request.post('http://localhost:4000/habits', { data: {
+    name: `Visible daily action ${marker}`, target: 1,
+  } });
+  expect(habit.status()).toBe(201);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const fullDay = page.getByRole('button', { name: 'Full day, hour by hour' });
+  const checklist = page.getByRole('region', { name: 'Checklist' });
+  for (const theme of ['light', 'dark'] as const) {
+    await page.goto('/today');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    await expect(page.getByLabel('Capture anything')).toBeVisible();
+    await expect(fullDay).toHaveAttribute('aria-expanded', 'false');
+    await expect(checklist).toBeVisible();
+    const firstAction = checklist.getByRole('button').first();
+    await expect(firstAction).toBeVisible();
+    const actionBox = await firstAction.boundingBox();
+    const captureBox = await page.getByRole('region', { name: 'Quick capture' }).boundingBox();
+    expect(actionBox!.y).toBeGreaterThanOrEqual(0);
+    expect(actionBox!.y + actionBox!.height, 'the first daily action is above the fixed capture dock without scrolling').toBeLessThan(captureBox!.y);
+    const checklistBox = await checklist.boundingBox();
+    const adjustments = await page.getByRole('group', { name: 'Running late' }).boundingBox();
+    expect(checklistBox!.y).toBeLessThan(adjustments!.y);
+    const failures = screenFailures(await measureScreen(page, '/today:action-priority', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+  }
+  await fullDay.click();
+  await expect(fullDay).toHaveAttribute('aria-expanded', 'true');
+  await page.getByRole('button', { name: 'Next day', exact: true }).click();
+  await expect(fullDay).toHaveAttribute('aria-expanded', 'true');
+
+  await page.route('**/timeline?**', (route) => route.fulfill({
+    status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'Synthetic unavailable timeline' }),
+  }));
+  await page.goto('/today');
+  const failure = page.getByText('Your day could not be loaded. Retry before planning from it.');
+  await expect(failure).toBeVisible();
+  await expect(checklist).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Plan my day', exact: true })).toHaveCount(0);
+  await page.unroute('**/timeline?**');
+  await failure.locator('..').getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(checklist).toBeVisible();
+  await expect(failure).toHaveCount(0);
+});
+
+
+test('habit consistency never reports zero from an unavailable history request', async ({ page }) => {
+  const created = await page.request.post('http://localhost:4000/habits', {
+    data: { name: `History recovery ${Date.now()}`, target: 1 },
+  });
+  expect(created.ok()).toBe(true);
+  const habit = await created.json() as { id: string };
+  const logged = await page.request.post(`http://localhost:4000/habits/${habit.id}/log`, { data: {} });
+  expect(logged.ok()).toBe(true);
+  const historyUrl = 'http://localhost:4000/habits/history?*';
+  await page.route(historyUrl, (route) => route.fulfill({
+    status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'Synthetic history outage' }),
+  }));
+  await page.goto('/progress');
+  const card = page.getByRole('region', { name: 'Habits, one by one', exact: true });
+  await expect(card.getByText('Could not load your habit history.')).toBeVisible({ timeout: 20_000 });
+  await expect(card.locator('.prog-habit-pct')).toHaveCount(0);
+  await page.unroute(historyUrl);
+  await card.getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(card.locator('.prog-habit-pct').first()).toBeVisible();
+  await expect(card.getByText('Could not load your habit history.')).toHaveCount(0);
+});
+
+
+test('a workout finishes with notes while history is unavailable', async ({ page }) => {
+  await resetFitness(page);
+  const catalog = await page.request.get('http://localhost:4000/fitness/exercises');
+  expect(catalog.ok()).toBe(true);
+  const exercises = await catalog.json() as { id: string; kind: string }[];
+  const exercise = exercises.find((row) => row.kind === 'weight_reps');
+  expect(exercise).toBeTruthy();
+  const started = await page.request.post('http://localhost:4000/fitness/workouts', {
+    data: { title: `History unavailable ${Date.now()}` },
+  });
+  expect(started.ok()).toBe(true);
+  const workout = await started.json() as { id: string };
+  const set = await page.request.post(`http://localhost:4000/fitness/workouts/${workout.id}/sets`, {
+    data: { exerciseId: exercise!.id, weightGrams: 10000, reps: 5 },
+  });
+  expect(set.ok()).toBe(true);
+  const historyUrl = 'http://localhost:4000/fitness/workouts?*';
+  await page.route(historyUrl, (route) => route.fulfill({ status: 503,
+    contentType: 'application/json', body: JSON.stringify({ message: 'Synthetic history outage' }) }));
+  await go(page, '/fitness');
+  await expect(page.getByText('Earlier sessions could not be loaded. You can still finish this workout without comparisons.')).toBeVisible({ timeout: 20_000 });
+  const notes = page.getByLabel('How did it go?');
+  await notes.click();
+  await notes.pressSequentially('Steady session despite the missing history');
+  await page.locator('.fit-active').getByRole('button', { name: 'Finish', exact: true }).click();
+  await expect(page.getByRole('dialog').getByText('Workout saved. Earlier sessions were unavailable, so records and volume comparisons were not checked.')).toBeVisible();
+  await page.unroute(historyUrl);
+  const history = await page.request.get('http://localhost:4000/fitness/workouts?limit=20');
+  expect(history.ok()).toBe(true);
+  const saved = (await history.json() as { id: string; endedAt: string | null; notes: string; volumeGrams: number }[]).find((row) => row.id === workout.id);
+  expect(saved?.endedAt).toBeTruthy();
+  expect(saved?.notes).toBe('Steady session despite the missing history');
+  expect(saved?.volumeGrams).toBe(50000);
+});
+
+
+test('settings opens as an overview with explicit routine editing', async ({ page }) => {
+  await go(page, '/settings');
+  await page.evaluate(() => {
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith('atlas-settings-')) localStorage.removeItem(key);
+    }
+  });
+  await go(page, '/settings');
+  await expect(page.getByRole('heading', { name: 'Your account', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your day', exact: true })).toBeVisible();
+  await expect(page.locator('#routine-body')).toBeHidden();
+  await page.getByRole('link', { name: 'Edit my week' }).click();
+  await expect(page.locator('#routine-body')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Add to my week/i })).toBeVisible();
+});
+
+test('manual accounts save exact typed balances without a bank connection', async ({ page }) => {
+  const name = `Manual reserve ${Date.now()}`;
+  await go(page, '/finance');
+  await page.getByRole('button', { name: 'Add account', exact: true }).click();
+  await page.getByLabel('Account name', { exact: true }).click();
+  await page.getByLabel('Account name', { exact: true }).pressSequentially(name);
+  await page.getByLabel('Recorded balance', { exact: true }).click();
+  await page.getByLabel('Recorded balance', { exact: true }).pressSequentially('185.29');
+  const saved = page.waitForResponse((res) => res.url().endsWith('/finance/accounts') && res.request().method() === 'POST');
+  await page.getByRole('button', { name: 'Save account', exact: true }).click();
+  expect((await saved).status()).toBe(201);
+  await expect(page.locator('.task').filter({ hasText: name })).toBeVisible();
+  const response = await page.request.get('http://localhost:4000/finance/accounts');
+  expect(response.ok()).toBeTruthy();
+  const account = (await response.json() as { id: string; name: string; balanceMinor: number; currency: string }[]).find((row) => row.name === name);
+  expect(account?.id).toBeTruthy();
+  expect(account?.balanceMinor).toBe(18529);
+  expect(account?.currency).toBe('CAD');
+  await page.reload();
+  await expect(page.locator('.task').filter({ hasText: name })).toBeVisible();
+});
+
+test('goals and habits recover missing detail reads in both themes', async ({ page }) => {
+  const marker = Date.now();
+  const goalTitle = `Detail recovery ${marker}`;
+  const goalResponse = await page.request.post('http://localhost:4000/goals', { data: { title: goalTitle, horizon: 'short' } });
+  expect(goalResponse.status()).toBe(201);
+  const goal = await goalResponse.json() as { id: string };
+  const taskTitle = `Persisted goal step ${marker}`;
+  const task = await page.request.post('http://localhost:4000/tasks', { data: { title: taskTitle, goalId: goal.id } });
+  expect(task.status()).toBe(201);
+  const habitName = `History recovery ${marker}`;
+  const habitResponse = await page.request.post('http://localhost:4000/habits', { data: { name: habitName, target: 1 } });
+  expect(habitResponse.status()).toBe(201);
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    await page.goto('/goals');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.route('http://localhost:4000/tasks', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'Could not load linked tasks.' }) }));
+    await page.reload();
+    const goalRow = page.locator('.goal-row').filter({ hasText: goalTitle });
+    await goalRow.getByRole('button', { name: goalTitle, exact: true }).click();
+    await expect(goalRow.getByText('Could not load linked tasks.')).toBeVisible({ timeout: 20_000 });
+    await expect(goalRow.getByText(/Break this into work/)).toHaveCount(0);
+    const draft = goalRow.getByRole('textbox');
+    await draft.click(); await draft.pressSequentially('Keep this draft');
+    await page.unroute('http://localhost:4000/tasks');
+    await goalRow.getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(goalRow.locator('.goal-task')).toContainText(taskTitle);
+    await expect(draft).toHaveValue('Keep this draft');
+    let failures = screenFailures(await measureScreen(page, '/goals:linked-tasks', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await page.route('http://localhost:4000/habits/history?*', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.goto('/habits');
+    await expect(page.getByText('Could not load habit history. You can still check in.')).toBeVisible({ timeout: 20_000 });
+    const habitCard = page.locator('.habit-card').filter({ hasText: habitName });
+    await expect(habitCard.locator('.habit-heatmap')).toHaveCount(0);
+    await expect(habitCard.getByRole('button', { name: `Check in "${habitName}"` })).toBeEnabled();
+    await page.unroute('http://localhost:4000/habits/history?*');
+    await page.getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(habitCard.locator('.habit-heatmap')).toBeVisible();
+    await expect(habitCard).toContainText('No check-ins recorded in the last 26 weeks.');
+    failures = screenFailures(await measureScreen(page, '/habits:history-recovered', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+  }
+});
+
+test('settings recover notification status and failed weight saves in both themes', async ({ page }) => {
+  await page.addInitScript(() => {
+    // Stub this browser boundary: the case proves status-read recovery, not
+    // Chromium permission grants or delivery through a push provider.
+    Object.defineProperty(Notification, 'permission', { configurable: true, get: () => 'default' });
+    let first = true;
+    Object.defineProperty(navigator.serviceWorker, 'getRegistration', { configurable: true, value: async () => {
+      if (first) { first = false; throw new Error('Synthetic registration read failure'); }
+      return undefined;
+    } });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    await page.goto('/settings');
+    await page.evaluate((value) => {
+      localStorage.setItem('atlas-theme', value);
+      for (const id of ['proactive', 'training']) localStorage.setItem(`atlas-settings-${id}`, '1');
+    }, theme);
+    await page.reload();
+    const proactive = page.locator('#proactive-body');
+    await expect(proactive.getByText('Could not read notification status.')).toBeVisible();
+    await proactive.getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(proactive.getByRole('button', { name: 'Enable notifications' })).toBeEnabled();
+    const training = page.locator('#training-body');
+    const prior = await training.getByRole('button', { pressed: true }).innerText();
+    const next = await training.getByRole('button', { pressed: false }).innerText();
+    await page.route('http://localhost:4000/settings', (route) => route.request().method() === 'PATCH'
+      ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'Synthetic preference failure' }) })
+      : route.continue());
+    await training.getByRole('button', { name: next, exact: true }).click();
+    await expect(training.getByRole('alert')).toHaveText('Synthetic preference failure');
+    await expect(training.getByRole('button', { name: prior, exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await page.unroute('http://localhost:4000/settings');
+    const saved = page.waitForResponse((response) => response.url().endsWith('/settings') && response.request().method() === 'PATCH');
+    await training.getByRole('button', { name: next, exact: true }).click();
+    expect((await saved).ok()).toBe(true);
+    await expect(training.getByRole('button', { name: next, exact: true })).toHaveAttribute('aria-pressed', 'true');
+    const settings = await page.request.get('http://localhost:4000/settings');
+    expect(settings.ok()).toBe(true);
+    expect(await settings.json()).toMatchObject({ weightUnit: next.includes('kg') ? 'kg' : 'lb' });
+    const failures = screenFailures(await measureScreen(page, '/settings:recovered-actions', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+  }
+});
+
+test('settings retain drafts across other saves and persist them in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    await page.goto('/settings');
+    await page.evaluate((value) => {
+      localStorage.setItem('atlas-theme', value);
+      for (const id of ['you', 'proactive', 'training']) localStorage.setItem(`atlas-settings-${id}`, '1');
+    }, theme);
+    await page.reload();
+    const name = `Draft ${theme} ${Date.now()}`;
+    const nameInput = page.locator('#you-body').getByRole('textbox');
+    await nameInput.click(); await nameInput.press('ControlOrMeta+a'); await nameInput.pressSequentially(name);
+    const hour = page.locator('#proactive-body').getByRole('spinbutton');
+    await hour.click(); await hour.press('ControlOrMeta+a'); await hour.pressSequentially('19');
+    await page.route('http://localhost:4000/settings', async (route) => {
+      if (route.request().method() !== 'PATCH') return route.continue();
+      const response = await route.fetch();
+      const body = await response.json() as Record<string, unknown>;
+      await route.fulfill({ response, json: { ...body, displayName: 'Synthetic remote profile change' } });
+    });
+    const savedUnit = page.waitForResponse((response) => response.url().endsWith('/settings') && response.request().method() === 'PATCH');
+    await page.getByRole('group', { name: 'Weight unit' }).getByRole('button', { pressed: false }).click();
+    expect((await savedUnit).ok()).toBe(true);
+    await expect(nameInput).toHaveValue(name);
+    await expect(hour).toHaveValue('19');
+    await page.unroute('http://localhost:4000/settings');
+    const savedName = page.waitForResponse((response) => response.url().endsWith('/settings') && response.request().method() === 'PATCH');
+    await page.locator('#you-body').getByRole('button', { name: 'Save', exact: true }).click();
+    expect((await savedName).ok()).toBe(true);
+    await expect(hour).toHaveValue('19');
+    const savedBrief = page.waitForResponse((response) => response.url().endsWith('/settings') && response.request().method() === 'PATCH');
+    await page.locator('#proactive-body').getByRole('button', { name: 'Save', exact: true }).click();
+    expect((await savedBrief).ok()).toBe(true);
+    const settings = await page.request.get('http://localhost:4000/settings');
+    expect(settings.ok()).toBe(true);
+    expect(await settings.json()).toMatchObject({ displayName: name, briefHour: 19 });
+    await page.reload();
+    await expect(nameInput).toHaveValue(name);
+    await expect(hour).toHaveValue('19');
+    const failures = screenFailures(await measureScreen(page, '/settings:editors', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+  }
+});
+
+test('habit progress respects creation dates and weekly targets in both themes', async ({ page }) => {
+  const entry = await page.request.post('http://localhost:4000/journal', { data: { body: 'Synthetic habit progress baseline', mood: 3 } });
+  expect(entry.status()).toBe(201);
+  await page.clock.setFixedTime(new Date('2026-09-08T18:00:00Z'));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('http://localhost:4000/habits', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify([
+    { id: 'fixture-daily', name: 'New daily reading', target: 1, cadence: 'daily', createdAt: '2026-09-08T10:00:00Z', streak: 1, active: true, doneToday: true, todayCount: 1 },
+    { id: 'fixture-weekly', name: 'Weekly practice', target: 3, cadence: 'weekly', createdAt: '2026-09-07T10:00:00Z', streak: 1, active: true, doneToday: false, todayCount: 2 },
+  ]) }));
+  await page.route('http://localhost:4000/habits/history?*', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify([
+    { habitId: 'fixture-daily', days: [{ day: '2026-09-08', count: 1 }] },
+    { habitId: 'fixture-weekly', days: [{ day: '2026-09-07', count: 1 }, { day: '2026-09-08', count: 2 }] },
+  ]) }));
+  for (const theme of ['light', 'dark'] as const) {
+    await page.goto('/progress');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    const daily = page.locator('.prog-habit-row').filter({ hasText: 'New daily reading' });
+    const weekly = page.locator('.prog-habit-row').filter({ hasText: 'Weekly practice' });
+    await expect(daily).toContainText('1 of 1 day with the target met');
+    await expect(weekly).toContainText('1 of 1 week with the target met');
+    await expect(weekly).toContainText('includes 1 partial week');
+    await expect(daily.locator('.prog-habit-pct')).toHaveText('100');
+    await expect(weekly.locator('.prog-habit-pct')).toHaveText('100');
+    const failures = screenFailures(await measureScreen(page, '/progress:habit-targets', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+  }
+});
+
+test('mood patterns show loading, failure and recoverable empty history', async ({ page }) => {
+  const entry = await page.request.post('http://localhost:4000/journal', { data: { body: 'Synthetic progress state baseline', mood: 3 } });
+  expect(entry.status()).toBe(201);
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    await page.goto('/progress');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    let fail = true;
+    await page.route('**/stats/patterns', async (route) => {
+      await pending;
+      await route.fulfill({ status: fail ? 503 : 200, contentType: 'application/json', body: JSON.stringify(fail
+        ? { message: 'Synthetic patterns outage' }
+        : { daysLogged: 0, daysNeeded: 14, patterns: [] }) });
+    });
+    await page.reload();
+    await expect(page.getByRole('status').filter({ hasText: 'Loading mood patterns' })).toBeVisible();
+    release();
+    const error = page.getByText('Could not load mood patterns.', { exact: true });
+    await expect(error).toBeVisible({ timeout: 20_000 });
+    fail = false;
+    await error.locator('..').getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(page.getByText(/0 of 14 days logged/)).toBeVisible();
+    const failures = screenFailures(await measureScreen(page, '/progress:empty-patterns', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await page.unroute('**/stats/patterns');
+  }
+});
+
+test('manual transactions persist exact spending and income in both themes', async ({ page }) => {
+  const accountResponse = await page.request.post('http://localhost:4000/finance/accounts', { data: { name: `Manual ledger ${Date.now()}`, type: 'cash', currency: 'CAD', balanceMinor: 20000 } });
+  expect(accountResponse.status()).toBe(201);
+  const account = await accountResponse.json() as { id: string };
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    await page.goto('/finance');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    await page.getByRole('button', { name: 'Add transaction', exact: true }).click();
+    const form = page.getByRole('form', { name: 'New manual transaction' });
+    await form.getByRole('combobox', { name: 'Account', exact: true }).selectOption(account.id);
+    await form.getByRole('combobox', { name: 'Type', exact: true }).selectOption(theme === 'light' ? 'expense' : 'income');
+    const description = `Saved ledger ${theme} ${Date.now()}`;
+    await form.getByLabel('Description', { exact: true }).click();
+    await form.getByLabel('Description', { exact: true }).pressSequentially(description);
+    await form.getByLabel('Amount (CAD)', { exact: true }).click();
+    await form.getByLabel('Amount (CAD)', { exact: true }).pressSequentially('18.29');
+    const failures = screenFailures(await measureScreen(page, '/finance:transaction', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    const response = page.waitForResponse((res) => res.url().endsWith('/finance/transactions') && res.request().method() === 'POST');
+    await form.getByRole('button', { name: 'Save transaction', exact: true }).click();
+    const savedResponse = await response;
+    expect(savedResponse.status()).toBe(201);
+    const saved = await savedResponse.json() as { id: string; amountMinor: number; currency: string };
+    expect(saved.amountMinor).toBe(theme === 'light' ? -1829 : 1829);
+    expect(saved.currency).toBe('CAD');
+    await page.reload();
+    await expect(page.locator('.task').filter({ hasText: description })).toBeVisible();
+    const ledger = await page.request.get(`http://localhost:4000/finance/transactions?accountId=${account.id}`);
+    expect(ledger.ok()).toBe(true);
+    expect((await ledger.json() as { id: string }[]).some((row) => row.id === saved.id)).toBe(true);
+  }
+});
+
+test('mobile week shows complete events and retains time-grid access in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/week');
+  await expect(page.getByRole('group', { name: 'Week layout' })).toBeVisible();
+  const title = `Mobile week: a complete appointment title ${Date.now()}`;
+  const times = await page.evaluate(() => {
+    const start = new Date(); start.setHours(12, 0, 0, 0);
+    const end = new Date(start); end.setHours(13);
+    return { startAt: start.toISOString(), endAt: end.toISOString() };
+  });
+  const saved = await page.request.post('http://localhost:4000/events', { data: { title, ...times } });
+  expect(saved.status()).toBe(201);
+  const overnightTitle = `Overnight appointment ${Date.now()}`;
+  const overnightTimes = await page.evaluate(() => {
+    const start = new Date();
+    start.setDate(start.getDate() - ((start.getDay() + 6) % 7) + 1);
+    start.setHours(23, 0, 0, 0);
+    const end = new Date(start); end.setDate(end.getDate() + 1); end.setHours(1);
+    return { startAt: start.toISOString(), endAt: end.toISOString() };
+  });
+  const overnightSaved = await page.request.post('http://localhost:4000/events', { data: { title: overnightTitle, ...overnightTimes } });
+  expect(overnightSaved.status()).toBe(201);
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.goto('/week');
+    await expect(page.locator('.week-agenda-day')).toHaveCount(7);
+    const event = page.locator('.week-agenda-event').filter({ hasText: title });
+    await expect(event).toBeVisible();
+    await expect(event.locator('.week-agenda-title')).toHaveText(title);
+    const overnight = page.locator('.week-agenda-event').filter({ hasText: overnightTitle });
+    await expect(overnight).toHaveCount(2);
+    await expect(overnight.first()).toContainText('Continues into the next day');
+    await expect(overnight.last()).toContainText('Continued from the previous day');
+    const failures = screenFailures(await measureScreen(page, '/week:agenda', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await event.click();
+    await expect(page.getByPlaceholder('Dentist, standup, gym…')).toHaveValue(title);
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Time grid', exact: true }).click();
+    await expect(page.locator('.wk-col')).toHaveCount(7);
+    await page.getByRole('button', { name: 'Agenda', exact: true }).click();
+    await expect(event).toBeVisible();
+  }
+});
+
+
+test('habit check-ins keep partial progress honest and recover failed saves in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    const name = `Check-in state ${theme} ${Date.now()}`;
+    const created = await page.request.post('http://localhost:4000/habits', { data: { name, target: 2 } });
+    expect(created.status()).toBe(201);
+    const habit = await created.json() as { id: string };
+    await page.goto('/habits');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    const card = page.locator('.habit-card').filter({ hasText: name });
+    const button = card.getByRole('button', { name: `Check in "${name}"` });
+    await expect(button).toHaveAttribute('aria-pressed', 'false');
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    const logUrl = `http://localhost:4000/habits/${habit.id}/log`;
+    await page.route(logUrl, async (route) => {
+      await held;
+      await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'Synthetic check-in failure' }) });
+    });
+    try {
+      await button.click();
+      await expect(button).toBeDisabled();
+      await expect(card).toContainText('1/2 today');
+      await expect(button).toHaveAttribute('aria-pressed', 'false');
+    } finally { release(); }
+    await expect(card).toContainText('0/2 today');
+    await expect(button).toBeEnabled();
+    await page.unroute(logUrl);
+    for (const count of [1, 2]) {
+      const saved = page.waitForResponse((response) => response.url() === logUrl && response.request().method() === 'POST');
+      await button.click();
+      expect((await saved).ok()).toBe(true);
+      await expect(button).toBeEnabled();
+      await expect(card).toContainText(`${count}/2 today`);
+      await expect(button).toHaveAttribute('aria-pressed', String(count === 2));
+    }
+    await page.reload();
+    await expect(card).toContainText('2/2 today');
+    await expect(button).toHaveAttribute('aria-pressed', 'true');
+    const listed = await page.request.get('http://localhost:4000/habits');
+    expect(listed.ok()).toBe(true);
+    expect(await listed.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: habit.id, todayCount: 2, target: 2, doneToday: true })]));
+    const failures = screenFailures(await measureScreen(page, '/habits:check-in-state', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+  }
+});
+
+
+test('tracker setup recovers reads and saves without losing drafts in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    await page.goto('/settings');
+    await page.evaluate((value) => {
+      localStorage.setItem('atlas-theme', value);
+      localStorage.setItem('atlas-settings-trackers', '1');
+    }, theme);
+    await page.route('http://localhost:4000/trackers', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.reload();
+    const section = page.locator('#trackers-body');
+    await expect(section.getByText('Your daily ratings could not be loaded.')).toBeVisible({ timeout: 20_000 });
+    await expect(section.getByRole('button', { name: 'Energy', exact: true })).toHaveCount(0);
+    await expect(section.getByRole('button', { name: 'Track something else' })).toHaveCount(0);
+    await page.unroute('http://localhost:4000/trackers');
+    await section.getByRole('button', { name: 'Retry', exact: true }).click();
+    await section.getByRole('button', { name: 'Track something else' }).click();
+    const name = `Focus ${theme} ${Date.now()}`;
+    const input = section.getByRole('textbox', { name: 'Tracker name' });
+    await input.click(); await input.pressSequentially(name);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    await page.route('http://localhost:4000/trackers', async (route) => {
+      if (route.request().method() !== 'POST') return route.continue();
+      await held;
+      await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'Synthetic tracker save failure' }) });
+    });
+    try {
+      await section.getByRole('button', { name: 'Add tracker', exact: true }).click();
+      await expect(input).toBeDisabled();
+      await expect(section.getByRole('button', { name: 'Cancel', exact: true })).toBeDisabled();
+    } finally { release(); }
+    await expect(input).toBeEnabled();
+    await expect(input).toHaveValue(name);
+    await page.unroute('http://localhost:4000/trackers');
+    const saved = page.waitForResponse((response) => response.url().endsWith('/trackers') && response.request().method() === 'POST');
+    await section.getByRole('button', { name: 'Add tracker', exact: true }).click();
+    const response = await saved;
+    expect(response.status()).toBe(201);
+    const tracker = await response.json() as { id: string };
+    await expect(section.locator('.trk-manage-row').filter({ hasText: name })).toBeVisible();
+    await page.reload();
+    await expect(section.locator('.trk-manage-row').filter({ hasText: name })).toBeVisible();
+    const listed = await page.request.get('http://localhost:4000/trackers');
+    expect(listed.ok()).toBe(true);
+    expect(await listed.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: tracker.id, name })]));
+    const failures = screenFailures(await measureScreen(page, '/settings:tracker-setup', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+  }
+});
+
+
+test('session and invite configuration failures recover without losing credentials in both themes', async ({ page }) => {
+  const task = await page.request.post('http://localhost:4000/tasks', { data: { title: `Session recovery ${Date.now()}` } });
+  expect(task.status()).toBe(201);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const meUrl = 'http://localhost:4000/auth/me';
+  const configUrl = 'http://localhost:4000/auth/config';
+  for (const theme of ['light', 'dark'] as const) {
+    await page.route(meUrl, (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.goto('/today');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Could not load your session' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Show the sign in form' })).toHaveCount(0);
+    let failures = screenFailures(await measureScreen(page, '/today:session-failure', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await page.unroute(meUrl);
+    await page.getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(page.getByRole('region', { name: 'Quick capture' })).toBeVisible();
+    await page.route(meUrl, (route) => route.fulfill({ status: 401, contentType: 'application/json', body: '{}' }));
+    await page.route(configUrl, (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeEnabled();
+    await page.getByRole('button', { name: 'Show the create account form' }).click();
+    await expect(page.getByText('Sign-up requirements could not be loaded.')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole('button', { name: 'Create account', exact: true })).toBeDisabled();
+    const email = page.getByLabel('Email', { exact: true });
+    const password = page.getByLabel('Password', { exact: true });
+    await email.click(); await email.pressSequentially('synthetic@example.com');
+    await password.click(); await password.pressSequentially('synthetic-password-123');
+    await page.unroute(configUrl);
+    await page.route(configUrl, (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ inviteRequired: true }) }));
+    await page.getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(page.getByLabel('Invite code', { exact: true })).toBeVisible();
+    await expect(email).toHaveValue('synthetic@example.com');
+    await expect(password).toHaveValue('synthetic-password-123');
+    failures = screenFailures(await measureScreen(page, '/today:invite-recovery', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await page.unroute(configUrl);
+    await page.unroute(meUrl);
+  }
+});
+
+test('command search recovers saved results without changing the selected action in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    const title = `Dentist search ${theme} ${Date.now()}`;
+    const created = await page.request.post('http://localhost:4000/tasks', { data: { title } });
+    expect(created.status()).toBe(201);
+    const task = await created.json() as { id: string };
+    await page.goto('/today');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    await expect(page.getByRole('region', { name: 'Quick capture' })).toBeVisible();
+    await page.getByRole('button', { name: 'Search and capture', exact: true }).click();
+    const input = page.getByRole('combobox', { name: 'Command input' });
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    await page.route('http://localhost:4000/search?*', async (route) => {
+      await held;
+      await route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+    });
+    try {
+      await input.click(); await input.pressSequentially(title);
+      await expect(page.getByRole('status').filter({ hasText: 'Searching your Atlas…' })).toBeVisible();
+      await input.press('ArrowDown');
+      await expect(page.getByRole('option', { name: /Ask Atlas:/ })).toHaveAttribute('aria-selected', 'true');
+    } finally { release(); }
+    await expect(page.getByText('Your saved items could not be searched.')).toBeVisible({ timeout: 20_000 });
+    let failures = screenFailures(await measureScreen(page, '/today:search-error', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await page.unroute('http://localhost:4000/search?*');
+    const responsePromise = page.waitForResponse((response) => response.url().includes('/search?') && new URL(response.url()).searchParams.get('q') === title);
+    await page.getByRole('button', { name: 'Retry', exact: true }).click();
+    const response = await responsePromise;
+    expect(response.ok()).toBe(true);
+    expect((await response.json()).hits).toEqual(expect.arrayContaining([expect.objectContaining({ id: task.id, title })]));
+    await expect(page.getByRole('option', { name: /Ask Atlas:/ })).toHaveAttribute('aria-selected', 'true');
+    await expect(input).toHaveValue(title);
+    const hit = page.getByRole('option').filter({ hasText: title }).filter({ has: page.locator('.command-item-hint', { hasText: /^task/ }) });
+    await expect(hit).toBeVisible();
+    await hit.click();
+    await expect(page).toHaveURL(/\/tasks/);
+    await expect(page.locator('.task').filter({ hasText: title })).toBeVisible();
+    await page.getByRole('button', { name: 'Search and capture', exact: true }).click();
+    await input.click(); await input.pressSequentially(`zznomatch${Date.now()}${theme}`);
+    await expect(page.getByText('No saved items match this search.')).toBeVisible();
+    failures = screenFailures(await measureScreen(page, '/tasks:search-empty', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await input.press('Escape');
+  }
+});
+
+test('task goal links survive unavailable details and persist a recovered choice in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    const stamp = `${theme} ${Date.now()}`;
+    const goals: { id: string; title: string }[] = [];
+    for (const label of ['Original', 'Next']) {
+      const response = await page.request.post('http://localhost:4000/goals', { data: { title: `${label} goal ${stamp}`, horizon: 'short' } });
+      expect(response.status()).toBe(201);
+      goals.push(await response.json());
+    }
+    const title = `Goal link ${stamp}`;
+    const created = await page.request.post('http://localhost:4000/tasks', { data: { title, goalId: goals[0]!.id } });
+    expect(created.status()).toBe(201);
+    const task = await created.json() as { id: string };
+    await page.route('http://localhost:4000/goals', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.goto('/tasks');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    const row = page.locator('.task').filter({ hasText: title });
+    await row.getByRole('button', { name: 'Goal linked — view or change', exact: true }).click();
+    await expect(row.getByText('Your goals could not be loaded.')).toBeVisible({ timeout: 20_000 });
+    let failures = screenFailures(await measureScreen(page, '/tasks:goal-error', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await page.unroute('http://localhost:4000/goals');
+    await row.getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(row.getByRole('button', { name: `Goal: ${goals[0]!.title} — change`, exact: true })).toBeVisible();
+    const updated = page.waitForResponse((response) => response.url().endsWith(`/tasks/${task.id}`) && response.request().method() === 'PATCH');
+    await row.locator('.task-goal-menu button').filter({ hasText: goals[1]!.title }).click();
+    expect((await updated).ok()).toBe(true);
+    await expect(row.getByRole('button', { name: `Goal: ${goals[1]!.title} — change`, exact: true })).toBeVisible();
+    await page.reload();
+    await expect(row.getByRole('button', { name: `Goal: ${goals[1]!.title} — change`, exact: true })).toBeVisible();
+    const listed = await page.request.get('http://localhost:4000/tasks');
+    expect(listed.ok()).toBe(true);
+    expect(await listed.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: task.id, goalId: goals[1]!.id })]));
+    failures = screenFailures(await measureScreen(page, '/tasks:goal-recovered', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+  }
+});
+
+test('workouts finish during a weight-settings outage and recover saved kilograms in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const configured = await page.request.patch('http://localhost:4000/settings', { data: { weightUnit: 'kg' } });
+  expect(configured.ok()).toBe(true);
+  const activeResponse = await page.request.get('http://localhost:4000/fitness/workouts/active');
+  expect(activeResponse.ok()).toBe(true);
+  const activeText = await activeResponse.text();
+  const existing = activeText ? JSON.parse(activeText) as { id: string } | null : null;
+  if (existing) expect((await page.request.post(`http://localhost:4000/fitness/workouts/${existing.id}/finish`, { data: {} })).ok()).toBe(true);
+  const catalogResponse = await page.request.get('http://localhost:4000/fitness/exercises');
+  expect(catalogResponse.ok()).toBe(true);
+  const catalog = await catalogResponse.json() as { id: string; name: string; kind: string }[];
+  const exercise = catalog.find((row) => row.kind === 'weight_reps');
+  expect(exercise).toBeDefined();
+  for (const theme of ['light', 'dark'] as const) {
+    const title = `Weight recovery ${theme} ${Date.now()}`;
+    const created = await page.request.post('http://localhost:4000/fitness/workouts', { data: { title } });
+    expect(created.status()).toBe(201);
+    const workout = await created.json() as { id: string };
+    const logged = await page.request.post(`http://localhost:4000/fitness/workouts/${workout.id}/sets`, { data: { exerciseId: exercise!.id, weightGrams: 100000, reps: 5 } });
+    expect(logged.status()).toBe(201);
+    await page.route('http://localhost:4000/settings', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.goto('/fitness');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    const live = page.locator('.fit-active');
+    await expect(live.getByText('Weight units could not be loaded.')).toBeVisible({ timeout: 20_000 });
+    await expect(live.locator('.fit-active-sub')).not.toContainText('lb');
+    const notes = `Units recovered ${theme}`;
+    await live.getByLabel('How did it go?').click();
+    await live.getByLabel('How did it go?').pressSequentially(notes);
+    const finished = page.waitForResponse((response) => response.url().endsWith(`/fitness/workouts/${workout.id}/finish`) && response.request().method() === 'POST');
+    await live.getByRole('button', { name: 'Finish', exact: true }).click();
+    expect((await finished).ok()).toBe(true);
+    const summary = page.getByRole('dialog', { name: `${title} — done` });
+    await expect(summary.getByText('Weight units could not be loaded.')).toBeVisible();
+    await expect(summary.locator('.wo-stat-n').last()).toHaveText('—');
+    let failures = screenFailures(await measureScreen(page, '/fitness:summary-unit-error', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await page.unroute('http://localhost:4000/settings');
+    await summary.getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(summary.locator('.wo-stat-n').last()).toHaveText('500 kg');
+    failures = screenFailures(await measureScreen(page, '/fitness:summary-unit-recovered', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await summary.getByRole('button', { name: 'Done', exact: true }).click();
+    await page.reload();
+    const savedRow = page.getByRole('region', { name: title, exact: true });
+    await expect(savedRow).toContainText('500 kg');
+    const listed = await page.request.get('http://localhost:4000/fitness/workouts');
+    expect(listed.ok()).toBe(true);
+    const saved = (await listed.json() as { id: string; notes: string; sets: { weightGrams: number }[] }[]).find((row) => row.id === workout.id);
+    expect(saved).toEqual(expect.objectContaining({ id: workout.id, notes }));
+    expect(saved!.sets).toEqual(expect.arrayContaining([expect.objectContaining({ weightGrams: 100000 })]));
+  }
+});
+
+test('capture retains failed drafts and confirms local writes in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const baseline = await page.request.post('http://localhost:4000/tasks', { data: { title: `Capture baseline ${Date.now()}` } });
+  expect(baseline.status()).toBe(201);
+  await page.route('http://localhost:4000/ai/brain-dump', (route) => route.fulfill({ status: 424, contentType: 'application/json', body: '{}' }));
+  for (const theme of ['light', 'dark'] as const) {
+    for (const surface of ['dock', 'command'] as const) {
+      await page.goto('/tasks');
+      await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+      await page.reload();
+      await expect(page.locator('.capture-dock')).toBeVisible();
+      if (surface === 'command') await page.keyboard.press('ControlOrMeta+k');
+      const input = surface === 'command' ? page.getByRole('combobox', { name: 'Command input' }) : page.getByRole('textbox', { name: 'Capture anything' });
+      const title = `Buy capture supplies ${theme} ${surface} ${Date.now()}`;
+      await input.click();
+      await input.pressSequentially(title);
+      const submit = surface === 'command' ? page.getByRole('option', { name: /Capture:/ }) : page.getByRole('button', { name: 'Capture', exact: true });
+      await page.route('http://localhost:4000/tasks', (route) => route.request().method() === 'POST'
+        ? route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }) : route.continue());
+      await submit.click();
+      await expect(page.getByText('Capture was not confirmed. Your text is kept.')).toBeVisible();
+      await expect(input).toHaveValue(title);
+      const failures = screenFailures(await measureScreen(page, `/tasks:capture-${surface}-error`, theme));
+      expect(failures, failures.join('\n')).toEqual([]);
+      await page.unroute('http://localhost:4000/tasks');
+      const saved = page.waitForResponse((response) => response.url().endsWith('/tasks') && response.request().method() === 'POST');
+      await submit.click();
+      const response = await saved;
+      expect(response.status()).toBe(201);
+      const row = await response.json() as { id: string };
+      if (surface === 'command') await expect(input).toBeHidden();
+      else await expect(input).toHaveValue('');
+      await page.reload();
+      const listed = await page.request.get('http://localhost:4000/tasks');
+      expect(listed.ok()).toBe(true);
+      const rows = await listed.json() as { id: string; title: string }[];
+      expect(rows.filter((entry) => entry.title === title)).toEqual([expect.objectContaining({ id: row.id, title })]);
+      await expect(page.locator('.task').filter({ hasText: title })).toBeVisible();
+    }
+  }
+});
+
+test('calendar connection status recovers without blocking manual events in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    let failed = true;
+    await page.route('http://localhost:4000/connectors/google/status', (route) => route.fulfill({
+      status: failed ? 503 : 200, contentType: 'application/json',
+      body: JSON.stringify(failed ? { message: 'Calendar connection could not be checked.' } : { configured: true, connected: false }),
+    }));
+    await page.goto('/calendar');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    await expect(page.getByText('Calendar connection could not be checked.')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole('button', { name: 'Connect Google Calendar', exact: true })).toBeHidden();
+    let failures = screenFailures(await measureScreen(page, '/calendar:connection-error', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    const title = `Manual event during connection failure ${theme} ${Date.now()}`;
+    await page.getByRole('button', { name: /New/ }).click();
+    const input = page.getByPlaceholder('Dentist, standup, gym…');
+    await input.click(); await input.pressSequentially(title);
+    const saved = page.waitForResponse((response) => response.url().endsWith('/events') && response.request().method() === 'POST');
+    await page.getByRole('button', { name: 'Add event', exact: true }).click();
+    const response = await saved;
+    expect(response.status()).toBe(201);
+    const event = await response.json() as { id: string };
+    await expect(page.locator('.cal-event').filter({ hasText: title })).toBeVisible();
+    failed = false;
+    await page.locator('.gc-inline').getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Connect Google Calendar', exact: true })).toBeVisible();
+    failures = screenFailures(await measureScreen(page, '/calendar:connection-recovered', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await page.reload();
+    await expect(page.locator('.cal-event').filter({ hasText: title })).toBeVisible();
+    const listed = await page.request.get('http://localhost:4000/events');
+    expect(listed.ok()).toBe(true);
+    expect(await listed.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: event.id, title })]));
+    await page.unroute('http://localhost:4000/connectors/google/status');
+  }
+});
+
+test('task title edits retain failed drafts and persist explicit saves in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    const original = `Task edit ${theme} ${Date.now()}`;
+    const changed = `${original} saved`;
+    const created = await page.request.post('http://localhost:4000/tasks', { data: { title: original } });
+    expect(created.status()).toBe(201);
+    const task = await created.json() as { id: string };
+    await page.goto('/tasks');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    await page.getByRole('button', { name: `${original} — click to edit`, exact: true }).click();
+    const input = page.getByRole('textbox', { name: 'Edit task title', exact: true });
+    await input.click(); await input.press('ControlOrMeta+a'); await input.pressSequentially(changed);
+    await page.route(`http://localhost:4000/tasks/${task.id}`, (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.getByRole('button', { name: 'Save title', exact: true }).click();
+    await expect(page.getByText('Title was not confirmed. Your edit is kept.')).toBeVisible();
+    await expect(input).toHaveValue(changed);
+    let failures = screenFailures(await measureScreen(page, '/tasks:title-error', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await page.unroute(`http://localhost:4000/tasks/${task.id}`);
+    const saved = page.waitForResponse((response) => response.url().endsWith(`/tasks/${task.id}`) && response.request().method() === 'PATCH');
+    await page.getByRole('button', { name: 'Save title', exact: true }).click();
+    expect((await saved).ok()).toBe(true);
+    await expect(input).toBeHidden();
+    await page.reload();
+    await expect(page.getByRole('button', { name: `${changed} — click to edit`, exact: true })).toBeVisible();
+    const listed = await page.request.get('http://localhost:4000/tasks');
+    expect(listed.ok()).toBe(true);
+    expect(await listed.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: task.id, title: changed })]));
+    failures = screenFailures(await measureScreen(page, '/tasks:title-recovered', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+  }
+});
+
+test('notification removal keeps failures visible and retries in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    Object.defineProperty(Notification, 'permission', { configurable: true, get: () => 'default' });
+    const sub = { endpoint: 'https://push.example.test/synthetic', unsubscribe: async () => {
+      sessionStorage.setItem('test-push-calls', String(Number(sessionStorage.getItem('test-push-calls') ?? 0) + 1));
+      if (sessionStorage.getItem('test-push-browser-fail') === '1') throw new Error('Synthetic browser removal failure');
+      sessionStorage.setItem('test-push-off', '1');
+      return true;
+    } };
+    Object.defineProperty(navigator.serviceWorker, 'getRegistration', { configurable: true, value: async () => ({ pushManager: {
+      getSubscription: async () => sessionStorage.getItem('test-push-off') === '1' ? null : sub,
+    } }) });
+  });
+  let serverFails = true;
+  let requests = 0;
+  await page.route('http://localhost:4000/push/unsubscribe', (route) => {
+    requests++;
+    expect(route.request().postDataJSON()).toEqual({ endpoint: 'https://push.example.test/synthetic' });
+    return route.fulfill({ status: serverFails ? 503 : 200, contentType: 'application/json', body: JSON.stringify(serverFails ? { message: 'Synthetic removal failure' } : { ok: true }) });
+  });
+  for (const theme of ['light', 'dark'] as const) {
+    serverFails = true; requests = 0;
+    await page.goto('/settings');
+    await page.evaluate((value) => {
+      localStorage.setItem('atlas-theme', value); localStorage.setItem('atlas-settings-proactive', '1');
+      sessionStorage.removeItem('test-push-off'); sessionStorage.setItem('test-push-calls', '0'); sessionStorage.setItem('test-push-browser-fail', '1');
+    }, theme);
+    await page.reload();
+    const card = page.locator('#proactive-body');
+    await card.getByRole('button', { name: 'Disable notifications', exact: true }).click();
+    await expect(card.getByRole('alert')).toHaveText('Notification change was not confirmed. Try again.');
+    expect(await page.evaluate(() => sessionStorage.getItem('test-push-calls'))).toBe('0');
+    const failures = screenFailures(await measureScreen(page, '/settings:notification-change-error', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    serverFails = false;
+    await card.getByRole('button', { name: 'Disable notifications', exact: true }).click();
+    await expect(card.getByRole('alert')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => sessionStorage.getItem('test-push-calls'))).toBe('1');
+    await page.evaluate(() => sessionStorage.removeItem('test-push-browser-fail'));
+    await card.getByRole('button', { name: 'Disable notifications', exact: true }).click();
+    await expect(card.getByRole('button', { name: 'Enable notifications', exact: true })).toBeVisible();
+    await expect(card.getByRole('alert')).toBeHidden();
+    expect(requests).toBe(3);
+    await page.reload();
+    await expect(card.getByRole('button', { name: 'Enable notifications', exact: true })).toBeVisible();
+  }
+});
+
+test('Today connections distinguish pending failed and unsupported patterns in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const baseline = await page.request.post('http://localhost:4000/tasks', { data: { title: `Connection state baseline ${Date.now()}` } });
+  expect(baseline.status()).toBe(201);
+  const zero = { tasksCompleted: 0, habitChecks: 0, moodAvg: null, journalEntries: 0, spentMinor: 0, earnedMinor: 0, workouts: 0, volumeGrams: 0, events: 0 };
+  for (const theme of ['light', 'dark'] as const) {
+    let mode: 'pending' | 'failed' | 'empty' | 'constant' = 'pending';
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    await page.route('http://localhost:4000/stats?days=30', async (route) => {
+      if (mode === 'pending') await gate;
+      if (mode === 'failed') return route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+      const days = mode === 'constant' ? Array.from({ length: 30 }, (_, index) => ({ ...zero, day: `2026-08-${String(index + 1).padStart(2, '0')}`, tasksCompleted: 1, workouts: 1, moodAvg: 3 })) : [];
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ days, totals: { current: zero, previous: zero } }) });
+    });
+    await page.goto('/today');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    // Change the theme without abandoning the held stats request.
+    await page.evaluate((value) => document.documentElement.setAttribute('data-theme', value), theme);
+    const card = page.getByRole('region', { name: 'Connections across your life', exact: true });
+    await expect(card.getByRole('status')).toHaveText('Looking for connections across your days…');
+    let failures = screenFailures(await measureScreen(page, '/today:connections-pending', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    mode = 'failed'; release();
+    await expect(card.getByText('Connections could not be loaded.')).toBeVisible({ timeout: 20_000 });
+    failures = screenFailures(await measureScreen(page, '/today:connections-error', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    mode = 'empty';
+    await card.getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(card).toContainText('It has 0.');
+    failures = screenFailures(await measureScreen(page, '/today:connections-empty', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    mode = 'constant';
+    await page.reload();
+    await expect(card).toContainText('No clear connections in the last 30 days.');
+    failures = screenFailures(await measureScreen(page, '/today:connections-no-pattern', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await page.unroute('http://localhost:4000/stats?days=30');
+  }
+});
+
+test('history keeps loaded pages and recovers task actions in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    const title = `History action ${theme} ${Date.now()}`;
+    const created = await page.request.post('http://localhost:4000/tasks', { data: { title } });
+    expect(created.status()).toBe(201);
+    const task = await created.json() as { id: string };
+    const row = { id: `history-${task.id}`, type: 'task.created', source: 'tasks', title, summary: null, refType: 'task', refId: task.id, occurredAt: '2026-09-01T12:00:00Z' };
+    let earlierFails = true;
+    await page.route('http://localhost:4000/timeline?*', (route) => {
+      const query = new URL(route.request().url()).searchParams;
+      if (query.get('limit') !== '50') return route.continue();
+      if (query.get('offset') === '50') return earlierFails
+        ? route.fulfill({ status: 503, contentType: 'application/json', body: '{}' })
+        : route.fulfill({ contentType: 'application/json', body: JSON.stringify({ events: [{ ...row, id: `earlier-${task.id}`, title: 'Earlier saved activity', refType: null, refId: null }], hasMore: false }) });
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ events: [row], hasMore: true }) });
+    });
+    await page.route('http://localhost:4000/tasks', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.goto('/looking-back');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    await page.getByRole('button', { name: 'Everything that happened', exact: true }).click();
+    const feed = page.getByRole('region', { name: 'Your story', exact: true });
+    await expect(feed.getByText(title, { exact: true })).toBeVisible();
+    await expect(feed.getByText('Task actions could not be loaded.')).toBeVisible({ timeout: 20_000 });
+    await feed.getByRole('button', { name: 'Show earlier', exact: true }).click();
+    await expect(feed.getByText('Earlier activity could not be loaded.')).toBeVisible({ timeout: 20_000 });
+    await expect(feed.getByText(title, { exact: true })).toBeVisible();
+    let failures = screenFailures(await measureScreen(page, '/looking-back:history-errors', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    earlierFails = false;
+    await feed.getByText('Earlier activity could not be loaded.').locator('..').getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(feed.getByText('Earlier saved activity', { exact: true })).toBeVisible();
+    await page.unroute('http://localhost:4000/tasks');
+    await feed.getByText('Task actions could not be loaded.').locator('..').getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(feed.getByRole('button', { name: `Complete "${title}"`, exact: true })).toBeVisible();
+    failures = screenFailures(await measureScreen(page, '/looking-back:history-recovered', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    const completed = page.waitForResponse((response) => response.url().endsWith(`/tasks/${task.id}/complete`) && response.request().method() === 'POST');
+    await feed.getByRole('button', { name: `Complete "${title}"`, exact: true }).click();
+    expect((await completed).ok()).toBe(true);
+    await expect(feed.getByRole('button', { name: `Complete "${title}"`, exact: true })).toBeHidden();
+    const listed = await page.request.get('http://localhost:4000/tasks');
+    expect(listed.ok()).toBe(true);
+    expect(await listed.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: task.id, status: 'DONE' })]));
+    await page.unroute('http://localhost:4000/timeline?*');
+  }
+});
+
+test('task creation protects pending drafts and retries failures in both themes', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    for (const quick of [false, true]) {
+      await page.goto('/tasks');
+      await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+      await page.reload();
+      if (quick) await page.getByRole('button', { name: 'Add to today', exact: true }).click();
+      const input = page.getByRole('textbox', { name: quick ? 'New task in Today' : 'New task title', exact: true });
+      const form = input.locator('xpath=ancestor::form');
+      const draft = `Retained ${quick ? 'dated' : 'main'} task ${theme} ${Date.now()}`;
+      await input.click(); await input.pressSequentially(draft);
+      if (quick) await form.getByRole('button', { name: 'High', exact: true }).click();
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => { release = resolve; });
+      await page.route('http://localhost:4000/tasks', async (route) => {
+        if (route.request().method() !== 'POST') return route.continue();
+        await held;
+        return route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+      });
+      try {
+        await form.getByRole('button', { name: quick ? 'Add task' : 'Add', exact: true }).click();
+        await expect(input).toHaveAttribute('readonly', '');
+        await expect(form.getByRole('status')).toHaveText('Saving task…');
+        await input.pressSequentially(' must not replace the draft');
+        await expect(input).toHaveValue(draft);
+        if (quick) {
+          await expect(form.getByRole('button', { name: 'High', exact: true })).toBeDisabled();
+          await expect(form.getByRole('button', { name: 'Daily', exact: true })).toBeDisabled();
+          await expect(form.getByRole('button', { name: 'Cancel', exact: true })).toBeDisabled();
+          await input.press('Escape');
+          await expect(input).toBeVisible();
+        }
+      } finally { release(); }
+      await expect(form.getByRole('alert')).toHaveText('Task was not confirmed. Your draft is kept.');
+      await expect(input).toHaveValue(draft);
+      const failures = screenFailures(await measureScreen(page, `/tasks:${quick ? 'dated' : 'main'}-creation-error`, theme));
+      expect(failures, failures.join('\n')).toEqual([]);
+      await page.unroute('http://localhost:4000/tasks');
+      const saved = page.waitForResponse((response) => response.url().endsWith('/tasks') && response.request().method() === 'POST');
+      await form.getByRole('button', { name: quick ? 'Add task' : 'Add', exact: true }).click();
+      const response = await saved;
+      expect(response.status()).toBe(201);
+      const task = await response.json() as { id: string };
+      await page.reload();
+      const listed = await page.request.get('http://localhost:4000/tasks');
+      expect(listed.ok()).toBe(true);
+      expect(await listed.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: task.id, title: draft, priority: quick ? 'HIGH' : 'MEDIUM' })]));
+    }
+  }
+});
+
+test('task timing recovers once per list without losing the task draft in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    const title = `Timed report ${theme} ${Date.now()}`;
+    const created = await page.request.post('http://localhost:4000/tasks', { data: { title } });
+    expect(created.status()).toBe(201);
+    let failed = true;
+    await page.route('http://localhost:4000/tasks/durations', (route) => route.fulfill({
+      status: failed ? 503 : 200, contentType: 'application/json',
+      body: JSON.stringify(failed ? {} : [{ key: title.toLowerCase(), minutes: 45, samples: 4 }]),
+    }));
+    await page.goto('/tasks');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    await expect(page.getByText('Task timing could not be loaded.')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText('Task timing could not be loaded.')).toHaveCount(1);
+    const draft = `Task saved after timing recovery ${theme} ${Date.now()}`;
+    const input = page.getByRole('textbox', { name: 'New task title', exact: true });
+    await input.click(); await input.pressSequentially(draft);
+    let failures = screenFailures(await measureScreen(page, '/tasks:timing-error', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    failed = false;
+    await page.getByRole('region', { name: 'Task timing', exact: true }).getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(page.locator('.task').filter({ hasText: title })).toContainText('usually 45m');
+    await expect(input).toHaveValue(draft);
+    failures = screenFailures(await measureScreen(page, '/tasks:timing-recovered', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    const saved = page.waitForResponse((response) => response.url().endsWith('/tasks') && response.request().method() === 'POST');
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    const response = await saved;
+    expect(response.status()).toBe(201);
+    const task = await response.json() as { id: string };
+    await expect(input).toHaveValue('');
+    await page.reload();
+    const listed = await page.request.get('http://localhost:4000/tasks');
+    expect(listed.ok()).toBe(true);
+    expect(await listed.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: task.id, title: draft })]));
+    await page.unroute('http://localhost:4000/tasks/durations');
+  }
+});
+
+
+test('writing preserves pending journal and note drafts through retry in both themes', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    for (const note of [false, true]) {
+      await page.goto('/journal');
+      await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+      await page.reload();
+      const endpoint = `http://localhost:4000/${note ? 'notes' : 'journal'}`;
+      const body = `Preserved writing ${note ? 'note' : 'journal'} ${theme} ${Date.now()}`;
+      const title = `Lasting context ${theme}`;
+      if (note) {
+        await page.getByRole('checkbox', { name: 'Atlas should always remember this, not just today', exact: true }).check();
+        const titleInput = page.getByRole('textbox', { name: 'What this note is about', exact: true });
+        await titleInput.click(); await titleInput.pressSequentially(title);
+      } else await page.getByRole('button', { name: 'Mood 4 out of 5', exact: true }).click();
+      const input = page.getByRole('textbox', { name: 'What are you writing?', exact: true });
+      await input.click(); await input.pressSequentially(body);
+      const form = input.locator('xpath=ancestor::form');
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => { release = resolve; });
+      await page.route(endpoint, async (route) => {
+        if (route.request().method() !== 'POST') return route.continue();
+        await held;
+        return route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+      });
+      try {
+        await form.getByRole('button', { name: 'Save', exact: true }).click();
+        await expect(input).toHaveAttribute('readonly', '');
+        await expect(form.getByRole('status')).toHaveText('Saving your writing…');
+        await expect(form.getByRole('checkbox')).toBeDisabled();
+        await input.pressSequentially(' must not replace my writing');
+        await expect(input).toHaveValue(body);
+        if (note) await expect(form.getByRole('textbox', { name: 'What this note is about', exact: true })).toHaveAttribute('readonly', '');
+        else await expect(form.getByRole('button', { name: 'Mood 4 out of 5', exact: true })).toBeDisabled();
+      } finally { release(); }
+      await expect(form.getByRole('alert')).toHaveText('Your writing was not confirmed. Your draft is kept.');
+      await expect(input).toHaveValue(body);
+      const failures = screenFailures(await measureScreen(page, `/journal:${note ? 'note' : 'entry'}-save-error`, theme));
+      expect(failures, failures.join('\n')).toEqual([]);
+      await page.unroute(endpoint);
+      const saved = page.waitForResponse((response) => response.url() === endpoint && response.request().method() === 'POST');
+      await form.getByRole('button', { name: 'Save', exact: true }).click();
+      const response = await saved;
+      expect(response.status()).toBe(201);
+      const row = await response.json() as { id: string };
+      await expect(input).toHaveValue('');
+      await page.reload();
+      await expect(page.locator('.wr-list .card').filter({ hasText: body })).toBeVisible();
+      const listed = await page.request.get(endpoint);
+      expect(listed.ok()).toBe(true);
+      expect(await listed.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: row.id, body, ...(note ? { title, pinned: true } : { mood: 4 }) })]));
+    }
+  }
+});
+
+
+test('daily briefs retain readable context and recover generation failures in both themes', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const baseline = await page.request.post('http://localhost:4000/tasks', { data: { title: `Brief recovery baseline ${Date.now()}` } });
+  expect(baseline.status()).toBe(201);
+  // Provider responses are synthetic; this checks presentation, not paid AI execution.
+  await page.route('http://localhost:4000/ai/status', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ providerConfigured: true }) }));
+  for (const theme of ['light', 'dark'] as const) {
+    for (const existing of [false, true]) {
+      const old = { id: 'previous', kind: 'daily_brief', title: 'Daily brief', body: 'Your saved plan is still here.', createdAt: new Date().toISOString() };
+      const next = { ...old, id: 'next', body: 'Your refreshed plan is ready.' };
+      let rows = existing ? [old] : [];
+      let fail = true;
+      await page.route('http://localhost:4000/ai/insights', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(rows) }));
+      await page.route('http://localhost:4000/ai/daily-brief', (route) => {
+        if (fail) return route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+        rows = [next];
+        return route.fulfill({ contentType: 'application/json', body: JSON.stringify(next) });
+      });
+      await page.goto('/today');
+      await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+      await page.reload();
+      const brief = page.locator('.hero-brief');
+      const action = brief.getByRole('button', { name: existing ? 'Refresh the brief' : 'Brief me', exact: true });
+      await action.click();
+      await expect(brief.getByRole('alert')).toHaveText('Your brief could not be generated. Try again.');
+      if (existing) await expect(brief.getByText(old.body, { exact: true })).toBeVisible();
+      else await expect(brief.getByText(/No brief yet today/)).toBeVisible();
+      let failures = screenFailures(await measureScreen(page, `/today:${existing ? 'refresh' : 'first'}-brief-error`, theme));
+      expect(failures, failures.join('\n')).toEqual([]);
+      fail = false;
+      await action.click();
+      await expect(brief.getByText(next.body, { exact: true })).toBeVisible();
+      await expect(brief.getByRole('alert')).toBeHidden();
+      failures = screenFailures(await measureScreen(page, '/today:brief-recovered', theme));
+      expect(failures, failures.join('\n')).toEqual([]);
+      await page.unroute('http://localhost:4000/ai/insights');
+      await page.unroute('http://localhost:4000/ai/daily-brief');
+    }
+  }
+  await page.unroute('http://localhost:4000/ai/status');
+});
+
+
+test('core panels distinguish failed reads from confirmed empty data in both themes', async ({ page }) => {
+  test.setTimeout(240_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const cases = [
+    { path: '/calendar', urls: ['http://localhost:4000/events?*'], errors: ['Failed to load events'], empty: [/Nothing on this day/] },
+    { path: '/finance', urls: ['http://localhost:4000/finance/accounts', 'http://localhost:4000/finance/transactions?*'], errors: ['Failed to load accounts', 'Failed to load transactions'], empty: [/No accounts yet/, /^No transactions$/] },
+    { path: '/settings#routine', urls: ['http://localhost:4000/routine'], errors: ['Failed to load your week'], empty: [/Nothing set yet/] },
+    { path: '/journal', urls: ['http://localhost:4000/journal', 'http://localhost:4000/notes'], errors: ['Failed to load your writing'], empty: [/Nothing written yet/] },
+  ];
+  for (const theme of ['light', 'dark'] as const) {
+    for (const entry of cases) {
+      let failed = true;
+      for (const [index, url] of entry.urls.entries()) await page.route(url, (route) => route.request().method() === 'GET'
+        ? route.fulfill({ status: failed ? 503 : 200, contentType: 'application/json', body: failed ? JSON.stringify({ message: entry.errors[index] ?? entry.errors[0] }) : '[]' }) : route.continue());
+      await page.goto(entry.path);
+      await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+      await page.reload();
+      for (const message of entry.errors) await expect(page.getByText(message, { exact: true })).toBeVisible({ timeout: 20_000 });
+      for (const empty of entry.empty) await expect(page.getByText(empty)).toBeHidden();
+      if (entry.path === '/finance') await expect(page.getByRole('button', { name: 'Add transaction', exact: true })).toBeDisabled();
+      let failures = screenFailures(await measureScreen(page, `${entry.path}:read-error`, theme));
+      expect(failures, failures.join('\n')).toEqual([]);
+      failed = false;
+      for (const message of entry.errors) await page.getByText(message, { exact: true }).locator('..').getByRole('button', { name: 'Retry', exact: true }).click();
+      for (const empty of entry.empty) await expect(page.getByText(empty)).toBeVisible();
+      failures = screenFailures(await measureScreen(page, `${entry.path}:confirmed-empty`, theme));
+      expect(failures, failures.join('\n')).toEqual([]);
+      for (const url of entry.urls) await page.unroute(url);
+    }
+  }
+});
+
+
+test('bank actions retain failures and recover without stale sync results in both themes', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  // All provider-facing actions are intercepted. No bank connection is changed.
+  for (const theme of ['light', 'dark'] as const) {
+    let connected = true;
+    let syncFails = false;
+    let disconnectFails = true;
+    const disconnectIds: string[] = [];
+    await page.route('http://localhost:4000/connectors/plaid/status', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ configured: true, connected, items: connected ? [{ itemId: 'synthetic-bank', institution: 'Example bank', connectedAt: null, lastSyncedAt: null }] : [] }) }));
+    await page.route('http://localhost:4000/connectors/plaid/sync', (route) => route.fulfill({ status: syncFails ? 503 : 200, contentType: 'application/json', body: JSON.stringify(syncFails ? { message: 'Bank sync is temporarily unavailable.' } : { connector: 'plaid', imported: 3, updated: 0, pushed: 0, deleted: 0, errors: [] }) }));
+    await page.route('http://localhost:4000/connectors/plaid/disconnect', (route) => {
+      disconnectIds.push((route.request().postDataJSON() as { itemId: string }).itemId);
+      if (!disconnectFails) connected = false;
+      return route.fulfill({ status: disconnectFails ? 503 : 200, contentType: 'application/json', body: JSON.stringify(disconnectFails ? {} : { ok: true }) });
+    });
+    await page.goto('/finance');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    await page.locator('summary').filter({ hasText: 'Connect a bank' }).click();
+    const bank = page.locator('details').filter({ hasText: 'Bank accounts (Plaid)' });
+    await bank.getByRole('button', { name: 'Sync now', exact: true }).click();
+    await expect(bank.getByText(/Synced: 3 new/)).toBeVisible();
+    syncFails = true;
+    await bank.getByRole('button', { name: 'Sync now', exact: true }).click();
+    await expect(bank.getByRole('alert')).toHaveText('Bank sync is temporarily unavailable.');
+    await expect(bank.getByText(/Synced: 3 new/)).toBeHidden();
+    let failures = screenFailures(await measureScreen(page, '/finance:bank-sync-error', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    syncFails = false;
+    await bank.getByRole('button', { name: 'Sync now', exact: true }).click();
+    await expect(bank.getByText(/Synced: 3 new/)).toBeVisible();
+    await expect(bank.getByRole('alert')).toBeHidden();
+    await bank.getByRole('button', { name: 'Disconnect', exact: true }).click();
+    await expect(bank.getByRole('alert')).toHaveText('Bank disconnection was not confirmed. Try again.');
+    await expect(bank.getByText('Example bank', { exact: true })).toBeVisible();
+    failures = screenFailures(await measureScreen(page, '/finance:bank-disconnect-error', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    disconnectFails = false;
+    await bank.getByRole('button', { name: 'Disconnect', exact: true }).click();
+    await expect(bank.getByRole('button', { name: 'Connect a bank', exact: true })).toBeVisible();
+    await expect(bank.getByRole('alert')).toBeHidden();
+    expect(disconnectIds).toEqual(['synthetic-bank', 'synthetic-bank']);
+    failures = screenFailures(await measureScreen(page, '/finance:bank-actions-recovered', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    for (const path of ['status', 'sync', 'disconnect']) await page.unroute(`http://localhost:4000/connectors/plaid/${path}`);
+  }
+});
+
+
+test('AI access lets personal accounts redeem invites and explains unavailable states in both themes', async ({ page }) => {
+  test.setTimeout(240_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  // Presentation fixtures only: no actual invite is redeemed or credential changed.
+  for (const theme of ['light', 'dark'] as const) {
+    const base = { enabled: true, model: 'synthetic', dailyTokenCap: 1000, tokensUsedToday: 70, providerConfigured: true, domains: [], hostedAccess: { granted: false, revoked: false, available: true, inviteRequired: true } };
+    let status = structuredClone(base);
+    let fails = true;
+    const codes: string[] = [];
+    await page.route('http://localhost:4000/ai/status', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(status) }));
+    await page.route('http://localhost:4000/auth/redeem-invite', (route) => {
+      codes.push((route.request().postDataJSON() as { inviteCode: string }).inviteCode);
+      if (!fails) status = { ...base, hostedAccess: { ...base.hostedAccess, granted: true } };
+      return route.fulfill({ status: fails ? 503 : 200, contentType: 'application/json', body: JSON.stringify(fails ? { message: 'Invite activation is temporarily unavailable.' } : { ok: true }) });
+    });
+    await page.goto('/settings#ai');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    const panel = page.locator('#ai-body');
+    const input = panel.getByLabel('Invite code', { exact: true });
+    await input.click(); await input.pressSequentially('synthetic-invite');
+    await panel.getByRole('button', { name: 'Activate AI access', exact: true }).click();
+    await expect(panel.getByRole('alert')).toHaveText('Invite activation is temporarily unavailable.');
+    await expect(input).toHaveValue('synthetic-invite');
+    await expect(panel.getByLabel('DeepSeek API key', { exact: true })).toBeHidden();
+    let failures = screenFailures(await measureScreen(page, '/settings:personal-invite-error', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    fails = false;
+    await panel.getByRole('button', { name: 'Activate AI access', exact: true }).click();
+    await expect(panel.getByText('AI is included with your invite.', { exact: true })).toBeVisible();
+    await expect(input).toBeHidden();
+    expect(codes).toEqual(['synthetic-invite', 'synthetic-invite']);
+    failures = screenFailures(await measureScreen(page, '/settings:included-ai', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    for (const mode of ['revoked', 'unavailable', 'paused'] as const) {
+      status = { ...base, enabled: mode !== 'paused', providerConfigured: mode !== 'unavailable', hostedAccess: { ...base.hostedAccess, granted: true, revoked: mode === 'revoked', available: mode !== 'unavailable' } };
+      await page.reload();
+      await expect(panel.getByText(mode === 'revoked' ? /Hosted AI access has been revoked/ : mode === 'unavailable' ? /Your access is approved. Hosted AI is not available yet/ : /AI is currently paused/)).toBeVisible();
+      await expect(panel.getByLabel('Invite code', { exact: true })).toBeHidden();
+      await expect(panel.getByLabel('DeepSeek API key', { exact: true })).toBeHidden();
+      failures = screenFailures(await measureScreen(page, `/settings:ai-${mode}`, theme));
+      expect(failures, failures.join('\n')).toEqual([]);
+    }
+    await page.unroute('http://localhost:4000/ai/status');
+    await page.unroute('http://localhost:4000/auth/redeem-invite');
+  }
+});
+
+
+test('mood check-ins retain failed saves and confirm retried readings in both themes', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    await page.goto('/today');
+    const minutes = await page.evaluate(() => new Date().getHours() * 60 + new Date().getMinutes());
+    const wake = (minutes - 30 + 1440) % 1440;
+    await page.route('http://localhost:4000/routine', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify([{ id: 'synthetic-sleep', label: 'Sleep', kind: 'sleep', days: 127, onDate: null, startMin: (wake - 480 + 1440) % 1440, endMin: wake }]) }));
+    let fails = true;
+    let saved: { id: string; mood: number; body: string } | null = null;
+    await page.route('http://localhost:4000/journal', async (route) => {
+      if (route.request().method() === 'GET') return route.fulfill({ contentType: 'application/json', body: JSON.stringify(saved ? [saved] : []) });
+      if (route.request().method() !== 'POST') return route.continue();
+      if (fails) return route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+      const response = await route.fetch();
+      expect(response.status()).toBe(201);
+      saved = await response.json() as { id: string; mood: number; body: string };
+      return route.fulfill({ response });
+    });
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    const mood = page.locator('.mood-checkin');
+    await mood.getByRole('button', { name: 'Good — 4 out of 5', exact: true }).click();
+    await expect(mood.getByRole('alert')).toHaveText('Mood was not confirmed. Choose a mood to try again.');
+    let failures = screenFailures(await measureScreen(page, '/today:mood-save-error', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    fails = false;
+    await mood.getByRole('button', { name: 'Good — 4 out of 5', exact: true }).click();
+    await expect(mood).toBeHidden();
+    expect(saved).not.toBeNull();
+    const savedId = (saved as unknown as { id: string }).id;
+    failures = screenFailures(await measureScreen(page, '/today:mood-save-recovered', theme));
+    expect(failures, failures.join('\n')).toEqual([]);
+    await page.unroute('http://localhost:4000/journal');
+    await page.reload();
+    const entries = await page.request.get('http://localhost:4000/journal');
+    expect(entries.ok()).toBe(true);
+    expect(await entries.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: savedId, mood: 4, body: '' })]));
+    await page.unroute('http://localhost:4000/routine');
+  }
+});
+
+
+test('habit drafts stay intact through pending saves and retry in both themes', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    let habitId = '';
+    let name = `Read a chapter ${theme} ${Date.now()}`;
+    await page.goto('/habits');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    for (const edit of [false, true]) {
+      if (edit) {
+        await page.getByRole('button', { name: `Edit habit "${name}"`, exact: true }).click();
+        name += ' nightly';
+      }
+      const input = edit ? page.getByRole('dialog').getByRole('textbox', { name: 'Name', exact: true }) : page.getByRole('textbox', { name: 'New habit name', exact: true });
+      await input.click(); await input.press('ControlOrMeta+A'); await input.pressSequentially(name);
+      const form = input.locator('xpath=ancestor::form');
+      if (edit) {
+        const target = form.getByRole('spinbutton', { name: 'Times per day', exact: true });
+        await target.click(); await target.press('ControlOrMeta+A'); await target.pressSequentially('3');
+        await form.getByRole('combobox', { name: 'Cadence', exact: true }).selectOption('weekly');
+      }
+      const endpoint = `http://localhost:4000/habits${edit ? `/${habitId}` : ''}`;
+      const method = edit ? 'PATCH' : 'POST';
+      let release!: () => void;
+      const hold = new Promise<void>((resolve) => { release = resolve; });
+      await page.route(endpoint, async (route) => {
+        if (route.request().method() !== method) return route.continue();
+        await hold;
+        await route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+      });
+      try {
+        await form.getByRole('button', { name: edit ? 'Save' : 'Add', exact: true }).click();
+        await expect(form.getByRole('status')).toHaveText('Saving habit…');
+        await expect(input).toHaveAttribute('readonly', '');
+        await input.pressSequentially(' must not disappear');
+        await expect(input).toHaveValue(name);
+        if (edit) {
+          await expect(form.getByRole('button', { name: 'Cancel', exact: true })).toBeDisabled();
+          await expect(page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true })).toBeDisabled();
+          await page.keyboard.press('Escape');
+          await expect(page.getByRole('dialog')).toBeVisible();
+        }
+      } finally { release(); }
+      await expect(form.getByRole('alert')).toHaveText('Habit was not confirmed. Your draft is kept.');
+      await expect(input).toHaveValue(name);
+      let failures = screenFailures(await measureScreen(page, `/habits:${edit ? 'edit' : 'create'}-save-error`, theme));
+      expect(failures, failures.join('\n')).toEqual([]);
+      await page.unroute(endpoint);
+      const saved = page.waitForResponse((response) => response.url() === endpoint && response.request().method() === method);
+      await form.getByRole('button', { name: edit ? 'Save' : 'Add', exact: true }).click();
+      const response = await saved;
+      expect(response.status()).toBe(edit ? 200 : 201);
+      const row = await response.json() as { id: string };
+      habitId = row.id;
+      if (edit) await expect(page.getByRole('dialog')).toHaveCount(0);
+      else await expect(input).toHaveValue('');
+      await expect(page.getByRole('button', { name: `Edit habit "${name}"`, exact: true })).toBeVisible();
+      failures = screenFailures(await measureScreen(page, `/habits:${edit ? 'edit' : 'create'}-save-recovered`, theme));
+      expect(failures, failures.join('\n')).toEqual([]);
+      await page.reload();
+      const listed = await page.request.get('http://localhost:4000/habits');
+      expect(listed.ok()).toBe(true);
+      expect(await listed.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: habitId, name, target: edit ? 3 : 1, cadence: edit ? 'weekly' : 'daily' })]));
+      await expect(page.getByRole('button', { name: `Edit habit "${name}"`, exact: true })).toBeVisible();
+    }
+  }
 });

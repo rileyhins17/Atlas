@@ -188,18 +188,20 @@ describe('MoodCheckIn', () => {
    * user's data from a response that has not arrived. Here the claim would be
    * "you have not logged a mood", shown to someone who did an hour ago.
    */
-  it('says nothing while the journal is still loading', () => {
+  it('shows a placeholder without asking again while the journal is loading', () => {
     atLocalHour(7, 20);
     list.mockImplementation(() => new Promise(() => {}));
-    wrap(<MoodCheckIn />);
+    const view = wrap(<MoodCheckIn />);
+    expect(view.container.querySelector('.skeleton')).not.toBeNull();
     expect(screen.queryByText(ANY)).toBeNull();
   });
 
   /** And nothing while the routine is unknown — the times would be a guess. */
-  it('says nothing while the routine is still loading', () => {
+  it('shows a placeholder without guessing hours while the routine is loading', () => {
     atLocalHour(7, 20);
     routine.mockImplementation(() => new Promise(() => {}));
-    wrap(<MoodCheckIn />);
+    const view = wrap(<MoodCheckIn />);
+    expect(view.container.querySelector('.skeleton')).not.toBeNull();
     expect(screen.queryByText(ANY)).toBeNull();
   });
 
@@ -219,4 +221,54 @@ describe('MoodCheckIn', () => {
       expect(screen.getByRole('button', { name: new RegExp(`${n} out of 5`) })).toBeTruthy();
     }
   });
+});
+
+
+it('recovers a failed mood read without asking for a duplicate answer', async () => {
+  atLocalHour(7, 20);
+  list.mockRejectedValueOnce(new Error('network')).mockResolvedValue([]);
+  wrap(<MoodCheckIn />);
+  await screen.findByText('Mood check-in could not be loaded.');
+  expect(screen.queryByText(ANY)).toBeNull();
+  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  await user.click(screen.getByRole('button', { name: 'Retry' }));
+  await screen.findByText(MORNING);
+});
+
+for (const answered of [false, true]) {
+  it(`recovers a failed routine read ${answered ? 'without asking for an existing answer' : 'into the correct morning window'}`, async () => {
+    atLocalHour(8);
+    if (answered) list.mockResolvedValue([moodAt(7, 4)]);
+    routine.mockRejectedValueOnce(new Error('network')).mockResolvedValue(SLEEP);
+    const view = wrap(<MoodCheckIn />);
+    await screen.findByText('Mood check-in could not be loaded.');
+    expect(screen.queryByText(ANY)).toBeNull();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await user.click(screen.getByRole('button', { name: /^Retry$/ }));
+    await waitFor(() => expect(screen.queryByText('Mood check-in could not be loaded.')).toBeNull());
+    if (answered) {
+      expect(screen.queryByText(ANY)).toBeNull();
+      expect(view.container.querySelector('.skeleton')).toBeNull();
+    } else expect(await screen.findByText(MORNING)).toBeVisible();
+    expect(routine).toHaveBeenCalledTimes(2);
+    expect(list).toHaveBeenCalledOnce();
+  });
+}
+it('keeps a rejected mood save visible and retries before considering the window answered', async () => {
+  atLocalHour(8);
+  create.mockRejectedValueOnce(new Error('network')).mockImplementationOnce(async () => {
+    const saved = moodAt(7, 4);
+    list.mockResolvedValue([saved]);
+    return saved;
+  });
+  wrap(<MoodCheckIn />);
+  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  await screen.findByText(MORNING);
+  await user.click(screen.getByRole('button', { name: 'Good — 4 out of 5' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Mood was not confirmed. Choose a mood to try again.');
+  expect(screen.getByRole('button', { name: 'Good — 4 out of 5' })).toBeEnabled();
+  await user.click(screen.getByRole('button', { name: 'Good — 4 out of 5' }));
+  await waitFor(() => expect(screen.queryByText(ANY)).toBeNull());
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect(create).toHaveBeenCalledTimes(2);
 });

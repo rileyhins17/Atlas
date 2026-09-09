@@ -47,6 +47,7 @@ export function PlaidCard() {
 
   async function connect() {
     setError(null);
+    setResult(null);
     setStarting(true);
     try {
       const { linkToken: token } = await PlaidApi.linkToken();
@@ -68,7 +69,7 @@ export function PlaidCard() {
         {status && (
           <span className="muted" style={{ fontSize: 12 }}>
             {!status.configured
-              ? 'unavailable on this server'
+              ? 'unavailable'
               : status.connected
                 ? `${status.items.length} connected`
                 : 'not connected'}
@@ -88,7 +89,7 @@ export function PlaidCard() {
         />
       ) : status === null ? null : !status.configured ? (
         <span className="muted" style={{ fontSize: 13 }}>
-          This server has no Plaid credentials configured.
+          Bank connections are unavailable. You can still add accounts and transactions by hand.
         </span>
       ) : (
         <>
@@ -112,7 +113,13 @@ export function PlaidCard() {
                   </div>
                   <Button
                     variant="ghost"
-                    onClick={() => disconnect.mutate(item.itemId)}
+                    onClick={() => {
+                      setError(null);
+                      setResult(null);
+                      disconnect.mutate(item.itemId, {
+                        onError: () => setError('Bank disconnection was not confirmed. Try again.'),
+                      });
+                    }}
                     disabled={busy}
                   >
                     Disconnect
@@ -129,12 +136,14 @@ export function PlaidCard() {
             {status.connected && (
               <Button
                 variant="ghost"
-                onClick={() =>
+                onClick={() => {
+                  setError(null);
+                  setResult(null);
                   sync.mutate(undefined, {
                     onSuccess: (res) => setResult(res),
                     onError: (e) => setError(errorMessage(e, 'Sync failed')),
-                  })
-                }
+                  });
+                }}
                 disabled={busy}
               >
                 {sync.isPending ? 'Syncing…' : 'Sync now'}
@@ -150,7 +159,7 @@ export function PlaidCard() {
           {result.errors.length > 0 && ` ${result.errors.join('; ')}`}
         </div>
       )}
-      {error && <div className="error">{error}</div>}
+      {error && <div className="error" role="alert">{error}</div>}
     </Card>
   );
 }

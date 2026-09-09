@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
-import { LoginInput, RegisterInput, type AuthConfigDTO, type UserDTO } from '@atlas/shared';
+import { LoginInput, RegisterInput, RedeemInviteInput, type AuthConfigDTO, type UserDTO } from '@atlas/shared';
 import { ZodValidationPipe } from '../common/zod.pipe.js';
 import { AuthService } from './auth.service.js';
 import { CurrentUser } from './current-user.decorator.js';
@@ -73,7 +73,7 @@ export class AuthController {
     if (required && body.inviteCode !== required) {
       throw new ForbiddenException('That invite code is not valid.');
     }
-    await this.auth.register(body);
+    await this.auth.register(body, Boolean(required));
     // Auto-login after registration.
     const { token, user } = await this.auth.login(
       { email: body.email, password: body.password, remember: body.remember },
@@ -81,6 +81,16 @@ export class AuthController {
     );
     setSessionCookie(req, res, token, body.remember !== false);
     return user;
+  }
+
+  @UseGuards(SessionGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('redeem-invite')
+  redeemInvite(
+    @CurrentUser() user: AuthedUser,
+    @Body(new ZodValidationPipe(RedeemInviteInput)) body: RedeemInviteInput,
+  ): Promise<{ ok: true }> {
+    return this.auth.redeemAiInvite(user.id, body.inviteCode);
   }
 
   // Brute-force protection: 10 login attempts per minute per IP.

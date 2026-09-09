@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { HabitCadence, HabitDTO } from '@atlas/shared';
-import { Check, Flame, Repeat, X } from 'lucide-react';
-import { errorMessage } from '@/lib/api';
+import { Check, Flame, Plus, Repeat, X } from 'lucide-react';
 import {
   useCreateHabit,
   useDeleteHabit,
@@ -18,6 +17,7 @@ import {
   Card,
   Dialog,
   EmptyState,
+  ErrorState,
   Heatmap,
   Input,
   ListSkeleton,
@@ -26,9 +26,12 @@ import {
 import { IconButton } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
 import { useSubmitLatch } from '@/lib/hooks/submit-latch';
-import { localDayKey } from '@/lib/dates';
 
-const HISTORY_DAYS = 84; // 12 weeks of heatmap
+import { weekCells } from '@atlas/shared';
+export { weekCells } from '@atlas/shared';
+
+const HISTORY_WEEKS = 26;
+const HISTORY_DAYS = HISTORY_WEEKS * 7;
 
 /** The open edit dialog's working copy — null when nothing is being edited. */
 type HabitDraft = { id: string; name: string; target: string; cadence: HabitCadence };
@@ -39,6 +42,7 @@ export function HabitsPanel() {
   const [draftError, setDraftError] = useState<string | null>(null);
   const habitsQuery = useHabits();
   const historyQuery = useHabitHistory(HISTORY_DAYS);
+  const historyAvailable = !historyQuery.isPending && !historyQuery.isError && historyQuery.data !== undefined;
   const create = useCreateHabit();
   const latch = useSubmitLatch();
   const editLatch = useSubmitLatch();
@@ -55,7 +59,6 @@ export function HabitsPanel() {
     return map;
   }, [historyQuery.data]);
 
-  const error = create.error ? errorMessage(create.error, 'Failed to add habit') : null;
 
   // M5: warn on a duplicate name, never block it. Two habits called "Stretch"
   // is usually a slip of memory, so the first submit asks; but it is sometimes
@@ -66,7 +69,7 @@ export function HabitsPanel() {
   function addHabit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!trimmed || create.isPending) return;
 
     const duplicate = habits.some((h) => h.name.toLowerCase() === trimmed.toLowerCase());
     if (duplicate && dupWarned !== trimmed) {
@@ -75,12 +78,15 @@ export function HabitsPanel() {
     }
 
     setDupWarned(null);
-    latch((release) =>
-      create.mutate({ name: trimmed }, { onSuccess: () => setName(''), onSettled: release }),
-    );
+    latch((release) => {
+      create.reset();
+      create.mutate({ name: trimmed }, { onSuccess: () => setName(''), onSettled: release });
+    });
   }
 
   function openEdit(habit: HabitDTO) {
+    if (update.isPending) return;
+    update.reset();
     setDraftError(null);
     setDraft({
       id: habit.id,
@@ -99,7 +105,7 @@ export function HabitsPanel() {
 
   function saveEdit(e: React.FormEvent) {
     e.preventDefault();
-    if (!draft) return;
+    if (!draft || update.isPending) return;
 
     const trimmed = draft.name.trim();
     if (!trimmed) {
@@ -115,24 +121,28 @@ export function HabitsPanel() {
     }
 
     setDraftError(null);
-    editLatch((release) =>
+    editLatch((release) => {
+      update.reset();
       update.mutate(
         { id: draft.id, patch: { name: trimmed, target, cadence: draft.cadence } },
         { onSuccess: () => setDraft(null), onSettled: release },
-      ),
-    );
+      );
+    });
   }
 
   return (
     <>
       <PageHeader title="Habits" subtitle="Small daily wins, kept alive by your streak." />
-      <form className="row" onSubmit={addHabit}>
+      <form className="habit-create-form" onSubmit={addHabit}>
+        <div className="row">
         <Input
           placeholder="New habit (e.g. Gym, Read, Water)…"
           aria-label="New habit name"
           value={name}
+          readOnly={create.isPending}
           onChange={(e) => {
             setName(e.target.value);
+            create.reset();
             // A changed name is a new question; the old warning no longer applies.
             if (dupWarned) setDupWarned(null);
           }}
@@ -140,8 +150,10 @@ export function HabitsPanel() {
         <Button type="submit" disabled={create.isPending}>
           Add
         </Button>
+        </div>
+        {create.isPending && <p role="status" className="habit-save-status muted">Saving habit…</p>}
+        {create.isError && <p role="alert" className="habit-save-status error">Habit was not confirmed. Your draft is kept.</p>}
       </form>
-      {error && <div className="error">{error}</div>}
       {dupWarned && (
         // role=status so a screen reader hears why the first Add "did nothing".
         <p className="muted" role="status" style={{ margin: '6px 0 0', fontSize: 13 }}>
@@ -165,11 +177,16 @@ export function HabitsPanel() {
             )
           }
         >
+          {habits.length > 0 && !historyAvailable && (historyQuery.isError
+            ? <ErrorState message="Could not load habit history. You can still check in." onRetry={() => void historyQuery.refetch()} />
+            : <p role="status" className="muted">Loading habit history…</p>)}
           {habits.map((h) => (
             <HabitCard
               key={h.id}
               habit={h}
               counts={historyByHabit.get(h.id)}
+              historyAvailable={historyAvailable}
+              saving={log.isPending}
               onCheckIn={() => log.mutate(h.id)}
               onEdit={() => openEdit(h)}
               onRemove={() => remove.mutate(h.id)}
@@ -180,7 +197,8 @@ export function HabitsPanel() {
 
       <Dialog
         open={draft !== null}
-        onOpenChange={(open) => !open && setDraft(null)}
+        onOpenChange={(open) => !open && !update.isPending && setDraft(null)}
+        dismissible={!update.isPending}
         title="Edit habit"
       >
         {draft ? (
@@ -190,6 +208,7 @@ export function HabitsPanel() {
             <label className="field">
               <span className="field-label">Name</span>
               <Input
+                readOnly={update.isPending}
                 value={draft.name}
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                 autoFocus
@@ -203,6 +222,7 @@ export function HabitsPanel() {
                 inputMode="numeric"
                 min={1}
                 max={100}
+                readOnly={update.isPending}
                 value={draft.target}
                 onChange={(e) => setDraft({ ...draft, target: e.target.value })}
               />
@@ -212,6 +232,7 @@ export function HabitsPanel() {
               <span className="field-label">Cadence</span>
               <select
                 className="input"
+                disabled={update.isPending}
                 value={draft.cadence}
                 onChange={(e) =>
                   setDraft({ ...draft, cadence: e.target.value as HabitCadence })
@@ -222,10 +243,12 @@ export function HabitsPanel() {
               </select>
             </label>
 
-            {draftError && <div className="error">{draftError}</div>}
+            {draftError && <div role="alert" className="error">{draftError}</div>}
+            {update.isPending && <p role="status" className="habit-save-status muted">Saving habit…</p>}
+            {update.isError && <p role="alert" className="habit-save-status error">Habit was not confirmed. Your draft is kept.</p>}
 
             <div className="row" style={{ justifyContent: 'flex-end', gap: 8 }}>
-              <Button type="button" variant="ghost" onClick={() => setDraft(null)}>
+              <Button type="button" variant="ghost" disabled={update.isPending} onClick={() => setDraft(null)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={update.isPending}>
@@ -239,32 +262,19 @@ export function HabitsPanel() {
   );
 }
 
-/** Last 7 local days (oldest first) with done-ness for the mini week grid. */
-export function weekCells(
-  counts: Map<string, number> | undefined,
-  target: number,
-  today: Date,
-): Array<{ day: string; done: boolean; count: number }> {
-  const cells: Array<{ day: string; done: boolean; count: number }> = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    const key = localDayKey(d);
-    const count = counts?.get(key) ?? 0;
-    cells.push({ day: key, done: count >= Math.max(1, target), count });
-  }
-  return cells;
-}
-
 function HabitCard({
   habit,
   counts,
+  historyAvailable,
+  saving,
   onCheckIn,
   onEdit,
   onRemove,
 }: {
   habit: HabitDTO;
   counts: Map<string, number> | undefined;
+  historyAvailable: boolean;
+  saving: boolean;
   onCheckIn: () => void;
   onEdit: () => void;
   onRemove: () => void;
@@ -274,12 +284,15 @@ function HabitCard({
     <Card stack className={habit.doneToday ? 'habit-card done' : 'habit-card'}>
       <div className="row" style={{ gap: 13 }}>
         <button
-          className={`check ${habit.doneToday ? '' : ''}`}
+          type="button"
+          className="habit-checkin"
+          disabled={saving}
+          title={habit.doneToday ? 'Daily target met. Log another check-in.' : 'Log one check-in.'}
           aria-label={`Check in "${habit.name}"`}
           aria-pressed={habit.doneToday}
           onClick={onCheckIn}
         >
-          <Check size={14} strokeWidth={3} aria-hidden />
+          {habit.doneToday ? <Check size={18} strokeWidth={3} aria-hidden /> : <Plus size={18} aria-hidden />}
         </button>
         <div className="stack" style={{ gap: 1, flex: 1, minWidth: 0 }}>
           {/* The name is the edit affordance, the way an event row is on the
@@ -300,13 +313,13 @@ function HabitCard({
             {habit.todayCount}/{habit.target} today · {habit.cadence}
           </span>
         </div>
-        <div className="week-grid" role="img" aria-label={`${habit.name}: last 7 days`}>
+        {historyAvailable && <div className="week-grid" role="img" aria-label={`${habit.name}: last 7 days`}>
           {week.map((c) => (
             <span key={c.day} className={`week-dot ${c.done ? 'done' : ''}`} title={c.day} />
           ))}
-        </div>
+        </div>}
         {habit.streak > 0 && (
-          <Badge className="streak" aria-label={`${habit.streak} day streak`}>
+          <Badge className="streak" role="img" aria-label={`${habit.streak} day streak`}>
             <Flame size={13} aria-hidden />
             {habit.streak}
           </Badge>
@@ -321,14 +334,15 @@ function HabitCard({
           most of the screen was empty. Twenty-six columns fill the card at the
           same cell size, and the extra history is the part of a habit tracker
           worth looking at. */}
-      <div className="habit-heatmap">
+      {historyAvailable && <div className="habit-heatmap">
+        {(!counts || counts.size === 0) && <p className="muted">No check-ins recorded in the last {HISTORY_WEEKS} weeks.</p>}
         <Heatmap
           counts={counts ?? new Map()}
-          weeks={26}
+          weeks={HISTORY_WEEKS}
           target={habit.target}
-          label={`${habit.name} check-ins, last 26 weeks`}
+          label={`${habit.name} check-ins, last ${HISTORY_WEEKS} weeks`}
         />
-      </div>
+      </div>}
     </Card>
   );
 }

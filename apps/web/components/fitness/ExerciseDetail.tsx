@@ -8,12 +8,14 @@ import {
   formatVolume,
   formatWeight,
   type ExerciseSessionDTO,
+  type WeightUnit,
 } from '@atlas/shared';
 import { errorMessage } from '@/lib/api';
 import { useExerciseHistory } from '@/lib/hooks/fitness';
-import { useWeightUnit } from '@/lib/hooks/settings';
+import { useSettings } from '@/lib/hooks/settings';
 import { Dialog, EmptyState, ErrorState, ListSkeleton, Sparkline } from '@/components/ui';
 import { formatDayHeading } from '@/lib/dates';
+import { WeightPreference } from './WeightPreference';
 
 /**
  * One movement, and everything you have done with it.
@@ -41,7 +43,7 @@ export function ExerciseDetail({
   onClose: () => void;
 }) {
   const history = useExerciseHistory(exerciseId);
-  const unit = useWeightUnit();
+  const settings = useSettings();
 
   return (
     <Dialog
@@ -65,11 +67,11 @@ export function ExerciseDetail({
           hint="Add it to a session and Atlas starts keeping the record from the first set."
         />
       ) : (
-        <>
+        <WeightPreference query={settings}>{(unit) => <>
           <Records data={history.data.records} unit={unit} />
           <StrengthTrend sessions={history.data.sessions} unit={unit} />
           <SessionLog sessions={history.data.sessions} unit={unit} />
-        </>
+        </>}</WeightPreference>
       )}
     </Dialog>
   );
@@ -80,7 +82,7 @@ function Records({
   unit,
 }: {
   data: NonNullable<ReturnType<typeof useExerciseHistory>['data']>['records'];
-  unit: ReturnType<typeof useWeightUnit>;
+  unit: WeightUnit;
 }) {
   const tiles: { label: string; value: string; hint?: string }[] = [];
 
@@ -141,7 +143,7 @@ function StrengthTrend({
   unit,
 }: {
   sessions: ExerciseSessionDTO[];
-  unit: ReturnType<typeof useWeightUnit>;
+  unit: WeightUnit;
 }) {
   const points = sessions
     .slice()
@@ -190,7 +192,7 @@ function SessionLog({
   unit,
 }: {
   sessions: ExerciseSessionDTO[];
-  unit: ReturnType<typeof useWeightUnit>;
+  unit: WeightUnit;
 }) {
   return (
     <section className="exd-log" aria-label="Every session">
