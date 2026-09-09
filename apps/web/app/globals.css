@@ -6447,3 +6447,6 @@ label:has(> input[type='checkbox']) {
 .writing-save-status { margin: 0; font-size: 14px; line-height: 1.5; }
 .brief-generate-error { margin: 10px 0 0; font-size: 14px; line-height: 1.5; }
 .mood-checkin-error { margin: 10px 0 0; font-size: 14px; line-height: 1.5; }
+
+.habit-create-form { display: grid; gap: 8px; }
+.habit-save-status { margin: 0; font-size: 14px; }

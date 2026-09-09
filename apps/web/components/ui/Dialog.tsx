@@ -11,6 +11,8 @@ export interface DialogProps {
   /** Optional muted line under the title. */
   description?: string;
   children: ReactNode;
+  /** Keep a pending save visible until it settles. */
+  dismissible?: boolean;
 }
 
 /**
@@ -18,15 +20,15 @@ export interface DialogProps {
  * aria-labelling come from the primitive; the shell classes live in
  * globals.css (`.dialog-overlay`, `.dialog-content`).
  */
-export function Dialog({ open, onOpenChange, title, description, children }: DialogProps) {
+export function Dialog({ open, onOpenChange, title, description, children, dismissible = true }: DialogProps) {
   return (
-    <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
+    <RadixDialog.Root open={open} onOpenChange={(next) => { if (next || dismissible) onOpenChange(next); }}>
       <RadixDialog.Portal>
         <RadixDialog.Overlay className="dialog-overlay" />
         <RadixDialog.Content className="dialog-content stack">
           <div className="row" style={{ justifyContent: 'space-between' }}>
             <RadixDialog.Title className="dialog-title">{title}</RadixDialog.Title>
-            <RadixDialog.Close className="btn ghost" aria-label="Close">
+            <RadixDialog.Close disabled={!dismissible} className="btn ghost" aria-label="Close">
               <X size={16} aria-hidden />
             </RadixDialog.Close>
           </div>

@@ -3,7 +3,6 @@
 import { useMemo, useState } from 'react';
 import type { HabitCadence, HabitDTO } from '@atlas/shared';
 import { Check, Flame, Plus, Repeat, X } from 'lucide-react';
-import { errorMessage } from '@/lib/api';
 import {
   useCreateHabit,
   useDeleteHabit,
@@ -60,7 +59,6 @@ export function HabitsPanel() {
     return map;
   }, [historyQuery.data]);
 
-  const error = create.error ? errorMessage(create.error, 'Failed to add habit') : null;
 
   // M5: warn on a duplicate name, never block it. Two habits called "Stretch"
   // is usually a slip of memory, so the first submit asks; but it is sometimes
@@ -71,7 +69,7 @@ export function HabitsPanel() {
   function addHabit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!trimmed || create.isPending) return;
 
     const duplicate = habits.some((h) => h.name.toLowerCase() === trimmed.toLowerCase());
     if (duplicate && dupWarned !== trimmed) {
@@ -80,12 +78,15 @@ export function HabitsPanel() {
     }
 
     setDupWarned(null);
-    latch((release) =>
-      create.mutate({ name: trimmed }, { onSuccess: () => setName(''), onSettled: release }),
-    );
+    latch((release) => {
+      create.reset();
+      create.mutate({ name: trimmed }, { onSuccess: () => setName(''), onSettled: release });
+    });
   }
 
   function openEdit(habit: HabitDTO) {
+    if (update.isPending) return;
+    update.reset();
     setDraftError(null);
     setDraft({
       id: habit.id,
@@ -104,7 +105,7 @@ export function HabitsPanel() {
 
   function saveEdit(e: React.FormEvent) {
     e.preventDefault();
-    if (!draft) return;
+    if (!draft || update.isPending) return;
 
     const trimmed = draft.name.trim();
     if (!trimmed) {
@@ -120,24 +121,28 @@ export function HabitsPanel() {
     }
 
     setDraftError(null);
-    editLatch((release) =>
+    editLatch((release) => {
+      update.reset();
       update.mutate(
         { id: draft.id, patch: { name: trimmed, target, cadence: draft.cadence } },
         { onSuccess: () => setDraft(null), onSettled: release },
-      ),
-    );
+      );
+    });
   }
 
   return (
     <>
       <PageHeader title="Habits" subtitle="Small daily wins, kept alive by your streak." />
-      <form className="row" onSubmit={addHabit}>
+      <form className="habit-create-form" onSubmit={addHabit}>
+        <div className="row">
         <Input
           placeholder="New habit (e.g. Gym, Read, Water)…"
           aria-label="New habit name"
           value={name}
+          readOnly={create.isPending}
           onChange={(e) => {
             setName(e.target.value);
+            create.reset();
             // A changed name is a new question; the old warning no longer applies.
             if (dupWarned) setDupWarned(null);
           }}
@@ -145,8 +150,10 @@ export function HabitsPanel() {
         <Button type="submit" disabled={create.isPending}>
           Add
         </Button>
+        </div>
+        {create.isPending && <p role="status" className="habit-save-status muted">Saving habit…</p>}
+        {create.isError && <p role="alert" className="habit-save-status error">Habit was not confirmed. Your draft is kept.</p>}
       </form>
-      {error && <div className="error">{error}</div>}
       {dupWarned && (
         // role=status so a screen reader hears why the first Add "did nothing".
         <p className="muted" role="status" style={{ margin: '6px 0 0', fontSize: 13 }}>
@@ -190,7 +197,8 @@ export function HabitsPanel() {
 
       <Dialog
         open={draft !== null}
-        onOpenChange={(open) => !open && setDraft(null)}
+        onOpenChange={(open) => !open && !update.isPending && setDraft(null)}
+        dismissible={!update.isPending}
         title="Edit habit"
       >
         {draft ? (
@@ -200,6 +208,7 @@ export function HabitsPanel() {
             <label className="field">
               <span className="field-label">Name</span>
               <Input
+                readOnly={update.isPending}
                 value={draft.name}
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                 autoFocus
@@ -213,6 +222,7 @@ export function HabitsPanel() {
                 inputMode="numeric"
                 min={1}
                 max={100}
+                readOnly={update.isPending}
                 value={draft.target}
                 onChange={(e) => setDraft({ ...draft, target: e.target.value })}
               />
@@ -222,6 +232,7 @@ export function HabitsPanel() {
               <span className="field-label">Cadence</span>
               <select
                 className="input"
+                disabled={update.isPending}
                 value={draft.cadence}
                 onChange={(e) =>
                   setDraft({ ...draft, cadence: e.target.value as HabitCadence })
@@ -232,10 +243,12 @@ export function HabitsPanel() {
               </select>
             </label>
 
-            {draftError && <div className="error">{draftError}</div>}
+            {draftError && <div role="alert" className="error">{draftError}</div>}
+            {update.isPending && <p role="status" className="habit-save-status muted">Saving habit…</p>}
+            {update.isError && <p role="alert" className="habit-save-status error">Habit was not confirmed. Your draft is kept.</p>}
 
             <div className="row" style={{ justifyContent: 'flex-end', gap: 8 }}>
-              <Button type="button" variant="ghost" onClick={() => setDraft(null)}>
+              <Button type="button" variant="ghost" disabled={update.isPending} onClick={() => setDraft(null)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={update.isPending}>

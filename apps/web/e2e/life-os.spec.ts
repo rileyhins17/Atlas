@@ -3404,3 +3404,73 @@ test('mood check-ins retain failed saves and confirm retried readings in both th
     await page.unroute('http://localhost:4000/routine');
   }
 });
+
+
+test('habit drafts stay intact through pending saves and retry in both themes', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const theme of ['light', 'dark'] as const) {
+    let habitId = '';
+    let name = `Read a chapter ${theme} ${Date.now()}`;
+    await page.goto('/habits');
+    await page.evaluate((value) => localStorage.setItem('atlas-theme', value), theme);
+    await page.reload();
+    for (const edit of [false, true]) {
+      if (edit) {
+        await page.getByRole('button', { name: `Edit habit "${name}"`, exact: true }).click();
+        name += ' nightly';
+      }
+      const input = edit ? page.getByRole('dialog').getByRole('textbox', { name: 'Name', exact: true }) : page.getByRole('textbox', { name: 'New habit name', exact: true });
+      await input.click(); await input.press('ControlOrMeta+A'); await input.pressSequentially(name);
+      const form = input.locator('xpath=ancestor::form');
+      if (edit) {
+        const target = form.getByRole('spinbutton', { name: 'Times per day', exact: true });
+        await target.click(); await target.press('ControlOrMeta+A'); await target.pressSequentially('3');
+        await form.getByRole('combobox', { name: 'Cadence', exact: true }).selectOption('weekly');
+      }
+      const endpoint = `http://localhost:4000/habits${edit ? `/${habitId}` : ''}`;
+      const method = edit ? 'PATCH' : 'POST';
+      let release!: () => void;
+      const hold = new Promise<void>((resolve) => { release = resolve; });
+      await page.route(endpoint, async (route) => {
+        if (route.request().method() !== method) return route.continue();
+        await hold;
+        await route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+      });
+      try {
+        await form.getByRole('button', { name: edit ? 'Save' : 'Add', exact: true }).click();
+        await expect(form.getByRole('status')).toHaveText('Saving habit…');
+        await expect(input).toHaveAttribute('readonly', '');
+        await input.pressSequentially(' must not disappear');
+        await expect(input).toHaveValue(name);
+        if (edit) {
+          await expect(form.getByRole('button', { name: 'Cancel', exact: true })).toBeDisabled();
+          await expect(page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true })).toBeDisabled();
+          await page.keyboard.press('Escape');
+          await expect(page.getByRole('dialog')).toBeVisible();
+        }
+      } finally { release(); }
+      await expect(form.getByRole('alert')).toHaveText('Habit was not confirmed. Your draft is kept.');
+      await expect(input).toHaveValue(name);
+      let failures = screenFailures(await measureScreen(page, `/habits:${edit ? 'edit' : 'create'}-save-error`, theme));
+      expect(failures, failures.join('\n')).toEqual([]);
+      await page.unroute(endpoint);
+      const saved = page.waitForResponse((response) => response.url() === endpoint && response.request().method() === method);
+      await form.getByRole('button', { name: edit ? 'Save' : 'Add', exact: true }).click();
+      const response = await saved;
+      expect(response.status()).toBe(edit ? 200 : 201);
+      const row = await response.json() as { id: string };
+      habitId = row.id;
+      if (edit) await expect(page.getByRole('dialog')).toHaveCount(0);
+      else await expect(input).toHaveValue('');
+      await expect(page.getByRole('button', { name: `Edit habit "${name}"`, exact: true })).toBeVisible();
+      failures = screenFailures(await measureScreen(page, `/habits:${edit ? 'edit' : 'create'}-save-recovered`, theme));
+      expect(failures, failures.join('\n')).toEqual([]);
+      await page.reload();
+      const listed = await page.request.get('http://localhost:4000/habits');
+      expect(listed.ok()).toBe(true);
+      expect(await listed.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: habitId, name, target: edit ? 3 : 1, cadence: edit ? 'weekly' : 'daily' })]));
+      await expect(page.getByRole('button', { name: `Edit habit "${name}"`, exact: true })).toBeVisible();
+    }
+  }
+});
