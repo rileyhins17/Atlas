@@ -54,6 +54,26 @@ export function countsByDay(events: EventDTO[]): Map<string, number> {
 }
 
 /**
+ * The first event after a displayed day.
+ *
+ * A Monday-based strip is the right shape for a week, but on Sunday it has no
+ * future day left in it. The calendar uses this small escape hatch in an empty
+ * state so the next thing remains one tap away without changing week
+ * navigation or the routine's Monday-based model.
+ */
+export function nextEventAfter(events: EventDTO[], dayKey: string, now: Date): EventDTO | null {
+  const nowMs = now.getTime();
+  return (
+    events
+      .filter((e) => {
+        const start = new Date(e.startAt);
+        return localDayKey(start) > dayKey && start.getTime() >= nowMs;
+      })
+      .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())[0] ?? null
+  );
+}
+
+/**
  * Group events into local calendar days, ascending, start-time ordered inside
  * each day. Unlike the old agenda this does NOT drop past days — being unable
  * to look at yesterday is a bug, not a feature. Callers choose the range.

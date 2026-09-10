@@ -10,6 +10,7 @@ import {
   formatDuration,
   isLive,
   minutesBetween,
+  nextEventAfter,
   nextSlot,
   placeDayEvents,
   rangeLabel,
@@ -119,6 +120,28 @@ describe('countsByDay', () => {
     ]);
     expect(counts.get('2026-07-18')).toBe(2);
     expect(counts.get('2026-07-19')).toBe(1);
+  });
+});
+
+describe('nextEventAfter', () => {
+  it('finds the next event after an empty Sunday without changing week shape', () => {
+    const next = event({
+      title: 'Monday run',
+      startAt: new Date(2026, 6, 20, 9).toISOString(),
+    });
+    expect(nextEventAfter([next], '2026-07-19', new Date(2026, 6, 19, 12))).toBe(next);
+  });
+
+  it('ignores events on the displayed day, past events and earlier future events', () => {
+    const sameDay = event({ startAt: new Date(2026, 6, 19, 9).toISOString() });
+    const past = event({ startAt: new Date(2026, 6, 18, 9).toISOString() });
+    const next = event({ title: 'First next', startAt: new Date(2026, 6, 20, 9).toISOString() });
+    const later = event({ title: 'Later', startAt: new Date(2026, 6, 21, 9).toISOString() });
+    expect(nextEventAfter([later, past, sameDay, next], '2026-07-19', new Date(2026, 6, 19, 12))).toBe(next);
+  });
+
+  it('returns null when no later event exists', () => {
+    expect(nextEventAfter([], '2026-07-19', new Date(2026, 6, 19, 12))).toBeNull();
   });
 });
 

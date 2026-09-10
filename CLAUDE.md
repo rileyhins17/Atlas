@@ -140,7 +140,7 @@ of the design work in v10 came from reading those PNGs, not the source.
 
 ## Current state
 
-Green at the last verified hardening pass: build 6/6 · typecheck 10/10 · lint clean · **1,321 unit tests** · the prior deployed-build **e2e 47/47** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop. The current production-hardening branch did not rerun e2e because Docker Desktop is unavailable; do not call it e2e-green until the laptop runs that gate.
+Green at the last verified hardening pass: build 6/6 · typecheck 10/10 · lint clean · **1,324 unit tests** · the prior deployed-build **e2e 47/47** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop. The current production-hardening branch did not rerun e2e because Docker Desktop is unavailable; do not call it e2e-green until the laptop runs that gate.
 
 **Trackers are the eighth domain.** "Rate anything, once a day, on a 1-10 scale"
 — the generic answer to a request for a bloating rating, because the next person

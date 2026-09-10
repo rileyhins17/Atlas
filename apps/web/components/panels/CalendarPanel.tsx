@@ -36,6 +36,7 @@ import {
   formatDuration,
   isLive,
   minutesBetween,
+  nextEventAfter,
   rangeLabel,
   startOfWeek,
   weekDays,
@@ -79,6 +80,12 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
     const d = dateFromDayKey(selectedDay);
     return bucketByDay(events, d, d);
   }, [events, scope, days, selectedDay]);
+
+  const nextEvent = useMemo(() => {
+    if (visible.length > 0) return null;
+    const afterKey = scope === 'week' ? localDayKey(days[6]!) : selectedDay;
+    return nextEventAfter(events, afterKey, now);
+  }, [days, events, now, scope, selectedDay, visible.length]);
 
 
   function openCreate(dayKey = selectedDay) {
@@ -253,6 +260,23 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
             icon={CalendarDays}
             title={scope === 'week' ? 'Nothing this week' : 'Nothing on this day'}
             hint="Tap New to add something, or connect Google Calendar in Settings to sync yours."
+            action={
+              nextEvent ? (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setSelectedDay(localDayKey(new Date(nextEvent.startAt)));
+                    setScope('day');
+                  }}
+                >
+                  Next up: {nextEvent.title} ·{' '}
+                  {new Date(nextEvent.startAt).toLocaleDateString('en-US',
+                    fmt({ weekday: 'short', month: 'short', day: 'numeric' }),
+                  )}{' '}
+                  {nextEvent.allDay ? 'all day' : formatClock(new Date(nextEvent.startAt))}
+                </Button>
+              ) : null
+            }
           />
         ) : (
           <div className="stack" style={{ gap: 18 }}>
