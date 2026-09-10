@@ -38,7 +38,6 @@ function makeService(rows: Record<string, unknown>[], series: Record<string, unk
   const prisma = { client: { event } };
   const timeline = { write: vi.fn().mockResolvedValue(undefined) };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return new CalendarService(prisma as any, timeline as any, { get: async () => 'America/Toronto', prime() {}, forget() {} } as any);
 }
 

@@ -64,3 +64,7 @@ overrides:
   # Prisma's config loader. Major bump, so the Prisma client build and the
   # migration path are the things to watch after changing it.
   deepmerge-ts: '^8.0.0'
+  # Nest's platform adapter accepts the current Multer 2 line, but the lockfile
+  # otherwise keeps resolving the vulnerable 2.2.0 release. Keep the upload
+  # parser on the first release that carries the current DoS fixes.
+  multer: '^2.3.0'
