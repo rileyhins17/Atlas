@@ -148,6 +148,7 @@ export class TasksService {
     // one that belongs to someone else must simply not match.
     const tasks = await this.prisma.client.task.findMany({
       where: { id: { in: taskIds }, userId, status: { in: ['TODO', 'IN_PROGRESS'] } },
+      take: taskIds.length,
     });
     if (tasks.length === 0) return { action, count: 0 };
     const ids = tasks.map((t) => t.id);

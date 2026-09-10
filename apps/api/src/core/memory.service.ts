@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from './prisma.service.js';
 
 /** Unanswered questions past this point are a wall, not a prompt. */
-const MAX_OPEN_QUESTIONS = 20;
+export const MAX_OPEN_QUESTIONS = 20;
 
 /**
  * The bridge that makes any domain "AI-native": text gets queued into semantic

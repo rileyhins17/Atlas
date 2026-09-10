@@ -14,6 +14,8 @@ import { TimelineService } from '../../core/timeline.service.js';
 import { ConnectorsService } from '../../core/connectors.service.js';
 
 const CONNECTOR_ID = 'plaid';
+/** A person can link several institutions, never an unbounded credential list. */
+const MAX_PLAID_ITEMS = 25;
 
 export interface PlaidItemSummary {
   itemId: string;
@@ -55,6 +57,11 @@ export class PlaidSyncService {
     return this.connectors.plaid !== null;
   }
 
+  /** Verify a Plaid webhook without exposing the app credentials to a controller. */
+  verifyWebhook(rawBody: Buffer, verification: string): Promise<boolean> {
+    return this.connectors.plaid?.verifyWebhook(rawBody, verification) ?? Promise.resolve(false);
+  }
+
   async isConnected(userId: string): Promise<boolean> {
     if (!this.connectors.plaid) return false;
     const count = await this.prisma.client.credential.count({
@@ -68,6 +75,7 @@ export class PlaidSyncService {
     const creds = await this.prisma.client.credential.findMany({
       where: { userId, connector: CONNECTOR_ID },
       orderBy: { createdAt: 'asc' },
+      take: MAX_PLAID_ITEMS,
     });
     return creds.map((c) => {
       const meta = (c.meta as Record<string, unknown> | null) ?? {};

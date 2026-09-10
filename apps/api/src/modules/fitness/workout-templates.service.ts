@@ -13,10 +13,12 @@ import { CostGuard } from '@atlas/ai';
 import { PrismaService } from '../../core/prisma.service.js';
 import { ConnectorsService } from '../../core/connectors.service.js';
 import { loadEnv } from '../../config/env.js';
-
-/** A user cannot have more days in their split than this. */
-const MAX_EXERCISES_PER_TEMPLATE = 30;
-const MAX_TEMPLATES = 20;
+import {
+  MAX_CUSTOM_EXERCISES,
+  MAX_EXERCISES_PER_TEMPLATE,
+  MAX_EXERCISES_READ,
+  MAX_TEMPLATES,
+} from './fitness-limits.js';
 
 const WITH_EXERCISES = {
   exercises: { include: { exercise: true }, orderBy: { position: 'asc' } },
@@ -74,6 +76,7 @@ export class WorkoutTemplatesService {
     const rows = await this.prisma.client.workoutTemplate.findMany({
       where: { userId },
       orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+      take: MAX_TEMPLATES,
       include: WITH_EXERCISES,
     });
 
@@ -93,6 +96,7 @@ export class WorkoutTemplatesService {
     if (ids.length === 0) return [];
     const found = await this.prisma.client.exercise.findMany({
       where: { id: { in: ids }, OR: [{ userId: null }, { userId }] },
+      take: ids.length,
       select: { id: true },
     });
     const allowed = new Set(found.map((e) => e.id));
@@ -215,6 +219,7 @@ export class WorkoutTemplatesService {
   async planSplit(userId: string, text: string): Promise<PlanSplitResultDTO> {
     const catalog = await this.prisma.client.exercise.findMany({
       where: { OR: [{ userId: null }, { userId }] },
+      take: MAX_EXERCISES_READ,
       select: { id: true, name: true },
     });
 
@@ -334,6 +339,7 @@ export class WorkoutTemplatesService {
     if (needed.size > 0) {
       const found = await this.prisma.client.exercise.findMany({
         where: { name: { in: [...needed] }, OR: [{ userId: null }, { userId }] },
+        take: needed.size,
         select: { id: true, name: true },
       });
       for (const row of found) byName.set(row.name, row.id);
@@ -343,6 +349,13 @@ export class WorkoutTemplatesService {
       // same proposal is accepted twice at the same moment.
       const missing = [...needed].filter((n) => !byName.has(n));
       if (missing.length > 0) {
+        const customCount = await this.prisma.client.exercise.count({ where: { userId } });
+        if (customCount + missing.length > MAX_CUSTOM_EXERCISES) {
+          throw new BadRequestException(
+            `You have ${MAX_CUSTOM_EXERCISES} custom exercises, which is the limit. ` +
+              'Delete one to apply this split.',
+          );
+        }
         await this.prisma.client.exercise.createMany({
           data: missing.map((name) => ({ userId, name, muscle: 'other', kind: 'weight_reps' })),
           skipDuplicates: true,
@@ -350,6 +363,7 @@ export class WorkoutTemplatesService {
         // createMany returns no rows, so read back the ids it just assigned.
         const created = await this.prisma.client.exercise.findMany({
           where: { name: { in: missing }, OR: [{ userId: null }, { userId }] },
+          take: missing.length,
           select: { id: true, name: true },
         });
         for (const row of created) byName.set(row.name, row.id);
@@ -362,6 +376,7 @@ export class WorkoutTemplatesService {
       (
         await this.prisma.client.workoutTemplate.findMany({
           where: { userId, name: { in: dayNames } },
+          take: dayNames.length,
           select: { id: true, name: true },
         })
       ).map((row) => [row.name, row.id]),

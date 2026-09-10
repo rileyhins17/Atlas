@@ -1,4 +1,15 @@
-import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  Post,
+  Req,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
+import type { Request } from 'express';
 import { z } from 'zod';
 import type { SyncResult } from '@atlas/connectors';
 import { ZodValidationPipe } from '../../common/zod.pipe.js';
@@ -10,6 +21,8 @@ import { PlaidSyncService, type PlaidItemSummary } from './plaid-sync.service.js
 const LinkTokenInput = z.object({ itemId: z.string().optional() });
 const ExchangeInput = z.object({ publicToken: z.string().min(1) });
 const DisconnectInput = z.object({ itemId: z.string().optional() });
+
+type RequestWithRawBody = Request & { rawBody?: Buffer };
 
 /**
  * Note: no class-level guard. The authed endpoints below each apply SessionGuard;
@@ -65,17 +78,21 @@ export class PlaidController {
     return this.plaid.disconnect(user.id, body.itemId);
   }
 
-  /**
-   * Plaid → Atlas webhook (public, server-to-server). DEFERRED: this must verify
-   * Plaid's JWT (`Plaid-Verification` header via /webhook_verification_key/get)
-   * BEFORE it is allowed to trigger any sync — an unverified endpoint that acts
-   * on request would let anyone force syncs. Until that verification is wired,
-   * this only acknowledges receipt (200) and does nothing. Not reachable on
-   * localhost anyway; the manual "Sync now" button is the live path today.
-   */
+  /** Plaid → Atlas webhook (public, server-to-server), authenticated by Plaid's signature. */
   @Post('webhook')
   @HttpCode(200)
-  webhook(): { received: true } {
+  async webhook(
+    @Headers('plaid-verification') verification: string | undefined,
+    @Req() req: RequestWithRawBody,
+  ): Promise<{ received: true }> {
+    if (
+      !this.plaid.isConfigured() ||
+      !verification ||
+      !req.rawBody ||
+      !(await this.plaid.verifyWebhook(req.rawBody, verification))
+    ) {
+      throw new UnauthorizedException('Webhook verification failed');
+    }
     return { received: true };
   }
 }

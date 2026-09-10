@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import webpush from 'web-push';
 import type { PushSubscriptionInput } from '@atlas/shared';
 import { PrismaService } from '../../core/prisma.service.js';
@@ -9,6 +9,9 @@ export interface PushPayload {
   body: string;
   url?: string;
 }
+
+/** Fifty devices is generous; without a cap every send becomes attacker-sized. */
+const MAX_PUSH_SUBSCRIPTIONS = 50;
 
 /**
  * Web Push delivery. VAPID keys are self-issued (no external account), set once
@@ -73,6 +76,12 @@ export class PushService {
 
     await this.prisma.client.$transaction(async (tx) => {
       await tx.pushSubscription.deleteMany({ where: { endpoint: sub.endpoint } });
+      const count = await tx.pushSubscription.count({ where: { userId } });
+      if (count >= MAX_PUSH_SUBSCRIPTIONS) {
+        throw new BadRequestException(
+          `You can register at most ${MAX_PUSH_SUBSCRIPTIONS} push devices.`,
+        );
+      }
       await tx.pushSubscription.create({
         data: { userId, endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth },
       });
@@ -86,7 +95,11 @@ export class PushService {
   /** Push to all of a user's devices. Returns how many were delivered. */
   async sendToUser(userId: string, payload: PushPayload): Promise<number> {
     if (!this.configured) return 0;
-    const subs = await this.prisma.client.pushSubscription.findMany({ where: { userId } });
+    const subs = await this.prisma.client.pushSubscription.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'asc' },
+      take: MAX_PUSH_SUBSCRIPTIONS,
+    });
     const body = JSON.stringify(payload);
     let sent = 0;
     /** Endpoints the push service says are gone; removed once, after the sends. */

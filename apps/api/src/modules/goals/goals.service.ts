@@ -52,6 +52,7 @@ export class GoalsService {
     const goals = await this.prisma.client.goal.findMany({
       where: { userId },
       orderBy: [{ horizon: 'asc' }, { position: 'asc' }, { createdAt: 'asc' }],
+      take: MAX_GOALS,
       include: { _count: { select: { tasks: true } } },
     });
     if (goals.length === 0) return [];

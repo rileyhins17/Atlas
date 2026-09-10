@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { BadRequestException } from '@nestjs/common';
 import { WorkoutTemplatesService } from '../src/modules/fitness/workout-templates.service.js';
 
 /**
@@ -19,7 +20,7 @@ import { WorkoutTemplatesService } from '../src/modules/fitness/workout-template
  * and that catalog is unpaginated and fed to the model, so the orphans cost
  * tokens on every later AI call.
  */
-function makeService(opts: { existing?: string[] } = {}) {
+function makeService(opts: { existing?: string[]; customCount?: number } = {}) {
   const known = new Set(opts.existing ?? []);
   const counts = { findMany: 0, findFirst: 0, create: 0, createMany: 0, tx: 0 };
 
@@ -45,6 +46,7 @@ function makeService(opts: { existing?: string[] } = {}) {
       for (const d of data) known.add(d.name);
       return { count: data.length };
     }),
+    count: vi.fn(async () => opts.customCount ?? 0),
   };
   const workoutTemplate = {
     findFirst: vi.fn(async () => null),
@@ -125,5 +127,22 @@ describe('applyProposal', () => {
       (c) => (c[0] as { data: { name: string }[] }).data,
     );
     expect(written).toHaveLength(0);
+  });
+
+  it('does not let a split import bypass the custom-exercise quota', async () => {
+    const { service, exercise } = makeService({ customCount: 199 });
+
+    await expect(
+      service.applyProposal('u1', [
+        {
+          name: 'Push',
+          exercises: [
+            { exerciseId: null, name: 'new movement one' },
+            { exerciseId: null, name: 'new movement two' },
+          ],
+        },
+      ]),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(exercise.createMany).not.toHaveBeenCalled();
   });
 });

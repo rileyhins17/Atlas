@@ -353,6 +353,7 @@ export class GoogleSyncService {
     for (const chunk of chunks([...remoteById.keys()], ID_CHUNK)) {
       const rows = await this.prisma.client.event.findMany({
         where: { userId, source: CONNECTOR_ID, externalId: { in: chunk } },
+        take: chunk.length,
       });
       for (const row of rows) if (row.externalId) existing.set(row.externalId, row);
     }

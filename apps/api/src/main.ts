@@ -11,7 +11,12 @@ async function bootstrap(): Promise<void> {
   // Before NestFactory: the SDK patches modules as they load.
   const tracking = initObservability();
   const env = loadEnv();
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: true });
+  // Keep the exact bytes alongside the parsed body so signed Plaid webhooks
+  // can be verified without re-serialising JSON and changing its hash.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bodyParser: true,
+    rawBody: true,
+  });
 
   // Security headers. The API serves JSON only, so a strict CSP is safe here —
   // the web app sets its own policy.

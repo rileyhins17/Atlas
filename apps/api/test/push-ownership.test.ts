@@ -29,6 +29,7 @@ function makeService() {
         calls.push({ op: 'deleteMany', args: where });
         return { count: 1 };
       }),
+      count: vi.fn(async () => 0),
       create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
         calls.push({ op: 'create', args: data });
         return data;
@@ -84,6 +85,7 @@ describe('push subscriptions', () => {
     const tx = {
       pushSubscription: {
         deleteMany: vi.fn(async () => { calls.push('deleteMany'); return { count: 1 }; }),
+        count: vi.fn(async () => 0),
         create: vi.fn(async () => { calls.push('create'); return {}; }),
       },
     };
@@ -100,6 +102,16 @@ describe('push subscriptions', () => {
     await service.subscribe('u1', { endpoint: VICTIM, keys });
     expect(prisma.client.$transaction).toHaveBeenCalled();
     expect(calls).toEqual(['tx:start', 'deleteMany', 'create']);
+  });
+
+  it('rejects a new device once the account reaches the device cap', async () => {
+    const { service, client } = makeService();
+    client.pushSubscription.count.mockResolvedValue(50);
+
+    await expect(service.subscribe('u1', { endpoint: VICTIM, keys })).rejects.toThrow(
+      /at most 50 push devices/,
+    );
+    expect(client.pushSubscription.create).not.toHaveBeenCalled();
   });
 });
 

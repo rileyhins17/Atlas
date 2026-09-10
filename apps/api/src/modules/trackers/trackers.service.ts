@@ -83,6 +83,7 @@ export class TrackersService {
     const today = dayKeyInTz(new Date(), await this.timezoneOf(userId));
     const entries = await this.prisma.client.trackerEntry.findMany({
       where: { userId, dayKey: today, trackerId: { in: rows.map((r) => r.id) } },
+      take: rows.length,
       select: { trackerId: true, value: true },
     });
     const byTracker = new Map(entries.map((e) => [e.trackerId, e.value]));

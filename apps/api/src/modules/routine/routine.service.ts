@@ -66,6 +66,7 @@ export class RoutineService {
     const blocks = await this.prisma.client.routineBlock.findMany({
       where: { userId, OR: [{ onDate: null }, { onDate: { gte: from } }] },
       orderBy: [{ onDate: 'asc' }, { startMin: 'asc' }],
+      take: MAX_ROUTINE_BLOCKS,
     });
     return blocks.map(toDto);
   }

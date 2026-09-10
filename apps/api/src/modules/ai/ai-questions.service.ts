@@ -3,7 +3,7 @@ import type { AiQuestionDTO } from '@atlas/shared';
 import type { AiQuestion } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
-import { MemoryService } from '../../core/memory.service.js';
+import { MAX_OPEN_QUESTIONS, MemoryService } from '../../core/memory.service.js';
 
 function toDto(q: AiQuestion): AiQuestionDTO {
   return {
@@ -35,6 +35,7 @@ export class AiQuestionsService {
     const qs = await this.prisma.client.aiQuestion.findMany({
       where: { userId, status: 'OPEN' },
       orderBy: { createdAt: 'desc' },
+      take: MAX_OPEN_QUESTIONS,
     });
     return qs.map(toDto);
   }

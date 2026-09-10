@@ -13,6 +13,8 @@ import { computeStreak, dayKey } from './habits.util.js';
 
 /** How far back streak math ever needs to look. */
 const STREAK_WINDOW_DAYS = 400;
+/** Protective ceiling for pathological repeated check-ins in that window. */
+const MAX_HABIT_LOG_ROWS = STREAK_WINDOW_DAYS * 100;
 
 @Injectable()
 export class HabitsService {
@@ -63,6 +65,8 @@ export class HabitsService {
   private logsForHabit(userId: string, habitId: string): Promise<HabitLog[]> {
     return this.prisma.client.habitLog.findMany({
       where: { userId, habitId, loggedAt: { gte: HabitsService.streakWindowStart() } },
+      orderBy: { loggedAt: 'desc' },
+      take: MAX_HABIT_LOG_ROWS,
     });
   }
 
@@ -76,6 +80,8 @@ export class HabitsService {
     if (habits.length === 0) return [];
     const logs = await this.prisma.client.habitLog.findMany({
       where: { userId, loggedAt: { gte: HabitsService.streakWindowStart() } },
+      orderBy: { loggedAt: 'desc' },
+      take: MAX_HABIT_LOG_ROWS,
     });
     const byHabit = new Map<string, HabitLog[]>();
     for (const log of logs) {
@@ -156,6 +162,8 @@ export class HabitsService {
     since.setUTCDate(since.getUTCDate() - days);
     const logs = await this.prisma.client.habitLog.findMany({
       where: { userId, loggedAt: { gte: since } },
+      orderBy: { loggedAt: 'desc' },
+      take: Math.min(days * 100, MAX_HABIT_LOG_ROWS),
       select: { habitId: true, loggedAt: true, value: true },
     });
     const perHabit = new Map<string, Map<string, number>>(habits.map((h) => [h.id, new Map()]));

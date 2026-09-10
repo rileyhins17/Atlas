@@ -113,7 +113,7 @@ export class CalendarService {
     const events = await this.prisma.client.event.findMany({
       where: { userId, startAt: { gte: from, ...(opts.to ? { lt: opts.to } : {}) } },
       orderBy: { startAt: 'asc' },
-      take,
+      take: take,
     });
     const rows = events.map(toDto);
 
@@ -219,6 +219,7 @@ export class CalendarService {
     const candidates = await this.prisma.client.event.findMany({
       where: { userId, startAt: { gte: from, lt: horizon } },
       orderBy: { startAt: 'asc' },
+      take: MAX_PAGE,
     });
     const today = candidates.filter((e) => dayKey(e.startAt) === dayKey(from));
 

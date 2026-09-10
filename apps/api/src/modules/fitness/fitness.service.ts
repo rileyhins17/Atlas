@@ -34,6 +34,7 @@ import type { Exercise, Prisma } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
 import { EXERCISE_CATALOG } from './exercise-catalog.js';
+import { MAX_CUSTOM_EXERCISES, MAX_EXERCISES_READ } from './fitness-limits.js';
 
 
 /** A workout row with its sets and each set's exercise, as every read needs. */
@@ -48,8 +49,6 @@ const MAX_PAGE = 100;
  * specialised gym has a lot of machines — and finite, because the picker
  * reads all of them on every open.
  */
-const MAX_CUSTOM_EXERCISES = 200;
-
 const MAX_EXERCISE_SESSIONS = 30;
 /** Ceiling on the rows read to build it. Records are computed from all of them. */
 const MAX_EXERCISE_SETS = 600;
@@ -152,6 +151,7 @@ export class FitnessService {
   async seedCatalog(): Promise<number> {
     const existing = await this.prisma.client.exercise.findMany({
       where: { userId: null },
+      take: EXERCISE_CATALOG.length,
       select: { id: true, name: true, target: true, equipment: true },
     });
     const byName = new Map(existing.map((e) => [e.name, e]));
@@ -190,6 +190,7 @@ export class FitnessService {
     const rows = await this.prisma.client.exercise.findMany({
       where: { OR: [{ userId: null }, { userId }] },
       orderBy: { name: 'asc' },
+      take: MAX_EXERCISES_READ,
     });
     return rows.map(toExerciseDto);
   }

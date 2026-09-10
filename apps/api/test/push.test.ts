@@ -32,7 +32,7 @@ beforeEach(() => vi.mocked(webpush.sendNotification).mockReset());
 describe('PushService.sendToUser', () => {
   it('delivers to every subscription and returns the count', async () => {
     vi.mocked(webpush.sendNotification).mockResolvedValue(undefined as never);
-    const { service } = makeService([
+    const { service, pushSubscription } = makeService([
       { id: 's1', endpoint: 'https://push/e1', p256dh: 'p1', auth: 'a1' },
       { id: 's2', endpoint: 'https://push/e2', p256dh: 'p2', auth: 'a2' },
     ]);
@@ -40,6 +40,11 @@ describe('PushService.sendToUser', () => {
     const sent = await service.sendToUser('u1', { title: 'Brief', body: 'Hello', url: '/today' });
 
     expect(sent).toBe(2);
+    expect(pushSubscription.findMany).toHaveBeenCalledWith({
+      where: { userId: 'u1' },
+      orderBy: { createdAt: 'asc' },
+      take: 50,
+    });
     expect(webpush.sendNotification).toHaveBeenCalledTimes(2);
     const [sub, payload] = vi.mocked(webpush.sendNotification).mock.calls[0]!;
     expect(sub).toMatchObject({ endpoint: 'https://push/e1', keys: { p256dh: 'p1', auth: 'a1' } });

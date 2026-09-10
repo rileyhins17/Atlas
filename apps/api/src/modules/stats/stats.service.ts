@@ -235,7 +235,14 @@ export class StatsService {
     const [factors, entries] = await Promise.all([
       this.factorsFor(userId, tz, from),
       this.prisma.client.trackerEntry.findMany({
-        where: { userId, dayKey: { gte: fromKey }, trackerId: { in: trackers.map((t) => t.id) } },
+        where: {
+          userId,
+          dayKey: { gte: fromKey, lte: dayKeyInTz(new Date(), tz) },
+          trackerId: { in: trackers.map((t) => t.id) },
+        },
+        // One row per tracker per local day; this is both a DB guard and a
+        // statement of the maximum data the 90-day pattern can use.
+        take: trackers.length * (PATTERN_WINDOW_DAYS + 2),
         select: { trackerId: true, dayKey: true, value: true },
       }),
     ]);

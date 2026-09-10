@@ -1,3 +1,4 @@
+import { createHash, createPublicKey, createVerify, timingSafeEqual, type KeyObject } from 'node:crypto';
 import { z } from 'zod';
 import type { Connector, ConnectorContext } from './connector.js';
 
@@ -76,6 +77,26 @@ const SYNC_PAGE_SIZE = 500;
 /** Guard against a runaway pagination loop. */
 const MAX_SYNC_PAGES = 50;
 
+/** Plaid's signed webhook token is intentionally verified without an SDK. */
+type PlaidWebhookKey = {
+  alg: 'ES256';
+  crv: 'P-256';
+  kid: string;
+  kty: 'EC';
+  use?: 'sig';
+  x: string;
+  y: string;
+  expired_at?: number | null;
+};
+
+type PlaidWebhookClaims = {
+  iat?: unknown;
+  request_body_sha256?: unknown;
+};
+
+const WEBHOOK_MAX_AGE_SECONDS = 5 * 60;
+const WEBHOOK_CLOCK_SKEW_SECONDS = 60;
+
 /** Error carrying Plaid's machine-readable error_code so callers can branch. */
 export class PlaidApiError extends Error {
   constructor(
@@ -136,6 +157,8 @@ export class PlaidConnector implements Connector {
   readonly credentialSchema = PlaidCredentialSchema;
   readonly capabilities = ['finance.read'] as const;
 
+  private readonly webhookKeys = new Map<string, { key: KeyObject; expiredAt: number | null }>();
+
   constructor(private readonly config: PlaidConfig) {}
 
   private get baseUrl(): string {
@@ -162,6 +185,99 @@ export class PlaidConnector implements Connector {
       throw new PlaidApiError(msg, code, res.status);
     }
     return (await res.json()) as T;
+  }
+
+  /**
+   * Verify Plaid's `Plaid-Verification` JWT against the exact raw request body.
+   *
+   * Plaid signs with ES256 and publishes a JWK per key id. The JWT signature is
+   * verified before its claims are trusted, then `iat` prevents replay and the
+   * body hash proves the parsed request is the signed request. This stays here
+   * rather than in the API module so the app credentials never leave the
+   * connector boundary and no second JWT dependency is needed at runtime.
+   */
+  async verifyWebhook(rawBody: Buffer | string, token: string): Promise<boolean> {
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) return false;
+      const [encodedHeader, encodedClaims, encodedSignature] = parts;
+      if (!encodedHeader || !encodedClaims || !encodedSignature) return false;
+
+      const header = decodeJson<{ alg?: unknown; kid?: unknown }>(encodedHeader);
+      if (header?.alg !== 'ES256' || typeof header.kid !== 'string' || !isSafeKeyId(header.kid)) {
+        return false;
+      }
+
+      const keyRecord = await this.webhookKey(header.kid);
+      if (!keyRecord) return false;
+
+      const verifier = createVerify('sha256');
+      verifier.update(`${encodedHeader}.${encodedClaims}`);
+      verifier.end();
+      const signature = decodeBase64Url(encodedSignature);
+      if (!signature) return false;
+      // JWT ECDSA signatures are the IEEE-P1363 r||s form, not OpenSSL DER.
+      if (!verifier.verify({ key: keyRecord.key, dsaEncoding: 'ieee-p1363' }, signature)) {
+        return false;
+      }
+
+      const claims = decodeJson<PlaidWebhookClaims>(encodedClaims);
+      const iat = claims?.iat;
+      const claimedHash = claims?.request_body_sha256;
+      const now = Math.floor(Date.now() / 1000);
+      if (
+        typeof iat !== 'number' ||
+        !Number.isInteger(iat) ||
+        iat < now - WEBHOOK_MAX_AGE_SECONDS ||
+        iat > now + WEBHOOK_CLOCK_SKEW_SECONDS ||
+        typeof claimedHash !== 'string' ||
+        !/^[a-f0-9]{64}$/i.test(claimedHash)
+      ) {
+        return false;
+      }
+
+      const actualHash = createHash('sha256').update(rawBody).digest('hex');
+      return timingSafeEqual(
+        Buffer.from(actualHash, 'ascii'),
+        Buffer.from(claimedHash.toLowerCase(), 'ascii'),
+      );
+    } catch {
+      // A malformed token, unavailable verification endpoint, or invalid JWK
+      // is an unverified webhook — never turn it into a successful response.
+      return false;
+    }
+  }
+
+  private async webhookKey(kid: string): Promise<{ key: KeyObject; expiredAt: number | null } | null> {
+    const cached = this.webhookKeys.get(kid);
+    const now = Math.floor(Date.now() / 1000);
+    if (cached && (cached.expiredAt === null || cached.expiredAt > now)) return cached;
+
+    const data = await this.post<{ key: PlaidWebhookKey }>('/webhook_verification_key/get', {
+      key_id: kid,
+    });
+    const key = data.key;
+    if (
+      !key ||
+      key.alg !== 'ES256' ||
+      key.crv !== 'P-256' ||
+      key.kty !== 'EC' ||
+      key.kid !== kid ||
+      typeof key.x !== 'string' ||
+      typeof key.y !== 'string'
+    ) {
+      return null;
+    }
+    const record = {
+      key: createPublicKey({
+        key: { kty: 'EC', crv: 'P-256', x: key.x, y: key.y },
+        format: 'jwk',
+      }),
+      expiredAt: key.expired_at ?? null,
+    };
+    if (record.expiredAt !== null && record.expiredAt <= now) return null;
+    this.webhookKeys.set(kid, record);
+    return record;
   }
 
   private async secret(ctx: ConnectorContext): Promise<PlaidCredential> {
@@ -295,4 +411,27 @@ export class PlaidConnector implements Connector {
       return false;
     }
   }
+}
+
+function decodeBase64Url(value: string): Buffer | null {
+  if (!/^[A-Za-z0-9_-]+$/.test(value)) return null;
+  try {
+    return Buffer.from(value, 'base64url');
+  } catch {
+    return null;
+  }
+}
+
+function decodeJson<T>(value: string): T | null {
+  const bytes = decodeBase64Url(value);
+  if (!bytes) return null;
+  try {
+    return JSON.parse(bytes.toString('utf8')) as T;
+  } catch {
+    return null;
+  }
+}
+
+function isSafeKeyId(value: string): boolean {
+  return value.length > 0 && value.length <= 128 && /^[A-Za-z0-9_-]+$/.test(value);
 }
