@@ -56,6 +56,27 @@ restart. It took ~5s of retries to appear, so the first regression spec written 
 against the bug*: it asserted at t+2s, while the queries were still pending and the gate was
 correctly false either way. A regression test that has not been watched to fail is not evidence.
 
+### Latest production stress-hardening pass — isolated branch
+
+The current deployed version was audited on `codex/production-stress-hardening`, without touching
+the rebuild/redesign worktree. Every API `findMany` collection read is now bounded by an explicit
+`take`, including AI context reads, habit history, exercise/template imports, push delivery,
+calendar sync lookups and the account-export pager. The split importer also checks the existing
+custom-exercise count before `createMany`, so a single AI proposal cannot bypass that quota. A
+source-level regression guard now fails when a future API collection read omits its bound.
+
+The public Plaid webhook now captures the exact request bytes and verifies Plaid's ES256/JWK
+signature, body hash and five-minute replay window before acknowledging anything. It remains an
+acknowledgement-only endpoint; it does not pretend to perform a sync it does not yet implement.
+
+Verification on this branch: build 6/6, forced typecheck 10/10, lint clean, 1,321 unit tests
+(51 API / 319, 5 connectors / 46, 7 AI / 59, 22 shared / 310, 48 web / 587), and the GitHub
+script tests 10/10. The live origin separately returned 200 for 100/100 concurrent read-only
+health requests (p50 313ms, p95 328ms, max 363ms); the public route sweep returned expected
+statuses. E2E was not rerun because Docker Desktop is unavailable on this machine. The deployed
+origin still reflects `origin/main` until this branch is reviewed, merged and rebuilt on the
+laptop.
+
 ---
 
 ## Blockers
@@ -133,12 +154,13 @@ This is the single largest untested surface in the app.
 **Fix:** force a token expiry (or wait one out), then run a sync; separately delete an event in
 Google and confirm it disappears in Atlas. Until that is done, treat the integration as unproven.
 
-### H6 · The Plaid webhook does not verify Plaid's signature
-`POST /connectors/plaid/webhook` is public by necessity and currently accepts anything.
-**Severity today is low** — it is a no-op that returns `{received:true}` — but it must not stay that
-way once it triggers a sync. The code already carries a `DEFERRED` note saying so.
-**Fix:** verify the `Plaid-Verification` JWT against `/webhook_verification_key/get` before the
-handler does any work.
+### ~~H6 · The Plaid webhook does not verify Plaid's signature~~ — DONE FOR ACKNOWLEDGEMENT
+`POST /connectors/plaid/webhook` is public by necessity and now rejects missing, malformed, stale,
+wrong-key and body-tampered requests before returning 200. Nest preserves the exact raw bytes,
+the connector verifies the ES256 JWT against `/webhook_verification_key/get`, enforces the five-
+minute replay window and compares the signed SHA-256 body hash in constant time. The endpoint is
+still deliberately acknowledgement-only; wiring verified `item_id` payloads into a background
+sync is separate product work.
 
 ---
 
@@ -176,11 +198,12 @@ Two things my harness reported that turned out to be wrong. Recording them so th
 
 1. **B2** rotate the Plaid secret — **yours to do**, and the only item nobody else can.
 2. Paste a **`SENTRY_DSN`** into `.env` so B3 actually reports. One line, then restart.
-3. **H5** verify Google live, **H6** Plaid webhook signature.
+3. **H5** verify Google live.
 4. **B4** move to a VPS.
 5. ~~**M2** decide whether journal is append-only~~ — decided, and **M1** is closed with it.
 6. **M3–M10** as they annoy you.
 
 Everything in steps 1–3 of the original order is done except B2, which needs your Plaid login, and
 the DSN paste. A second person can now have an account without that being reckless — legal pages
-exist, errors are reportable, isolation is proven, and the input bounds that were open are closed.
+exist, errors are reportable, isolation is proven, the collection bounds are enforced, and the
+public webhook no longer accepts unauthenticated acknowledgements.

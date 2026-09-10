@@ -140,7 +140,7 @@ of the design work in v10 came from reading those PNGs, not the source.
 
 ## Current state
 
-Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **1275 unit tests** · **e2e 47/47** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop.
+Green at the last verified hardening pass: build 6/6 · typecheck 10/10 · lint clean · **1,321 unit tests** · the prior deployed-build **e2e 47/47** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop. The current production-hardening branch did not rerun e2e because Docker Desktop is unavailable; do not call it e2e-green until the laptop runs that gate.
 
 **Trackers are the eighth domain.** "Rate anything, once a day, on a 1-10 scale"
 — the generic answer to a request for a bloating rating, because the next person
@@ -216,14 +216,15 @@ memory is one page whatever the account holds. Headers go out with the first
 chunk, so a mid-stream failure destroys the socket rather than pretending to be
 a 500: a truncated document that looks complete is the worse outcome.
 
-**Four things could be created without limit, and every one of them is read
-whole somewhere.** Routine blocks are now capped at 200, open AI questions at
-20, custom exercises at 200, and the goals quota throws a 400 rather than the
-404 that made the UI say a goal could not be found. The routine cap is the one
-that matters most: `routine.add_block` is a tool the MODEL can call and the
-routine is fed back into its context on the next call, so uncapped it inflates
-its own future prompt. When adding an unpaginated `findMany`, the question is
-not "should this paginate" but "what stops this list growing forever".
+**Collection reads are bounded as well as creation paths.** Routine blocks are
+capped at 200, open AI questions at 20, custom exercises at 200, goals at 100,
+and every API `findMany` now carries a finite `take` — including reads whose
+bound comes from a page, an `IN` list, a known time-window cardinality or a
+deliberate domain cap. The split importer checks the existing custom-exercise
+count before bulk creation, so an AI proposal cannot bypass the quota. The
+source guard in `apps/api/test/list-query-bounds.test.ts` makes an unbounded
+collection read fail when it is written. When adding one, the question is not
+"should this paginate" but "what stops this list growing forever".
 
 **Which domain the AI stops being able to see is a DECISION now.** Every
 `DomainModule` declares `contextPriority`, and `collectContext` returns them
@@ -239,8 +240,10 @@ a test fails if any real domain omits it or two claim the same number.
 the token cap is per-user, `/ai/dry-run` bills under an unbilled purpose,
 `DailyTokenCapError` maps to a real status, the push upsert can no longer rebind
 another user's row, the Plaid cursor only advances past a page that was fully
-written, the proactive sweep is gated on `ActivityService`, and `pnpm audit`
-reports **no known vulnerabilities** (it was 24).
+written, the proactive sweep is gated on `ActivityService`, and `pnpm audit --audit-level=high`
+reports **zero high/critical vulnerabilities**. One moderate transitive `adm-zip`
+advisory remains below that gate because the current `onnxruntime-node` chain has
+no published patched release available to override.
 
 **Phase 6 of the audit has findings behind it now.** It had never been run.
 The sweep found fifteen classNames with no CSS rule — five of them the SOLE
