@@ -73,11 +73,41 @@ if ($Unregister) {
   exit 0
 }
 if ($Register) {
-  $cmd = "powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$PSCommandPath`" -Dest `"$Dest`""
+  # -Dest is baked into the task's arguments ONLY when it was passed explicitly.
+  #
+  # It used to be baked in unconditionally, which quietly defeated the fix for
+  # the 5 Sep 2026 incident: the default was moved out of the repository, but
+  # the already-registered task still carried the OLD literal path in its
+  # arguments and went on writing production dumps into the working tree for ten
+  # more nights. A default that a registered task cannot see is not a default.
+  #
+  # Now an unqualified -Register follows whatever the script's default is, so
+  # changing that default in code actually reaches the machine.
+  $cmd = "powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$PSCommandPath`""
+  if ($PSBoundParameters.ContainsKey('Dest')) { $cmd += " -Dest `"$Dest`"" }
+
   # 03:30 rather than midnight: nothing else on this machine runs then, and it
   # is late enough that a day's writing is already in.
   schtasks /create /tn $TaskName /tr $cmd /sc daily /st 03:30 /f *> $null
   if ($LASTEXITCODE -ne 0) { Fail 'could not register the scheduled task.' }
+
+  # schtasks creates a task that SKIPS a run on battery and never catches one
+  # up, which is why three consecutive nights were missed with the machine
+  # merely asleep at 03:30. StartWhenAvailable runs the backup once the machine
+  # is back rather than waiting a further 24 hours for the next slot.
+  #
+  # WakeToRun is deliberately left off: this PC games, and waking it at half
+  # three every morning is a decision for its owner, not for a backup script.
+  try {
+    Set-ScheduledTask -TaskName $TaskName -Settings (New-ScheduledTaskSettingsSet `
+      -StartWhenAvailable `
+      -DontStopIfGoingOnBatteries `
+      -AllowStartIfOnBatteries `
+      -ExecutionTimeLimit (New-TimeSpan -Hours 1)) *> $null
+  } catch {
+    Write-Host "Registered, but could not relax the power settings: $_" -ForegroundColor Yellow
+  }
+
   Write-Host "Registered '$TaskName' — daily at 03:30, writing to $Dest"
   exit 0
 }
@@ -133,6 +163,35 @@ $env:PGDATABASE = $uri.AbsolutePath.TrimStart('/')
 $env:PGSSLMODE  = 'require'
 
 # ── Dump ─────────────────────────────────────────────────────────────────────
+
+# A destination inside the working tree is refused outright, before a single
+# byte of anyone's journal is written there.
+#
+# Prose did not hold this line. Three files said not to keep dumps in the repo,
+# the default was moved out after they were published to a public remote, and a
+# scheduled task registered with the old literal path went on writing them into
+# the tree for ten more nights regardless. The only thing that reliably stops it
+# is the backup refusing to run.
+#
+# Resolve both sides: a relative path, a symlink or an 8.3 short name must not
+# be able to walk around a string comparison.
+$destFull = [System.IO.Path]::GetFullPath((New-Object System.IO.DirectoryInfo $Dest).FullName)
+$repoFull = [System.IO.Path]::GetFullPath((New-Object System.IO.DirectoryInfo $Repo).FullName).TrimEnd('\') + '\'
+if ($destFull.TrimEnd('\') + '\' -like ($repoFull -replace '([[\]*?])', '`$1') + '*') {
+  Fail @"
+refusing to write backups inside the repository working tree.
+
+  destination : $destFull
+  repository  : $repoFull
+
+A dump holds every user's journal, finance rows, email addresses and password
+hashes. Inside the tree it is one 'git add -A' from being published, which is
+exactly what happened on 5 September 2026.
+
+Pass a destination outside the repo, ideally on another physical drive:
+  powershell -File infra\atlas-backup.ps1 -Dest D:\atlas-backups -Register
+"@
+}
 
 if (-not (Test-Path $Dest)) { New-Item -ItemType Directory -Path $Dest -Force | Out-Null }
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'

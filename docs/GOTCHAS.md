@@ -660,3 +660,77 @@ reversible, so sessions did not need invalidating. `APP_ENCRYPTION_KEY` was neve
 committed either, so the AES-256-GCM connector credentials stayed encrypted. What
 genuinely leaked was personal data and `passwordHash` (Node `scrypt` defaults,
 N=16384 — crackable offline).
+
+---
+
+## A scheduled task keeps the argument it was registered with, not the current default
+
+The fix in the entry above moved the backup destination out of the repository —
+and did not take effect for ten more nights.
+
+`infra/atlas-backup.ps1 -Register` baked `-Dest` into the task's command line at
+registration time:
+
+```
+-ExecutionPolicy Bypass -WindowStyle Hidden -File ...\atlas-backup.ps1 -Dest C:\Users\riley\atlas\backups
+```
+
+Changing `$Dest`'s default in the script could never reach that. The task went on
+writing production dumps into the working tree every night from 7 to 16 September.
+Nine of them were sitting in `<repo>\backups` when the origin was next looked at.
+
+They were untracked and `.gitignore` covered them this time, so nothing reached the
+remote — but the condition that caused the incident had quietly restored itself,
+with one pre-commit hook between it and a repeat.
+
+**A default that a registered task cannot see is not a default.** Three changes:
+
+- `-Register` now bakes `-Dest` in **only when it was passed explicitly**
+  (`$PSBoundParameters.ContainsKey('Dest')`), so a plain `-Register` follows the
+  script's current default and a later change to that default actually lands.
+- The dump step **refuses a destination inside the working tree** and exits 1
+  before writing anything. Both paths are resolved with `GetFullPath` first, so a
+  relative path, a symlink or an 8.3 short name cannot walk around a string
+  compare. Watched refusing `-Dest <repo>\backups`, and watched a sibling
+  directory sharing the name prefix (`atlas-backups-test`) still succeed.
+- Re-registering also relaxes the power settings `schtasks` defaults to — see the
+  next entry.
+
+The general shape: **when you move a default, go and look at what is already
+running with the old one.** Scheduled tasks, service definitions, shortcuts and
+`.cmd` wrappers all capture arguments at creation and never consult the source
+again.
+
+---
+
+## `schtasks` creates tasks that skip on battery and never catch up
+
+The nightly backup did not run on 17, 18 or 19 September. The machine was not off
+— uptime was three days — it was merely asleep at 03:30.
+
+`schtasks /create` produces a task with:
+
+```
+DisallowStartIfOnBatteries : True
+StopIfGoingOnBatteries     : True
+StartWhenAvailable         : False
+WakeToRun                  : False
+```
+
+`StartWhenAvailable: False` is the one that hurts. A missed run is not deferred,
+it is abandoned, and the task waits a further 24 hours for its next slot. Three
+consecutive nights produced no backup and no error, because nothing ran to report
+one. `infra/backup.log` simply has no lines for those dates, which reads exactly
+like a quiet, healthy week.
+
+`-Register` now follows up with `Set-ScheduledTask -Settings (New-ScheduledTaskSettingsSet
+-StartWhenAvailable -DontStopIfGoingOnBatteries -AllowStartIfOnBatteries ...)`.
+
+`WakeToRun` is deliberately left **off**. This PC games; waking it at half three
+every morning is its owner's decision, not a backup script's. The consequence is
+that a machine asleep all night still misses the slot — it now catches up on the
+next wake instead of skipping the day.
+
+**An absence of log lines is not evidence of health.** A check that reports
+nothing when it does not run looks identical to one that ran and found nothing
+wrong.

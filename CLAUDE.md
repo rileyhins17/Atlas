@@ -14,8 +14,14 @@
 > before trusting any statement about it, including this one:**
 > `gh repo view rileyhins17/Atlas --json isPrivate`.
 >
-> Backups live in `%LOCALAPPDATA%\Atlasackups`, never in the tree, and
+> Backups live in `%LOCALAPPDATA%\Atlas\backups`, never in the tree, and
 > `infra/hooks/pre-commit` refuses to commit a `*.dump` (`pnpm run hooks:install`).
+> `atlas-backup.ps1` now **refuses a `-Dest` inside the working tree** and exits
+> non-zero before writing, because moving the default was not enough on its own:
+> the registered scheduled task still carried the old literal path in its
+> arguments and went on writing dumps into `<repo>\backups` for ten more nights
+> (7–16 Sep). **When you move a default, check what is already running with the
+> old one.**
 
 ---
 
