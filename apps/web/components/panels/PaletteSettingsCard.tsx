@@ -37,10 +37,13 @@ export function PaletteSettingsCard() {
     setMode(root.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
     // The swatches have to follow the light/dark toggle, which is a plain
     // attribute write elsewhere in the tree rather than shared state.
+    // So does the palette itself: switching to Soft style moves it to Blush,
+    // and a picker that did not notice would show the old one as selected.
     const observer = new MutationObserver(() => {
       setMode(root.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
+      setPalette(root.getAttribute('data-palette') || DEFAULT_PALETTE);
     });
-    observer.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    observer.observe(root, { attributes: true, attributeFilter: ['data-theme', 'data-palette'] });
     return () => observer.disconnect();
   }, []);
 
@@ -60,7 +63,7 @@ export function PaletteSettingsCard() {
   return (
     <div className="stack" style={{ gap: 10 }}>
       <p className="prog-muted" style={{ margin: 0, fontSize: 13 }}>
-        Ten schemes, each built in both light and dark. Light and dark stays where it was — this is
+        Eleven schemes, each built in both light and dark. Light and dark stays where it was — this is
         which colours, in whichever of those you are using.
       </p>
       <ul className="pal-grid" role="radiogroup" aria-label="Colour scheme">

@@ -12,6 +12,7 @@ import { RoutineEditor } from './RoutineEditor';
 import { SettingsSection } from './SettingsSection';
 import { TrackerManager } from '@/components/trackers/TrackerManager';
 import { PaletteSettingsCard } from './PaletteSettingsCard';
+import { StyleSettingsCard } from './StyleSettingsCard';
 import { TrainingSettingsCard } from './TrainingSettingsCard';
 import { GoogleCalendarCard } from '@/components/connectors/GoogleCalendarCard';
 
@@ -70,8 +71,11 @@ export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
       {/* Its own section rather than buried under "Your data & account" with
           the light/dark toggle: a colour scheme is the thing people go looking
           for, and it was two levels down next to Delete account. */}
-      <SettingsSection id="appearance" title="Appearance" hint="ten colour schemes">
-        <PaletteSettingsCard />
+      <SettingsSection id="appearance" title="Appearance" hint="style and colours">
+        <div className="stack" style={{ gap: 14 }}>
+          <StyleSettingsCard />
+          <PaletteSettingsCard />
+        </div>
       </SettingsSection>
 
       <SettingsSection id="banking" title="Banking" hint="connect an account">

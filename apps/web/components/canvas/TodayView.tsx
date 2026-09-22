@@ -16,6 +16,9 @@ import { addDays, fmt, formatClock, localDayKey, startOfDay } from '@/lib/dates'
 import type { CanvasSection } from '@/lib/canvas';
 import { DayPager } from './DayPager';
 import { DayOverviewView } from './DayOverviewView';
+import { SoftToday } from '@/components/soft/SoftToday';
+import { ListSkeleton } from '@/components/ui';
+import { useUiStyle } from '@/lib/theme/style';
 
 /**
  * Home (v4): the day overview. Sticky capture → greeting → day pager → the
@@ -32,6 +35,7 @@ export function TodayView() {
 
   const { planWindow } = useAtlasUi();
   const established = useEstablished();
+  const style = useUiStyle();
   const [dayOffset, setDayOffset] = useState(0);
   // Null until the user actually pages — the first mount must NOT animate
   // (a throttled/background tab can freeze a fill-both animation on its
@@ -66,6 +70,11 @@ export function TodayView() {
       </div>
     );
   }
+
+  // Soft style has its own Today. `null` is "not mounted yet" — rendering
+  // classic for that one frame would flash the wrong layout on every load.
+  if (style === 'soft') return <SoftToday />;
+  if (style === null) return <ListSkeleton rows={4} circle={false} />;
 
   // Calendar days, not fixed milliseconds: across the autumn DST change the
   // fixed-ms form lands back on the SAME date, so paging forward did nothing.

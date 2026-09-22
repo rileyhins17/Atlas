@@ -40,6 +40,10 @@ export const PALETTES: PaletteSeed[] = [
   { id: 'plum', name: 'Plum', hint: 'Deep berry, rich and quiet', hue: 315, accent: 0.45, tint: 0.06 },
   { id: 'slate', name: 'Slate', hint: 'Cool blue-grey, almost no colour', hue: 218, accent: 0.28, tint: 0.04 },
   { id: 'mono', name: 'Mono', hint: 'No colour at all. Just contrast.', hue: 0, accent: 0, tint: 0, neutral: true },
+  // Soft mode's own palette: peach-pink on warm cream. Tint sits above the
+  // usual 0.02–0.08 on purpose — the cream IS the look — and the contrast
+  // solver still holds every text token to AA.
+  { id: 'blush', name: 'Blush', hint: 'Soft peach on warm cream', hue: 18, accent: 0.52, tint: 0.24 },
 ];
 
 export const DEFAULT_PALETTE = 'ember';

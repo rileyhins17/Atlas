@@ -1968,3 +1968,120 @@ test('nothing you wrote falls off the end of a list', async ({ page }) => {
   }
   await expect(oldest).toBeVisible();
 });
+
+test('soft style: a calm Today you can run your day from, clean on every route', async ({ page }) => {
+  // Soft is the phone-first redesign, switched on from Settings. It is judged
+  // here the way the classic sweep judges classic: by using it, then by axe
+  // (whole violation list), tap targets and input sizes on every route, in
+  // both themes — a new look is exactly where a contrast failure ships.
+  await page.setViewportSize({ width: 390, height: 844 });
+  const marker = `Soft${Date.now()}`;
+  await page.goto('/today');
+  await expect(page.getByLabel('Capture anything')).toBeAttached();
+  await page.evaluate(async (m) => {
+    await fetch('http://localhost:4000/habits', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: `${m} stretch`, target: 1 }),
+    });
+  }, marker);
+
+  await page.goto('/settings#appearance');
+  const styles = page.getByRole('radiogroup', { name: 'Style' });
+  await styles.getByRole('radio', { name: /^Soft/ }).click();
+  await expect(styles.getByRole('radio', { name: /^Soft/ })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator('html')).toHaveAttribute('data-style', 'soft');
+
+  try {
+    // The nav is built around what soft is for.
+    const nav = page.locator('.bottom-nav');
+    for (const label of ['Today', 'Plan', 'Habits', 'Move', 'More']) {
+      await expect(nav.getByRole('link', { name: label })).toBeVisible();
+    }
+
+    await nav.getByRole('link', { name: 'Today' }).click();
+    await expect(page.locator('.sf-greeting')).toBeVisible();
+
+    // Add to today by typing, as a person does, then tick it off.
+    const add = page.getByLabel('Add something to today');
+    await add.click();
+    await add.pressSequentially(`${marker} buy flowers`);
+    await page.keyboard.press('Enter');
+    const row = page.locator('.sf-task', { hasText: `${marker} buy flowers` });
+    await expect(row).toBeVisible();
+    await expect(add).toHaveValue('');
+    await row.getByRole('button', { name: /Complete/ }).click();
+    await expect(page.locator('.sf-task.is-done', { hasText: `${marker} buy flowers` })).toBeVisible();
+
+    // One tap checks a habit in, and the ring says so.
+    await page.getByRole('button', { name: `Check in ${marker} stretch (0 of 1 today)` }).click();
+    await expect(page.getByRole('button', { name: `${marker} stretch: done today` })).toBeVisible();
+
+    // Survives a reload: the no-flash script restores the style before paint.
+    await page.reload();
+    await expect(page.locator('.sf-greeting')).toBeVisible();
+
+    const ROUTES = [
+      '/today', '/week', '/tasks', '/goals', '/habits', '/fitness', '/journal', '/notes',
+      '/calendar', '/progress', '/everything', '/settings', '/finance',
+    ];
+    const problems: string[] = [];
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate((t) => localStorage.setItem('atlas-theme', t), theme);
+      for (const route of ROUTES) {
+        await page.goto(route);
+        await expect(page.getByLabel('Capture anything')).toBeAttached();
+        await page.waitForLoadState('networkidle');
+        await expect(page.locator('html')).toHaveAttribute('data-style', 'soft');
+
+        const overflow = await page.evaluate(
+          () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        );
+        if (overflow > 1) problems.push(`${theme} ${route}: overflows by ${overflow}px`);
+
+        const scan = await new AxeBuilder({ page })
+          .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+          .analyze();
+        for (const v of scan.violations) {
+          problems.push(
+            `${theme} ${route}: ${v.id} (${v.impact}) × ${v.nodes.length} — ${v.nodes[0]?.target.join(' ')}`,
+          );
+        }
+
+        const measured = await page.evaluate(() => {
+          const out: string[] = [];
+          const SEL =
+            'button, a[href], input, select, textarea, [role="button"], [role="checkbox"], [role="tab"], [role="option"], summary';
+          for (const el of document.querySelectorAll(SEL)) {
+            const cs = getComputedStyle(el);
+            if (cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0') continue;
+            const r = el.getBoundingClientRect();
+            if (r.width === 0 && r.height === 0) continue;
+            const name = el.getAttribute('aria-label') || el.textContent?.trim() || '';
+            if (r.width < 24 || r.height < 24) {
+              out.push(`target ${Math.round(r.width)}x${Math.round(r.height)} "${name.slice(0, 40)}"`);
+            }
+            const typed =
+              el.tagName === 'TEXTAREA' ||
+              (el.tagName === 'INPUT' &&
+                !['checkbox', 'radio', 'range', 'button', 'submit'].includes((el as HTMLInputElement).type));
+            if (typed && parseFloat(cs.fontSize) < 16) {
+              out.push(`input ${cs.fontSize} "${name.slice(0, 40)}" (iOS zooms under 16px)`);
+            }
+          }
+          return out;
+        });
+        for (const m of measured) problems.push(`${theme} ${route}: ${m}`);
+      }
+    }
+    expect(problems, problems.join('\n')).toEqual([]);
+  } finally {
+    // Leave the shared account's browser the way the rest of the file expects.
+    await page.evaluate(() => {
+      localStorage.removeItem('atlas-style');
+      localStorage.removeItem('atlas-theme');
+      localStorage.removeItem('atlas-palette');
+    });
+  }
+});
