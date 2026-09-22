@@ -75,6 +75,8 @@ model User {
   aiUsage        AiUsage[]
   trackers       Tracker[]
   trackerEntries TrackerEntry[]
+  wearableDays       WearableDay[]
+  wearableActivities WearableActivity[]
 
   @@map("users")
 }
@@ -720,3 +722,64 @@ model TrackerEntry {
   @@index([userId, dayKey])
   @@map("tracker_entries")
 }
+
+// ── Domain: Wearables (Google Health — Fitbit and Pixel Watch) ─────────────
+
+/// One local day of what a watch measured.
+///
+/// Keyed by LOCAL day, like tracker entries, because every reader asks about a
+/// day: "last night's sleep", "steps today". Sleep belongs to the day it ENDED
+/// — the night of the 21st is the 22nd's sleep, which is when you ask about it.
+/// Every metric is nullable: a watch on the charger all night still counted
+/// the day's steps, and a missing value must read as unknown, never as zero.
+model WearableDay {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// YYYY-MM-DD in the user's timezone, as Google records it.
+  dayKey           String
+  steps            Int?
+  restingHeartRate Int?
+  /// Average RMSSD over the night, in milliseconds.
+  hrvMs            Float?
+  sleepMinutes     Int?
+  sleepStart       DateTime?
+  sleepEnd         DateTime?
+  deepMinutes      Int?
+  remMinutes       Int?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([userId, dayKey])
+  @@map("wearable_days")
+}
+
+/// A workout the watch recorded — a run, a ride, a strength session.
+///
+/// Kept apart from `workouts` on purpose: those are sets a person logged and
+/// vouches for, and a watch's guess at "strength training, 45 min" is not a
+/// logged set. `externalId` is Google's data-point name, which is what makes a
+/// re-sync an update rather than a duplicate.
+model WearableActivity {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  externalId     String
+  /// Google's exercise type, e.g. RUNNING, STRENGTH_TRAINING.
+  type           String
+  name           String
+  startAt        DateTime
+  endAt          DateTime
+  activeMinutes  Int?
+  calories       Int?
+  avgHeartRate   Int?
+  distanceMeters Int?
+  steps          Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, externalId])
+  @@index([userId, startAt])
+  @@map("wearable_activities")
+}
+

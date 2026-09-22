@@ -33,6 +33,15 @@ function makePrisma(overrides: Record<string, unknown> = {}) {
     aiQuestion: { findMany },
     embedding: { findMany },
     credential: { findMany },
+    routineBlock: { findMany },
+    workout: { findMany },
+    workoutSet: { findMany },
+    workoutTemplate: { findMany },
+    exercise: { findMany },
+    tracker: { findMany },
+    trackerEntry: { findMany },
+    wearableDay: { findMany },
+    wearableActivity: { findMany },
     ...overrides,
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -29,7 +29,7 @@ function indent(text: string, depth: number): string {
 /**
  * One page of a user's rows, ordered by id so the cursor is stable.
  *
- * Typed loosely on purpose: this walks fourteen different Prisma models that
+ * Typed loosely on purpose: this walks twenty-three different Prisma models that
  * share only `id` and `userId`, and spelling out that union buys nothing a
  * reader of an export routine needs.
  */
@@ -40,12 +40,14 @@ async function page(
   userId: string,
   cursor: string | undefined,
   select?: Record<string, boolean>,
+  include?: Record<string, boolean>,
 ): Promise<{ id: string }[]> {
   const rows = await (model as Findable).findMany({
     where: { userId, ...(cursor ? { id: { gt: cursor } } : {}) },
     orderBy: { id: 'asc' },
     take: EXPORT_PAGE,
     ...(select ? { select } : {}),
+    ...(include ? { include } : {}),
   });
   return rows as { id: string }[];
 }
@@ -138,6 +140,21 @@ export class AccountService {
             updatedAt: true,
           }),
       ],
+      // Appended after the v1 sections, so a reader of the old format still
+      // finds everything where it was. These were simply missing: an export
+      // that dropped a person's whole training history, their week and their
+      // daily ratings was an export in name only.
+      ['routineBlocks', (c) => page(db.routineBlock, userId, c)],
+      ['workouts', (c) => page(db.workout, userId, c)],
+      ['workoutSets', (c) => page(db.workoutSet, userId, c)],
+      // With their exercise lists — a saved day without its movements is a name.
+      ['workoutTemplates', (c) => page(db.workoutTemplate, userId, c, undefined, { exercises: true })],
+      // Only the ones this user created; the shared catalog is not theirs.
+      ['customExercises', (c) => page(db.exercise, userId, c)],
+      ['trackers', (c) => page(db.tracker, userId, c)],
+      ['trackerEntries', (c) => page(db.trackerEntry, userId, c)],
+      ['wearableDays', (c) => page(db.wearableDay, userId, c)],
+      ['wearableActivities', (c) => page(db.wearableActivity, userId, c)],
     ];
 
     for (let i = 0; i < sections.length; i += 1) {

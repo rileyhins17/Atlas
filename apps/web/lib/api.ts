@@ -52,6 +52,9 @@ import type {
   TransactionDTO,
   UserDTO,
   AdoptionDTO,
+  WearablesStatusDTO,
+  WearablesSummaryDTO,
+  WearablesSyncResultDTO,
 } from '@atlas/shared';
 
 /**
@@ -574,3 +577,22 @@ export const AdminApi = {
 export const SearchApi = {
   run: (q: string) => request<SearchResultDTO>(`/search?q=${encodeURIComponent(q)}`),
 };
+
+/**
+ * Fitbit / Pixel Watch, through Google Health. Read-only: Atlas never writes
+ * health data back. `sync` is cheap to call on every app open — the server
+ * skips itself when it ran minutes ago.
+ */
+export const WearablesApi = {
+  status: () => request<WearablesStatusDTO>('/connectors/google-health/status'),
+  start: () => request<{ url: string }>('/connectors/google-health/start'),
+  sync: () =>
+    request<WearablesSyncResultDTO>('/connectors/google-health/sync', { method: 'POST', body: '{}' }),
+  disconnect: (forget: boolean) =>
+    request<{ ok: true }>('/connectors/google-health/disconnect', {
+      method: 'POST',
+      body: JSON.stringify({ forget }),
+    }),
+  summary: (days = 14) => request<WearablesSummaryDTO>(`/wearables/summary${query({ days })}`),
+};
+

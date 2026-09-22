@@ -38,3 +38,4 @@ export * from './dto/exercise-taxonomy.js';
 export * from './dto/exercise-records.js';
 export * from './dto/set-effort.js';
 export * from './dto/plates.js';
+export * from './dto/wearables.js';

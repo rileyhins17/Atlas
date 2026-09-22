@@ -3,6 +3,7 @@ import {
   ConnectorRegistry,
   DeepSeekConnector,
   GoogleCalendarConnector,
+  GoogleHealthConnector,
   PlaidConnector,
   type Connector,
   type ConnectorContext,
@@ -26,6 +27,8 @@ export class ConnectorsService {
   readonly deepseek = new DeepSeekConnector();
   /** Null when GOOGLE_CLIENT_ID/SECRET aren't configured — Atlas runs fine without Google. */
   readonly googleCalendar: GoogleCalendarConnector | null;
+  /** Same Google client as Calendar, its own grant. Null without Google config. */
+  readonly googleHealth: GoogleHealthConnector | null;
   /** Null when PLAID_CLIENT_ID/SECRET aren't configured — Atlas runs fine without Plaid. */
   readonly plaid: PlaidConnector | null;
 
@@ -45,6 +48,17 @@ export class ConnectorsService {
           })
         : null;
     if (this.googleCalendar) this.registry.register(this.googleCalendar);
+
+    const healthRedirect = googleHealthRedirectUri(env);
+    this.googleHealth =
+      env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && healthRedirect
+        ? new GoogleHealthConnector({
+            clientId: env.GOOGLE_CLIENT_ID,
+            clientSecret: env.GOOGLE_CLIENT_SECRET,
+            redirectUri: healthRedirect,
+          })
+        : null;
+    if (this.googleHealth) this.registry.register(this.googleHealth);
 
     this.plaid =
       env.PLAID_CLIENT_ID && env.PLAID_SECRET
@@ -123,3 +137,27 @@ export class ConnectorsService {
     });
   }
 }
+
+/**
+ * Where Google sends the browser back after Health consent.
+ *
+ * Explicit wins. Otherwise it is the Calendar callback with its last path
+ * segment swapped, so a deployment that already works for Calendar needs no
+ * new env var — only the derived URL registered in Google Cloud, which
+ * Settings shows verbatim.
+ */
+export function googleHealthRedirectUri(env: {
+  GOOGLE_REDIRECT_URI: string;
+  GOOGLE_HEALTH_REDIRECT_URI?: string;
+}): string | null {
+  if (env.GOOGLE_HEALTH_REDIRECT_URI) return env.GOOGLE_HEALTH_REDIRECT_URI;
+  const derived = env.GOOGLE_REDIRECT_URI.replace(
+    /\/connectors\/google\/callback$/,
+    '/connectors/google-health/callback',
+  );
+  // Unchanged means the Calendar callback has some other shape. Reusing it
+  // would send Health consent to the CALENDAR callback and store the grant
+  // there, so Health reports itself unconfigured instead.
+  return derived === env.GOOGLE_REDIRECT_URI ? null : derived;
+}
+

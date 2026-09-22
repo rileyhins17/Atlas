@@ -19,6 +19,7 @@ import { daySummary, endOfToday, habitFill, suggestedTemplate, todaysPlan } from
 import { Skeleton } from '@/components/ui';
 import { MoodCheckIn } from '@/components/canvas/MoodCheckIn';
 import { TrackerCheckIn } from '@/components/trackers/TrackerCheckIn';
+import { BodyCard } from '@/components/wearables/WatchCards';
 
 /**
  * Today, in soft style.
@@ -79,6 +80,8 @@ export function SoftToday() {
 
       <PlanCard plan={plan} loading={tasks.isPending} failed={tasks.isError} now={now} />
       <HabitsCard habits={habits.data} loading={habits.isPending} failed={habits.isError} />
+      {/* Renders nothing unless a watch is connected. */}
+      <BodyCard />
       <MoveCard />
 
       <Link href="/calendar" className="sf-whole-day">

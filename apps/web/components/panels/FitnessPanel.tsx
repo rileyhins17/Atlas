@@ -9,6 +9,7 @@ import { useWeightUnit } from '@/lib/hooks/settings';
 import { SplitSetup } from '@/components/fitness/SplitSetup';
 import { WorkoutSummaryDialog } from '@/components/fitness/WorkoutSummaryDialog';
 import { TrainingProgress } from '@/components/fitness/TrainingProgress';
+import { WatchActivityCard } from '@/components/wearables/WatchCards';
 import { DayBuilder } from '@/components/fitness/DayBuilder';
 import { Button, Card, ErrorState, Input, ListSkeleton } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
@@ -268,6 +269,12 @@ export function FitnessPanel() {
           </div>
         </>
       )}
+
+      {/* What a watch recorded, beside what was logged by hand. Renders
+          nothing unless one is connected. */}
+      <div style={{ marginTop: 18 }}>
+        <WatchActivityCard />
+      </div>
     </>
   );
 }

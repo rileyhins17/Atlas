@@ -86,11 +86,12 @@ pnpm workspaces + Turborepo · ESM everywhere · NestJS 11 built with **tsc** (n
 packages/db          Prisma schema + client. Import the DB only via @atlas/db.
 packages/shared      zod DTOs, enums, AI contracts, and PURE domain logic
                      (recurrence, fitness maths, duration). Browser-safe.
-packages/connectors  Connector interface, DeepSeek, Google Calendar, Plaid.
+packages/connectors  Connector interface, DeepSeek, Google Calendar, Google Health, Plaid.
+                     Google OAuth is shared (google-oauth.ts); each connector keeps its own grant.
 packages/ai          pricing, CostGuard, context-builder, wire-safe tool names,
                      runToolLoop, LocalEmbedder.
 apps/api             NestJS. core/ + auth/ + modules/{tasks,habits,trackers,journal,notes,
-                     calendar,finance,fitness,routine,stats,timeline,push,
+                     calendar,finance,fitness,wearables,routine,stats,timeline,push,
                      settings,account,ai}.
 apps/web             Next 15. app/ routes, components/{canvas,panels,atlas,ui,
                      onboarding,stream,fitness}, lib/ (api client, hooks, pure logic).
@@ -161,6 +162,17 @@ of the design work in v10 came from reading those PNGs, not the source.
 ## Current state
 
 Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **1275 unit tests** · **e2e 47/47** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop.
+
+**Wearables are the ninth domain: Fitbit and Pixel Watch through the Google Health API**
+(the Fitbit Web API was shut down in Sept 2026). Read-only; sleep, steps, resting heart rate,
+HRV and workouts. **`docs/google-health.md` is the setup and the design** — read it before
+touching this. The things that bite: every scope is Restricted, so while the consent screen is
+in Testing the grant dies weekly (sync marks the credential `revoked` and the UI offers a quiet
+Reconnect rather than an error toast on every open); sync runs when Today or Training opens and
+skips itself inside 10 minutes, never on a timer; sleep belongs to the day it ENDED; watch
+workouts live in `wearable_activities`, never in `workouts`; and routes are `/wearables`, not
+`/health…`, because `/health` is the liveness probe and `ActivityMiddleware` ignores that whole
+prefix. The cards render nothing at all without a connection.
 
 **Trackers are the eighth domain.** "Rate anything, once a day, on a 1-10 scale"
 — the generic answer to a request for a bloating rating, because the next person
@@ -246,6 +258,10 @@ with "Show earlier" (`usePagedList`), and a calendar WINDOW (`from` + `to`, ≤6
 whole up to 1,000 rows — recurring series used to expand INTO the 100-row cap, so a few daily
 events emptied the later weeks of the grid. `nothing you wrote falls off the end of a list` in
 `life-os.spec.ts` seeds past both edges.
+
+**The export now covers every table a person owns.** It silently omitted workouts, sets,
+training templates, custom exercises, routine blocks, trackers and their entries — the whole
+training history. They are appended after the v1 sections, with the watch tables.
 
 **The account export streams.** It used to read fourteen unbounded tables into
 memory and `JSON.stringify` the lot — the whole account, twice, in a
@@ -357,6 +373,10 @@ The short version of what is STILL open:
 - **Rotate the Plaid production secret** — it was pasted into a chat transcript. Needs Riley's Plaid
   login; nobody else can do it.
 - **`SENTRY_DSN` is unset**, so the error reporting that is now wired in reports nothing.
+- **Google Health needs verification + a CASA security assessment before it can be sold.**
+  Until then: 100 users, and a reconnect about weekly. Webhooks are not implemented (sync on open
+  instead). Needs the `wearables` migration applied and the callback registered — see
+  `docs/google-health.md`.
 - **Google's refresh token dies every 7 days while the OAuth consent screen is in "Testing".**
   Verified live: the grant made 19 July stopped working, and Google answers `invalid_grant` —
   "Token has been expired or revoked". Reconnecting works; publishing the consent screen is what

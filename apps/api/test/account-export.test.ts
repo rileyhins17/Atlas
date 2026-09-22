@@ -49,6 +49,15 @@ function makeService(rows: Record<string, { id: string; [k: string]: unknown }[]
     aiQuestion: delegate('aiQuestions'),
     embedding: delegate('embeddings'),
     credential: delegate('connections'),
+    routineBlock: delegate('routineBlocks'),
+    workout: delegate('workouts'),
+    workoutSet: delegate('workoutSets'),
+    workoutTemplate: delegate('workoutTemplates'),
+    exercise: delegate('customExercises'),
+    tracker: delegate('trackers'),
+    trackerEntry: delegate('trackerEntries'),
+    wearableDay: delegate('wearableDays'),
+    wearableActivity: delegate('wearableActivities'),
   };
 
   void pageSize;
@@ -112,6 +121,9 @@ describe('the account export', () => {
       'tasks', 'events', 'habits', 'habitLogs', 'journalEntries', 'notes', 'goals',
       'accounts', 'transactions', 'timelineEvents', 'insights', 'aiQuestions',
       'embeddings', 'connections',
+      // Appended later: training, the week, ratings and the watch.
+      'routineBlocks', 'workouts', 'workoutSets', 'workoutTemplates', 'customExercises',
+      'trackers', 'trackerEntries', 'wearableDays', 'wearableActivities',
     ];
     let at = -1;
     for (const key of order) {

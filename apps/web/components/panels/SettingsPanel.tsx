@@ -15,6 +15,7 @@ import { PaletteSettingsCard } from './PaletteSettingsCard';
 import { StyleSettingsCard } from './StyleSettingsCard';
 import { TrainingSettingsCard } from './TrainingSettingsCard';
 import { GoogleCalendarCard } from '@/components/connectors/GoogleCalendarCard';
+import { WearablesCard } from '@/components/connectors/WearablesCard';
 
 export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
   // Only the section hint needs status now; GoogleCalendarCard owns the flow.
@@ -66,6 +67,10 @@ export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
         }
       >
         <GoogleCalendarCard />
+      </SettingsSection>
+
+      <SettingsSection id="wearables" title="Fitbit & Pixel Watch" hint="sleep, steps, heart">
+        <WearablesCard />
       </SettingsSection>
 
       {/* Its own section rather than buried under "Your data & account" with
