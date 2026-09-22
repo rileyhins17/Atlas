@@ -1,7 +1,8 @@
 import { Injectable, type OnModuleInit } from '@nestjs/common';
-import type { AiContextChunk, AiToolSpec } from '@atlas/shared';
+import type { AiContextChunk } from '@atlas/shared';
 import { estimateTokens } from '@atlas/ai';
 import { DomainModule, ModuleRegistryService } from '../../core/domain-module.js';
+import type { DomainTool } from '../../core/domain-tool.js';
 import { FinanceService } from './finance.service.js';
 
 @Injectable()
@@ -29,7 +30,7 @@ export class FinanceAiAdapter implements DomainModule, OnModuleInit {
    * it. Writing financial records from a model is a deliberate non-goal for now —
    * see the plan's "AI reads money, doesn't move it" decision.
    */
-  getToolSpecs(): AiToolSpec[] {
+  tools(): DomainTool[] {
     return [];
   }
 }

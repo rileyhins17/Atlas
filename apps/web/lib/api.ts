@@ -52,6 +52,9 @@ import type {
   TransactionDTO,
   UserDTO,
   AdoptionDTO,
+  WearablesStatusDTO,
+  WearablesSummaryDTO,
+  WearablesSyncResultDTO,
 } from '@atlas/shared';
 
 /**
@@ -93,10 +96,12 @@ export function errorMessage(err: unknown, fallback: string): string {
 }
 
 async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
+  // Headers merge AFTER the spread: spreading `opts` last replaced the merged
+  // object with the caller's, silently dropping Content-Type.
   const res = await fetch(`${BASE}${path}`, {
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(opts.headers ?? {}) },
     ...opts,
+    headers: { 'Content-Type': 'application/json', ...(opts.headers ?? {}) },
   });
   if (!res.ok) {
     let message = res.statusText;
@@ -119,6 +124,16 @@ async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
   const text = await res.text();
   if (text.length === 0) return null as T;
   return JSON.parse(text) as T;
+}
+
+/** `?a=1&b=2` from the defined, non-empty values; '' when there are none. */
+function query(params: Record<string, string | number | undefined>): string {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== '') qs.set(k, String(v));
+  }
+  const out = qs.toString();
+  return out ? `?${out}` : '';
 }
 
 export const AccountApi = {
@@ -181,7 +196,8 @@ export const AuthApi = {
 };
 
 export const TasksApi = {
-  list: () => request<TaskDTO[]>('/tasks'),
+  /** The working set: every open task, plus the last few weeks of done ones. */
+  list: () => request<TaskDTO[]>('/tasks/working'),
   create: (input: Partial<CreateTaskInput> & { title: string }) =>
     request<TaskDTO>('/tasks', { method: 'POST', body: JSON.stringify(input) }),
   update: (id: string, patch: Record<string, unknown>) =>
@@ -246,7 +262,8 @@ export interface TrackerOverviewRow {
 }
 
 export const JournalApi = {
-  list: () => request<JournalDTO[]>('/journal'),
+  list: (page: { limit: number; offset: number }) =>
+    request<JournalDTO[]>(`/journal${query(page)}`),
   create: (input: Partial<CreateJournalInput> & { body: string; mood?: number }) =>
     request<JournalDTO>('/journal', { method: 'POST', body: JSON.stringify(input) }),
   update: (id: string, input: UpdateJournalInput) =>
@@ -254,7 +271,8 @@ export const JournalApi = {
 };
 
 export const NotesApi = {
-  list: () => request<NoteDTO[]>('/notes'),
+  list: (page: { limit: number; offset: number }) =>
+    request<NoteDTO[]>(`/notes${query(page)}`),
   create: (input: Partial<CreateNoteInput> & { body: string }) =>
     request<NoteDTO>('/notes', { method: 'POST', body: JSON.stringify(input) }),
   update: (id: string, input: UpdateNoteInput) =>
@@ -275,14 +293,8 @@ export type NewEvent = {
 };
 
 export const EventsApi = {
-  list: (opts: { from?: string; to?: string; limit?: number } = {}) => {
-    const params = new URLSearchParams();
-    if (opts.from) params.set('from', opts.from);
-    if (opts.to) params.set('to', opts.to);
-    if (opts.limit) params.set('limit', String(opts.limit));
-    const qs = params.toString();
-    return request<EventDTO[]>(`/events${qs ? `?${qs}` : ''}`);
-  },
+  list: (opts: { from?: string; to?: string; limit?: number } = {}) =>
+    request<EventDTO[]>(`/events${query(opts)}`),
   create: (input: NewEvent) =>
     request<EventDTO>('/events', { method: 'POST', body: JSON.stringify(input) }),
   update: (id: string, patch: Partial<NewEvent> & { recurrence?: string | null }) =>
@@ -354,16 +366,9 @@ export const FitnessApi = {
 };
 
 export const TimelineApi = {
-  list: (opts: { limit?: number; offset?: number; source?: string; from?: string; to?: string } = {}) => {
-    const params = new URLSearchParams();
-    if (opts.limit) params.set('limit', String(opts.limit));
-    if (opts.offset) params.set('offset', String(opts.offset));
-    if (opts.source) params.set('source', opts.source);
-    if (opts.from) params.set('from', opts.from);
-    if (opts.to) params.set('to', opts.to);
-    const qs = params.toString();
-    return request<TimelinePageDTO>(`/timeline${qs ? `?${qs}` : ''}`);
-  },
+  list: (
+    opts: { limit?: number; offset?: number; source?: string; from?: string; to?: string } = {},
+  ) => request<TimelinePageDTO>(`/timeline${query(opts)}`),
 };
 
 export const PlanApi = {
@@ -462,14 +467,8 @@ export const PlaidApi = {
 
 export const FinanceApi = {
   accounts: () => request<AccountDTO[]>('/finance/accounts'),
-  transactions: (opts: { accountId?: string; limit?: number; offset?: number } = {}) => {
-    const params = new URLSearchParams();
-    if (opts.accountId) params.set('accountId', opts.accountId);
-    if (opts.limit) params.set('limit', String(opts.limit));
-    if (opts.offset) params.set('offset', String(opts.offset));
-    const qs = params.toString();
-    return request<TransactionDTO[]>(`/finance/transactions${qs ? `?${qs}` : ''}`);
-  },
+  transactions: (opts: { accountId?: string; limit?: number; offset?: number } = {}) =>
+    request<TransactionDTO[]>(`/finance/transactions${query(opts)}`),
   updateTransaction: (id: string, patch: Record<string, unknown>) =>
     request<TransactionDTO>(`/finance/transactions/${id}`, {
       method: 'PATCH',
@@ -578,3 +577,22 @@ export const AdminApi = {
 export const SearchApi = {
   run: (q: string) => request<SearchResultDTO>(`/search?q=${encodeURIComponent(q)}`),
 };
+
+/**
+ * Fitbit / Pixel Watch, through Google Health. Read-only: Atlas never writes
+ * health data back. `sync` is cheap to call on every app open — the server
+ * skips itself when it ran minutes ago.
+ */
+export const WearablesApi = {
+  status: () => request<WearablesStatusDTO>('/connectors/google-health/status'),
+  start: () => request<{ url: string }>('/connectors/google-health/start'),
+  sync: () =>
+    request<WearablesSyncResultDTO>('/connectors/google-health/sync', { method: 'POST', body: '{}' }),
+  disconnect: (forget: boolean) =>
+    request<{ ok: true }>('/connectors/google-health/disconnect', {
+      method: 'POST',
+      body: JSON.stringify({ forget }),
+    }),
+  summary: (days = 14) => request<WearablesSummaryDTO>(`/wearables/summary${query({ days })}`),
+};
+

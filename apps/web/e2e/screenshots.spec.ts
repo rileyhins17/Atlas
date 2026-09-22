@@ -188,4 +188,57 @@ test('capture the Life-OS screens', async ({ page }) => {
   await page.getByRole('button', { name: /next day/i }).click();
   await page.waitForTimeout(1100);
   await page.screenshot({ path: `${OUT}/p-13-day-canvas.png`, fullPage: true });
+
+  // Soft style — the phone-first redesign, switched on the way a person would
+  // (Settings → Appearance), then every screen it changes. Two saved training
+  // days first, so the Move card shows what it is for rather than its empty
+  // state.
+  await page.evaluate(async () => {
+    const res = await fetch('http://localhost:4000/fitness/exercises', { credentials: 'include' });
+    const all = (await res.json()) as { id: string }[];
+    const post = (body: unknown) =>
+      fetch('http://localhost:4000/fitness/templates', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    await post({ name: 'Glutes & legs', exerciseIds: all.slice(0, 4).map((e) => e.id) });
+    await post({ name: 'Upper body', exerciseIds: all.slice(4, 8).map((e) => e.id) });
+  });
+  await page.goto('/settings#appearance');
+  await page.getByRole('radiogroup', { name: 'Style' }).getByRole('radio', { name: /^Soft/ }).click();
+  const SOFT: [string, string][] = [
+    ['/today', 's-01-today'],
+    ['/week', 's-02-plan'],
+    ['/habits', 's-03-habits'],
+    ['/fitness', 's-04-move'],
+    ['/tasks', 's-05-tasks'],
+    ['/everything', 's-06-more'],
+    ['/settings', 's-07-settings'],
+  ];
+  for (const [path, name] of SOFT) await shoot(path, `p-${name}`);
+
+  // The habit rings, as the phone actually shows them: a full-page shot draws
+  // the fixed dock and nav over the middle of the page, right where they are.
+  // Three glasses of water first, so one ring is part-filled.
+  await page.goto('/today');
+  const water = page.getByRole('button', { name: /Check in Water/ });
+  for (let i = 0; i < 3; i++) {
+    await water.click();
+    await expect(page.getByRole('button', { name: `Check in Water (${i + 1} of 8 today)` })).toBeVisible();
+  }
+  await page.locator('.sf-habits').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${OUT}/p-s-01b-today-habits.png` });
+  // The other theme. The phone has no toggle in its chrome (it lives in
+  // Settings), so flip the stored choice the no-flash script reads.
+  await page.evaluate(() => {
+    const t = document.documentElement.getAttribute('data-theme');
+    localStorage.setItem('atlas-theme', t === 'light' ? 'dark' : 'light');
+  });
+  await shoot('/today', 'p-s-08-today-alt-theme');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await shoot('/today', 's-01-today');
 });
+

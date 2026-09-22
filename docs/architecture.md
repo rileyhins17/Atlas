@@ -3,7 +3,7 @@
 Atlas is a TypeScript monorepo. One database, one API, one web app, a background of shared packages. The design optimizes for **adding life-domains and integrations forever without touching the core**.
 
 ## The four load-bearing ideas
-1. **Module = life-domain.** Each domain is a NestJS module implementing `DomainModule` (`aiContext()` + `getToolSpecs()`), self-registering into `ModuleRegistryService`. The AI brain reads the registry; it never hard-codes domains. See `docs/module-guide.md`.
+1. **Module = life-domain.** Each domain is a NestJS module implementing `DomainModule` (`aiContext()` + `tools()`, each tool a spec and its handler declared together), self-registering into `ModuleRegistryService`. The AI brain reads the registry; it never hard-codes domains. See `docs/module-guide.md`.
 2. **Connector = external API.** Each integration implements `Connector`; secrets are AES-256-GCM encrypted in `credentials`. See `docs/connector-guide.md`.
 3. **Unified timeline.** Every meaningful mutation writes a `timeline_events` row (`TimelineService`). This append-only, cross-domain log is what the AI reads to "keep tracking your life" — compact, not the whole DB.
 4. **AI writes back.** `insights` (derived knowledge, rolling summaries) and `ai_questions` (the AI's questions to the user) are first-class tables. Spend is bounded by `CostGuard` + the `ai_usage` ledger + `AI_DAILY_TOKEN_CAP`.

@@ -6,12 +6,18 @@
 >
 > **Remote:** `origin` = https://github.com/rileyhins17/Atlas. Work on `main`. `.env` is gitignored — never commit it.
 >
-> **It was PUBLIC until 6 Sep 2026, and this file said it was private.** That
+> **The repo is PUBLIC (again, since 22 Sep 2026) — treat every commit as published.**
+> It was public until 6 Sep, when this file wrongly said it was private. That
 > wrong belief is what made the incident below thinkable: three production dumps
 > — journals, finance rows, emails and password hashes — were committed by a
 > `git add -A` and pushed, and sat publicly readable for seventeen hours. History
-> was rewritten to purge them and the repo is private now. **Verify visibility
-> before trusting any statement about it, including this one:**
+> was rewritten to purge them and it went private; it was made public again on
+> 22 Sep because private-repo CI minutes ran out (every job was refused in ~3s
+> with no steps from 9 Sep on). A full scan of all 69 branches' history found no
+> dumps, env files, passwords or keys before it went back. **Nothing personal —
+> another user's email, a real journal line, a connection string — belongs in a
+> commit, a doc or a test fixture.** Verify visibility before trusting any
+> statement about it, including this one:
 > `gh repo view rileyhins17/Atlas --json isPrivate`.
 >
 > Backups live in `%LOCALAPPDATA%\Atlas\backups`, never in the tree, and
@@ -74,7 +80,7 @@ to 502, and the next sweep returns it to 200. If you are ever debugging "the sit
 
 ## Architecture — do not violate
 
-1. **Module = life domain.** Each implements `DomainModule` (`apps/api/src/core/domain-module.ts`): `aiContext(userId)` + `getToolSpecs()`, self-registering in `onModuleInit`. Adding a domain means copying the shape of `modules/tasks/`; core never changes.
+1. **Module = life domain.** Each implements `DomainModule` (`apps/api/src/core/domain-module.ts`): `aiContext(userId)` + `tools()` (spec and handler together, via `defineTool`), self-registering in `onModuleInit`. Adding a domain means copying the shape of `modules/tasks/`; core never changes.
 2. **Connector = external API key.** Implements `Connector`; secrets are AES-256-GCM encrypted in `credentials`. Connectors get `getSecret()` and have **no DB access** — reconciliation lives in the owning module.
 3. **Unified timeline.** Every mutation also writes a `timeline_events` row. The AI reads that compact cross-domain log, never the whole database.
 4. **AI writes back.** `insights` and `ai_questions` are first-class tables, so knowledge accumulates cheaply. Spend is capped by `CostGuard` against the `ai_usage` ledger.
@@ -86,11 +92,12 @@ pnpm workspaces + Turborepo · ESM everywhere · NestJS 11 built with **tsc** (n
 packages/db          Prisma schema + client. Import the DB only via @atlas/db.
 packages/shared      zod DTOs, enums, AI contracts, and PURE domain logic
                      (recurrence, fitness maths, duration). Browser-safe.
-packages/connectors  Connector interface, DeepSeek, Google Calendar, Plaid.
+packages/connectors  Connector interface, DeepSeek, Google Calendar, Google Health, Plaid.
+                     Google OAuth is shared (google-oauth.ts); each connector keeps its own grant.
 packages/ai          pricing, CostGuard, context-builder, wire-safe tool names,
                      runToolLoop, LocalEmbedder.
 apps/api             NestJS. core/ + auth/ + modules/{tasks,habits,trackers,journal,notes,
-                     calendar,finance,fitness,routine,stats,timeline,push,
+                     calendar,finance,fitness,wearables,routine,stats,timeline,push,
                      settings,account,ai}.
 apps/web             Next 15. app/ routes, components/{canvas,panels,atlas,ui,
                      onboarding,stream,fitness}, lib/ (api client, hooks, pure logic).
@@ -131,6 +138,20 @@ docs/                architecture, data-model, roadmap, guides, ADRs, GOTCHAS.
   and the sign-up form.
 - **`/settings`** — collapsible sections. **Your week** (the routine editor) is what makes Today's free-time calculation correct, so it opens by default. Appearance and sign-out live in "Your data & account".
 
+**Soft style is a second, opt-in design** (Settings → Appearance → Style). Appearance has three
+independent axes, all on `<html>` and restored before paint by the script in `app/layout.tsx`:
+`data-theme` (light/dark), `data-palette` (eleven contrast-solved palettes) and `data-style`
+(`classic` default, or `soft`). Soft is rounded, warm and phone-first: Nunito, floating cards and
+a pill nav, the Blush palette, and its own Today (`components/soft/SoftToday.tsx`, pure logic in
+`lib/soft-today.ts`) — greeting, up next, today's plan with add-to-today, habit rings, the
+check-ins, and a Move card that starts the most-due training day. Its nav is Today · Plan · Habits
+· Move · More (`SOFT_NAV` in `lib/sections.ts`). Every soft rule is scoped under
+`[data-style='soft']`, so classic is untouched; its token literals live in the token block like
+every other colour. It is a localStorage preference on purpose — production applies migrations by
+hand, and a preference is not worth a column that 500s the site until someone runs one. The
+screenshot rig shoots it (`p-s-*`), and `soft style: …` in `life-os.spec.ts` sweeps all thirteen
+routes in both themes for axe, tap targets and input size.
+
 **Navigation is three destinations along one axis — time.** Today · Week · Looking back, with
 "Everything" one level down. **Both navs must agree**: the sidebar is `display: none` below 901px,
 so the phone's bottom bar carries "Everything" as a fourth item — without it, half the app has no
@@ -147,6 +168,17 @@ of the design work in v10 came from reading those PNGs, not the source.
 ## Current state
 
 Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **1275 unit tests** · **e2e 47/47** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop.
+
+**Wearables are the ninth domain: Fitbit and Pixel Watch through the Google Health API**
+(the Fitbit Web API was shut down in Sept 2026). Read-only; sleep, steps, resting heart rate,
+HRV and workouts. **`docs/google-health.md` is the setup and the design** — read it before
+touching this. The things that bite: every scope is Restricted, so while the consent screen is
+in Testing the grant dies weekly (sync marks the credential `revoked` and the UI offers a quiet
+Reconnect rather than an error toast on every open); sync runs when Today or Training opens and
+skips itself inside 10 minutes, never on a timer; sleep belongs to the day it ENDED; watch
+workouts live in `wearable_activities`, never in `workouts`; and routes are `/wearables`, not
+`/health…`, because `/health` is the liveness probe and `ActivityMiddleware` ignores that whole
+prefix. The cards render nothing at all without a connection.
 
 **Trackers are the eighth domain.** "Rate anything, once a day, on a 1-10 scale"
 — the generic answer to a request for a bloating rating, because the next person
@@ -171,6 +203,15 @@ moment the sweep was widened to all thirteen it found a serious contrast failure
 If you add an axe scan, assert on the whole violation list.
 
 **Never step a day with `+ 86_400_000`.** A local day is 23 or 25 hours on the DST transitions, and this app is used in a timezone that has them. Measured: `1 Nov 2026 00:00 + 86_400_000ms` in America/Toronto is `1 Nov 23:00`, still the same date — which froze Today's day pager, made `DayPager` say "Today" on two consecutive days, and made the day-events window an hour short so the last hour of that day disappeared. Use `addDays` from `lib/dates.ts`; it is `setDate`-based and the only implementation. Nine sites had it wrong — the day pager, the day heading, both day-fetch windows, the routine day masks on Today and in `stream.ts`, the canvas day end, the calendar range end, the all-day event end and the task due-date horizons. `DAY_MS` still exists and is exported, but **only** for genuinely elapsed time (the rolling agenda fetch window); there is no raw `86_400_000` left anywhere else in `apps/web`.
+
+**The API's equivalent is `apps/api/src/core/time.ts`, and it is exact on DST days too.** Local
+days travel as `YYYY-MM-DD` keys (`dayKeyInTz`, `shiftDayKey`) and turn back into instants only
+through `dayKeyStartUtc`, which reads the offset AT local midnight — the old helper read it at the
+moment given, so the start of 1 Nov came out an hour late. `localDayStartUtc(tz, date, shiftDays)`
+is how you reach another day's midnight. Anything a person reads as "today" — habit
+`doneToday` and streaks, brief titles, due dates in the model's context, search subtitles — is
+keyed by the user's zone. Habits were UTC-keyed until Sept 2026, so in Toronto the day rolled over
+at 8pm and an evening check-in landed on tomorrow's square.
 
 **Axe cannot see tap targets, so the phone-width spec measures them.** `target-size` is a WCAG **2.2**
 rule and every scan here asks for 2.0/2.1 tags, so four undersized controls sat under a green axe
@@ -214,6 +255,19 @@ in the Google sync (that loop IS the batching), one Plaid remote call per item
 (a network call that cannot be batched), and one nested write per workout day
 (bounded by MAX_TEMPLATES). Watched red against a reintroduced N+1 before being
 trusted.
+
+**No list the UI treats as complete may be one page of a paginated endpoint.** Every task
+surface read `GET /tasks` — 50 rows, open first — so the 51st open task vanished from Tasks,
+Today and Goals, and the Done view emptied once open work filled the page. They now read
+`GET /tasks/working`: all open work (capped at 500) plus 30 days of done. Journal and notes page
+with "Show earlier" (`usePagedList`), and a calendar WINDOW (`from` + `to`, ≤62 days) is returned
+whole up to 1,000 rows — recurring series used to expand INTO the 100-row cap, so a few daily
+events emptied the later weeks of the grid. `nothing you wrote falls off the end of a list` in
+`life-os.spec.ts` seeds past both edges.
+
+**The export now covers every table a person owns.** It silently omitted workouts, sets,
+training templates, custom exercises, routine blocks, trackers and their entries — the whole
+training history. They are appended after the v1 sections, with the watch tables.
 
 **The account export streams.** It used to read fourteen unbounded tables into
 memory and `JSON.stringify` the lot — the whole account, twice, in a
@@ -325,6 +379,10 @@ The short version of what is STILL open:
 - **Rotate the Plaid production secret** — it was pasted into a chat transcript. Needs Riley's Plaid
   login; nobody else can do it.
 - **`SENTRY_DSN` is unset**, so the error reporting that is now wired in reports nothing.
+- **Google Health needs verification + a CASA security assessment before it can be sold.**
+  Until then: 100 users, and a reconnect about weekly. Webhooks are not implemented (sync on open
+  instead). Needs the `wearables` migration applied and the callback registered — see
+  `docs/google-health.md`.
 - **Google's refresh token dies every 7 days while the OAuth consent screen is in "Testing".**
   Verified live: the grant made 19 July stopped working, and Google answers `invalid_grant` —
   "Token has been expired or revoked". Reconnecting works; publishing the consent screen is what
@@ -345,7 +403,7 @@ server already does it.
 Done and verified: legal pages, error-reporting plumbing, input bounds, double-submit, RRULE
 validation, and the account purge (440 → 3).
 
-**The database has 3 accounts.** Riley's two, plus `aidanmageebusiness@gmail.com` — a real third
+**The database has 3 accounts.** Riley's two, plus one real third
 person with their own DeepSeek key. Do not purge by email pattern: `phase2-test@example.com` looked
 like junk and held the only live Google Calendar credential (since moved to
 `rileyhinsperger16@gmail.com`). Always dry-run a destructive query and read the output.

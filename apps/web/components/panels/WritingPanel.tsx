@@ -69,8 +69,15 @@ export function WritingPanel() {
       at: d.createdAt,
       data: d,
     }));
-    return [...entries, ...notes].sort((a, b) => b.at.localeCompare(a.at));
-  }, [journalQuery.data, notesQuery.data]);
+    const merged = [...entries, ...notes].sort((a, b) => b.at.localeCompare(a.at));
+    // While older journal pages are unloaded, a note dated before the oldest
+    // loaded entry would sit where those entries belong and read as if nothing
+    // was written in between. Hold it back until the gap is filled.
+    const frontier = journalQuery.hasNextPage ? entries.at(-1)?.at : undefined;
+    return frontier ? merged.filter((w) => w.at >= frontier) : merged;
+  }, [journalQuery.data, journalQuery.hasNextPage, notesQuery.data]);
+  const hasOlder = journalQuery.hasNextPage || notesQuery.hasNextPage;
+  const loadingOlder = journalQuery.isFetchingNextPage || notesQuery.isFetchingNextPage;
 
   function save(e: React.FormEvent) {
     e.preventDefault();
@@ -208,6 +215,21 @@ export function WritingPanel() {
             onDeleteNote={(id) => removeNote.mutate(id)}
           />
         ))}
+
+        {hasOlder && (
+          <div className="row" style={{ justifyContent: 'center' }}>
+            <Button
+              variant="secondary"
+              disabled={loadingOlder}
+              onClick={() => {
+                if (journalQuery.hasNextPage) void journalQuery.fetchNextPage();
+                if (notesQuery.hasNextPage) void notesQuery.fetchNextPage();
+              }}
+            >
+              {loadingOlder ? 'Loading…' : 'Show earlier'}
+            </Button>
+          </div>
+        )}
       </div>
     </>
   );

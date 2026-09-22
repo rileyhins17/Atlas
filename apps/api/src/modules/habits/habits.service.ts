@@ -9,7 +9,9 @@ import type {
 import type { Habit, HabitLog } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
-import { computeStreak, dayKey } from './habits.util.js';
+import { UserTimezoneService } from '../../core/user-timezone.service.js';
+import { dayKeyInTz } from '../../core/time.js';
+import { computeStreak } from './habits.util.js';
 
 /** How far back streak math ever needs to look. */
 const STREAK_WINDOW_DAYS = 400;
@@ -19,6 +21,7 @@ export class HabitsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly timeline: TimelineService,
+    private readonly timezones: UserTimezoneService,
   ) {}
 
   /** Ownership-scoped read, shared with the AI tool router for undo state. */
@@ -28,13 +31,15 @@ export class HabitsService {
     return habit;
   }
 
-  private toDto(habit: Habit, logs: HabitLog[]): HabitDTO {
+  /** Every day key here is the user's LOCAL day — see computeStreak. */
+  private toDto(habit: Habit, logs: HabitLog[], tz: string): HabitDTO {
     const perDay = new Map<string, number>();
     for (const log of logs) {
-      const k = dayKey(log.loggedAt);
+      const k = dayKeyInTz(log.loggedAt, tz);
       perDay.set(k, (perDay.get(k) ?? 0) + log.value);
     }
-    const todayCount = perDay.get(dayKey(new Date())) ?? 0;
+    const today = dayKeyInTz(new Date(), tz);
+    const todayCount = perDay.get(today) ?? 0;
     return {
       id: habit.id,
       name: habit.name,
@@ -43,7 +48,7 @@ export class HabitsService {
       active: habit.active,
       todayCount,
       doneToday: todayCount >= habit.target,
-      streak: computeStreak(perDay, habit.target),
+      streak: computeStreak(perDay, habit.target, today),
       createdAt: habit.createdAt.toISOString(),
     };
   }
@@ -59,11 +64,14 @@ export class HabitsService {
     return since;
   }
 
-  /** Logs for one habit, userId-scoped and time-bounded. */
-  private logsForHabit(userId: string, habitId: string): Promise<HabitLog[]> {
-    return this.prisma.client.habitLog.findMany({
-      where: { userId, habitId, loggedAt: { gte: HabitsService.streakWindowStart() } },
-    });
+  /** Logs for one habit, userId-scoped and time-bounded, with the zone to bucket them in. */
+  private logsAndZone(userId: string, habitId: string): Promise<[HabitLog[], string]> {
+    return Promise.all([
+      this.prisma.client.habitLog.findMany({
+        where: { userId, habitId, loggedAt: { gte: HabitsService.streakWindowStart() } },
+      }),
+      this.timezones.get(userId),
+    ]);
   }
 
   async list(userId: string): Promise<HabitDTO[]> {
@@ -74,16 +82,19 @@ export class HabitsService {
       take: 200,
     });
     if (habits.length === 0) return [];
-    const logs = await this.prisma.client.habitLog.findMany({
-      where: { userId, loggedAt: { gte: HabitsService.streakWindowStart() } },
-    });
+    const [logs, tz] = await Promise.all([
+      this.prisma.client.habitLog.findMany({
+        where: { userId, loggedAt: { gte: HabitsService.streakWindowStart() } },
+      }),
+      this.timezones.get(userId),
+    ]);
     const byHabit = new Map<string, HabitLog[]>();
     for (const log of logs) {
       const arr = byHabit.get(log.habitId) ?? [];
       arr.push(log);
       byHabit.set(log.habitId, arr);
     }
-    return habits.map((h) => this.toDto(h, byHabit.get(h.id) ?? []));
+    return habits.map((h) => this.toDto(h, byHabit.get(h.id) ?? [], tz));
   }
 
   async create(userId: string, input: CreateHabitInput): Promise<HabitDTO> {
@@ -98,13 +109,13 @@ export class HabitsService {
       refType: 'habit',
       refId: habit.id,
     });
-    return this.toDto(habit, []);
+    return this.toDto(habit, [], await this.timezones.get(userId));
   }
 
   async update(userId: string, id: string, input: UpdateHabitInput): Promise<HabitDTO> {
     await this.owned(userId, id);
     const habit = await this.prisma.client.habit.update({ where: { id }, data: input });
-    return this.toDto(habit, await this.logsForHabit(userId, id));
+    return this.toDto(habit, ...(await this.logsAndZone(userId, id)));
   }
 
   async log(userId: string, id: string, input: LogHabitInput): Promise<HabitDTO> {
@@ -121,7 +132,7 @@ export class HabitsService {
       refId: habit.id,
       payload: { value: input.value },
     });
-    return this.toDto(habit, await this.logsForHabit(userId, id));
+    return this.toDto(habit, ...(await this.logsAndZone(userId, id)));
   }
 
   async remove(userId: string, id: string): Promise<{ ok: true }> {
@@ -154,15 +165,20 @@ export class HabitsService {
     if (habits.length === 0) return [];
     const since = new Date();
     since.setUTCDate(since.getUTCDate() - days);
-    const logs = await this.prisma.client.habitLog.findMany({
-      where: { userId, loggedAt: { gte: since } },
-      select: { habitId: true, loggedAt: true, value: true },
-    });
+    const [logs, tz] = await Promise.all([
+      this.prisma.client.habitLog.findMany({
+        where: { userId, loggedAt: { gte: since } },
+        select: { habitId: true, loggedAt: true, value: true },
+      }),
+      this.timezones.get(userId),
+    ]);
     const perHabit = new Map<string, Map<string, number>>(habits.map((h) => [h.id, new Map()]));
     for (const log of logs) {
       const dayMap = perHabit.get(log.habitId);
       if (!dayMap) continue; // log for an archived habit
-      const k = dayKey(log.loggedAt);
+      // The client keys its grids by local day; a UTC key put an evening
+      // check-in on tomorrow's square.
+      const k = dayKeyInTz(log.loggedAt, tz);
       dayMap.set(k, (dayMap.get(k) ?? 0) + log.value);
     }
     return habits.map((h) => ({

@@ -171,3 +171,40 @@ export function tabFor(section: Section, pathname: string): string {
   const hit = section.tabs.find((t) => pathname === t.href || pathname.startsWith(`${t.href}/`));
   return hit?.key ?? section.tabs[0]!.key;
 }
+
+/**
+ * Soft style's navigation: the four things it is built around, by name.
+ *
+ * Classic's axis is time (now, soon, how it went). Soft is organised around
+ * what someone actually does with the app day to day — plan it, keep habits,
+ * move — so those are the destinations, and Progress and the rest sit behind
+ * "More" with every other page. Same routes either way; only the front door
+ * changes.
+ */
+export interface SoftNavItem {
+  href: string;
+  label: string;
+  /** Lucide icon name, resolved in NavBar so this file stays React-free. */
+  icon: 'home' | 'calendar' | 'repeat' | 'dumbbell';
+  /** Every route this entry should light up for. */
+  match: string[];
+}
+
+export const SOFT_NAV: SoftNavItem[] = [
+  { href: '/today', label: 'Today', icon: 'home', match: ['/today'] },
+  {
+    href: '/week',
+    label: 'Plan',
+    icon: 'calendar',
+    match: ['/week', '/tasks', '/goals', '/calendar', '/plan'],
+  },
+  { href: '/habits', label: 'Habits', icon: 'repeat', match: ['/habits'] },
+  { href: '/fitness', label: 'Move', icon: 'dumbbell', match: ['/fitness'] },
+];
+
+/** The soft nav entry for a pathname, or undefined (which lights "More"). */
+export function softNavFor(pathname: string): SoftNavItem | undefined {
+  return SOFT_NAV.find((item) =>
+    item.match.some((m) => pathname === m || pathname.startsWith(`${m}/`)),
+  );
+}

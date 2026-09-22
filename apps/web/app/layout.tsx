@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Plus_Jakarta_Sans } from 'next/font/google';
+import { Nunito, Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import { ServiceWorkerRegistrar } from '@/components/ServiceWorkerRegistrar';
@@ -11,6 +11,15 @@ const sans = Plus_Jakarta_Sans({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-sans',
+});
+
+// Soft style's face: rounded terminals, friendly at small sizes. Loaded for
+// everyone (next/font only exposes a variable; nothing renders in it unless
+// data-style="soft" points --font-sans at it).
+const rounded = Nunito({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-rounded',
 });
 
 export const metadata: Metadata = {
@@ -60,13 +69,13 @@ export const viewport: Viewport = {
 // Runs before first paint so the saved (or system) theme is applied with no
 // flash. Kept tiny and dependency-free; the base CSS is dark, so any failure
 // falls back to dark.
-const themeScript = `(function(){try{var d=document.documentElement;var t=localStorage.getItem('atlas-theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}d.setAttribute('data-theme',t);var p=localStorage.getItem('atlas-palette');d.setAttribute('data-palette',p&&/^[a-z]{2,16}$/.test(p)?p:'${DEFAULT_PALETTE}');}catch(e){}})();`;
+const themeScript = `(function(){try{var d=document.documentElement;var t=localStorage.getItem('atlas-theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}d.setAttribute('data-theme',t);var p=localStorage.getItem('atlas-palette');d.setAttribute('data-palette',p&&/^[a-z]{2,16}$/.test(p)?p:'${DEFAULT_PALETTE}');var s=localStorage.getItem('atlas-style');d.setAttribute('data-style',s==='soft'?'soft':'classic');}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     // The theme script sets data-theme on <html> before hydration; suppress the
     // expected attribute mismatch it causes (standard theme-flash pattern).
-    <html lang="en" className={sans.variable} suppressHydrationWarning>
+    <html lang="en" className={`${sans.variable} ${rounded.variable}`} suppressHydrationWarning>
       <head>
         {/*
           Every palette, as static CSS, generated from one source of truth in

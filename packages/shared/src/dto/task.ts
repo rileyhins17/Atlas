@@ -68,3 +68,16 @@ export const TaskDTO = z.object({
   updatedAt: z.string(),
 });
 export type TaskDTO = z.infer<typeof TaskDTO>;
+
+/**
+ * The task working set — what every task surface in the app reads.
+ *
+ * It used to read `GET /tasks`, a single 50-row page sorted open-first, so
+ * the 51st open task vanished from Today, Tasks and Goals alike, and once the
+ * open work filled the page the Done view was empty however much had been
+ * finished. The working set is ALL open work (bounded, not paged) plus what
+ * was completed recently: what a person acts on, and what they just did.
+ */
+export const WORKING_SET_OPEN_CAP = 500;
+export const WORKING_SET_DONE_DAYS = 30;
+export const WORKING_SET_DONE_CAP = 200;

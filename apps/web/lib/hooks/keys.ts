@@ -38,4 +38,6 @@ export const qk = {
   trackers: ['trackers'] as const,
   trackerOverview: (days: number) => ['trackers', 'overview', days] as const,
   trackerPatterns: ['trackers', 'patterns'] as const,
+  wearablesStatus: ['wearables', 'status'] as const,
+  wearablesSummary: (days: number) => ['wearables', 'summary', days] as const,
 };

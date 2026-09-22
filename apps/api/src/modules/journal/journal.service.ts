@@ -4,6 +4,8 @@ import type { JournalEntry } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
 import { MemoryService } from '../../core/memory.service.js';
+import { UserTimezoneService } from '../../core/user-timezone.service.js';
+import { dayKeyInTz } from '../../core/time.js';
 
 function toDto(e: JournalEntry): JournalDTO {
   return {
@@ -27,6 +29,7 @@ export class JournalService {
     private readonly prisma: PrismaService,
     private readonly timeline: TimelineService,
     private readonly memory: MemoryService,
+    private readonly timezones: UserTimezoneService,
   ) {}
 
   async create(userId: string, input: CreateJournalInput): Promise<JournalDTO> {
@@ -132,17 +135,21 @@ export class JournalService {
 
   /** Compact summary for the AI context builder: recent mood trend + last entry. */
   async summarize(userId: string): Promise<string> {
-    const recent = await this.prisma.client.journalEntry.findMany({
-      where: { userId },
-      orderBy: { entryDate: 'desc' },
-      take: 7,
-    });
+    const [recent, tz] = await Promise.all([
+      this.prisma.client.journalEntry.findMany({
+        where: { userId },
+        orderBy: { entryDate: 'desc' },
+        take: 7,
+      }),
+      this.timezones.get(userId),
+    ]);
     if (recent.length === 0) return 'No journal entries yet.';
     const moods = recent.map((e) => e.mood).filter((m): m is number => m != null);
     const avg = moods.length ? (moods.reduce((a, b) => a + b, 0) / moods.length).toFixed(1) : 'n/a';
     const last = recent[0];
-    return `${recent.length} recent entr(ies). Avg mood: ${avg}/5. Latest (${last!.entryDate
-      .toISOString()
-      .slice(0, 10)}): "${snippet(last!.body, 120)}"`;
+    return `${recent.length} recent entr(ies). Avg mood: ${avg}/5. Latest (${dayKeyInTz(
+      last!.entryDate,
+      tz,
+    )}): "${snippet(last!.body, 120)}"`;
   }
 }

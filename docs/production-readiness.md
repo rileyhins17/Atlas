@@ -91,7 +91,7 @@ Two things the dry run caught that a pattern-match would have destroyed:
 - `phase2-test@example.com` matched a test prefix but held **the only live Google Calendar
   connection**. That credential was moved to `rileyhinsperger16@gmail.com` before the purge, and now
   decrypts there (the AES key is global, not per-user, so the row moves cleanly).
-- **`aidanmageebusiness@gmail.com` is a real third account** with its own DeepSeek key, habits and
+- **A real third person's account** with its own DeepSeek key, habits and
   notes. It was kept. If that is not someone you meant to have access, that is worth knowing.
 
 ---

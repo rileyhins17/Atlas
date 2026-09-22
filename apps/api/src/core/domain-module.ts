@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { AiContextChunk, AiToolSpec } from '@atlas/shared';
+import type { DomainTool } from './domain-tool.js';
 
 /**
  * The contract every life-domain module implements to plug into the AI brain.
@@ -25,8 +26,11 @@ export interface DomainModule {
   readonly contextPriority?: number;
   /** A compact, token-budgeted summary of this domain for the AI context. */
   aiContext(userId: string): Promise<AiContextChunk>;
-  /** Tool specs the AI may call to act on this domain. */
-  getToolSpecs(): AiToolSpec[];
+  /**
+   * What the AI may do to this domain — each tool's spec and its handler,
+   * declared together so one can never exist without the other.
+   */
+  tools(): DomainTool[];
 }
 
 /**
@@ -57,9 +61,25 @@ export const DEFAULT_CONTEXT_PRIORITY = 50;
 @Injectable()
 export class ModuleRegistryService {
   private readonly modules = new Map<string, DomainModule>();
+  private readonly toolsByName = new Map<string, { owner: string; tool: DomainTool }>();
 
+  /**
+   * Tools are indexed once, here. Two domains claiming one tool name would make
+   * which handler runs depend on registration order, so that fails at boot
+   * instead of silently routing the model's call somewhere else.
+   */
   register(mod: DomainModule): void {
+    const tools = mod.tools();
+    for (const t of tools) {
+      const existing = this.toolsByName.get(t.spec.name);
+      if (existing && existing.owner !== mod.id) {
+        throw new Error(
+          `Tool "${t.spec.name}" is declared by both "${existing.owner}" and "${mod.id}"`,
+        );
+      }
+    }
     this.modules.set(mod.id, mod);
+    for (const tool of tools) this.toolsByName.set(tool.spec.name, { owner: mod.id, tool });
   }
 
   list(): DomainModule[] {
@@ -88,8 +108,13 @@ export class ModuleRegistryService {
     return Promise.all(ordered.map((m) => m.aiContext(userId)));
   }
 
-  /** Gather every domain's tool specs. */
+  /** Gather every domain's tool specs, for the model. */
   collectToolSpecs(): AiToolSpec[] {
-    return this.list().flatMap((m) => m.getToolSpecs());
+    return [...this.toolsByName.values()].map((t) => t.tool.spec);
+  }
+
+  /** The tool the model named, or undefined if no domain declares it. */
+  findTool(name: string): DomainTool | undefined {
+    return this.toolsByName.get(name)?.tool;
   }
 }

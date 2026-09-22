@@ -1,7 +1,8 @@
 import { Injectable, type OnModuleInit } from '@nestjs/common';
-import type { AiContextChunk, AiToolSpec } from '@atlas/shared';
+import { CreateJournalInput, type AiContextChunk } from '@atlas/shared';
 import { estimateTokens } from '@atlas/ai';
 import { DomainModule, ModuleRegistryService } from '../../core/domain-module.js';
+import { defineTool, type DomainTool } from '../../core/domain-tool.js';
 import { JournalService } from './journal.service.js';
 
 @Injectable()
@@ -24,20 +25,27 @@ export class JournalAiAdapter implements DomainModule, OnModuleInit {
     return { source: this.id, title: 'Journal', content, tokensEstimate: estimateTokens(content) };
   }
 
-  getToolSpecs(): AiToolSpec[] {
+  tools(): DomainTool[] {
     return [
-      {
-        name: 'journal.add',
-        description: 'Append a journal entry for the user (optionally with a 1-5 mood).',
-        parameters: {
-          type: 'object',
-          properties: {
-            body: { type: 'string' },
-            mood: { type: 'number', description: '1 (low) to 5 (great)' },
+      defineTool(
+        {
+          name: 'journal.add',
+          description: 'Append a journal entry for the user (optionally with a 1-5 mood).',
+          parameters: {
+            type: 'object',
+            properties: {
+              body: { type: 'string' },
+              mood: { type: 'number', description: '1 (low) to 5 (great)' },
+            },
+            required: ['body'],
           },
-          required: ['body'],
         },
-      },
+        async (userId, args) => {
+          const entry = await this.journal.create(userId, CreateJournalInput.parse(args));
+          // Journal is append-only by design; there is nothing to reverse to.
+          return { result: entry, summary: 'Added a journal entry', undo: null };
+        },
+      ),
     ];
   }
 }

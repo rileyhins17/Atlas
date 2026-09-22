@@ -5,7 +5,7 @@ import { PrismaService } from '../../core/prisma.service.js';
 import { ActivityService } from '../../core/activity.service.js';
 import { PushService } from '../push/push.service.js';
 import { OrchestratorService } from './orchestrator.service.js';
-import { localDayStartUtc, localHour, localWeekStartUtc } from './time.util.js';
+import { localDayStartUtc, localHour, localWeekStartUtc } from '../../core/time.js';
 
 /**
  * Phase 4 — proactive engine. Instead of waiting for a button press, this sweep

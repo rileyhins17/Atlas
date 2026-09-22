@@ -2,15 +2,7 @@ import { Module } from '@nestjs/common';
 import { LocalEmbedder } from '@atlas/ai';
 import { AuthModule } from '../../auth/auth.module.js';
 import { TasksModule } from '../tasks/tasks.module.js';
-import { HabitsModule } from '../habits/habits.module.js';
-import { TrackersModule } from '../trackers/trackers.module.js';
-import { JournalModule } from '../journal/journal.module.js';
-import { NotesModule } from '../notes/notes.module.js';
-import { CalendarModule } from '../calendar/calendar.module.js';
 import { PushModule } from '../push/push.module.js';
-import { FitnessModule } from '../fitness/fitness.module.js';
-import { RoutineModule } from '../routine/routine.module.js';
-import { GoalsModule } from '../goals/goals.module.js';
 import { StatsModule } from '../stats/stats.module.js';
 import { AiController } from './ai.controller.js';
 import { AiQuestionsService } from './ai-questions.service.js';
@@ -20,12 +12,14 @@ import { EmbeddingService } from './embedding.service.js';
 import { ProactiveService } from './proactive.service.js';
 
 /**
- * Phase 2: the AI brain. Imports every domain module for its exported service
- * so ToolRouterService can route tool calls to them directly (getToolSpecs()
- * already declared the tool names each module handles).
+ * The AI brain. It knows no domain by name: context and tools both arrive
+ * through the global ModuleRegistryService, which every domain's `*.ai.ts`
+ * adapter registers with. The imports here are only for services the
+ * orchestrator calls directly — task durations for planning, stats for the
+ * weekly review, push for the proactive briefs.
  */
 @Module({
-  imports: [AuthModule, TasksModule, HabitsModule, TrackersModule, JournalModule, NotesModule, CalendarModule, FitnessModule, RoutineModule, GoalsModule, PushModule, StatsModule],
+  imports: [AuthModule, TasksModule, PushModule, StatsModule],
   controllers: [AiController],
   providers: [
     AiQuestionsService,

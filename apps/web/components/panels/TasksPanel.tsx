@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { TaskDTO } from '@atlas/shared';
+import { WORKING_SET_DONE_DAYS, type TaskDTO } from '@atlas/shared';
 import { ChevronDown, ChevronRight, Plus, Search, X } from 'lucide-react';
 import { errorMessage } from '@/lib/api';
 import { useCreateTask, useTasks } from '@/lib/hooks/tasks';
@@ -305,6 +305,9 @@ export function TasksPanel() {
           />
         ) : filter === 'done' ? (
           <section aria-label="Done">
+            <p className="muted" style={{ fontSize: 13, margin: '4px 0 8px' }}>
+              Finished in the last {WORKING_SET_DONE_DAYS} days.
+            </p>
             {visible.map((t) => (
               <TaskRow key={t.id} task={t} />
             ))}

@@ -1,5 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ToolRouterService } from '../src/modules/ai/tool-router.service.js';
+import { ModuleRegistryService } from '../src/core/domain-module.js';
+import { TasksAiAdapter } from '../src/modules/tasks/tasks.ai.js';
+import { HabitsAiAdapter } from '../src/modules/habits/habits.ai.js';
+import { TrackersAiAdapter } from '../src/modules/trackers/trackers.ai.js';
+import { JournalAiAdapter } from '../src/modules/journal/journal.ai.js';
+import { NotesAiAdapter } from '../src/modules/notes/notes.ai.js';
+import { CalendarAiAdapter } from '../src/modules/calendar/calendar.ai.js';
+import { FitnessAiAdapter } from '../src/modules/fitness/fitness.ai.js';
+import { RoutineAiAdapter } from '../src/modules/routine/routine.ai.js';
+import { GoalsAiAdapter } from '../src/modules/goals/goals.ai.js';
+import { FinanceAiAdapter } from '../src/modules/finance/finance.ai.js';
 
 function makeRouter() {
   // `owned` is how the router captures the "before" state an undo needs.
@@ -64,21 +75,28 @@ function makeRouter() {
   const fitness = { start: vi.fn().mockResolvedValue({ id: 'workout_1' }) };
   const memory = { askUser: vi.fn().mockResolvedValue(undefined) };
   /* eslint-disable @typescript-eslint/no-explicit-any -- hand-rolled service doubles */
-  const router = new ToolRouterService(
-    tasks as any,
-    habits as any,
-    trackers as any,
-    journal as any,
-    notes as any,
-    calendar as any,
-    fitness as any,
-    routine as any,
-    goals as any,
-    memory as any,
-  );
+  // The real adapters and the real registry: what is under test is that a
+  // tool name reaches the handler its domain declared, not a stand-in for it.
+  const registry = new ModuleRegistryService();
+  for (const adapter of [
+    new TasksAiAdapter(tasks as any, registry),
+    new HabitsAiAdapter(habits as any, registry),
+    new TrackersAiAdapter(trackers as any, registry),
+    new JournalAiAdapter(journal as any, registry),
+    new NotesAiAdapter(notes as any, registry),
+    new CalendarAiAdapter(calendar as any, registry),
+    new FitnessAiAdapter(fitness as any, registry),
+    new RoutineAiAdapter(routine as any, registry),
+    new GoalsAiAdapter(goals as any, registry),
+    new FinanceAiAdapter({} as any, registry),
+  ]) {
+    adapter.onModuleInit();
+  }
+  const router = new ToolRouterService(registry, memory as any);
   /* eslint-enable @typescript-eslint/no-explicit-any */
   return {
     router,
+    registry,
     tasks,
     habits,
     trackers,
@@ -275,5 +293,32 @@ describe('ToolRouterService goals', () => {
     const out = await router.execute('user-1', 'goals.delete', { id: 'goal_1' });
     expect(out.undo?.method).toBe('POST');
     expect(out.undo?.body).toMatchObject({ title: 'Run a half', horizon: 'short' });
+  });
+});
+
+describe('tool registry', () => {
+  it('offers the model exactly the tools that have a handler', async () => {
+    const { registry, router } = makeRouter();
+    const names = registry.collectToolSpecs().map((s) => s.name);
+    expect(names.length).toBeGreaterThan(20);
+    expect(new Set(names).size).toBe(names.length);
+    for (const name of names) {
+      // An unknown name throws "Unknown tool"; any other outcome — success, or
+      // a zod error on these junk args — proves a handler was reached.
+      const err = await router.execute('user-1', name, { id: '' }).catch((e: Error) => e);
+      expect(err instanceof Error ? err.message : '').not.toMatch(/Unknown tool/);
+    }
+  });
+
+  it('refuses two domains claiming one tool name', () => {
+    const registry = new ModuleRegistryService();
+    const tool = { spec: { name: 'x.do', description: '', parameters: {} }, run: vi.fn() };
+    const mod = (id: string) => ({
+      id,
+      aiContext: vi.fn(),
+      tools: () => [tool],
+    });
+    registry.register(mod('a'));
+    expect(() => registry.register(mod('b'))).toThrow(/declared by both "a" and "b"/);
   });
 });

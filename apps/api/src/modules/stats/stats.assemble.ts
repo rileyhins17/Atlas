@@ -1,4 +1,5 @@
 import type { PeriodTotalsDTO, StatsDayDTO, StatsDTO } from '@atlas/shared';
+import { shiftDayKey } from '../../core/time.js';
 
 /**
  * Pure assembly for the stats rollup — unit-tested without a DB. The SQL side
@@ -56,14 +57,7 @@ function emptyTotals(): PeriodTotalsDTO {
 
 /** ISO day-key sequence [from, from+days) — plain date math on Y-M-D parts. */
 export function dayKeys(fromDay: string, days: number): string[] {
-  const [y, m, d] = fromDay.split('-').map(Number);
-  const keys: string[] = [];
-  const cursor = new Date(Date.UTC(y!, m! - 1, d!));
-  for (let i = 0; i < days; i++) {
-    keys.push(cursor.toISOString().slice(0, 10));
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-  }
-  return keys;
+  return Array.from({ length: days }, (_, i) => shiftDayKey(fromDay, i));
 }
 
 function apply(target: StatsDayDTO | PeriodTotalsDTO, metric: StatsMetric, value: number, moodAcc?: { sum: number; n: number }) {

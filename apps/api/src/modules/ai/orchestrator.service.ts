@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { ChatMessage } from '@atlas/connectors';
 import type { Insight } from '@atlas/db';
-import type { AiToolSpec, InsightDTO, PlanDayDTO, PlanProposalDTO } from '@atlas/shared';
+import type { InsightDTO, PlanDayDTO, PlanProposalDTO } from '@atlas/shared';
 import { describeEnergy, durationKey } from '@atlas/shared';
 import { buildContext, CostGuard, runToolLoop, type ToolLoopResult } from '@atlas/ai';
 import { PrismaService } from '../../core/prisma.service.js';
@@ -16,6 +16,7 @@ import { TaskDurationService } from '../tasks/task-duration.service.js';
 import { ToolRouterService } from './tool-router.service.js';
 import { EmbeddingService } from './embedding.service.js';
 import { parsePlanReply } from './plan-day.util.js';
+import { dayKeyInTz, localDayStartUtc } from '../../core/time.js';
 
 const CONTEXT_TOKEN_BUDGET = 3_000;
 /**
@@ -153,21 +154,6 @@ const QUESTIONS_SYSTEM_PROMPT =
   'questions only on what the context actually shows; do not ask about activity ' +
   'you assumed rather than observed.';
 
-const ASK_QUESTION_TOOL: AiToolSpec = {
-  name: 'ai.ask_question',
-  description:
-    'Ask the user a question to fill a knowledge gap you noticed. Use sparingly.',
-  parameters: {
-    type: 'object',
-    properties: {
-      question: { type: 'string' },
-      rationale: { type: 'string', description: 'Why this helps Atlas serve the user better' },
-      relatesTo: { type: 'string', description: 'Domain this relates to, e.g. journal, habits' },
-    },
-    required: ['question'],
-  },
-};
-
 function toInsightDto(i: Insight): InsightDTO {
   return {
     id: i.id,
@@ -273,6 +259,11 @@ you cannot see that part right now.`,
     };
   }
 
+  /** The user's timezone, defaulted and validated. Everything local hangs off this. */
+  private async timezoneOf(userId: string): Promise<string> {
+    return this.timezones.get(userId);
+  }
+
   /**
    * Anchor the model in time. Without this the model resolves "tomorrow at 2pm"
    * against its training data and silently schedules into the wrong day — every
@@ -283,11 +274,6 @@ you cannot see that part right now.`,
    * prompt-order gotcha): a whole day of calls shares the same date line, and
    * only the trailing time drifts.
    */
-  /** The user's timezone, defaulted and validated. Everything local hangs off this. */
-  private async timezoneOf(userId: string): Promise<string> {
-    return this.timezones.get(userId);
-  }
-
   private async nowBlock(userId: string): Promise<string> {
     const tz = await this.timezoneOf(userId);
     const now = new Date();
@@ -428,11 +414,12 @@ ${moduleText}`, activityText };
     // enough history to mean anything — see buildEnergyProfile — so a new
     // account gets exactly the plan it got before rather than a confident
     // claim about a pattern that does not exist yet.
-    const profile = await this.durations.energy(userId, await this.timezoneOf(userId));
+    const tz = await this.timezoneOf(userId);
+    const profile = await this.durations.energy(userId, tz);
     const energyLine = describeEnergy(profile);
     const tasks = open
       .map((t) => {
-        const due = t.dueAt ? `, due ${t.dueAt.toISOString().slice(0, 10)}` : '';
+        const due = t.dueAt ? `, due ${dayKeyInTz(t.dueAt, tz)}` : '';
         const est = learned.get(durationKey(t.title));
         const usual = est
           ? `, usually takes ${est.minutes} min (${est.samples} times)`
@@ -551,7 +538,7 @@ Propose a plan.`,
     ];
     return runToolLoop({
       messages,
-      tools: [ASK_QUESTION_TOOL],
+      tools: [this.toolRouter.askQuestion.spec],
       chat: (m, t) => this.chatCall(userId, 'questions', m, t),
       executeTool: (name, args) => this.toolRouter.execute(userId, name, args),
       maxIterations: 2,
@@ -574,13 +561,16 @@ Propose a plan.`,
       NARRATIVE_RESPONSE_TOKENS,
     );
 
+    // The user's day, not UTC's: a brief written at 9pm in Toronto was titled
+    // with tomorrow's date and its period started at 8pm the evening before.
     const now = new Date();
-    const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const tz = await this.timezoneOf(userId);
+    const dayStart = localDayStartUtc(tz, now);
     const insight = await this.prisma.client.insight.create({
       data: {
         userId,
         kind: 'daily_brief',
-        title: `Daily brief — ${dayStart.toISOString().slice(0, 10)}`,
+        title: `Daily brief — ${dayKeyInTz(now, tz)}`,
         body: res.content,
         periodFrom: dayStart,
         periodTo: now,
@@ -621,12 +611,13 @@ Propose a plan.`,
     );
 
     const now = new Date();
+    const tz = await this.timezoneOf(userId);
     const weekAgo = new Date(now.getTime() - 7 * 86_400_000);
     const insight = await this.prisma.client.insight.create({
       data: {
         userId,
         kind: 'weekly_review',
-        title: `Weekly review — ${now.toISOString().slice(0, 10)}`,
+        title: `Weekly review — ${dayKeyInTz(now, tz)}`,
         body: res.content,
         periodFrom: weekAgo,
         periodTo: now,

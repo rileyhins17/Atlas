@@ -14,7 +14,7 @@ import type { Tracker, TrackerEntry } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { UserTimezoneService } from '../../core/user-timezone.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
-import { dayKeyInTz } from '../ai/time.util.js';
+import { dayKeyInTz } from '../../core/time.js';
 
 /**
  * Anything the user has decided to watch, rated once a day.

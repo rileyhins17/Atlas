@@ -2,10 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CalendarDays, Home, LayoutGrid, Rewind } from 'lucide-react';
-import { SECTIONS, sectionFor, type Section } from '@/lib/sections';
+import { CalendarDays, Dumbbell, Home, LayoutGrid, Repeat, Rewind } from 'lucide-react';
+import { SECTIONS, SOFT_NAV, sectionFor, softNavFor, type Section } from '@/lib/sections';
+import { useUiStyle } from '@/lib/theme/style';
 
 const ICONS = { home: Home, calendar: CalendarDays, rewind: Rewind } as const;
+const SOFT_ICONS = { home: Home, calendar: CalendarDays, repeat: Repeat, dumbbell: Dumbbell } as const;
 
 /**
  * Three destinations, identical on phone and desktop.
@@ -34,6 +36,11 @@ export function NavBar({
 }) {
   const pathname = usePathname();
   const active = sectionFor(pathname);
+  const style = useUiStyle();
+
+  if (style === 'soft') {
+    return <SoftNav pathname={pathname} collapsed={collapsed} withMore={withEverything} />;
+  }
 
   return (
     <nav className="app-nav" aria-label="Sections">
@@ -64,6 +71,49 @@ export function NavBar({
         >
           <LayoutGrid className="nav-icon" size={20} aria-hidden />
           <span className="nav-label">Everything</span>
+        </Link>
+      )}
+    </nav>
+  );
+}
+
+/** Soft style's destinations — see SOFT_NAV. "More" is the phone's way to everything else. */
+function SoftNav({
+  pathname,
+  collapsed,
+  withMore,
+}: {
+  pathname: string;
+  collapsed: boolean;
+  withMore: boolean;
+}) {
+  const active = softNavFor(pathname);
+  return (
+    <nav className="app-nav" aria-label="Sections">
+      {SOFT_NAV.map((item) => {
+        const Icon = SOFT_ICONS[item.icon];
+        const isActive = active?.href === item.href;
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`nav-link ${isActive ? 'active' : ''}`}
+            aria-current={isActive ? 'page' : undefined}
+            title={collapsed ? item.label : undefined}
+          >
+            <Icon className="nav-icon" size={20} aria-hidden />
+            <span className="nav-label">{item.label}</span>
+          </Link>
+        );
+      })}
+      {withMore && (
+        <Link
+          href="/everything"
+          className={`nav-link ${!active ? 'active' : ''}`}
+          aria-current={pathname === '/everything' ? 'page' : undefined}
+        >
+          <LayoutGrid className="nav-icon" size={20} aria-hidden />
+          <span className="nav-label">More</span>
         </Link>
       )}
     </nav>

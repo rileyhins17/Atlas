@@ -44,6 +44,10 @@ const EnvSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_REDIRECT_URI: z.string().default('http://localhost:4000/connectors/google/callback'),
+  // Google Health (Fitbit / Pixel Watch) uses the SAME client with its own
+  // callback. Optional: derived from GOOGLE_REDIRECT_URI when unset, so the
+  // only new thing to do is register the derived URL in Google Cloud.
+  GOOGLE_HEALTH_REDIRECT_URI: z.string().optional(),
   // Plaid (bank data aggregator). App-level credentials, not user secrets.
   // Optional: unset ⇒ the connector is unregistered and Settings shows
   // "unavailable", so Atlas runs fine without Plaid.

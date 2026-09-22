@@ -1,32 +1,19 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { computeStreak, dayKey } from '../src/modules/habits/habits.util.js';
+import { describe, expect, it } from 'vitest';
+import { computeStreak } from '../src/modules/habits/habits.util.js';
+import { shiftDayKey } from '../src/core/time.js';
 
-// Freeze time mid-day UTC so day boundaries are stable during the test run.
-const NOW = new Date('2026-07-16T12:00:00.000Z');
+const TODAY = '2026-07-16';
 
-/** Map of UTC day key -> logged value, where offset 0 = today, 1 = yesterday, ... */
+/** Map of local day key -> logged value, where offset 0 = today, 1 = yesterday, ... */
 function days(entries: Array<[offsetDays: number, value: number]>): Map<string, number> {
   const perDay = new Map<string, number>();
-  for (const [offset, value] of entries) {
-    const d = new Date(NOW);
-    d.setUTCDate(d.getUTCDate() - offset);
-    perDay.set(dayKey(d), value);
-  }
+  for (const [offset, value] of entries) perDay.set(shiftDayKey(TODAY, -offset), value);
   return perDay;
 }
 
 describe('computeStreak', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(NOW);
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it('counts a done-today day', () => {
-    expect(computeStreak(days([[0, 1]]), 1)).toBe(1);
+    expect(computeStreak(days([[0, 1]]), 1, TODAY)).toBe(1);
   });
 
   it('counts consecutive done days ending today', () => {
@@ -38,6 +25,7 @@ describe('computeStreak', () => {
           [2, 1],
         ]),
         1,
+        TODAY,
       ),
     ).toBe(3);
   });
@@ -52,6 +40,7 @@ describe('computeStreak', () => {
           [3, 1],
         ]),
         1,
+        TODAY,
       ),
     ).toBe(1);
   });
@@ -66,6 +55,7 @@ describe('computeStreak', () => {
           [2, 3],
         ]),
         3,
+        TODAY,
       ),
     ).toBe(2);
   });
@@ -80,12 +70,22 @@ describe('computeStreak', () => {
           [2, 3],
         ]),
         3,
+        TODAY,
       ),
     ).toBe(1);
   });
 
   it('is zero with no qualifying days', () => {
-    expect(computeStreak(new Map(), 1)).toBe(0);
-    expect(computeStreak(days([[5, 1]]), 1)).toBe(0);
+    expect(computeStreak(new Map(), 1, TODAY)).toBe(0);
+    expect(computeStreak(days([[5, 1]]), 1, TODAY)).toBe(0);
+  });
+
+  it('walks back across a month boundary by calendar day', () => {
+    const perDay = new Map([
+      ['2026-08-01', 1],
+      ['2026-07-31', 1],
+      ['2026-07-30', 1],
+    ]);
+    expect(computeStreak(perDay, 1, '2026-08-01')).toBe(3);
   });
 });

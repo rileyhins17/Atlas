@@ -1,10 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  GoogleCalendarConnector,
-  isAllDay,
-  parseGoogleDate,
-  type GoogleCredential,
-} from '../src/google-calendar.js';
+import { GoogleCalendarConnector, isAllDay, parseGoogleDate } from '../src/google-calendar.js';
+import type { GoogleCredential } from '../src/google-oauth.js';
 import { ConnectorAuthExpiredError, type ConnectorContext } from '../src/connector.js';
 
 const CONFIG = {

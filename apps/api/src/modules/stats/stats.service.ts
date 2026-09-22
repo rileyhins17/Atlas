@@ -17,7 +17,7 @@ import {
 } from '@atlas/shared';
 import { PrismaService } from '../../core/prisma.service.js';
 import { UserTimezoneService } from '../../core/user-timezone.service.js';
-import { dayKeyInTz, localDayStartUtc } from '../ai/time.util.js';
+import { dayKeyInTz, localDayStartUtc } from '../../core/time.js';
 import { assembleStats, type MetricRow, type StatsMetric } from './stats.assemble.js';
 
 /** A day where none of the tracked factors happened. Frozen so it is shared. */
@@ -55,9 +55,8 @@ export class StatsService {
   async rollup(userId: string, days: number): Promise<StatsDTO> {
     const tz = await this.timezone(userId);
     const now = new Date();
-    const todayStart = localDayStartUtc(tz, now);
-    const currentFrom = new Date(todayStart.getTime() - (days - 1) * 86_400_000);
-    const prevFrom = new Date(currentFrom.getTime() - days * 86_400_000);
+    const currentFrom = localDayStartUtc(tz, now, -(days - 1));
+    const prevFrom = localDayStartUtc(tz, now, -(2 * days - 1));
     const currentFromDay = dayKeyInTz(currentFrom, tz);
 
     // One query per metric — small, indexed, userId-scoped. The `AT TIME ZONE`
@@ -219,9 +218,7 @@ export class StatsService {
    */
   async trackerPatterns(userId: string): Promise<TrackerPatternsDTO> {
     const tz = await this.timezone(userId);
-    const from = new Date(
-      localDayStartUtc(tz, new Date()).getTime() - PATTERN_WINDOW_DAYS * 86_400_000,
-    );
+    const from = localDayStartUtc(tz, new Date(), -PATTERN_WINDOW_DAYS);
 
     const trackers = await this.prisma.client.tracker.findMany({
       where: { userId, active: true },
@@ -297,7 +294,7 @@ export class StatsService {
    */
   async moodPatterns(userId: string): Promise<MoodPatternsDTO> {
     const tz = await this.timezone(userId);
-    const from = new Date(localDayStartUtc(tz, new Date()).getTime() - PATTERN_WINDOW_DAYS * 86_400_000);
+    const from = localDayStartUtc(tz, new Date(), -PATTERN_WINDOW_DAYS);
     const q = <T>(sql: Prisma.Sql) => this.prisma.client.$queryRaw<T[]>(sql);
 
     const [moods, trained, habits, tasks, packed] = await Promise.all([
