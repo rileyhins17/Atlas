@@ -46,6 +46,12 @@ export class TasksController {
     return [...(await this.durations.estimates(user.id)).values()];
   }
 
+  /** What every task surface reads: all open work, plus recently finished. */
+  @Get('working')
+  working(@CurrentUser() user: AuthedUser): Promise<TaskDTO[]> {
+    return this.tasks.workingSet(user.id);
+  }
+
   /** Open work that was due before today — what did not happen. */
   @Get('slipped')
   slipped(@CurrentUser() user: AuthedUser): Promise<TaskDTO[]> {

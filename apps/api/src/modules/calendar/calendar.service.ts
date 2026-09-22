@@ -32,6 +32,17 @@ function toDto(e: Event): EventDTO {
 }
 
 const MAX_PAGE = 100;
+
+/**
+ * A bounded window (at most 62 days, enforced by EventListQuery) is returned
+ * WHOLE, up to this many rows, whatever `limit` says.
+ *
+ * The week grid and the agenda read a window as complete. Capping it at one
+ * 100-row page — with recurring series expanded INTO that cap — meant one
+ * daily event used half the page on its own, and a user with a few of them
+ * saw the later weeks of the window render empty. 62 days at 16 a day.
+ */
+const MAX_WINDOW_ROWS = 1_000;
 /** Ceiling on instances generated from one rule inside a single window. */
 const MAX_OCCURRENCES_PER_SERIES = 100;
 
@@ -103,13 +114,16 @@ export class CalendarService {
     return task;
   }
 
-  /** Upcoming + recently-past events, bounded (commercial-grade: never unbounded). */
+  /**
+   * Events from `from` onward. With `to`, the whole window (recurring series
+   * expanded, capped at MAX_WINDOW_ROWS); without it, one page of `limit`.
+   */
   async list(
     userId: string,
     opts: { from?: Date; to?: Date; limit?: number } = {},
   ): Promise<EventDTO[]> {
     const from = opts.from ?? new Date(Date.now() - 1000 * 60 * 60 * 24); // yesterday onward
-    const take = Math.min(opts.limit ?? 50, MAX_PAGE);
+    const take = opts.to ? MAX_WINDOW_ROWS : Math.min(opts.limit ?? 50, MAX_PAGE);
     const events = await this.prisma.client.event.findMany({
       where: { userId, startAt: { gte: from, ...(opts.to ? { lt: opts.to } : {}) } },
       orderBy: { startAt: 'asc' },

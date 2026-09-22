@@ -1,13 +1,13 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
 import type { UpdateNoteInput } from '@atlas/shared';
 import { NotesApi } from '@/lib/api';
 import { qk } from './keys';
 import { useInvalidatingMutation } from './mutation';
+import { usePagedList } from './paged';
 
 export function useNotes() {
-  return useQuery({ queryKey: qk.notes, queryFn: NotesApi.list });
+  return usePagedList(qk.notes, NotesApi.list);
 }
 
 export function useCreateNote() {

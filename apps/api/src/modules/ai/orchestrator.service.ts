@@ -259,6 +259,11 @@ you cannot see that part right now.`,
     };
   }
 
+  /** The user's timezone, defaulted and validated. Everything local hangs off this. */
+  private async timezoneOf(userId: string): Promise<string> {
+    return this.timezones.get(userId);
+  }
+
   /**
    * Anchor the model in time. Without this the model resolves "tomorrow at 2pm"
    * against its training data and silently schedules into the wrong day — every
@@ -269,11 +274,6 @@ you cannot see that part right now.`,
    * prompt-order gotcha): a whole day of calls shares the same date line, and
    * only the trailing time drifts.
    */
-  /** The user's timezone, defaulted and validated. Everything local hangs off this. */
-  private async timezoneOf(userId: string): Promise<string> {
-    return this.timezones.get(userId);
-  }
-
   private async nowBlock(userId: string): Promise<string> {
     const tz = await this.timezoneOf(userId);
     const now = new Date();

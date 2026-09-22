@@ -1923,3 +1923,48 @@ test('a daily tracker records one rating per day, and correcting it is an edit',
     }
   });
 });
+
+test('nothing you wrote falls off the end of a list', async ({ page }) => {
+  // Every task surface read ONE 50-row page, so the 51st open task vanished
+  // from Tasks, Today and Goals alike, and journal stopped at its newest 50
+  // entries with no way to reach the rest. Seed past both edges and prove the
+  // oldest of each is reachable.
+  const marker = `Edge${Date.now()}`;
+  await go(page, '/tasks');
+  await page.evaluate(async (m) => {
+    const post = (path: string, body: unknown) =>
+      fetch(`http://localhost:4000${path}`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    for (let i = 1; i <= 60; i++) await post('/tasks', { title: `${m} task ${i}`, priority: 'LOW' });
+    for (let i = 1; i <= 60; i++) {
+      // Dated in the past so they sort below anything the rest of the file wrote.
+      const entryDate = new Date(Date.UTC(2025, 0, 1 + i, 15)).toISOString();
+      await post('/journal', { body: `${m} entry ${i}`, entryDate });
+    }
+  }, marker);
+
+  await go(page, '/tasks');
+  await expect(page.getByText(`${marker} task 1`, { exact: true })).toBeVisible();
+  await expect(page.getByText(new RegExp(`^${marker} task \\d+$`))).toHaveCount(60);
+
+  await go(page, '/journal');
+  const list = page.locator('.wr-list');
+  await expect(list.getByText(`${marker} entry 60`, { exact: true })).toBeVisible();
+  const oldest = list.getByText(`${marker} entry 1`, { exact: true });
+  await expect(oldest).toHaveCount(0);
+  const earlier = page.getByRole('button', { name: 'Show earlier' });
+  // Other specs share this account, so how many pages sit in front is not
+  // fixed — page until the oldest arrives, each time waiting for the page
+  // itself rather than for the button, which re-enables before the rows render.
+  for (let i = 0; i < 20 && (await oldest.count()) === 0; i++) {
+    await Promise.all([
+      page.waitForResponse((r) => r.url().includes('/journal?') && r.ok()),
+      earlier.click(),
+    ]);
+  }
+  await expect(oldest).toBeVisible();
+});

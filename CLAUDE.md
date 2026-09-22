@@ -224,6 +224,15 @@ in the Google sync (that loop IS the batching), one Plaid remote call per item
 (bounded by MAX_TEMPLATES). Watched red against a reintroduced N+1 before being
 trusted.
 
+**No list the UI treats as complete may be one page of a paginated endpoint.** Every task
+surface read `GET /tasks` — 50 rows, open first — so the 51st open task vanished from Tasks,
+Today and Goals, and the Done view emptied once open work filled the page. They now read
+`GET /tasks/working`: all open work (capped at 500) plus 30 days of done. Journal and notes page
+with "Show earlier" (`usePagedList`), and a calendar WINDOW (`from` + `to`, ≤62 days) is returned
+whole up to 1,000 rows — recurring series used to expand INTO the 100-row cap, so a few daily
+events emptied the later weeks of the grid. `nothing you wrote falls off the end of a list` in
+`life-os.spec.ts` seeds past both edges.
+
 **The account export streams.** It used to read fourteen unbounded tables into
 memory and `JSON.stringify` the lot — the whole account, twice, in a
 single-process API. It now pages each table by id and writes JSON fragments, so

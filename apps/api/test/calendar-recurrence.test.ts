@@ -94,4 +94,18 @@ describe('CalendarService.list recurrence expansion', () => {
     // Stored verbatim so a Google round-trip can never destroy it.
     expect(out[0]!.recurrence).toBe('FREQ=YEARLY;BYSETPOS=-1');
   });
+
+  it('returns a busy window whole rather than cutting it at one page', async () => {
+    // Three daily series across seven weeks is 147 occurrences — past the old
+    // 100-row cap, which dropped the last weeks of the window on the floor.
+    const series = ['a', 'b', 'c'].map((id) =>
+      makeEvent({ id, title: id, recurrence: 'FREQ=DAILY' }),
+    );
+    const wideTo = new Date(2026, 8, 2, 0, 0); // 49 days after `from`
+    const out = await makeService(series, series).list('u1', { from, to: wideTo, limit: 100 });
+    expect(out.length).toBeGreaterThanOrEqual(147);
+    const last = out.at(-1)!;
+    expect(new Date(last.startAt).getTime()).toBeGreaterThan(new Date(2026, 7, 31).getTime());
+  });
 });
+

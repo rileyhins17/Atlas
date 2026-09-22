@@ -1,6 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import {
   nextOccurrence,
+  WORKING_SET_DONE_CAP,
+  WORKING_SET_DONE_DAYS,
+  WORKING_SET_OPEN_CAP,
   type CreateTaskInput,
   type RollForwardAction,
   type RollForwardResultDTO,
@@ -103,6 +106,28 @@ export class TasksService {
       skip: page.offset,
     });
     return tasks.map(toDto);
+  }
+
+  /**
+   * Every open task plus what was finished in the last few weeks — see
+   * WORKING_SET_OPEN_CAP for why the app reads this rather than one page.
+   * Two indexed queries, each bounded.
+   */
+  async workingSet(userId: string): Promise<TaskDTO[]> {
+    const since = new Date(Date.now() - WORKING_SET_DONE_DAYS * 86_400_000);
+    const [open, done] = await Promise.all([
+      this.prisma.client.task.findMany({
+        where: { userId, status: { in: ['TODO', 'IN_PROGRESS'] } },
+        orderBy: [{ dueAt: { sort: 'asc', nulls: 'last' } }, { createdAt: 'desc' }],
+        take: WORKING_SET_OPEN_CAP,
+      }),
+      this.prisma.client.task.findMany({
+        where: { userId, status: 'DONE', completedAt: { gte: since } },
+        orderBy: { completedAt: 'desc' },
+        take: WORKING_SET_DONE_CAP,
+      }),
+    ]);
+    return [...open, ...done].map(toDto);
   }
 
   /** Local midnight for this user, from the one clock the whole app buckets by. */

@@ -1,13 +1,14 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { UpdateJournalInput } from '@atlas/shared';
 import { JournalApi } from '@/lib/api';
 import { qk } from './keys';
 import { useInvalidatingMutation } from './mutation';
+import { usePagedList } from './paged';
 
 export function useJournal() {
-  return useQuery({ queryKey: qk.journal, queryFn: JournalApi.list });
+  return usePagedList(qk.journal, JournalApi.list);
 }
 
 export function useCreateJournalEntry() {
