@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from './prisma.service.js';
-import { safeTz } from '../modules/ai/time.util.js';
+import { safeTz } from './time.js';
 
 /**
  * The user's timezone, without a round trip for it on every request.

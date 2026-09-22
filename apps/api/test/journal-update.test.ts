@@ -48,6 +48,8 @@ function makeService(found: typeof entry | null = entry) {
     { write } as any,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { queueForEmbedding } as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    { get: async () => 'America/Toronto' } as any,
   );
   return { service, findFirst, update, write, queueForEmbedding };
 }

@@ -9,7 +9,7 @@ import type {
 import type { RoutineBlock } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { UserTimezoneService } from '../../core/user-timezone.service.js';
-import { dayKeyInTz } from '../ai/time.util.js';
+import { dayKeyInTz, shiftDayKey } from '../../core/time.js';
 
 /**
  * A week has 168 hours in it. Two hundred blocks is far more than anyone
@@ -37,14 +37,6 @@ function fmt(min: number): string {
 
 const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-/** YYYY-MM-DD arithmetic without touching timezones. */
-function shiftDay(day: string, delta: number): string {
-  const [y, m, d] = day.split('-').map(Number);
-  const t = new Date(Date.UTC(y!, m! - 1, d!));
-  t.setUTCDate(t.getUTCDate() + delta);
-  return t.toISOString().slice(0, 10);
-}
-
 @Injectable()
 export class RoutineService {
   constructor(
@@ -62,7 +54,7 @@ export class RoutineService {
    * worker would otherwise accumulate an unbounded list of dead rows.
    */
   async list(userId: string): Promise<RoutineBlockDTO[]> {
-    const from = shiftDay(await this.today(userId), -1);
+    const from = shiftDayKey(await this.today(userId), -1);
     const blocks = await this.prisma.client.routineBlock.findMany({
       where: { userId, OR: [{ onDate: null }, { onDate: { gte: from } }] },
       orderBy: [{ onDate: 'asc' }, { startMin: 'asc' }],

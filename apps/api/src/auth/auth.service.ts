@@ -4,7 +4,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import type { RegisterInput, LoginInput, UserDTO } from '@atlas/shared';
 import { PrismaService } from '../core/prisma.service.js';
 import { ActivityService } from '../core/activity.service.js';
-import { safeTz } from '../modules/ai/time.util.js';
+import { safeTz } from '../core/time.js';
 import { hashPassword, verifyPassword } from './password.util.js';
 
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days

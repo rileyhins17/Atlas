@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ProactiveService } from '../src/modules/ai/proactive.service.js';
 import { ActivityService } from '../src/core/activity.service.js';
-import { localHour } from '../src/modules/ai/time.util.js';
+import { localHour } from '../src/core/time.js';
 
 function makeService() {
   const user = { findMany: vi.fn() };

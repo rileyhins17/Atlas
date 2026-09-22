@@ -9,7 +9,7 @@ import {
   type EnergySample,
 } from '@atlas/shared';
 import { PrismaService } from '../../core/prisma.service.js';
-import { localHour, safeTz } from '../ai/time.util.js';
+import { localHour, safeTz } from '../../core/time.js';
 
 /** Only learn from work finished recently — how long things take drifts. */
 const LOOKBACK_DAYS = 120;

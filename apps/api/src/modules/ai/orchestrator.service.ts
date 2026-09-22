@@ -16,6 +16,7 @@ import { TaskDurationService } from '../tasks/task-duration.service.js';
 import { ToolRouterService } from './tool-router.service.js';
 import { EmbeddingService } from './embedding.service.js';
 import { parsePlanReply } from './plan-day.util.js';
+import { dayKeyInTz, localDayStartUtc } from '../../core/time.js';
 
 const CONTEXT_TOKEN_BUDGET = 3_000;
 /**
@@ -413,11 +414,12 @@ ${moduleText}`, activityText };
     // enough history to mean anything — see buildEnergyProfile — so a new
     // account gets exactly the plan it got before rather than a confident
     // claim about a pattern that does not exist yet.
-    const profile = await this.durations.energy(userId, await this.timezoneOf(userId));
+    const tz = await this.timezoneOf(userId);
+    const profile = await this.durations.energy(userId, tz);
     const energyLine = describeEnergy(profile);
     const tasks = open
       .map((t) => {
-        const due = t.dueAt ? `, due ${t.dueAt.toISOString().slice(0, 10)}` : '';
+        const due = t.dueAt ? `, due ${dayKeyInTz(t.dueAt, tz)}` : '';
         const est = learned.get(durationKey(t.title));
         const usual = est
           ? `, usually takes ${est.minutes} min (${est.samples} times)`
@@ -559,13 +561,16 @@ Propose a plan.`,
       NARRATIVE_RESPONSE_TOKENS,
     );
 
+    // The user's day, not UTC's: a brief written at 9pm in Toronto was titled
+    // with tomorrow's date and its period started at 8pm the evening before.
     const now = new Date();
-    const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const tz = await this.timezoneOf(userId);
+    const dayStart = localDayStartUtc(tz, now);
     const insight = await this.prisma.client.insight.create({
       data: {
         userId,
         kind: 'daily_brief',
-        title: `Daily brief — ${dayStart.toISOString().slice(0, 10)}`,
+        title: `Daily brief — ${dayKeyInTz(now, tz)}`,
         body: res.content,
         periodFrom: dayStart,
         periodTo: now,
@@ -606,12 +611,13 @@ Propose a plan.`,
     );
 
     const now = new Date();
+    const tz = await this.timezoneOf(userId);
     const weekAgo = new Date(now.getTime() - 7 * 86_400_000);
     const insight = await this.prisma.client.insight.create({
       data: {
         userId,
         kind: 'weekly_review',
-        title: `Weekly review — ${now.toISOString().slice(0, 10)}`,
+        title: `Weekly review — ${dayKeyInTz(now, tz)}`,
         body: res.content,
         periodFrom: weekAgo,
         periodTo: now,

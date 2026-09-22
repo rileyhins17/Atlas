@@ -11,7 +11,7 @@ import type { Task } from '@atlas/db';
 import { PrismaService } from '../../core/prisma.service.js';
 import { UserTimezoneService } from '../../core/user-timezone.service.js';
 import { TimelineService } from '../../core/timeline.service.js';
-import { localDayStartUtc } from '../ai/time.util.js';
+import { dayKeyInTz, localDayStartUtc } from '../../core/time.js';
 
 function toDto(t: Task): TaskDTO {
   return {
@@ -155,7 +155,8 @@ export class TasksService {
     if (action === 'today') {
       // End of the user's local day, so a rolled task reads as "today" on every
       // surface rather than landing at midnight and looking overdue again.
-      const due = new Date((await this.dayStart(userId)).getTime() + 86_400_000 - 60_000);
+      const tomorrow = localDayStartUtc(await this.timezones.get(userId), new Date(), 1);
+      const due = new Date(tomorrow.getTime() - 60_000);
       await this.prisma.client.task.updateMany({ where: { id: { in: ids } }, data: { dueAt: due } });
     } else {
       await this.prisma.client.task.updateMany({
@@ -313,19 +314,20 @@ export class TasksService {
 
   /** Compact summary used by the AI context builder. */
   async summarize(userId: string): Promise<string> {
-    const [open, dueSoon] = await Promise.all([
+    const [open, dueSoon, tz] = await Promise.all([
       this.prisma.client.task.count({ where: { userId, status: { in: ['TODO', 'IN_PROGRESS'] } } }),
       this.prisma.client.task.findMany({
         where: { userId, status: { in: ['TODO', 'IN_PROGRESS'] }, dueAt: { not: null } },
         orderBy: { dueAt: 'asc' },
         take: 5,
       }),
+      this.timezones.get(userId),
     ]);
     if (open === 0) return 'No open tasks.';
     // The id is what makes tasks.update / tasks.delete usable at all — without
     // it the model can name a task but cannot address one.
     const lines = dueSoon.map(
-      (t) => `- [${t.id}] ${t.title}${t.dueAt ? ` (due ${t.dueAt.toISOString().slice(0, 10)})` : ''}`,
+      (t) => `- [${t.id}] ${t.title}${t.dueAt ? ` (due ${dayKeyInTz(t.dueAt, tz)})` : ''}`,
     );
     return `${open} open task(s). Next up:\n${lines.join('\n') || '(none with due dates)'}`;
   }

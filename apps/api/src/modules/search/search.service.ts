@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import type { SearchHitDTO, SearchResultDTO } from '@atlas/shared';
 import { PrismaService } from '../../core/prisma.service.js';
+import { UserTimezoneService } from '../../core/user-timezone.service.js';
+import { dayKeyInTz } from '../../core/time.js';
 
 const PER_DOMAIN = 5;
 
@@ -19,7 +21,10 @@ const PER_DOMAIN = 5;
  */
 @Injectable()
 export class SearchService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly timezones: UserTimezoneService,
+  ) {}
 
   async search(userId: string, rawQuery: string): Promise<SearchResultDTO> {
     const q = rawQuery.trim();
@@ -61,6 +66,10 @@ export class SearchService {
       }),
     ]);
 
+    // Dates as the user's calendar reads them; an evening event is not tomorrow's.
+    const tz = await this.timezones.get(userId);
+    const day = (d: Date) => dayKeyInTz(d, tz);
+
     const hits: SearchHitDTO[] = [
       ...tasks.map((t) => ({
         id: t.id,
@@ -70,7 +79,7 @@ export class SearchService {
           t.status === 'DONE'
             ? 'done'
             : t.dueAt
-              ? `due ${t.dueAt.toISOString().slice(0, 10)}`
+              ? `due ${day(t.dueAt)}`
               : 'no date',
         href: '/tasks',
       })),
@@ -78,7 +87,7 @@ export class SearchService {
         id: e.id,
         domain: 'event' as const,
         title: e.title,
-        subtitle: `${e.startAt.toISOString().slice(0, 10)}${e.location ? ` · ${e.location}` : ''}`,
+        subtitle: `${day(e.startAt)}${e.location ? ` · ${e.location}` : ''}`,
         href: '/calendar',
       })),
       ...goals.map((g) => ({
@@ -100,7 +109,7 @@ export class SearchService {
         domain: 'journal' as const,
         // A journal entry has no title, so the first line is the title.
         title: j.body.split('\n')[0]!.slice(0, 80),
-        subtitle: j.createdAt.toISOString().slice(0, 10),
+        subtitle: day(j.createdAt),
         href: '/journal',
       })),
     ];
