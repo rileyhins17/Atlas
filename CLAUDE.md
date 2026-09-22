@@ -6,12 +6,18 @@
 >
 > **Remote:** `origin` = https://github.com/rileyhins17/Atlas. Work on `main`. `.env` is gitignored — never commit it.
 >
-> **It was PUBLIC until 6 Sep 2026, and this file said it was private.** That
+> **The repo is PUBLIC (again, since 22 Sep 2026) — treat every commit as published.**
+> It was public until 6 Sep, when this file wrongly said it was private. That
 > wrong belief is what made the incident below thinkable: three production dumps
 > — journals, finance rows, emails and password hashes — were committed by a
 > `git add -A` and pushed, and sat publicly readable for seventeen hours. History
-> was rewritten to purge them and the repo is private now. **Verify visibility
-> before trusting any statement about it, including this one:**
+> was rewritten to purge them and it went private; it was made public again on
+> 22 Sep because private-repo CI minutes ran out (every job was refused in ~3s
+> with no steps from 9 Sep on). A full scan of all 69 branches' history found no
+> dumps, env files, passwords or keys before it went back. **Nothing personal —
+> another user's email, a real journal line, a connection string — belongs in a
+> commit, a doc or a test fixture.** Verify visibility before trusting any
+> statement about it, including this one:
 > `gh repo view rileyhins17/Atlas --json isPrivate`.
 >
 > Backups live in `%LOCALAPPDATA%\Atlas\backups`, never in the tree, and
@@ -397,7 +403,7 @@ server already does it.
 Done and verified: legal pages, error-reporting plumbing, input bounds, double-submit, RRULE
 validation, and the account purge (440 → 3).
 
-**The database has 3 accounts.** Riley's two, plus `aidanmageebusiness@gmail.com` — a real third
+**The database has 3 accounts.** Riley's two, plus one real third
 person with their own DeepSeek key. Do not purge by email pattern: `phase2-test@example.com` looked
 like junk and held the only live Google Calendar credential (since moved to
 `rileyhinsperger16@gmail.com`). Always dry-run a destructive query and read the output.
