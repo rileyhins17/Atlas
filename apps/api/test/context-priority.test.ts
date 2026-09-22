@@ -24,7 +24,7 @@ function fakeModule(id: string, contextPriority?: number): DomainModule {
       content: id,
       tokensEstimate: 1,
     })),
-    getToolSpecs: () => [],
+    tools: () => [],
   };
 }
 

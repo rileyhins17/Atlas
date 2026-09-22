@@ -74,7 +74,7 @@ to 502, and the next sweep returns it to 200. If you are ever debugging "the sit
 
 ## Architecture — do not violate
 
-1. **Module = life domain.** Each implements `DomainModule` (`apps/api/src/core/domain-module.ts`): `aiContext(userId)` + `getToolSpecs()`, self-registering in `onModuleInit`. Adding a domain means copying the shape of `modules/tasks/`; core never changes.
+1. **Module = life domain.** Each implements `DomainModule` (`apps/api/src/core/domain-module.ts`): `aiContext(userId)` + `tools()` (spec and handler together, via `defineTool`), self-registering in `onModuleInit`. Adding a domain means copying the shape of `modules/tasks/`; core never changes.
 2. **Connector = external API key.** Implements `Connector`; secrets are AES-256-GCM encrypted in `credentials`. Connectors get `getSecret()` and have **no DB access** — reconciliation lives in the owning module.
 3. **Unified timeline.** Every mutation also writes a `timeline_events` row. The AI reads that compact cross-domain log, never the whole database.
 4. **AI writes back.** `insights` and `ai_questions` are first-class tables, so knowledge accumulates cheaply. Spend is capped by `CostGuard` against the `ai_usage` ledger.

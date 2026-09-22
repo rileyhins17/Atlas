@@ -61,7 +61,7 @@ docs/                architecture, data model, roadmap, guides, ADRs, GOTCHAS.
 **Two architectural rules that are easy to break, and expensive when broken:**
 
 1. **Module = life domain.** Each implements `DomainModule` (`aiContext` +
-   `getToolSpecs`) and self-registers. Adding a domain means copying the shape
+   `tools`) and self-registers. Adding a domain means copying the shape
    of `modules/tasks/`; core never changes.
 2. **Pure logic lives in `packages/shared`, not in an app.** The fitness maths
    and the recurrence engine are shared so the UI and the API compute

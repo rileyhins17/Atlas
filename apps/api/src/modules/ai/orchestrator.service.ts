@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { ChatMessage } from '@atlas/connectors';
 import type { Insight } from '@atlas/db';
-import type { AiToolSpec, InsightDTO, PlanDayDTO, PlanProposalDTO } from '@atlas/shared';
+import type { InsightDTO, PlanDayDTO, PlanProposalDTO } from '@atlas/shared';
 import { describeEnergy, durationKey } from '@atlas/shared';
 import { buildContext, CostGuard, runToolLoop, type ToolLoopResult } from '@atlas/ai';
 import { PrismaService } from '../../core/prisma.service.js';
@@ -152,21 +152,6 @@ const QUESTIONS_SYSTEM_PROMPT =
   'for it. Ask at most 2 questions. If nothing stands out, call no tools. Base ' +
   'questions only on what the context actually shows; do not ask about activity ' +
   'you assumed rather than observed.';
-
-const ASK_QUESTION_TOOL: AiToolSpec = {
-  name: 'ai.ask_question',
-  description:
-    'Ask the user a question to fill a knowledge gap you noticed. Use sparingly.',
-  parameters: {
-    type: 'object',
-    properties: {
-      question: { type: 'string' },
-      rationale: { type: 'string', description: 'Why this helps Atlas serve the user better' },
-      relatesTo: { type: 'string', description: 'Domain this relates to, e.g. journal, habits' },
-    },
-    required: ['question'],
-  },
-};
 
 function toInsightDto(i: Insight): InsightDTO {
   return {
@@ -551,7 +536,7 @@ Propose a plan.`,
     ];
     return runToolLoop({
       messages,
-      tools: [ASK_QUESTION_TOOL],
+      tools: [this.toolRouter.askQuestion.spec],
       chat: (m, t) => this.chatCall(userId, 'questions', m, t),
       executeTool: (name, args) => this.toolRouter.execute(userId, name, args),
       maxIterations: 2,
