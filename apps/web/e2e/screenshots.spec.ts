@@ -214,7 +214,7 @@ test('capture the Life-OS screens', async ({ page }) => {
     ['/habits', 's-03-habits'],
     ['/fitness', 's-04-move'],
     ['/tasks', 's-05-tasks'],
-    ['/everything', 's-06-more'],
+    ['/everything', 's-06-you'],
     ['/settings', 's-07-settings'],
   ];
   for (const [path, name] of SOFT) await shoot(path, `p-${name}`);

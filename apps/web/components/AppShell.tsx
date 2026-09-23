@@ -166,6 +166,19 @@ function Frame({ name, children }: { name: string; children: ReactNode }) {
             >
               <MessageCircle size={18} aria-hidden />
             </IconButton>
+            {/* Soft's way to everything else and to Settings: its bottom bar
+                gives the middle slot to "+", so "More" moved up here. Hidden
+                in classic, whose bottom bar still carries Everything. */}
+            <Link
+              href="/everything"
+              className={`topbar-you ${pathname === '/everything' ? 'on' : ''}`}
+              aria-label="Everything else, and settings"
+              aria-current={pathname === '/everything' ? 'page' : undefined}
+            >
+              <span className="avatar" aria-hidden>
+                {initial}
+              </span>
+            </Link>
           </div>
         </header>
       )}

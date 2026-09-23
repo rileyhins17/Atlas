@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { TaskDTO, WorkoutTemplateDTO } from '@atlas/shared';
+import type { EventDTO } from '@atlas/shared';
 import {
+  dayProgress,
   daySummary,
+  dayTimeline,
   endOfToday,
+  isEndOfDay,
   habitFill,
   suggestedTemplate,
   todaysPlan,
@@ -113,5 +117,84 @@ describe('endOfToday', () => {
     expect(end.getDate()).toBe(15);
     expect(end.getHours()).toBe(23);
     expect(end.getMinutes()).toBe(59);
+  });
+});
+
+const event = (over: Partial<EventDTO>): EventDTO => ({
+  id: over.id ?? `e${Math.random()}`,
+  title: 'Event',
+  description: null,
+  location: null,
+  startAt: at(0, 10),
+  endAt: at(0, 11),
+  allDay: false,
+  source: 'atlas',
+  recurrence: null,
+  taskId: null,
+  createdAt: NOW.toISOString(),
+  ...over,
+});
+
+describe('dayProgress', () => {
+  it('counts today’s tasks and habit targets, and leaves carried-over work out', () => {
+    const plan = todaysPlan(
+      [
+        task({ title: 'old', dueAt: at(-3) }),
+        task({ title: 'open', dueAt: at(0, 16) }),
+        task({ title: 'done', status: 'DONE', dueAt: at(0, 9), completedAt: at(0, 10) }),
+      ],
+      NOW,
+    );
+    const p = dayProgress(plan, [
+      { todayCount: 1, target: 1 },
+      { todayCount: 1, target: 3 },
+    ]);
+    expect(p).toEqual({ done: 2, total: 4, fraction: 0.5 });
+  });
+
+  it('never reads an empty day as complete', () => {
+    expect(dayProgress({ earlier: [], today: [], doneToday: [] }, [])).toEqual({
+      done: 0,
+      total: 0,
+      fraction: 0,
+    });
+  });
+});
+
+describe('dayTimeline', () => {
+  it('interleaves events and timed tasks in the order the day runs', () => {
+    const plan = todaysPlan(
+      [task({ id: 'call', title: 'Call', dueAt: at(0, 15) }), task({ id: 'any', title: 'Any', dueAt: endOfToday(NOW).toISOString() })],
+      NOW,
+    );
+    const tl = dayTimeline(
+      [
+        event({ id: 'lunch', title: 'Lunch', startAt: at(0, 12), endAt: at(0, 13) }),
+        event({ id: 'gym', title: 'Gym', startAt: at(0, 18), endAt: at(0, 19) }),
+        event({ id: 'hol', title: 'Holiday', allDay: true }),
+      ],
+      plan,
+      NOW,
+    );
+    expect(tl.timed.map((e) => e.id)).toEqual(['lunch', 'call', 'gym']);
+    expect(tl.anytime.map((t) => t.id)).toEqual(['any']);
+  });
+
+  it('marks what is over, what is happening and what is ahead', () => {
+    const tl = dayTimeline(
+      [
+        event({ id: 'a', startAt: at(0, 9), endAt: at(0, 10) }),
+        event({ id: 'b', startAt: at(0, 13), endAt: at(0, 15) }),
+        event({ id: 'c', startAt: at(0, 16), endAt: at(0, 17) }),
+      ],
+      { earlier: [], today: [], doneToday: [] },
+      NOW,
+    );
+    expect(tl.timed.map((e) => e.state)).toEqual(['past', 'now', 'upcoming']);
+  });
+
+  it('knows 11:59 PM means "sometime today"', () => {
+    expect(isEndOfDay(endOfToday(NOW))).toBe(true);
+    expect(isEndOfDay(new Date(2026, 6, 15, 23, 30))).toBe(false);
   });
 });

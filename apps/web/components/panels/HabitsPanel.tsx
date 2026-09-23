@@ -27,6 +27,8 @@ import { IconButton } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
 import { useSubmitLatch } from '@/lib/hooks/submit-latch';
 import { localDayKey } from '@/lib/dates';
+import { habitFill } from '@/lib/soft-today';
+import { useUiStyle } from '@/lib/theme/style';
 
 const HISTORY_DAYS = 84; // 12 weeks of heatmap
 
@@ -34,6 +36,8 @@ const HISTORY_DAYS = 84; // 12 weeks of heatmap
 type HabitDraft = { id: string; name: string; target: string; cadence: HabitCadence };
 
 export function HabitsPanel() {
+  const style = useUiStyle();
+  const Row = style === 'soft' ? SoftHabitCard : HabitCard;
   const [name, setName] = useState('');
   const [draft, setDraft] = useState<HabitDraft | null>(null);
   const [draftError, setDraftError] = useState<string | null>(null);
@@ -166,7 +170,7 @@ export function HabitsPanel() {
           }
         >
           {habits.map((h) => (
-            <HabitCard
+            <Row
               key={h.id}
               habit={h}
               counts={historyByHabit.get(h.id)}
@@ -330,5 +334,94 @@ function HabitCard({
         />
       </div>
     </Card>
+  );
+}
+
+/**
+ * A habit in the soft style: the check-in is a big ring you tap, the week is
+ * seven labelled days rather than seven anonymous dots, and the streak is said
+ * in words. Same controls and the same labels as the classic card, so the two
+ * are interchangeable to anyone using a screen reader.
+ */
+function SoftHabitCard({
+  habit,
+  counts,
+  onCheckIn,
+  onEdit,
+  onRemove,
+}: {
+  habit: HabitDTO;
+  counts: Map<string, number> | undefined;
+  onCheckIn: () => void;
+  onEdit: () => void;
+  onRemove: () => void;
+}) {
+  const week = weekCells(counts, habit.target, new Date());
+  const fill = habitFill(habit);
+  return (
+    <section className={`sf-card sh-card ${habit.doneToday ? 'is-done' : ''}`}>
+      <div className="sh-top">
+        <button
+          type="button"
+          className="sh-ring"
+          aria-label={`Check in "${habit.name}"`}
+          aria-pressed={habit.doneToday}
+          onClick={onCheckIn}
+          style={{ '--fill': `${Math.round(fill * 360)}deg` } as React.CSSProperties}
+        >
+          <span className="sh-ring-core">
+            {habit.doneToday ? (
+              <Check size={22} strokeWidth={3} aria-hidden />
+            ) : habit.target > 1 ? (
+              `${habit.todayCount}/${habit.target}`
+            ) : null}
+          </span>
+        </button>
+        <div className="sh-text">
+          <button
+            type="button"
+            className="sh-name"
+            aria-label={`Edit habit "${habit.name}"`}
+            onClick={onEdit}
+          >
+            {habit.name}
+          </button>
+          <span className="sh-sub">
+            {habit.doneToday ? 'Done today' : `${habit.todayCount} of ${habit.target} today`} ·{' '}
+            {habit.cadence}
+          </span>
+        </div>
+        <IconButton label={`Archive "${habit.name}"`} onClick={onRemove}>
+          <X size={16} aria-hidden />
+        </IconButton>
+      </div>
+
+      <div className="sh-week" role="img" aria-label={`${habit.name}: last 7 days`}>
+        {week.map((c) => (
+          <span key={c.day} className={`sh-day ${c.done ? 'is-done' : ''}`}>
+            <span className="sh-day-dot" />
+            <span className="sh-day-name">
+              {new Date(`${c.day}T12:00:00`).toLocaleDateString('en-US', { weekday: 'narrow' })}
+            </span>
+          </span>
+        ))}
+      </div>
+
+      {habit.streak > 0 && (
+        <p className="sh-streak" aria-label={`${habit.streak} day streak`}>
+          <Flame size={15} aria-hidden />
+          {habit.streak === 1 ? 'Streak started — keep it going' : `${habit.streak} days in a row`}
+        </p>
+      )}
+
+      <div className="habit-heatmap">
+        <Heatmap
+          counts={counts ?? new Map()}
+          weeks={26}
+          target={habit.target}
+          label={`${habit.name} check-ins, last 26 weeks`}
+        />
+      </div>
+    </section>
   );
 }

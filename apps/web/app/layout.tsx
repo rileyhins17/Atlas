@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Nunito, Plus_Jakarta_Sans } from 'next/font/google';
+import { Fraunces, Nunito, Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import { ServiceWorkerRegistrar } from '@/components/ServiceWorkerRegistrar';
@@ -21,6 +21,15 @@ const rounded = Nunito({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-rounded',
+});
+
+// The display face for headings in the soft style: a warm, soft-edged serif
+// that gives titles a voice of their own, over Nunito for everything you read.
+const serif = Fraunces({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-serif',
+  axes: ['SOFT', 'opsz'],
 });
 
 export const metadata: Metadata = {
@@ -78,7 +87,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     // expected attribute mismatch it causes (standard theme-flash pattern).
     <html
       lang="en"
-      className={`${sans.variable} ${rounded.variable}`}
+      className={`${sans.variable} ${rounded.variable} ${serif.variable}`}
       // The default style is in the markup itself, so a browser where the
       // script cannot read storage still gets the soft layout WITH its CSS
       // rather than the soft Today inside classic styling.

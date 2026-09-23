@@ -1,4 +1,4 @@
-import type { HabitDTO, TaskDTO, WorkoutTemplateDTO } from '@atlas/shared';
+import type { EventDTO, HabitDTO, TaskDTO, WorkoutTemplateDTO } from '@atlas/shared';
 import { localDayKey, startOfDay } from './dates';
 
 /**
@@ -105,4 +105,89 @@ export function endOfToday(now: Date): Date {
   const d = startOfDay(now);
   d.setHours(23, 59, 0, 0);
   return d;
+}
+
+/** "Due 11:59 PM" is how "sometime today" is stored. */
+export function isEndOfDay(d: Date): boolean {
+  return d.getHours() === 23 && d.getMinutes() === 59;
+}
+
+export interface DayProgress {
+  done: number;
+  total: number;
+  /** 0–1; 0 for a day with nothing in it, so an empty ring is never "complete". */
+  fraction: number;
+}
+
+/**
+ * How much of TODAY is done: today's tasks and every habit's daily target.
+ *
+ * Work carried over from earlier days is left out on purpose. It is offered
+ * back on the plan, but counting it here would start a day at "0 of 9" because
+ * of last week — the ring measures the day you are in, not a backlog.
+ */
+export function dayProgress(
+  plan: TodaysPlan,
+  habits: Pick<HabitDTO, 'todayCount' | 'target'>[],
+): DayProgress {
+  const habitsDone = habits.filter((h) => h.todayCount >= h.target).length;
+  const done = plan.doneToday.length + habitsDone;
+  const total = plan.today.length + plan.doneToday.length + habits.length;
+  return { done, total, fraction: total === 0 ? 0 : done / total };
+}
+
+export type TimelineEntry =
+  | {
+      kind: 'event';
+      id: string;
+      title: string;
+      start: Date;
+      end: Date;
+      state: 'past' | 'now' | 'upcoming';
+    }
+  | { kind: 'task'; id: string; title: string; start: Date; task: TaskDTO; state: 'past' | 'upcoming' };
+
+export interface DayTimeline {
+  /** Events and timed tasks, in the order the day runs. */
+  timed: TimelineEntry[];
+  /** Due today with no particular time — what "add to today" creates. */
+  anytime: TaskDTO[];
+}
+
+/**
+ * Today as one timeline: the calendar and the timed tasks interleaved, so the
+ * day reads top to bottom as it will happen. All-day events are left out —
+ * they are not a moment in the day — and a task with no time goes under
+ * "anytime" rather than being pinned to 11:59 PM.
+ */
+export function dayTimeline(events: EventDTO[], plan: TodaysPlan, now: Date): DayTimeline {
+  const t = now.getTime();
+  const timed: TimelineEntry[] = [];
+  const anytime: TaskDTO[] = [];
+
+  for (const e of events) {
+    if (e.allDay) continue;
+    const start = new Date(e.startAt);
+    const end = new Date(e.endAt);
+    const state = end.getTime() <= t ? 'past' : start.getTime() <= t ? 'now' : 'upcoming';
+    timed.push({ kind: 'event', id: e.id, title: e.title, start, end, state });
+  }
+  for (const task of plan.today) {
+    const due = new Date(task.dueAt!);
+    if (isEndOfDay(due)) {
+      anytime.push(task);
+      continue;
+    }
+    timed.push({
+      kind: 'task',
+      id: task.id,
+      title: task.title,
+      start: due,
+      task,
+      state: due.getTime() < t ? 'past' : 'upcoming',
+    });
+  }
+
+  timed.sort((a, b) => a.start.getTime() - b.start.getTime());
+  return { timed, anytime };
 }
