@@ -180,6 +180,9 @@ What soft is, so it is not re-derived from the CSS:
   shared with `ThemeToggle`) and Sign out. Settings sections carry icon tiles (`icon` on
   `SettingsSection`), and a card inside a soft section is flattened so it is not a card in a card.
 - Re-tapping the active soft tab scrolls to the top.
+- **A failed session check is never "signed out"** (both styles): `useMe` retries a non-401 failure
+  with backoff and the shell renders "Can't reach Atlas", retrying on its own, rather than the
+  sign-in form (`lib/session-state.ts`; e2e `a throttled session check is never mistaken…`).
 - **Both styles:** an empty habit list offers one-tap starters (`HabitSuggestions`,
   `lib/habit-suggestions.ts`). Toasts sit above the phone chrome instead of over the nav.
   `.main-inner` widens to 1240px for the week grid and soft Today (the old `.page-wide` rule
@@ -436,6 +439,13 @@ The short version of what is STILL open:
   stops it recurring. The API now returns 424 with a reconnect message instead of a 500.
 - **Unverified live:** Google Calendar delete propagation; Plaid production.
 - The Plaid webhook does not verify Plaid's signature (harmless while it is a no-op).
+- **Every visitor probably shares ONE rate-limit bucket in production (unverified live).** The
+  throttler keys on route + IP, and the API sees `req.ip` through `trust proxy 1` — but Caddy sits
+  behind cloudflared on 127.0.0.1 and, with no `trusted_proxies`, sends `X-Forwarded-For:
+  127.0.0.1` for everyone. If so, 120 page loads a minute across ALL users 429s `/auth/me` for a
+  minute. Since Sept 2026 that shows "Can't reach Atlas" and retries instead of a sign-in form
+  (`sessionState`), but the fix is Caddy's `trusted_proxies` plus `client_ip_headers
+  Cf-Connecting-IP` — then verify with two devices on different networks before trusting it.
 - ~~Notes and journal have no edit UI~~ — **done.** Both are editable in place on the writing
   surface (`WrittenCard`). Journal gained `PATCH /journal/:id`; notes gained the client method its
   API already had. Both write a `*.updated` timeline row, and a journal edit re-embeds only when

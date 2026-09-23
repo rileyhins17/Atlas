@@ -48,7 +48,12 @@ export function useMe() {
       }
     },
     staleTime: Infinity,
-    retry: false,
+    // A 401 never reaches here — it resolves to null above. Anything that
+    // does is transient (a throttled burst, an API restart, a dropped
+    // connection), so it is worth a few quick tries before the shell says it
+    // cannot reach Atlas; it must never be read as signed out.
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1_000 * 2 ** attempt, 8_000),
   });
 }
 
@@ -72,7 +77,12 @@ export function useAuthConfig() {
     queryKey: ['auth', 'config'],
     queryFn: AuthApi.config,
     staleTime: Infinity,
-    retry: false,
+    // A 401 never reaches here — it resolves to null above. Anything that
+    // does is transient (a throttled burst, an API restart, a dropped
+    // connection), so it is worth a few quick tries before the shell says it
+    // cannot reach Atlas; it must never be read as signed out.
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1_000 * 2 ** attempt, 8_000),
   });
 }
 

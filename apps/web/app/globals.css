@@ -765,6 +765,20 @@ input[type='checkbox']:checked::after {
   z-index: 40;
 }
 
+/* The session check failed for a reason that is not "signed out". */
+.unreachable {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 360px;
+  margin: 18vh auto 0;
+  padding: 0 16px;
+  text-align: center;
+}
+.unreachable-title { margin: 8px 0 0; font-size: 22px; font-weight: 700; color: var(--text-primary); }
+.unreachable-body { margin: 0 0 8px; font-size: 15.5px; color: var(--text-muted); }
+
 /* Sign-in screen. */
 .gate-shell {
   min-height: 100vh;
