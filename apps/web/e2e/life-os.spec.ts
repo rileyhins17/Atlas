@@ -2079,7 +2079,7 @@ test('soft style: a calm Today you can run your day from, clean on every route',
   } finally {
     // Leave the shared account's browser the way the rest of the file expects.
     await page.evaluate(() => {
-      localStorage.removeItem('atlas-style');
+      localStorage.setItem('atlas-style', 'classic');
       localStorage.removeItem('atlas-theme');
       localStorage.removeItem('atlas-palette');
     });

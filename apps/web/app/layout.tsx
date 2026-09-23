@@ -4,6 +4,7 @@ import './globals.css';
 import { Providers } from './providers';
 import { ServiceWorkerRegistrar } from '@/components/ServiceWorkerRegistrar';
 import { DEFAULT_PALETTE, palettesCss } from '@/lib/theme/palettes';
+import { DEFAULT_STYLE } from '@/lib/theme/style-default';
 
 // Self-hosted at build (no runtime request to Google; CSP/offline-safe). A warm,
 // friendly geometric sans — carries the "warm & cozy" feel.
@@ -13,9 +14,9 @@ const sans = Plus_Jakarta_Sans({
   variable: '--font-sans',
 });
 
-// Soft style's face: rounded terminals, friendly at small sizes. Loaded for
-// everyone (next/font only exposes a variable; nothing renders in it unless
-// data-style="soft" points --font-sans at it).
+// Soft style's face — the default — with rounded terminals, friendly at small
+// sizes. next/font only exposes a variable; data-style="soft" points
+// --font-sans at it.
 const rounded = Nunito({
   subsets: ['latin'],
   display: 'swap',
@@ -69,13 +70,21 @@ export const viewport: Viewport = {
 // Runs before first paint so the saved (or system) theme is applied with no
 // flash. Kept tiny and dependency-free; the base CSS is dark, so any failure
 // falls back to dark.
-const themeScript = `(function(){try{var d=document.documentElement;var t=localStorage.getItem('atlas-theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}d.setAttribute('data-theme',t);var p=localStorage.getItem('atlas-palette');d.setAttribute('data-palette',p&&/^[a-z]{2,16}$/.test(p)?p:'${DEFAULT_PALETTE}');var s=localStorage.getItem('atlas-style');d.setAttribute('data-style',s==='soft'?'soft':'classic');}catch(e){}})();`;
+const themeScript = `(function(){try{var d=document.documentElement;var t=localStorage.getItem('atlas-theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}d.setAttribute('data-theme',t);var p=localStorage.getItem('atlas-palette');d.setAttribute('data-palette',p&&/^[a-z]{2,16}$/.test(p)?p:'${DEFAULT_PALETTE}');var s=localStorage.getItem('atlas-style');d.setAttribute('data-style',s==='classic'?'classic':'${DEFAULT_STYLE}');}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     // The theme script sets data-theme on <html> before hydration; suppress the
     // expected attribute mismatch it causes (standard theme-flash pattern).
-    <html lang="en" className={`${sans.variable} ${rounded.variable}`} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${sans.variable} ${rounded.variable}`}
+      // The default style is in the markup itself, so a browser where the
+      // script cannot read storage still gets the soft layout WITH its CSS
+      // rather than the soft Today inside classic styling.
+      data-style={DEFAULT_STYLE}
+      suppressHydrationWarning
+    >
       <head>
         {/*
           Every palette, as static CSS, generated from one source of truth in

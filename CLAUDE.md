@@ -138,19 +138,25 @@ docs/                architecture, data-model, roadmap, guides, ADRs, GOTCHAS.
   and the sign-up form.
 - **`/settings`** — collapsible sections. **Your week** (the routine editor) is what makes Today's free-time calculation correct, so it opens by default. Appearance and sign-out live in "Your data & account".
 
-**Soft style is a second, opt-in design** (Settings → Appearance → Style). Appearance has three
-independent axes, all on `<html>` and restored before paint by the script in `app/layout.tsx`:
-`data-theme` (light/dark), `data-palette` (eleven contrast-solved palettes) and `data-style`
-(`classic` default, or `soft`). Soft is rounded, warm and phone-first: Nunito, floating cards and
-a pill nav, the Blush palette, and its own Today (`components/soft/SoftToday.tsx`, pure logic in
-`lib/soft-today.ts`) — greeting, up next, today's plan with add-to-today, habit rings, the
-check-ins, and a Move card that starts the most-due training day. Its nav is Today · Plan · Habits
-· Move · More (`SOFT_NAV` in `lib/sections.ts`). Every soft rule is scoped under
-`[data-style='soft']`, so classic is untouched; its token literals live in the token block like
-every other colour. It is a localStorage preference on purpose — production applies migrations by
-hand, and a preference is not worth a column that 500s the site until someone runs one. The
-screenshot rig shoots it (`p-s-*`), and `soft style: …` in `life-os.spec.ts` sweeps all thirteen
-routes in both themes for axe, tap targets and input size.
+**Soft is the default design; classic is the opt-in** (Settings → Appearance → Style). Appearance
+has three independent axes, all on `<html>` and restored before paint by the script in
+`app/layout.tsx`: `data-theme` (light/dark), `data-palette` (eleven contrast-solved palettes,
+`blush` default) and `data-style` (`soft` default, or `classic`). The default style is also in
+the server markup, so a browser whose storage the script cannot read still gets soft WITH its CSS.
+Only an explicit `classic` is stored, which is why moving the default moved everyone who never
+chose. Soft is rounded, warm and phone-first: Nunito, floating cards and a pill nav, the Blush
+palette, and its own Today (`components/soft/SoftToday.tsx`, pure logic in `lib/soft-today.ts`) —
+greeting, up next, today's plan with add-to-today, habit rings, the check-ins, and a Move card that
+starts the most-due training day. Its nav is Today · Plan · Habits · Move · More (`SOFT_NAV` in
+`lib/sections.ts`). Every soft rule is scoped under `[data-style='soft']`; its token literals live
+in the token block like every other colour. `TodayView` is only the first-run gate plus a style
+switch: SoftToday, `ClassicToday` and the onboarding wizard are each a `next/dynamic` chunk, so
+nobody downloads the Today they are not using (188 → 160 kB first load). It is a localStorage
+preference on purpose — production applies migrations by hand, and a preference is not worth a
+column that 500s the site until someone runs one. **The e2e `register()` helper pins classic**,
+because most specs assert classic's Today and nav; `soft style: …` in `life-os.spec.ts` switches to
+soft and sweeps all thirteen routes in both themes for axe, tap targets and input size, and the
+screenshot rig shoots it (`p-s-*`).
 
 **Navigation is three destinations along one axis — time.** Today · Week · Looking back, with
 "Everything" one level down. **Both navs must agree**: the sidebar is `display: none` below 901px,

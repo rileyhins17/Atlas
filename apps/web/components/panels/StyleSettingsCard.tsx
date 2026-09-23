@@ -1,19 +1,18 @@
 'use client';
 
 import { Check } from 'lucide-react';
-import { DEFAULT_PALETTE } from '@/lib/theme/palettes';
 import { applyUiStyle, useUiStyle, type UiStyle } from '@/lib/theme/style';
 
 const STYLES: { id: UiStyle; name: string; hint: string }[] = [
   {
-    id: 'classic',
-    name: 'Classic',
-    hint: 'Your whole day at once, hour by hour. Built for planning.',
-  },
-  {
     id: 'soft',
     name: 'Soft',
     hint: 'Rounded, warm and calm. Your plan, habits, check-ins and training on one screen.',
+  },
+  {
+    id: 'classic',
+    name: 'Classic',
+    hint: 'Your whole day at once, hour by hour. Built for planning.',
   },
 ];
 
@@ -21,8 +20,6 @@ const STYLES: { id: UiStyle; name: string; hint: string }[] = [
  * Pick the app's style — see lib/theme/style.ts.
  *
  * Applied on tap, like the palette, because a look is judged by looking at it.
- * Choosing Soft also moves an untouched palette to Blush; a palette someone
- * picked themselves is left alone.
  */
 export function StyleSettingsCard() {
   const style = useUiStyle();
@@ -39,7 +36,7 @@ export function StyleSettingsCard() {
               role="radio"
               aria-checked={active}
               className={`pal-card ${active ? 'on' : ''}`}
-              onClick={() => applyUiStyle(s.id, { defaultPalette: DEFAULT_PALETTE })}
+              onClick={() => applyUiStyle(s.id)}
             >
               <span className="pal-text">
                 <span className="pal-name">
