@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { describeRrule, type EventDTO } from '@atlas/shared';
 import { errorMessage } from '@/lib/api';
 import {
@@ -25,7 +25,8 @@ import {
 } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
 import { WeekGrid } from '@/components/calendar/WeekGrid';
-import { useCompleteTask, useTasks } from '@/lib/hooks/tasks';
+import { useCompleteTask, useCreateTask, useTasks } from '@/lib/hooks/tasks';
+import { useSubmitLatch } from '@/lib/hooks/submit-latch';
 import { useUiStyle } from '@/lib/theme/style';
 import { EventComposer } from '@/components/calendar/EventComposer';
 import { blankDraft, draftAtSlot, draftFor, type Draft } from '@/lib/event-draft';
@@ -41,6 +42,7 @@ import {
   minutesBetween,
   rangeLabel,
   startOfWeek,
+  swipeStep,
   weekDays,
   weekdayShort,
 } from '@/lib/calendar-view';
@@ -93,6 +95,33 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
     return bucketByDay(events, d, d);
   }, [events, scope, days, selectedDay]);
 
+
+  // Soft's agenda moves a day at a time under a horizontal swipe, the way a
+  // phone calendar does. Touch-end only and never preventDefault: vertical
+  // scrolling is untouched, and swipeStep ignores anything not clearly sideways.
+  const touch = useRef<{ x: number; y: number } | null>(null);
+  function shiftDay(delta: number) {
+    const next = addDays(dateFromDayKey(selectedDay), delta);
+    setSelectedDay(localDayKey(next));
+    setAnchor(next);
+  }
+  const swipe =
+    style === 'soft' && scope === 'day'
+      ? {
+          onTouchStart: (e: React.TouchEvent) => {
+            const t = e.touches[0];
+            touch.current = t ? { x: t.clientX, y: t.clientY } : null;
+          },
+          onTouchEnd: (e: React.TouchEvent) => {
+            const start = touch.current;
+            const t = e.changedTouches[0];
+            touch.current = null;
+            if (!start || !t) return;
+            const step = swipeStep(t.clientX - start.x, t.clientY - start.y);
+            if (step !== 0) shiftDay(step);
+          },
+        }
+      : {};
 
   function openCreate(dayKey = selectedDay) {
     setDraft(blankDraft(dayKey, now));
@@ -256,7 +285,7 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
           />
         </Card>
       ) : (
-      <Card style={{ marginTop: 12 }}>
+      <Card style={{ marginTop: 12 }} {...swipe}>
         {eventsQuery.isPending ? (
           <ListSkeleton rows={3} circle={false} />
         ) : listError ? (
@@ -331,7 +360,7 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
       </Card>
       )}
 
-      {style === 'soft' && scope === 'day' && <DayTasks dayKey={selectedDay} />}
+      {style === 'soft' && scope === 'day' && <DayTasks dayKey={selectedDay} todayKey={todayKey} />}
 
       {/* One field per row. The old form put two datetime-local inputs side by
           side, which cannot shrink below ~260px each and pushed the page to
@@ -350,11 +379,15 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
  * Soft's agenda puts the day's tasks under its events: "what is on" and "what
  * I said I would do" are one question when you are planning a day. Open work
  * due that day plus what was ticked off on it, from the same working set every
- * task surface reads. Renders nothing for a day with no tasks.
+ * task surface reads — and, for today or a day ahead, a box that puts a task
+ * on the day you are looking at. A past day with nothing on it renders nothing.
  */
-function DayTasks({ dayKey }: { dayKey: string }) {
+function DayTasks({ dayKey, todayKey }: { dayKey: string; todayKey: string }) {
   const tasks = useTasks();
   const complete = useCompleteTask();
+  const create = useCreateTask();
+  const latch = useSubmitLatch();
+  const [draft, setDraft] = useState('');
   const rows = useMemo(
     () =>
       (tasks.data ?? [])
@@ -367,7 +400,29 @@ function DayTasks({ dayKey }: { dayKey: string }) {
     [tasks.data, dayKey],
   );
 
-  if (!tasks.isSuccess || rows.length === 0) return null;
+  // Planning is forward: the past keeps its list but gets no box.
+  const canAdd = dayKey >= todayKey;
+  if (!tasks.isSuccess || (rows.length === 0 && !canAdd)) return null;
+
+  const dayWord =
+    dayKey === todayKey
+      ? 'today'
+      : dateFromDayKey(dayKey).toLocaleDateString('en-US', fmt({ weekday: 'long' }));
+
+  function add(e: React.FormEvent) {
+    e.preventDefault();
+    const title = draft.trim();
+    if (!title || create.isPending) return;
+    // 11:59 PM is how "sometime that day" is stored — the same as Today's box.
+    const due = dateFromDayKey(dayKey);
+    due.setHours(23, 59, 0, 0);
+    latch((release) =>
+      create.mutate(
+        { title, dueAt: due },
+        { onSuccess: () => setDraft(''), onSettled: release },
+      ),
+    );
+  }
 
   return (
     <section className="sf-card cal-tasks" aria-labelledby="cal-tasks-title">
@@ -376,30 +431,54 @@ function DayTasks({ dayKey }: { dayKey: string }) {
           To do
         </h2>
       </header>
-      <ul className="sf-tasks">
-        {rows.map((t) =>
-          t.status === 'DONE' ? (
-            <li key={t.id} className="sf-task is-done">
-              <span className="sf-tick done" aria-hidden>
-                <Check size={14} />
-              </span>
-              <span className="sf-task-title">{t.title}</span>
-            </li>
-          ) : (
-            <li key={t.id} className="sf-task">
-              <button
-                type="button"
-                className="sf-tick"
-                aria-label={`Complete "${t.title}"`}
-                onClick={() => complete.mutate(t.id)}
-              >
-                <Check size={14} aria-hidden />
-              </button>
-              <span className="sf-task-title">{t.title}</span>
-            </li>
-          ),
-        )}
-      </ul>
+      {rows.length > 0 ? (
+        <ul className="sf-tasks">
+          {rows.map((t) =>
+            t.status === 'DONE' ? (
+              <li key={t.id} className="sf-task is-done">
+                <span className="sf-tick done" aria-hidden>
+                  <Check size={14} />
+                </span>
+                <span className="sf-task-title">{t.title}</span>
+              </li>
+            ) : (
+              <li key={t.id} className="sf-task">
+                <button
+                  type="button"
+                  className="sf-tick"
+                  aria-label={`Complete "${t.title}"`}
+                  onClick={() => complete.mutate(t.id)}
+                >
+                  <Check size={14} aria-hidden />
+                </button>
+                <span className="sf-task-title">{t.title}</span>
+              </li>
+            ),
+          )}
+        </ul>
+      ) : (
+        <p className="sf-muted">Nothing due {dayWord === 'today' ? 'today' : `on ${dayWord}`} yet.</p>
+      )}
+      {canAdd && (
+        <form className="sf-add" onSubmit={add}>
+          <input
+            className="sf-input"
+            placeholder={`Add a task for ${dayWord}`}
+            aria-label={`Add a task for ${dayWord}`}
+            value={draft}
+            maxLength={300}
+            onChange={(e) => setDraft(e.target.value)}
+          />
+          <button
+            type="submit"
+            className="sf-add-btn"
+            aria-label={`Add to ${dayWord}`}
+            disabled={!draft.trim() || create.isPending}
+          >
+            <Plus size={18} aria-hidden />
+          </button>
+        </form>
+      )}
     </section>
   );
 }

@@ -17,6 +17,7 @@ import {
   toTimeValue,
   visibleHourRange,
   weekDays,
+  swipeStep,
 } from '../lib/calendar-view';
 
 function event(partial: Partial<EventDTO>): EventDTO {
@@ -368,5 +369,21 @@ describe('placeDayEvents', () => {
     });
     const [p] = placeDayEvents([overnight], day, { startHour: 0, endHour: 24 });
     expect(p!.top + p!.height).toBeCloseTo(1, 5);
+  });
+});
+
+describe('swipeStep', () => {
+  it('reads a swipe left as the next day and a swipe right as the previous', () => {
+    expect(swipeStep(-120, 10)).toBe(1);
+    expect(swipeStep(120, -10)).toBe(-1);
+  });
+
+  it('ignores a short flick', () => {
+    expect(swipeStep(-40, 0)).toBe(0);
+  });
+
+  it('never changes the day on a scroll that drifted sideways', () => {
+    expect(swipeStep(-90, 60)).toBe(0);
+    expect(swipeStep(80, 300)).toBe(0);
   });
 });

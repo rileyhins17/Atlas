@@ -749,3 +749,26 @@ Restarting the API brought it straight back to green. So before judging a full
 local run, **start the API fresh** — and never answer this by raising the limit
 or adding a test bypass to a production codebase. The limit is correct; the
 long-lived process was the variable.
+
+## `next/font/google` cannot pin a variable axis — it ships the whole font
+
+Soft's titles use Fraunces at SOFT 100 and weight 600, and nothing else. Asked
+for through `next/font/google` with `axes: ['SOFT', 'opsz']`, it downloaded the
+entire variable font — every weight, every softness, every optical size — and
+preloaded it on every page: 121 kB for one weight. `next/font/google` can
+include an axis's full range but cannot fix it at a value.
+
+Google Fonts' own CSS API can: `Fraunces:opsz,SOFT,wght@9..144,100,600` serves
+an instance with softness and weight pinned and optical size still variable —
+33 kB, rendering identically. That file is self-hosted with `next/font/local`
+(`apps/web/app/fonts/`, licence beside it). The consequence to remember: it
+has ONE weight, so a display-font rule that asks for bold gets a synthesised
+faux-bold. Every use sets `font-weight: 600`.
+
+## A `>` inside a button's attribute hides its onClick from `no-dead-controls`
+
+`test/no-dead-controls.test.ts` reads each `<button …>` opening tag from the
+source and stops at the first `>`. An `aria-label={n > 1 ? … : …}` ends the tag
+early, so the `onClick` after it is never seen and a working button is
+reported as dead. Compute the label in a variable before the JSX — which reads
+better anyway.

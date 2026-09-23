@@ -25,6 +25,7 @@ import {
 } from '@/components/ui';
 import { IconButton } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
+import { HabitSuggestions } from '@/components/HabitSuggestions';
 import { useSubmitLatch } from '@/lib/hooks/submit-latch';
 import { localDayKey } from '@/lib/dates';
 import { habitFill } from '@/lib/soft-today';
@@ -146,6 +147,8 @@ export function HabitsPanel() {
         </Button>
       </form>
       {error && <div className="error">{error}</div>}
+      {/* Only on an empty list, and only once it is KNOWN to be empty. */}
+      {habitsQuery.isSuccess && habits.length === 0 && <HabitSuggestions habits={habits} />}
       {dupWarned && (
         // role=status so a screen reader hears why the first Add "did nothing".
         <p className="muted" role="status" style={{ margin: '6px 0 0', fontSize: 13 }}>

@@ -332,3 +332,14 @@ export function placeDayEvents(
   }
   return out;
 }
+
+/**
+ * A finished touch as a day step: +1 for a swipe to the left (the next day),
+ * -1 to the right, 0 for anything that was not clearly a horizontal swipe.
+ * "Clearly" is the whole rule — a vertical scroll that drifts sideways must
+ * never change the day under someone's thumb.
+ */
+export function swipeStep(dx: number, dy: number, minDistance = 60): -1 | 0 | 1 {
+  if (Math.abs(dx) < minDistance || Math.abs(dx) < 2 * Math.abs(dy)) return 0;
+  return dx < 0 ? 1 : -1;
+}

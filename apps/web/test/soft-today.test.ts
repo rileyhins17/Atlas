@@ -6,6 +6,7 @@ import {
   daySummary,
   dayTimeline,
   endOfToday,
+  gettingStartedSteps,
   isEndOfDay,
   habitFill,
   suggestedTemplate,
@@ -196,5 +197,31 @@ describe('dayTimeline', () => {
   it('knows 11:59 PM means "sometime today"', () => {
     expect(isEndOfDay(endOfToday(NOW))).toBe(true);
     expect(isEndOfDay(new Date(2026, 6, 15, 23, 30))).toBe(false);
+  });
+});
+
+describe('gettingStartedSteps', () => {
+  const blank = { hasName: false, hasTask: false, habitCount: 0, templateCount: 0, watchConnected: false };
+
+  it('lists the first things to do, smallest first, none done on a new account', () => {
+    const steps = gettingStartedSteps(blank);
+    expect(steps.map((s) => s.id)).toEqual(['name', 'habit', 'plan', 'training', 'watch']);
+    expect(steps.every((s) => !s.done)).toBe(true);
+  });
+
+  it('ticks each step off from the data itself', () => {
+    const steps = gettingStartedSteps({
+      hasName: true,
+      hasTask: true,
+      habitCount: 2,
+      templateCount: 1,
+      watchConnected: true,
+    });
+    expect(steps.every((s) => s.done)).toBe(true);
+  });
+
+  it('leaves the watch out when this server cannot connect one', () => {
+    const steps = gettingStartedSteps({ ...blank, watchConnected: null });
+    expect(steps.map((s) => s.id)).not.toContain('watch');
   });
 });

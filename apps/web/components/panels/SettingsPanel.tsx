@@ -1,5 +1,18 @@
 'use client';
 
+import {
+  Bell,
+  CalendarClock,
+  CalendarDays,
+  Dumbbell,
+  Landmark,
+  Palette,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sparkles,
+  UserRound,
+  Watch,
+} from 'lucide-react';
 import { useGoogleStatus } from '@/lib/hooks/google';
 
 import { PageHeader } from '@/components/PageHeader';
@@ -27,36 +40,38 @@ export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
 
       {/* Your week first: it drives what Today calls free time, so it is the
           setting people actually come here to correct. */}
-      <SettingsSection id="routine" title="Your week" hint="sleep, work and the shape of your day" defaultOpen>
+      <SettingsSection id="routine" icon={CalendarClock} title="Your week" hint="sleep, work and the shape of your day" defaultOpen>
         <RoutineEditor />
       </SettingsSection>
 
-      <SettingsSection id="you" title="Your name" hint="how Atlas greets you">
+      <SettingsSection id="you" icon={UserRound} title="Your name" hint="how Atlas greets you">
         <NameSettingsCard />
       </SettingsSection>
 
-      <SettingsSection id="ai" title="Atlas AI" hint="model key and usage">
+      <SettingsSection id="ai" icon={Sparkles} title="Atlas AI" hint="model key and usage">
         <AiSettingsCard />
       </SettingsSection>
 
       <SettingsSection
         id="trackers"
+        icon={SlidersHorizontal}
         title="Daily check-ins"
         hint="rate anything on a 1–10 scale"
       >
         <TrackerManager />
       </SettingsSection>
 
-      <SettingsSection id="training" title="Training" hint="weight units">
+      <SettingsSection id="training" icon={Dumbbell} title="Training" hint="weight units">
         <TrainingSettingsCard />
       </SettingsSection>
 
-      <SettingsSection id="proactive" title="Briefs & notifications" hint="when Atlas checks in">
+      <SettingsSection id="proactive" icon={Bell} title="Briefs & notifications" hint="when Atlas checks in">
         <ProactiveSettingsCard />
       </SettingsSection>
 
       <SettingsSection
         id="google"
+        icon={CalendarDays}
         title="Google Calendar"
         /* Three states, not two. `data ?? null` made a PENDING query read as
            "not connected", so anyone who was connected opened Settings and was
@@ -69,25 +84,25 @@ export function SettingsPanel({ onSignOut }: { onSignOut: () => void }) {
         <GoogleCalendarCard />
       </SettingsSection>
 
-      <SettingsSection id="wearables" title="Fitbit & Pixel Watch" hint="sleep, steps, heart">
+      <SettingsSection id="wearables" icon={Watch} title="Fitbit & Pixel Watch" hint="sleep, steps, heart">
         <WearablesCard />
       </SettingsSection>
 
       {/* Its own section rather than buried under "Your data & account" with
           the light/dark toggle: a colour scheme is the thing people go looking
           for, and it was two levels down next to Delete account. */}
-      <SettingsSection id="appearance" title="Appearance" hint="style and colours">
+      <SettingsSection id="appearance" icon={Palette} title="Appearance" hint="style and colours">
         <div className="stack" style={{ gap: 14 }}>
           <StyleSettingsCard />
           <PaletteSettingsCard />
         </div>
       </SettingsSection>
 
-      <SettingsSection id="banking" title="Banking" hint="connect an account">
+      <SettingsSection id="banking" icon={Landmark} title="Banking" hint="connect an account">
         <PlaidCard />
       </SettingsSection>
 
-      <SettingsSection id="data" title="Your data & account" hint="appearance, sign out, export, delete">
+      <SettingsSection id="data" icon={ShieldCheck} title="Your data & account" hint="appearance, sign out, export, delete">
         <DataPrivacyPanel onSignOut={onSignOut} />
       </SettingsSection>
     </>

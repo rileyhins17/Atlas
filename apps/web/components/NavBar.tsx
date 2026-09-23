@@ -110,6 +110,9 @@ function SoftNav({
         className={`nav-link ${isActive ? 'active' : ''}`}
         aria-current={isActive ? 'page' : undefined}
         title={collapsed ? item.label : undefined}
+        // Tapping the tab you are already on takes you back to its top, the
+        // way every phone app's tab bar does.
+        onClick={isActive ? () => window.scrollTo({ top: 0, behavior: 'smooth' }) : undefined}
       >
         <Icon className="nav-icon" size={20} aria-hidden />
         <span className="nav-label">{item.label}</span>
