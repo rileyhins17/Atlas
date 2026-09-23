@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
-import { Fraunces, Nunito, Plus_Jakarta_Sans } from 'next/font/google';
+import { Nunito, Plus_Jakarta_Sans } from 'next/font/google';
+import localFont from 'next/font/local';
 import './globals.css';
 import { Providers } from './providers';
 import { ServiceWorkerRegistrar } from '@/components/ServiceWorkerRegistrar';
@@ -7,11 +8,14 @@ import { DEFAULT_PALETTE, palettesCss } from '@/lib/theme/palettes';
 import { DEFAULT_STYLE } from '@/lib/theme/style-default';
 
 // Self-hosted at build (no runtime request to Google; CSP/offline-safe). A warm,
-// friendly geometric sans — carries the "warm & cozy" feel.
+// friendly geometric sans — classic style's face. Not preloaded: soft is the
+// default, and a preload for a face the page never uses is bytes spent on the
+// critical path for nothing. Classic still loads it the moment it renders.
 const sans = Plus_Jakarta_Sans({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-sans',
+  preload: false,
 });
 
 // Soft style's face — the default — with rounded terminals, friendly at small
@@ -23,13 +27,20 @@ const rounded = Nunito({
   variable: '--font-rounded',
 });
 
-// The display face for headings in the soft style: a warm, soft-edged serif
-// that gives titles a voice of their own, over Nunito for everything you read.
-const serif = Fraunces({
-  subsets: ['latin'],
+// The display face for headings in the soft style: Fraunces at SOFT 100 and
+// weight 600 — the only values the design uses — with optical size left
+// variable so large titles and small ones each get their own cut. Pinned axes
+// cannot be requested through next/font/google, which ships the whole
+// variable font (121 kB); this instance is 33 kB, from Google Fonts' own
+// `Fraunces:opsz,SOFT,wght@9..144,100,600`, latin subset. OFL — the licence
+// sits beside the file.
+const serif = localFont({
+  src: './fonts/fraunces-soft-600.woff2',
+  weight: '600',
+  style: 'normal',
   display: 'swap',
   variable: '--font-serif',
-  axes: ['SOFT', 'opsz'],
+  adjustFontFallback: 'Times New Roman',
 });
 
 export const metadata: Metadata = {

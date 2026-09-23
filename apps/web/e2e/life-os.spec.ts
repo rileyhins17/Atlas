@@ -2092,3 +2092,29 @@ test('soft style: a calm Today you can run your day from, clean on every route',
     });
   }
 });
+
+test('a throttled session check is never mistaken for being signed out', async ({ page }) => {
+  // The session probe answers null for a 401 — the only reply that means
+  // "signed out" — and throws for anything else. The shell used to treat ANY
+  // missing user as signed out, so one 429 burst on /auth/me (measured in CI:
+  // it happened, and lasted the throttler's full minute) put the sign-in form
+  // in front of someone who was signed in. A failure says nothing about the
+  // cookie: say so, keep trying, and come back on your own.
+  let throttled = true;
+  await page.route(
+    (url) => url.pathname === '/auth/me',
+    (route) =>
+      throttled
+        ? route.fulfill({ status: 429, contentType: 'application/json', body: '{"message":"Too Many Requests"}' })
+        : route.continue(),
+  );
+  await page.goto('/today');
+
+  // Past the probe's own retries, it says what is true — and asks for nothing.
+  await expect(page.getByText("Can't reach Atlas right now")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByLabel('Password')).toHaveCount(0);
+
+  // And it recovers by itself once the API answers again.
+  throttled = false;
+  await expect(page.locator('.sidebar-user-name')).toBeVisible({ timeout: 15_000 });
+});

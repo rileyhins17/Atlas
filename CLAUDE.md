@@ -150,22 +150,45 @@ preference is not worth a column that 500s the site until someone runs one.
 What soft is, so it is not re-derived from the CSS:
 - **Type:** Fraunces (`--font-display`) for every title, over Nunito. Cards float on a page with a
   brand glow at the top (`--sf-glow`); `--sf-c1…c4` are the category colours rings and tiles cycle.
+  **Fraunces is a self-hosted instance** (`app/fonts/fraunces-soft-600.woff2`, OFL beside it): SOFT
+  100 and weight 600 pinned, optical size still variable — 33 kB where `next/font/google` shipped
+  the whole 121 kB variable font. It has ONE weight, so every display use says `font-weight: 600`
+  (anything else is faux-bold). Plus Jakarta Sans is classic-only and not preloaded; a page now
+  preloads 72 kB of fonts, down from 187 kB.
 - **Phone chrome:** a floating bar, Today · Plan · **+** · Habits · Move (`SOFT_NAV`). "+" opens the
   command bar, which drops from the TOP as a sheet (a bottom sheet sits behind the iOS keyboard).
   The capture dock is hidden on soft phones — "+" replaced it. **Everything else is the avatar in
   the top bar** (`.topbar-you` → `/everything`, which soft renders as "You"); that is soft's answer
   to "both navs must agree", and why Progress is listed in `EVERYTHING`.
-- **Today** (`components/soft/SoftToday.tsx`, pure logic in `lib/soft-today.ts`): a ring of the
-  day's progress beside now/next (`dayProgress` — carried-over work is not counted), habits as a
-  swipeable ring row, the check-ins, **one timeline** of events and timed tasks (`dayTimeline`)
-  then "anytime" and carried-over tasks, the Move card, the watch card. Two columns at ≥1100px; on
-  a phone the columns are `display: contents` and the cards interleave by `order`.
+- **Today** (`components/soft/SoftToday.tsx`, pure logic in `lib/soft-today.ts`): for a new
+  account a **Getting started** checklist first (`GettingStarted`, `gettingStartedSteps` — each step
+  ticked by the data itself, the card gone once all are done or it is hidden, and NOTHING rendered
+  while a query it depends on is pending); then a ring of the day's progress beside now/next
+  (`dayProgress` — carried-over work is not counted; a finished day turns it the success colour),
+  habits as a swipeable ring row, the check-ins, **one timeline** of events and timed tasks
+  (`dayTimeline`) then "anytime" and carried-over tasks, the Move card, the watch card. Two
+  columns at ≥1100px; on a phone the columns are `display: contents` and the cards interleave by
+  `order`.
 - **Plan** opens in day scope on a soft phone (seven columns at 390px were four truncated ones),
-  with that day's tasks under its events (`DayTasks` in `CalendarPanel`).
+  with that day's tasks under its events and a box to add one to today or a day ahead
+  (`DayTasks` in `CalendarPanel`). A clearly horizontal swipe on the day's list moves a day
+  (`swipeStep` — touch-end only, never `preventDefault`, so vertical scroll is untouched).
 - **Habits** render `SoftHabitCard`: a ring you tap, a labelled week, the streak in words — same
   controls and labels as the classic card.
-- **Both styles:** the command bar opens EMPTY on three example captures (tapping one fills the
-  input, never files it), then the pages. Set type and RPE fold behind one "Set type & effort" line
+- **You** (`/everything` in soft): who is signed in, "Last 7 days" (`weekAtAGlance` in `lib/you.ts`
+  — dropped, not zeroed, if a query fails), the tiles, then a dark-mode switch (`useThemeMode`,
+  shared with `ThemeToggle`) and Sign out. Settings sections carry icon tiles (`icon` on
+  `SettingsSection`), and a card inside a soft section is flattened so it is not a card in a card.
+- Re-tapping the active soft tab scrolls to the top.
+- **A failed session check is never "signed out"** (both styles): `useMe` retries a non-401 failure
+  with backoff and the shell renders "Can't reach Atlas", retrying on its own, rather than the
+  sign-in form (`lib/session-state.ts`; e2e `a throttled session check is never mistaken…`).
+- **Both styles:** an empty habit list offers one-tap starters (`HabitSuggestions`,
+  `lib/habit-suggestions.ts`). Toasts sit above the phone chrome instead of over the nav.
+  `.main-inner` widens to 1240px for the week grid and soft Today (the old `.page-wide` rule
+  matched nothing). The sidebar footer gives the name its own line — it had been squeezed to
+  "e…", and to zero width with touch-sized buttons. The command bar opens EMPTY on three example
+  captures (tapping one fills the input, never files it), then the pages. Set type and RPE fold behind one "Set type & effort" line
   per exercise, and a chosen value keeps it open and named (`exercise-block.test.tsx`) — sixteen
   chips under every exercise made a four-exercise session two phone screens of controls. Mood is
   picked by word everywhere (`lib/mood.ts`: Rough · Low · Okay · Good · Great).
@@ -176,8 +199,8 @@ scoped under `[data-style='soft']`; its token literals live in the token block. 
 `register()` helper pins classic**, because most specs assert classic's Today and nav; `soft
 style: …` in `life-os.spec.ts` switches to soft, exercises "+" and the avatar, and sweeps all
 thirteen routes in both themes for axe, tap targets and input size. The screenshot rig shoots soft
-as `p-s-*` — every route, "+" open, the chat, a workout under way, sign-in and the landing page —
-plus `s-*` at desktop width.
+as `p-s-*` — every route, "+" open, the chat, a workout under way, sign-in, the landing page, and a
+second brand-new soft account's onboarding and first Today — plus `s-*` at desktop width.
 
 **Navigation is three destinations along one axis — time.** Today · Week · Looking back, with
 "Everything" one level down. **Both navs must agree**: the sidebar is `display: none` below 901px,
@@ -416,6 +439,13 @@ The short version of what is STILL open:
   stops it recurring. The API now returns 424 with a reconnect message instead of a 500.
 - **Unverified live:** Google Calendar delete propagation; Plaid production.
 - The Plaid webhook does not verify Plaid's signature (harmless while it is a no-op).
+- **Every visitor probably shares ONE rate-limit bucket in production (unverified live).** The
+  throttler keys on route + IP, and the API sees `req.ip` through `trust proxy 1` — but Caddy sits
+  behind cloudflared on 127.0.0.1 and, with no `trusted_proxies`, sends `X-Forwarded-For:
+  127.0.0.1` for everyone. If so, 120 page loads a minute across ALL users 429s `/auth/me` for a
+  minute. Since Sept 2026 that shows "Can't reach Atlas" and retries instead of a sign-in form
+  (`sessionState`), but the fix is Caddy's `trusted_proxies` plus `client_ip_headers
+  Cf-Connecting-IP` — then verify with two devices on different networks before trusting it.
 - ~~Notes and journal have no edit UI~~ — **done.** Both are editable in place on the writing
   surface (`WrittenCard`). Journal gained `PATCH /journal/:id`; notes gained the client method its
   API already had. Both write a `*.updated` timeline row, and a journal edit re-embeds only when

@@ -280,6 +280,25 @@ test('capture the Life-OS screens', async ({ page }) => {
   await fresh.screenshot({ path: `${OUT}/p-s-18-landing.png`, fullPage: true });
   await fresh.setViewportSize({ width: 1440, height: 900 });
   await fresh.screenshot({ path: `${OUT}/s-18-landing.png`, fullPage: true });
+
+  // A brand-new account in the default style: onboarding, then the first Today
+  // with its getting-started checklist — what every new person sees first.
+  // Soft is chosen BEFORE register, whose helper otherwise pins classic.
+  // Registered at desktop width: the helper waits on the sidebar, which a
+  // phone-width layout hides.
+  await fresh.addInitScript(() => localStorage.setItem('atlas-style', 'soft'));
+  await register(fresh);
+  await fresh.setViewportSize({ width: 390, height: 844 });
+  await expect(fresh.locator('.onb')).toBeVisible({ timeout: 30_000 });
+  await fresh.waitForTimeout(500);
+  await fresh.screenshot({ path: `${OUT}/p-s-19-onboarding.png`, fullPage: true });
+  for (let i = 0; i < 6 && (await fresh.locator('.onb').isVisible()); i++) {
+    await fresh.getByRole('button', { name: 'Skip' }).click();
+    await fresh.waitForTimeout(300);
+  }
+  await expect(fresh.getByRole('heading', { name: 'Getting started' })).toBeVisible({ timeout: 20_000 });
+  await fresh.waitForTimeout(600);
+  await fresh.screenshot({ path: `${OUT}/p-s-20-first-today.png`, fullPage: true });
   await fresh.close();
 });
 

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 
 vi.mock('@/lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api')>();
@@ -73,11 +73,20 @@ describe('session hint', () => {
    * one.
    */
   it('survives a failure that is not a rejection', async () => {
-    markSignedIn();
-    me.mockRejectedValue(new ApiError(500, 'Server error'));
-    wrap(<Probe />);
-    await waitFor(() => expect(screen.getByTestId('v').textContent).not.toBe('pending'));
-    expect(hasSignedInBefore()).toBe(true);
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      markSignedIn();
+      me.mockRejectedValue(new ApiError(500, 'Server error'));
+      wrap(<Probe />);
+      // The probe retries a transient failure with backoff before it settles
+      // (a failed probe must never read as signed out), so step past it.
+      await act(() => vi.advanceTimersByTimeAsync(20_000));
+      await waitFor(() => expect(screen.getByTestId('v').textContent).not.toBe('pending'));
+      expect(me).toHaveBeenCalledTimes(4); // the first try and three retries
+      expect(hasSignedInBefore()).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('reports false rather than throwing when storage is unavailable', () => {

@@ -1,10 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { useMemo } from 'react';
 import {
   CalendarDays,
   CheckCircle2,
   Dumbbell,
+  Flame,
+  LogOut,
+  Moon,
   PenLine,
   Repeat,
   Settings as SettingsIcon,
@@ -14,8 +18,14 @@ import {
 } from 'lucide-react';
 import { EVERYTHING } from '@/lib/sections';
 import { PageHeader } from '@/components/PageHeader';
-import { useMe } from '@/lib/hooks/auth';
+import { useLogout, useMe } from '@/lib/hooks/auth';
+import { useTasks } from '@/lib/hooks/tasks';
+import { useHabits } from '@/lib/hooks/habits';
+import { useWorkoutHistory } from '@/lib/hooks/fitness';
 import { useUiStyle } from '@/lib/theme/style';
+import { weekAtAGlance } from '@/lib/you';
+import { useThemeMode } from '@/components/ThemeToggle';
+import { Skeleton } from '@/components/ui';
 
 const ICONS = {
   calendar: CalendarDays,
@@ -47,7 +57,10 @@ export function EverythingPanel() {
   return (
     <>
       {style === 'soft' ? (
-        <YouHeader />
+        <>
+          <YouHeader />
+          <WeekGlanceCard />
+        </>
       ) : (
         <PageHeader
           title="Everything"
@@ -72,6 +85,7 @@ export function EverythingPanel() {
           );
         })}
       </ul>
+      {style === 'soft' && <QuickSettings />}
     </>
   );
 }
@@ -94,5 +108,84 @@ function YouHeader() {
         {me.data?.email && <p className="you-email">{me.data.email}</p>}
       </div>
     </header>
+  );
+}
+
+/**
+ * The last seven days in three numbers. Rendered only from answers that
+ * arrived: a zero from a query that failed would be a false statement about
+ * someone's week, so a failure drops the card instead.
+ */
+function WeekGlanceCard() {
+  const tasks = useTasks();
+  const workouts = useWorkoutHistory();
+  const habits = useHabits();
+  const glance = useMemo(
+    () =>
+      tasks.data && workouts.data && habits.data
+        ? weekAtAGlance(tasks.data, workouts.data, habits.data, new Date())
+        : null,
+    [tasks.data, workouts.data, habits.data],
+  );
+
+  if (tasks.isError || workouts.isError || habits.isError) return null;
+  if (!glance) return <Skeleton height={104} />;
+
+  return (
+    <section className="sf-card you-week" aria-labelledby="you-week-title">
+      <h2 id="you-week-title" className="you-week-title">
+        Last 7 days
+      </h2>
+      <dl className="you-stats">
+        <div className="you-stat">
+          <dt>Tasks done</dt>
+          <dd>{glance.tasksDone}</dd>
+        </div>
+        <div className="you-stat">
+          <dt>Workouts</dt>
+          <dd>{glance.workouts}</dd>
+        </div>
+        <div className="you-stat">
+          <dt>Best streak</dt>
+          <dd>
+            {glance.bestStreak > 0 && <Flame size={18} aria-hidden className="you-flame" />}
+            {glance.bestStreak}
+            <span className="you-unit">{glance.bestStreak === 1 ? ' day' : ' days'}</span>
+          </dd>
+        </div>
+      </dl>
+    </section>
+  );
+}
+
+/** The two settings people reach for from here: light/dark, and signing out. */
+function QuickSettings() {
+  const [theme, toggleTheme] = useThemeMode();
+  const logout = useLogout();
+
+  return (
+    <section className="sf-card you-quick" aria-label="Quick settings">
+      <button
+        type="button"
+        className="you-row"
+        role="switch"
+        aria-checked={theme === 'dark'}
+        disabled={theme === null}
+        onClick={toggleTheme}
+      >
+        <Moon size={18} aria-hidden className="you-row-icon" />
+        <span className="you-row-label">Dark mode</span>
+        <span className="you-switch" aria-hidden />
+      </button>
+      <button
+        type="button"
+        className="you-row"
+        disabled={logout.isPending}
+        onClick={() => logout.mutate()}
+      >
+        <LogOut size={18} aria-hidden className="you-row-icon" />
+        <span className="you-row-label">Sign out</span>
+      </button>
+    </section>
   );
 }

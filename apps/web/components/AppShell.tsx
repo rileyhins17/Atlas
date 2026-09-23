@@ -16,6 +16,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { AtlasUiProvider, useAtlasUi } from '@/components/atlas/AtlasUiProvider';
 import { AtlasLoadingScreen } from '@/components/atlas/AtlasLoadingScreen';
 import { hasSignedInBefore } from '@/lib/session-hint';
+import { sessionState } from '@/lib/session-state';
 import { AsksBell } from '@/components/atlas/AsksPanel';
 import { CaptureDock } from '@/components/atlas/CaptureDock';
 import { CommandBar } from '@/components/atlas/CommandBar';
@@ -33,7 +34,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   // until `me` resolves anyway.
   useTimezoneSync(me.data);
 
-  if (me.isPending) return <BootScreen />;
+  const state = sessionState(me);
+  if (state === 'booting') return <BootScreen />;
+  if (state === 'unreachable') return <Unreachable onRetry={() => void me.refetch()} />;
 
   if (!me.data) {
     return (
@@ -266,6 +269,37 @@ function BootScreen() {
           <Skeleton height={54} />
         </div>
       </main>
+    </div>
+  );
+}
+
+/**
+ * The session probe failed — not with a 401, which is a real "signed out", but
+ * with a 429, a 500 or a dropped connection, none of which says anything about
+ * the cookie. Saying so and trying again keeps a signed-in person out of a
+ * sign-in form they never needed. It retries on its own, so a throttle window
+ * or an API restart clears without anyone touching it.
+ */
+function Unreachable({ onRetry }: { onRetry: () => void }) {
+  useEffect(() => {
+    const id = setInterval(onRetry, 8_000);
+    return () => clearInterval(id);
+  }, [onRetry]);
+
+  return (
+    <div className="gate-shell">
+      <div className="gate-body">
+        <div className="unreachable" role="status">
+          <Logo size={40} />
+          <h1 className="unreachable-title">Can&apos;t reach Atlas right now</h1>
+          <p className="unreachable-body">
+            You&apos;re still signed in. Atlas will try again in a moment.
+          </p>
+          <button type="button" className="btn" onClick={onRetry}>
+            Try again now
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

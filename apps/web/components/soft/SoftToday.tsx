@@ -29,6 +29,8 @@ import { Skeleton } from '@/components/ui';
 import { MoodCheckIn } from '@/components/canvas/MoodCheckIn';
 import { TrackerCheckIn } from '@/components/trackers/TrackerCheckIn';
 import { BodyCard } from '@/components/wearables/WatchCards';
+import { GettingStarted } from './GettingStarted';
+import { HabitSuggestions } from '@/components/HabitSuggestions';
 
 /**
  * Today, in soft style — the app's default home.
@@ -80,6 +82,9 @@ export function SoftToday() {
           </p>
         )}
       </header>
+
+      {/* Renders nothing once the first few things exist, or when hidden. */}
+      <GettingStarted />
 
       {/* Two columns on a wide screen — the day on the left, what you keep
           up on the right. On a phone the columns dissolve and the cards
@@ -152,9 +157,11 @@ function DayHero({
   // The ring is drawn with a stroke on a circle of circumference 2πr.
   const r = 42;
   const c = 2 * Math.PI * r;
+  // A day with something in it, all of it done: worth saying so.
+  const complete = progress.total > 0 && progress.done === progress.total;
 
   return (
-    <section className="sf-card sf-hero" aria-label="Your day so far">
+    <section className={`sf-card sf-hero ${complete ? 'is-complete' : ''}`} aria-label="Your day so far">
       <div
         className="sf-ring"
         role="img"
@@ -182,6 +189,11 @@ function DayHero({
       </div>
 
       <div className="sf-hero-side">
+        {complete && (
+          <p className="sf-hero-done">
+            <Sparkles size={16} aria-hidden /> All done for today
+          </p>
+        )}
         {current ? (
           <div className="sf-now">
             <span className="sf-kicker">Right now</span>
@@ -300,6 +312,7 @@ function PlanCard({
 
       <form className="sf-add" onSubmit={add}>
         <input
+          id="sf-add-input"
           className="sf-input"
           placeholder="Add something to today"
           aria-label="Add something to today"
@@ -392,9 +405,10 @@ function HabitsCard({
       ) : failed ? (
         <p className="sf-muted">Your habits did not load. Try again shortly.</p>
       ) : !habits || habits.length === 0 ? (
-        <p className="sf-muted">
-          Water, reading, a walk — pick one small thing to keep up and it lives here.
-        </p>
+        <>
+          <p className="sf-muted">Pick one small thing to keep up — it lives here, one tap a day.</p>
+          <HabitSuggestions habits={habits ?? []} />
+        </>
       ) : (
         <ul className="sf-habits">
           {habits.map((h) => {

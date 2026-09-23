@@ -749,3 +749,47 @@ Restarting the API brought it straight back to green. So before judging a full
 local run, **start the API fresh** — and never answer this by raising the limit
 or adding a test bypass to a production codebase. The limit is correct; the
 long-lived process was the variable.
+
+## `next/font/google` cannot pin a variable axis — it ships the whole font
+
+Soft's titles use Fraunces at SOFT 100 and weight 600, and nothing else. Asked
+for through `next/font/google` with `axes: ['SOFT', 'opsz']`, it downloaded the
+entire variable font — every weight, every softness, every optical size — and
+preloaded it on every page: 121 kB for one weight. `next/font/google` can
+include an axis's full range but cannot fix it at a value.
+
+Google Fonts' own CSS API can: `Fraunces:opsz,SOFT,wght@9..144,100,600` serves
+an instance with softness and weight pinned and optical size still variable —
+33 kB, rendering identically. That file is self-hosted with `next/font/local`
+(`apps/web/app/fonts/`, licence beside it). The consequence to remember: it
+has ONE weight, so a display-font rule that asks for bold gets a synthesised
+faux-bold. Every use sets `font-weight: 600`.
+
+## A `>` inside a button's attribute hides its onClick from `no-dead-controls`
+
+`test/no-dead-controls.test.ts` reads each `<button …>` opening tag from the
+source and stops at the first `>`. An `aria-label={n > 1 ? … : …}` ends the tag
+early, so the `onClick` after it is never seen and a working button is
+reported as dead. Compute the label in a variable before the JSX — which reads
+better anyway.
+
+## One 429 on `/auth/me` showed a signed-in person the sign-in form
+
+The session probe resolves `null` for a 401 and throws for everything else,
+and it had `retry: false`. The shell then asked only `if (!me.data)` — so a
+429, a 500 or a dropped connection rendered the sign-in form in front of
+someone who was signed in. Found through CI: three specs failed at their
+first navigation, all inside one minute, and the next spec passed.
+
+Two facts about the throttler made it last that long. It keys on **route +
+IP**, so a busy endpoint like `/auth/me` (one call per page load, ~176 in a
+full e2e run) trips on its own; and when it trips it **blocks for its whole
+`ttl`** — a minute — not just the excess requests. Measured locally with the
+same suite, `main` and the PR made the same number of calls (1,595 vs 1,576),
+so it was the runner's speed rather than any change that tipped it over.
+
+Now `lib/session-state.ts` decides: pending → boot, a user → the app, an
+explicit null → sign in, and a FAILURE → "Can't reach Atlas", retrying every
+eight seconds. `useMe` retries a failure three times with backoff first. The
+e2e spec `a throttled session check is never mistaken for being signed out`
+forces 429s on `/auth/me` and asserts no password field appears.

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, type LucideIcon } from 'lucide-react';
 
 /**
  * One collapsible group on Settings.
@@ -19,12 +19,15 @@ export function SettingsSection({
   id,
   title,
   hint,
+  icon: Icon,
   defaultOpen = false,
   children,
 }: {
   id: string;
   title: string;
   hint?: string;
+  /** Shown in the soft style as a coloured tile, the way a phone's settings list reads. */
+  icon?: LucideIcon;
   defaultOpen?: boolean;
   children: React.ReactNode;
 }) {
@@ -63,6 +66,11 @@ export function SettingsSection({
         onClick={toggle}
       >
         <ChevronDown size={16} aria-hidden className={open ? 'open' : ''} />
+        {Icon && (
+          <span className="set-icon" aria-hidden>
+            <Icon size={18} />
+          </span>
+        )}
         <span className="set-title">{title}</span>
         {hint && <span className="set-hint">{hint}</span>}
       </button>

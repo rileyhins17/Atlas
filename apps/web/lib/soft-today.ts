@@ -191,3 +191,54 @@ export function dayTimeline(events: EventDTO[], plan: TodaysPlan, now: Date): Da
   timed.sort((a, b) => a.start.getTime() - b.start.getTime());
   return { timed, anytime };
 }
+
+export type StartStepId = 'name' | 'habit' | 'plan' | 'training' | 'watch';
+
+export interface StartStep {
+  id: StartStepId;
+  label: string;
+  hint: string;
+  done: boolean;
+}
+
+export interface StartInput {
+  hasName: boolean;
+  hasTask: boolean;
+  habitCount: number;
+  templateCount: number;
+  /**
+   * Whether a watch is connected — or `null` when this server cannot connect
+   * one at all, in which case the step is left out rather than shown as
+   * something the person can never finish.
+   */
+  watchConnected: boolean | null;
+}
+
+/**
+ * The first things worth doing in a new account, each ticked off by the data
+ * itself rather than by a checkbox: a step is done when the thing exists, so
+ * the list can never disagree with the app. Ordered by effort, smallest first,
+ * so the first tap is always a quick win.
+ */
+export function gettingStartedSteps(input: StartInput): StartStep[] {
+  const steps: StartStep[] = [
+    { id: 'name', label: 'Tell Atlas your name', hint: 'So it greets you properly', done: input.hasName },
+    { id: 'habit', label: 'Pick a habit to keep up', hint: 'One tap a day', done: input.habitCount > 0 },
+    { id: 'plan', label: 'Put something on today', hint: 'Type it under Your day', done: input.hasTask },
+    {
+      id: 'training',
+      label: 'Save your training days',
+      hint: "Then today's workout is one tap",
+      done: input.templateCount > 0,
+    },
+  ];
+  if (input.watchConnected !== null) {
+    steps.push({
+      id: 'watch',
+      label: 'Connect your Fitbit',
+      hint: 'Sleep and steps, right on Today',
+      done: input.watchConnected,
+    });
+  }
+  return steps;
+}
