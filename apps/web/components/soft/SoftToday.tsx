@@ -15,24 +15,34 @@ import { useSubmitLatch } from '@/lib/hooks/submit-latch';
 import { buildDayCanvas, buildDayOverview } from '@/lib/canvas';
 import { firstNameFrom } from '@/lib/name';
 import { fmt, formatAgo, formatClock, greeting, startOfDay } from '@/lib/dates';
-import { daySummary, endOfToday, habitFill, suggestedTemplate, todaysPlan } from '@/lib/soft-today';
+import {
+  dayProgress,
+  daySummary,
+  dayTimeline,
+  endOfToday,
+  habitFill,
+  suggestedTemplate,
+  todaysPlan,
+  type TimelineEntry,
+} from '@/lib/soft-today';
 import { Skeleton } from '@/components/ui';
 import { MoodCheckIn } from '@/components/canvas/MoodCheckIn';
 import { TrackerCheckIn } from '@/components/trackers/TrackerCheckIn';
 import { BodyCard } from '@/components/wearables/WatchCards';
 
 /**
- * Today, in soft style.
+ * Today, in soft style — the app's default home.
  *
  * Classic Today is a planning surface: the whole day hour by hour, free-time
- * windows, slipped work, the AI brief — everything at once. Soft answers the
- * four things you open it for on a phone, in the order you want them, and
- * leaves the hour-by-hour one tap away:
+ * windows, slipped work, the AI brief — everything at once. Soft answers what
+ * you open it for on a phone, in the order you want it, and leaves the
+ * hour-by-hour one tap away:
  *
- *   what is happening        up next
- *   what I want to get done  today's plan, with a way to add to it
- *   what I am keeping up     habits, one tap each
- *   how I am, and moving     the check-ins, and today's workout
+ *   how the day is going     a ring of what is done, and what is on now
+ *   what I am keeping up     habits, a swipeable row, one tap each
+ *   how I am                 the check-ins
+ *   what the day holds       one timeline: the calendar and the plan together
+ *   moving                   today's training day, one tap to start
  *
  * Nothing here is new data. It reads the same queries as classic Today, so the
  * two can never disagree about your day.
@@ -71,18 +81,25 @@ export function SoftToday() {
         )}
       </header>
 
-      <UpNext now={now} />
-
-      <div className="sf-checkins">
-        <MoodCheckIn />
-        <TrackerCheckIn />
+      {/* Two columns on a wide screen — the day on the left, what you keep
+          up on the right. On a phone the columns dissolve and the cards
+          interleave in the order the list at the top of this file gives. */}
+      <div className="sf-cols">
+        <div className="sf-col">
+          <DayHero now={now} plan={plan} habits={habits.data} ready={tasks.isSuccess && habits.isSuccess} />
+          <PlanCard plan={plan} loading={tasks.isPending} failed={tasks.isError} now={now} />
+        </div>
+        <div className="sf-col">
+          <HabitsCard habits={habits.data} loading={habits.isPending} failed={habits.isError} />
+          <div className="sf-checkins">
+            <MoodCheckIn />
+            <TrackerCheckIn />
+          </div>
+          <MoveCard />
+          {/* Renders nothing unless a watch is connected. */}
+          <BodyCard />
+        </div>
       </div>
-
-      <PlanCard plan={plan} loading={tasks.isPending} failed={tasks.isError} now={now} />
-      <HabitsCard habits={habits.data} loading={habits.isPending} failed={habits.isError} />
-      {/* Renders nothing unless a watch is connected. */}
-      <BodyCard />
-      <MoveCard />
 
       <Link href="/calendar" className="sf-whole-day">
         <Clock size={16} aria-hidden />
@@ -93,8 +110,21 @@ export function SoftToday() {
   );
 }
 
-/** What you are in now, and what comes next — from the same canvas classic uses. */
-function UpNext({ now }: { now: Date }) {
+/**
+ * The top of the day: a ring of how much of it is done, beside what is on
+ * right now and what comes next — from the same canvas classic uses.
+ */
+function DayHero({
+  now,
+  plan,
+  habits,
+  ready,
+}: {
+  now: Date;
+  plan: ReturnType<typeof todaysPlan>;
+  habits: HabitDTO[] | undefined;
+  ready: boolean;
+}) {
   const dayStart = useMemo(() => startOfDay(now), [now]);
   const routine = useRoutine();
   const tasks = useTasks();
@@ -105,10 +135,11 @@ function UpNext({ now }: { now: Date }) {
     return buildDayOverview(canvas, now);
   }, [dayStart, routine.data, events.data, tasks.data, now]);
 
-  if (routine.isPending || events.isPending || tasks.isPending) {
-    return <Skeleton height={92} />;
+  if (!ready || routine.isPending || events.isPending) {
+    return <Skeleton height={148} />;
   }
 
+  const progress = dayProgress(plan, habits ?? []);
   const current =
     overview.current?.type === 'event'
       ? { title: overview.current.title, until: overview.current.end }
@@ -118,30 +149,67 @@ function UpNext({ now }: { now: Date }) {
   // `next` is an event or a task; actuals are history and never "next".
   const next = overview.next && overview.next.type !== 'actual' ? overview.next : null;
 
+  // The ring is drawn with a stroke on a circle of circumference 2πr.
+  const r = 42;
+  const c = 2 * Math.PI * r;
+
   return (
-    <section className="sf-card sf-upnext" aria-label="Up next">
-      {current ? (
-        <div className="sf-now">
-          <span className="sf-kicker">Right now</span>
-          <span className="sf-now-title">{current.title}</span>
-          {current.until && <span className="sf-muted">until {formatClock(current.until)}</span>}
+    <section className="sf-card sf-hero" aria-label="Your day so far">
+      <div
+        className="sf-ring"
+        role="img"
+        aria-label={
+          progress.total === 0
+            ? 'Nothing planned for today yet'
+            : `${progress.done} of ${progress.total} done today`
+        }
+      >
+        <svg viewBox="0 0 100 100" aria-hidden>
+          <circle className="sf-ring-track" cx="50" cy="50" r={r} />
+          <circle
+            className="sf-ring-fill"
+            cx="50"
+            cy="50"
+            r={r}
+            strokeDasharray={c}
+            strokeDashoffset={c * (1 - progress.fraction)}
+          />
+        </svg>
+        <span className="sf-ring-text" aria-hidden>
+          <span className="sf-ring-num">{progress.total === 0 ? '–' : progress.done}</span>
+          <span className="sf-ring-of">{progress.total === 0 ? 'to do' : `of ${progress.total}`}</span>
+        </span>
+      </div>
+
+      <div className="sf-hero-side">
+        {current ? (
+          <div className="sf-now">
+            <span className="sf-kicker">Right now</span>
+            <span className="sf-now-title">{current.title}</span>
+            {current.until && <span className="sf-muted">until {formatClock(current.until)}</span>}
+          </div>
+        ) : null}
+        <div className="sf-next">
+          <span className="sf-kicker">Up next</span>
+          {next ? (
+            <span className="sf-next-title">
+              {next.title}
+              <span className="sf-time">{formatClock(next.at)}</span>
+            </span>
+          ) : (
+            <span className="sf-muted">Nothing else scheduled today.</span>
+          )}
         </div>
-      ) : null}
-      <div className="sf-next">
-        <span className="sf-kicker">Up next</span>
-        {next ? (
-          <span className="sf-next-title">
-            {next.title}
-            <span className="sf-time">{formatClock(next.at)}</span>
-          </span>
-        ) : (
-          <span className="sf-muted">Nothing else scheduled today.</span>
-        )}
       </div>
     </section>
   );
 }
 
+/**
+ * "Your day": the calendar and today's timed tasks as ONE timeline, then what
+ * is due sometime today, then what carried over — with a way to add to it.
+ * Events are shown, not ticked: they happen whether or not you tap them.
+ */
 function PlanCard({
   plan,
   loading,
@@ -157,6 +225,9 @@ function PlanCard({
   const create = useCreateTask();
   const latch = useSubmitLatch();
   const [draft, setDraft] = useState('');
+  const dayStart = useMemo(() => startOfDay(now), [now]);
+  const events = useDayEvents(dayStart);
+  const timeline = useMemo(() => dayTimeline(events.data ?? [], plan, now), [events.data, plan, now]);
 
   function add(e: React.FormEvent) {
     e.preventDefault();
@@ -170,45 +241,61 @@ function PlanCard({
     );
   }
 
-  const open = [...plan.earlier, ...plan.today];
+  const empty =
+    timeline.timed.length === 0 &&
+    timeline.anytime.length === 0 &&
+    plan.earlier.length === 0 &&
+    plan.doneToday.length === 0;
 
   return (
-    <section className="sf-card" aria-labelledby="sf-plan-title">
+    <section className="sf-card sf-plan" aria-labelledby="sf-plan-title">
       <header className="sf-card-head">
         <h2 id="sf-plan-title" className="sf-card-title">
-          Today&apos;s plan
+          Your day
         </h2>
         <Link href="/tasks" className="sf-link">
           All tasks
         </Link>
       </header>
 
-      {loading ? (
+      {loading || events.isPending ? (
         <Skeleton height={80} />
       ) : failed ? (
         <p className="sf-muted">Your tasks did not load. Pull to refresh, or try again shortly.</p>
       ) : (
-        <ul className="sf-tasks">
-          {open.map((t) => (
-            <TaskLine
-              key={t.id}
-              task={t}
-              earlier={plan.earlier.includes(t)}
-              onDone={() => complete.mutate(t.id)}
-            />
-          ))}
-          {plan.doneToday.map((t) => (
-            <li key={t.id} className="sf-task is-done">
-              <span className="sf-tick done" aria-hidden>
-                <Check size={14} />
-              </span>
-              <span className="sf-task-title">{t.title}</span>
-            </li>
-          ))}
-          {open.length === 0 && plan.doneToday.length === 0 && (
-            <li className="sf-empty">Nothing planned yet — add the first thing below.</li>
+        <>
+          {timeline.timed.length > 0 && (
+            <ol className="sf-timeline" aria-label="Today, in order">
+              {timeline.timed.map((entry) => (
+                <TimelineLine
+                  key={`${entry.kind}-${entry.id}`}
+                  entry={entry}
+                  onDone={() => complete.mutate(entry.id)}
+                />
+              ))}
+            </ol>
           )}
-        </ul>
+
+          <ul className="sf-tasks">
+            {timeline.anytime.length > 0 && <li className="sf-group">Anytime today</li>}
+            {timeline.anytime.map((t) => (
+              <TaskLine key={t.id} task={t} earlier={false} onDone={() => complete.mutate(t.id)} />
+            ))}
+            {plan.earlier.length > 0 && <li className="sf-group">Carried over</li>}
+            {plan.earlier.map((t) => (
+              <TaskLine key={t.id} task={t} earlier onDone={() => complete.mutate(t.id)} />
+            ))}
+            {plan.doneToday.map((t) => (
+              <li key={t.id} className="sf-task is-done">
+                <span className="sf-tick done" aria-hidden>
+                  <Check size={14} />
+                </span>
+                <span className="sf-task-title">{t.title}</span>
+              </li>
+            ))}
+            {empty && <li className="sf-empty">Nothing planned yet — add the first thing below.</li>}
+          </ul>
+        </>
       )}
 
       <form className="sf-add" onSubmit={add}>
@@ -233,6 +320,34 @@ function PlanCard({
   );
 }
 
+/** One moment on the timeline: an event you attend, or a task you tick. */
+function TimelineLine({ entry, onDone }: { entry: TimelineEntry; onDone: () => void }) {
+  return (
+    <li className={`sf-tl is-${entry.state} is-${entry.kind}`}>
+      <span className="sf-tl-time">{formatClock(entry.start)}</span>
+      <span className="sf-tl-dot" aria-hidden />
+      <span className="sf-tl-body">
+        <span className="sf-tl-title">{entry.title}</span>
+        {entry.kind === 'event' && (
+          <span className="sf-tl-meta">
+            {entry.state === 'now' ? 'now · ' : ''}until {formatClock(entry.end)}
+          </span>
+        )}
+      </span>
+      {entry.kind === 'task' && (
+        <button
+          type="button"
+          className="sf-tick"
+          aria-label={`Complete "${entry.title}"`}
+          onClick={onDone}
+        >
+          <Check size={14} aria-hidden />
+        </button>
+      )}
+    </li>
+  );
+}
+
 function TaskLine({ task, earlier, onDone }: { task: TaskDTO; earlier: boolean; onDone: () => void }) {
   const due = new Date(task.dueAt!);
   return (
@@ -246,16 +361,9 @@ function TaskLine({ task, earlier, onDone }: { task: TaskDTO; earlier: boolean; 
         <Check size={14} aria-hidden />
       </button>
       <span className="sf-task-title">{task.title}</span>
-      <span className={`sf-task-when ${earlier ? 'is-earlier' : ''}`}>
-        {earlier ? `from ${formatAgo(due)}` : isEndOfDay(due) ? 'today' : formatClock(due)}
-      </span>
+      {earlier && <span className="sf-task-when is-earlier">from {formatAgo(due)}</span>}
     </li>
   );
-}
-
-/** "Due 11:59 PM" is how "sometime today" is stored; say what it means. */
-function isEndOfDay(d: Date): boolean {
-  return d.getHours() === 23 && d.getMinutes() === 59;
 }
 
 function HabitsCard({
@@ -270,7 +378,7 @@ function HabitsCard({
   const log = useLogHabit();
 
   return (
-    <section className="sf-card" aria-labelledby="sf-habits-title">
+    <section className="sf-card sf-habits-card" aria-labelledby="sf-habits-title">
       <header className="sf-card-head">
         <h2 id="sf-habits-title" className="sf-card-title">
           Habits

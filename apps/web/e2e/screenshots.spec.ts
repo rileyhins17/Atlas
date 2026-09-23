@@ -214,10 +214,36 @@ test('capture the Life-OS screens', async ({ page }) => {
     ['/habits', 's-03-habits'],
     ['/fitness', 's-04-move'],
     ['/tasks', 's-05-tasks'],
-    ['/everything', 's-06-more'],
+    ['/everything', 's-06-you'],
     ['/settings', 's-07-settings'],
+    ['/goals', 's-09-goals'],
+    ['/journal', 's-10-writing'],
+    ['/looking-back', 's-11-progress'],
+    ['/finance', 's-12-money'],
   ];
   for (const [path, name] of SOFT) await shoot(path, `p-${name}`);
+
+  // "+" open, the way a thumb opens it.
+  await page.goto('/today');
+  await page.getByRole('button', { name: 'Add or ask anything' }).click();
+  await expect(page.getByRole('combobox', { name: 'Command input' })).toBeFocused();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/p-s-13-plus.png` });
+  await page.keyboard.press('Escape');
+
+  // The chat, from the top bar.
+  await page.getByRole('button', { name: 'Chat with Atlas' }).first().click();
+  await expect(page.getByRole('complementary', { name: 'Atlas chat' })).toBeVisible();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/p-s-14-chat.png` });
+  await page.keyboard.press('Escape');
+
+  // A workout under way — the screen Move exists for.
+  await page.goto('/today');
+  await page.getByRole('button', { name: /^Start Glutes/ }).click();
+  await page.waitForURL('**/fitness');
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: `${OUT}/p-s-15-workout.png`, fullPage: true });
 
   // The habit rings, as the phone actually shows them: a full-page shot draws
   // the fixed dock and nav over the middle of the page, right where they are.
@@ -238,7 +264,22 @@ test('capture the Life-OS screens', async ({ page }) => {
     localStorage.setItem('atlas-theme', t === 'light' ? 'dark' : 'light');
   });
   await shoot('/today', 'p-s-08-today-alt-theme');
+  await shoot('/habits', 'p-s-16-habits-alt-theme');
   await page.setViewportSize({ width: 1440, height: 900 });
   await shoot('/today', 's-01-today');
+  await shoot('/week', 's-02-plan');
+
+  // Signed out, in the default style: the first thing anyone sees.
+  const fresh = await page.context().browser()!.newPage({ viewport: { width: 390, height: 844 } });
+  await fresh.goto('/today');
+  await expect(fresh.getByRole('button', { name: 'Show the create account form' })).toBeVisible();
+  await fresh.waitForTimeout(400);
+  await fresh.screenshot({ path: `${OUT}/p-s-17-signin.png` });
+  await fresh.goto('/');
+  await fresh.waitForTimeout(400);
+  await fresh.screenshot({ path: `${OUT}/p-s-18-landing.png`, fullPage: true });
+  await fresh.setViewportSize({ width: 1440, height: 900 });
+  await fresh.screenshot({ path: `${OUT}/s-18-landing.png`, fullPage: true });
+  await fresh.close();
 });
 

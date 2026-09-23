@@ -1996,9 +1996,16 @@ test('soft style: a calm Today you can run your day from, clean on every route',
   try {
     // The nav is built around what soft is for.
     const nav = page.locator('.bottom-nav');
-    for (const label of ['Today', 'Plan', 'Habits', 'Move', 'More']) {
+    for (const label of ['Today', 'Plan', 'Habits', 'Move']) {
       await expect(nav.getByRole('link', { name: label })).toBeVisible();
     }
+    // The middle of the bar is "+", which opens capture; everything else is
+    // behind the avatar in the top bar.
+    await nav.getByRole('button', { name: 'Add or ask anything' }).click();
+    await expect(page.getByRole('combobox', { name: 'Command input' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await page.getByRole('link', { name: 'Everything else, and settings' }).click();
+    await expect(page.getByRole('link', { name: /Progress/ })).toBeVisible();
 
     await nav.getByRole('link', { name: 'Today' }).click();
     await expect(page.locator('.sf-greeting')).toBeVisible();
@@ -2079,7 +2086,7 @@ test('soft style: a calm Today you can run your day from, clean on every route',
   } finally {
     // Leave the shared account's browser the way the rest of the file expects.
     await page.evaluate(() => {
-      localStorage.removeItem('atlas-style');
+      localStorage.setItem('atlas-style', 'classic');
       localStorage.removeItem('atlas-theme');
       localStorage.removeItem('atlas-palette');
     });

@@ -78,7 +78,7 @@ export interface DomainLink {
   /** One line each, because "Journal" and "Notes" were indistinguishable. */
   blurb: string;
   /** Lucide icon name, resolved in the panel so this file stays React-free. */
-  icon: 'calendar' | 'check' | 'target' | 'repeat' | 'dumbbell' | 'pen' | 'wallet' | 'settings';
+  icon: 'calendar' | 'check' | 'target' | 'repeat' | 'dumbbell' | 'chart' | 'pen' | 'wallet' | 'settings';
 }
 
 export const EVERYTHING: DomainLink[] = [
@@ -87,6 +87,9 @@ export const EVERYTHING: DomainLink[] = [
   { label: 'Goals', href: '/goals', blurb: 'What the work is for.', icon: 'target' },
   { label: 'Habits', href: '/habits', blurb: 'The things you are trying to keep up.', icon: 'repeat' },
   { label: 'Training', href: '/fitness', blurb: 'Sessions, lifts and progress.', icon: 'dumbbell' },
+  // In classic's nav too; listed here because soft's nav has no slot for it,
+  // and this page is soft's way to everything its bar leaves out.
+  { label: 'Progress', href: '/progress', blurb: 'How the last month went, and what changed.', icon: 'chart' },
   {
     label: 'Writing',
     href: '/journal',
@@ -178,7 +181,7 @@ export function tabFor(section: Section, pathname: string): string {
  * Classic's axis is time (now, soon, how it went). Soft is organised around
  * what someone actually does with the app day to day — plan it, keep habits,
  * move — so those are the destinations, and Progress and the rest sit behind
- * "More" with every other page. Same routes either way; only the front door
+ * the avatar in the top bar, on the Everything page. Same routes either way; only the front door
  * changes.
  */
 export interface SoftNavItem {
@@ -202,7 +205,7 @@ export const SOFT_NAV: SoftNavItem[] = [
   { href: '/fitness', label: 'Move', icon: 'dumbbell', match: ['/fitness'] },
 ];
 
-/** The soft nav entry for a pathname, or undefined (which lights "More"). */
+/** The soft nav entry for a pathname, or undefined (a page reached through Everything). */
 export function softNavFor(pathname: string): SoftNavItem | undefined {
   return SOFT_NAV.find((item) =>
     item.match.some((m) => pathname === m || pathname.startsWith(`${m}/`)),

@@ -9,10 +9,13 @@ import {
   Repeat,
   Settings as SettingsIcon,
   Target,
+  TrendingUp,
   Wallet,
 } from 'lucide-react';
 import { EVERYTHING } from '@/lib/sections';
 import { PageHeader } from '@/components/PageHeader';
+import { useMe } from '@/lib/hooks/auth';
+import { useUiStyle } from '@/lib/theme/style';
 
 const ICONS = {
   calendar: CalendarDays,
@@ -20,6 +23,7 @@ const ICONS = {
   target: Target,
   repeat: Repeat,
   dumbbell: Dumbbell,
+  chart: TrendingUp,
   pen: PenLine,
   wallet: Wallet,
   settings: SettingsIcon,
@@ -39,12 +43,17 @@ const ICONS = {
  * next. An icon and a two-column grid make it a place you can scan.
  */
 export function EverythingPanel() {
+  const style = useUiStyle();
   return (
     <>
-      <PageHeader
-        title="Everything"
-        subtitle="Every part of Atlas, whole. Most days you will not need to come here."
-      />
+      {style === 'soft' ? (
+        <YouHeader />
+      ) : (
+        <PageHeader
+          title="Everything"
+          subtitle="Every part of Atlas, whole. Most days you will not need to come here."
+        />
+      )}
       <ul className="evy-list">
         {EVERYTHING.map((d) => {
           const Icon = ICONS[d.icon];
@@ -64,5 +73,26 @@ export function EverythingPanel() {
         })}
       </ul>
     </>
+  );
+}
+
+/**
+ * In soft this page is reached from your avatar, so it opens on you: who is
+ * signed in, then every part of Atlas below.
+ */
+function YouHeader() {
+  const me = useMe();
+  const name = me.data?.displayName ?? me.data?.email ?? '';
+  const initial = name.trim().charAt(0).toUpperCase() || 'A';
+  return (
+    <header className="you-head">
+      <span className="avatar you-avatar" aria-hidden>
+        {initial}
+      </span>
+      <div className="you-text">
+        <h1 className="page-title">{me.data?.displayName ?? 'You'}</h1>
+        {me.data?.email && <p className="you-email">{me.data.email}</p>}
+      </div>
+    </header>
   );
 }

@@ -5,8 +5,8 @@ import type { JournalDTO, NoteDTO } from '@atlas/shared';
 import { Pencil, Pin, X } from 'lucide-react';
 import { Button, Card, IconButton, Input, Textarea } from '@/components/ui';
 import { formatDayHeading } from '@/lib/dates';
+import { MOOD_SCALE } from '@/lib/mood';
 
-const MOODS = [1, 2, 3, 4, 5];
 
 export type Written =
   | { kind: 'entry'; at: string; data: JournalDTO }
@@ -90,7 +90,7 @@ export function WrittenCard({
 
         {item.kind === 'entry' && (
           <div className="row wr-moods" role="group" aria-label="How was that day?">
-            {MOODS.map((m) => (
+            {MOOD_SCALE.map(({ value: m, label }) => (
               <button
                 key={m}
                 type="button"
@@ -99,11 +99,12 @@ export function WrittenCard({
                 aria-label={`Mood ${m} out of 5`}
                 onClick={() => setMood((cur) => (cur === m ? null : m))}
               >
-                {m}
+                <span className="wr-mood-num">{m}</span>
+                <span className="wr-mood-word">{label}</span>
               </button>
             ))}
             <span className="muted" style={{ fontSize: 12 }}>
-              out of 5, optional
+              optional
             </span>
           </div>
         )}

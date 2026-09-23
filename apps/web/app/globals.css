@@ -151,6 +151,10 @@
   --radius-md: 18px;
   --radius-lg: 24px;
   --radius: var(--radius-md);
+  --font-display: var(--font-serif), Georgia, 'Times New Roman', serif;
+  --sf-radius-card: 28px;
+  /* The light at the top of every page. */
+  --sf-glow: color-mix(in srgb, var(--brand) 16%, transparent);
   /* Diffuse and low: depth you feel rather than see. Neutral, like every
      shadow here — a tinted one reads as a smudge under the other palettes. */
   --sf-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 10px 28px rgb(0 0 0 / 0.07);
@@ -5648,6 +5652,10 @@ label:has(> input[type='checkbox']) {
   font: inherit; font-size: 14.5px; font-weight: 600; cursor: pointer;
 }
 .wr-mood.on { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
+.wr-mood { display: inline-flex; flex-direction: column; align-items: center; gap: 0; line-height: 1.15; }
+.wr-mood-num { font-weight: 800; }
+.wr-mood-word { font-size: 12px; font-weight: 600; }
+[data-style='soft'] .wr-mood { min-width: 54px; padding: 7px 8px; border-radius: 16px; }
 
 /* The guided first capture: the only thing worth doing on an empty account. */
 .fc-card {
@@ -6026,6 +6034,19 @@ label:has(> input[type='checkbox']) {
   margin-top: 8px; padding-top: 8px;
   border-top: 1px solid var(--border-subtle);
 }
+.fit-opts-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  align-self: flex-start; min-height: 32px;
+  padding: 0 4px; margin-left: -4px;
+  border: 0; border-radius: var(--radius-sm); background: none;
+  color: var(--text-muted); font: inherit; font-size: 14px; font-weight: 650;
+  cursor: pointer;
+}
+.fit-opts-toggle:hover:not(:disabled) { color: var(--text-primary); }
+/* Disabled only while a choice is armed; it still reads as that choice. */
+.fit-opts-toggle:disabled { cursor: default; color: var(--text-primary); }
+.fit-opts-toggle svg { transition: transform var(--dur-fast) var(--ease); }
+.fit-opts-toggle svg.open { transform: rotate(180deg); }
 .fit-opts-label {
   flex: none; align-self: center;
   font-size: 13px; font-weight: 650; color: var(--text-muted);
@@ -6415,31 +6436,59 @@ label:has(> input[type='checkbox']) {
   position: relative;
 }
 
-/* ══ Soft style ═══════════════════════════════════════════════════════════
+/* ══ Soft style — the default design ══════════════════════════════════════
    The third appearance axis (lib/theme/style.ts). Colours still come from the
-   palette — soft suggests Blush, and every palette is contrast-solved — so this
-   layer only changes SHAPE, TYPE, DEPTH and LAYOUT: rounder, warmer, calmer,
-   with cards floating on the page instead of ruled into it.
+   palette — Blush by default, and every palette is contrast-solved — so this
+   layer changes SHAPE, TYPE, DEPTH and LAYOUT: an editorial serif for titles
+   over a rounded sans, cards that float on a warm page with a glow at the
+   top, a floating tab bar split around a raised "+", and its own Today.
 
    Everything is scoped under [data-style='soft'], so classic is untouched. */
-/* — the page: cards float on the warm page colour — */
-[data-style='soft'] .main { background: var(--app-bg); }
+
+/* — the page — */
 [data-style='soft'] body { letter-spacing: 0.005em; }
-[data-style='soft'] .page-title { font-weight: 800; letter-spacing: -0.02em; }
+[data-style='soft'] .main {
+  /* A wash of the brand at the top of every screen: the page has a light
+     source instead of being one flat colour. */
+  background:
+    radial-gradient(120% 420px at 50% -120px, var(--sf-glow), transparent 70%),
+    var(--app-bg);
+}
+[data-style='soft'] .page-title,
+[data-style='soft'] .sf-greeting,
+[data-style='soft'] .sf-card-title,
+[data-style='soft'] .set-title,
+[data-style='soft'] .dialog-title,
+[data-style='soft'] .onb-q,
+[data-style='soft'] .gate-heading,
+[data-style='soft'] .landing h1,
+[data-style='soft'] .landing h2,
+[data-style='soft'] .chat-empty-title,
+[data-style='soft'] .section-title,
+[data-style='soft'] .prog-card-title,
+[data-style='soft'] .mood-patterns-h,
+[data-style='soft'] .wk-decide-head {
+  font-family: var(--font-display);
+  font-variation-settings: 'SOFT' 100;
+  letter-spacing: -0.01em;
+}
+[data-style='soft'] .page-title { font-size: 32px; font-weight: 600; line-height: 1.12; }
+[data-style='soft'] .onb-q,
+[data-style='soft'] .gate-heading { font-weight: 600; font-size: 30px; line-height: 1.15; }
 [data-style='soft'] .card {
-  border-radius: 24px;
+  border-radius: var(--sf-radius-card);
   border-color: transparent;
   box-shadow: var(--sf-shadow);
 }
 [data-style='soft'] .btn { border-radius: var(--radius-pill); padding: 12px 20px; font-weight: 700; }
 [data-style='soft'] .btn.ghost { padding: 7px 12px; }
 [data-style='soft'] .input { border-radius: 16px; background: var(--surface-raised); }
-[data-style='soft'] .dialog-content { border-radius: 28px; }
+[data-style='soft'] .dialog-content { border-radius: 30px; }
 [data-style='soft'] .toast { border-radius: 18px; }
 [data-style='soft'] .set-section,
 [data-style='soft'] .mood-checkin,
 [data-style='soft'] .trk-card {
-  border-radius: 24px;
+  border-radius: var(--sf-radius-card);
   border-color: transparent;
   background: var(--surface-raised);
   box-shadow: var(--sf-shadow);
@@ -6449,31 +6498,55 @@ label:has(> input[type='checkbox']) {
 [data-style='soft'] input[type='checkbox'] { border-radius: 7px; }
 
 /* — chrome — */
-[data-style='soft'] .sidebar { background: var(--app-bg); border-right-color: transparent; }
-[data-style='soft'] .sidebar-nav .nav-link { border-radius: 14px; padding: 10px 12px; }
+[data-style='soft'] .sidebar { background: transparent; border-right-color: transparent; }
+[data-style='soft'] .sidebar-nav .nav-link { border-radius: 14px; padding: 10px 12px; font-weight: 700; }
 [data-style='soft'] .sidebar-nav .nav-link.active {
   background: var(--surface-raised);
   box-shadow: var(--sf-shadow);
 }
-[data-style='soft'] .mobile-topbar { border-bottom-color: transparent; }
+[data-style='soft'] .mobile-topbar {
+  border-bottom-color: transparent;
+  background: color-mix(in srgb, var(--app-bg) 82%, transparent);
+  backdrop-filter: saturate(1.4) blur(14px);
+  -webkit-backdrop-filter: saturate(1.4) blur(14px);
+}
+.topbar-you { display: none; }
+[data-style='soft'] .topbar-you {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin-left: 4px;
+  border-radius: 50%;
+  text-decoration: none;
+}
+[data-style='soft'] .topbar-you .avatar { width: 32px; height: 32px; font-size: 14px; }
+[data-style='soft'] .topbar-you.on .avatar,
+[data-style='soft'] .topbar-you:hover .avatar {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 30%, transparent);
+}
+/* The "+" only exists in the phone bar. */
+.sf-fab { display: none; }
 
 @media (max-width: 900px) {
-  /* A floating pill rather than a ruled bar: the one piece of chrome on every
-     phone screen should look like it belongs to the page, not sit under it. */
+  /* A floating bar rather than a ruled one, split around a raised "+": the
+     one piece of chrome on every phone screen should look like it belongs to
+     the page, not sit under it. */
   [data-style='soft'] .bottom-nav .app-nav {
-    left: 12px;
-    right: 12px;
-    bottom: calc(10px + env(safe-area-inset-bottom));
+    left: 14px;
+    right: 14px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
     width: auto;
     padding: 6px;
     border: none;
-    border-radius: 26px;
+    border-radius: 28px;
     background: var(--surface-raised);
     box-shadow: var(--sf-shadow-lift);
+    align-items: center;
   }
   [data-style='soft'] .bottom-nav .nav-link {
-    border-radius: 20px;
-    padding: 7px 2px;
+    border-radius: 22px;
+    padding: 8px 2px;
     font-weight: 700;
   }
   [data-style='soft'] .bottom-nav .nav-link.active {
@@ -6484,41 +6557,88 @@ label:has(> input[type='checkbox']) {
   [data-style='soft'] .bottom-nav .active svg {
     color: var(--brand-on-tint);
   }
-  [data-style='soft'] .capture-dock {
-    bottom: calc(76px + env(safe-area-inset-bottom));
+  [data-style='soft'] .bottom-nav .sf-fab {
+    display: grid;
+    place-items: center;
+    flex: 0 0 72px;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
   }
-  [data-style='soft'] .main-inner { padding-bottom: 196px; }
+  .sf-fab-disc {
+    display: grid;
+    place-items: center;
+    width: 58px;
+    height: 58px;
+    margin-top: -30px;
+    border-radius: 50%;
+    background: var(--accent-strong);
+    color: var(--text-on-accent);
+    box-shadow:
+      0 0 0 6px var(--app-bg),
+      var(--sf-shadow-lift);
+    transition: transform var(--dur-base) var(--ease);
+  }
+  [data-style='soft'] .bottom-nav .sf-fab svg { color: var(--text-on-accent); }
+  .sf-fab:active .sf-fab-disc { transform: scale(0.92) rotate(90deg); }
+  /* "+" replaced the capture bar on the phone, which gives every page its
+     bottom back. */
+  [data-style='soft'] .capture-dock { display: none; }
+  [data-style='soft'] .main-inner { padding-bottom: 128px; }
+  [data-style='soft'] .page-title { font-size: 30px; }
+
+  /* "+" drops the command bar from the top as a full-width sheet. From the
+     top, not the bottom: a bottom sheet with a focused input sits behind the
+     iOS keyboard. Keyboard hints go — there is no keyboard to press them on. */
+  [data-style='soft'] .command-bar {
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    transform: none;
+    border: none;
+    border-radius: 0 0 30px 30px;
+    padding-top: env(safe-area-inset-top);
+    box-shadow: var(--sf-shadow-lift);
+  }
+  [data-style='soft'] .command-input-row { padding: 18px 20px; border-bottom-color: transparent; }
+  [data-style='soft'] .command-input-row .kbd,
+  [data-style='soft'] .command-footer > .row:last-child { display: none; }
+  [data-style='soft'] .command-results { max-height: 50vh; padding: 4px 10px 10px; }
+  [data-style='soft'] .command-item { min-height: 48px; border-radius: 16px; font-size: 16px; }
 }
 
 /* ── Soft Today ────────────────────────────────────────────────────────── */
 .sf-today {
-  max-width: 560px;
+  max-width: 580px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
-.sf-hello { padding: 4px 4px 2px; }
+.sf-hello { padding: 6px 4px 4px; }
 .sf-date {
   margin: 0;
-  font-size: 14.5px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--text-muted);
 }
 .sf-greeting {
-  margin: 2px 0 0;
-  font-size: 30px;
-  line-height: 1.15;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  margin: 6px 0 0;
+  font-size: 38px;
+  line-height: 1.08;
+  font-weight: 600;
   color: var(--text-primary);
 }
-.sf-summary { margin: 6px 0 0; font-size: 16px; color: var(--text-muted); }
+.sf-summary { margin: 8px 0 0; font-size: 16.5px; color: var(--text-muted); }
 
 .sf-card {
   background: var(--surface-raised);
-  border-radius: 24px;
-  padding: 18px;
+  border-radius: var(--sf-radius-card);
+  padding: 20px;
   box-shadow: var(--sf-shadow);
 }
 .sf-card-head {
@@ -6526,71 +6646,186 @@ label:has(> input[type='checkbox']) {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
-.sf-card-title { margin: 0; font-size: 19px; font-weight: 800; color: var(--text-primary); }
+.sf-card-title { margin: 0; font-size: 22px; font-weight: 600; color: var(--text-primary); }
 .sf-link {
   font-size: 14.5px;
   font-weight: 700;
   color: var(--link);
   text-decoration: none;
-  padding: 6px 8px;
-  margin: -6px -8px;
+  padding: 6px 10px;
+  margin: -6px -10px;
   border-radius: 12px;
 }
 .sf-link:hover { background: color-mix(in srgb, var(--brand) 9%, transparent); color: var(--brand-on-tint); }
 .sf-muted { color: var(--text-muted); font-size: 15px; margin: 0; }
 .sf-kicker {
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
 
-/* up next */
-.sf-upnext {
+/* the hero: a ring of the day beside now / next */
+.sf-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 20px;
+  background:
+    radial-gradient(140% 120% at 0% 0%, color-mix(in srgb, var(--brand) 14%, var(--surface-raised)), var(--surface-raised) 65%);
+}
+.sf-ring { position: relative; width: 112px; height: 112px; flex: none; }
+.sf-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.sf-ring circle { fill: none; stroke-width: 10; }
+.sf-ring-track { stroke: color-mix(in srgb, var(--brand) 14%, var(--surface-inset)); }
+.sf-ring-fill {
+  stroke: var(--accent-strong);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 600ms var(--ease);
+}
+.sf-ring-text {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--brand) 12%, var(--surface-raised)),
-    var(--surface-raised) 70%
-  );
+  align-items: center;
+  justify-content: center;
 }
+.sf-ring-num {
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text-primary);
+}
+.sf-ring-of { font-size: 13px; font-weight: 700; color: var(--text-muted); }
+.sf-hero-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .sf-now,
-.sf-next { display: flex; flex-direction: column; gap: 2px; }
-.sf-now-title { font-size: 22px; font-weight: 800; color: var(--text-primary); }
+.sf-next { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sf-now-title { font-size: 21px; font-weight: 800; color: var(--text-primary); overflow-wrap: anywhere; }
 .sf-next-title {
   display: flex;
   align-items: baseline;
   gap: 8px;
   flex-wrap: wrap;
-  font-size: 17px;
+  font-size: 16.5px;
   font-weight: 700;
   color: var(--text-primary);
+  overflow-wrap: anywhere;
 }
-.sf-time { font-size: 15px; font-weight: 700; color: var(--text-muted); }
+.sf-time { font-size: 14.5px; font-weight: 700; color: var(--text-muted); }
+
+/* Cards rise in when Today opens. Transform only, with no fill and no delay:
+   a throttled background tab can freeze an animation on its first frame, and
+   the worst that can leave here is a card 10px low — never an invisible one.
+   The global reduced-motion rule turns it off for anyone who asked for less. */
+@keyframes sf-rise {
+  from { transform: translateY(10px); }
+  to { transform: none; }
+}
+.sf-today .sf-card { animation: sf-rise 380ms var(--ease); }
+
+/* Phone: one column, the cards interleaved by `order`. Wide: two columns. */
+.sf-cols { display: flex; flex-direction: column; gap: 16px; }
+.sf-col { display: contents; }
+.sf-hero { order: 1; }
+.sf-habits-card { order: 2; }
+.sf-checkins > * { order: 3; }
+.sf-plan { order: 4; }
+.sf-move { order: 5; }
+.sf-col .wear-card { order: 6; }
+@media (min-width: 1100px) {
+  .sf-today { max-width: 1080px; }
+  .sf-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 20px;
+  }
+  .sf-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  /* A swipe row is a phone gesture; a desktop column wraps instead of clipping. */
+  .sf-habits { flex-wrap: wrap; margin: 0; padding: 0; overflow: visible; }
+}
 
 /* The two check-ins are self-hiding components; `contents` lets them sit in
    the column as cards of their own without an empty wrapper taking a gap. */
 .sf-checkins { display: contents; }
 
-/* plan */
+/* your day: one timeline, then the lists */
+.sf-timeline {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+  position: relative;
+}
+.sf-tl {
+  display: grid;
+  grid-template-columns: 64px 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0 10px;
+  min-height: 48px;
+  position: relative;
+}
+/* The rail runs through every dot. */
+.sf-tl::before {
+  content: '';
+  position: absolute;
+  left: calc(64px + 10px + 8px);
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: color-mix(in srgb, var(--border-subtle) 80%, transparent);
+}
+.sf-tl:first-child::before { top: 50%; }
+.sf-tl:last-child::before { bottom: 50%; }
+.sf-tl:only-child::before { display: none; }
+.sf-tl-time { font-size: 13.5px; font-weight: 700; color: var(--text-muted); text-align: right; }
+.sf-tl-dot {
+  position: relative;
+  z-index: 1;
+  justify-self: center;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--surface-raised);
+  border: 3px solid var(--brand);
+}
+.sf-tl.is-task .sf-tl-dot { border-color: var(--sf-c2); }
+.sf-tl.is-now .sf-tl-dot {
+  background: var(--brand);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--brand) 22%, transparent);
+}
+.sf-tl.is-past .sf-tl-dot { border-color: var(--border-subtle); }
+.sf-tl-body { display: flex; flex-direction: column; min-width: 0; padding: 6px 0; }
+.sf-tl-title { font-size: 16px; font-weight: 700; color: var(--text-primary); overflow-wrap: anywhere; }
+.sf-tl.is-past .sf-tl-title { color: var(--text-muted); font-weight: 600; }
+.sf-tl-meta { font-size: 13.5px; color: var(--text-muted); }
+
 .sf-tasks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.sf-group {
+  margin-top: 10px;
+  padding: 6px 2px 2px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
 .sf-task {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 2px;
+  padding: 9px 2px;
   border-bottom: 1px solid color-mix(in srgb, var(--border-subtle) 70%, transparent);
 }
 .sf-task:last-child { border-bottom: none; }
 .sf-tick {
   flex: none;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   border: 2px solid var(--border-subtle);
   background: transparent;
@@ -6605,7 +6840,7 @@ label:has(> input[type='checkbox']) {
     transform var(--dur-base) var(--ease);
 }
 .sf-tick:hover { border-color: var(--brand); color: var(--brand); }
-.sf-tick:active { transform: scale(0.9); }
+.sf-tick:active { transform: scale(0.88); }
 .sf-tick.done { background: var(--accent-strong); border-color: var(--accent-strong); color: var(--text-on-accent); }
 .sf-task-title { flex: 1; min-width: 0; font-size: 16px; color: var(--text-primary); overflow-wrap: anywhere; }
 .sf-task.is-done .sf-task-title { color: var(--text-muted); text-decoration: line-through; }
@@ -6613,14 +6848,14 @@ label:has(> input[type='checkbox']) {
 .sf-task-when.is-earlier { color: var(--pill-warm-fg); }
 .sf-empty { list-style: none; padding: 6px 2px 10px; color: var(--text-muted); font-size: 15px; }
 
-.sf-add { display: flex; gap: 8px; margin-top: 10px; }
+.sf-add { display: flex; gap: 8px; margin-top: 14px; }
 .sf-input {
   flex: 1;
   min-width: 0;
-  min-height: 46px;
-  padding: 0 16px;
+  min-height: 48px;
+  padding: 0 18px;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid transparent;
   background: var(--surface-inset);
   color: var(--text-primary);
   /* 16px: anything smaller makes iOS zoom the page on focus. */
@@ -6635,8 +6870,8 @@ label:has(> input[type='checkbox']) {
 }
 .sf-add-btn {
   flex: none;
-  width: 46px;
-  height: 46px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   border: none;
   background: var(--accent-strong);
@@ -6647,15 +6882,20 @@ label:has(> input[type='checkbox']) {
 }
 .sf-add-btn:disabled { opacity: 0.45; cursor: default; }
 
-/* habits: a grid of rings, one tap each */
+/* habits: a swipeable row of rings, one tap each */
 .sf-habits {
   list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
-  gap: 8px;
+  margin: 0 -20px;
+  padding: 2px 20px 4px;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
 }
+.sf-habits::-webkit-scrollbar { display: none; }
+.sf-habits > li { flex: 0 0 92px; scroll-snap-align: start; }
 .sf-habits > li:nth-child(4n + 1) { --sf-ring: var(--sf-c1); }
 .sf-habits > li:nth-child(4n + 2) { --sf-ring: var(--sf-c2); }
 .sf-habits > li:nth-child(4n + 3) { --sf-ring: var(--sf-c3); }
@@ -6668,7 +6908,7 @@ label:has(> input[type='checkbox']) {
   gap: 6px;
   padding: 10px 4px;
   border: none;
-  border-radius: 20px;
+  border-radius: 22px;
   background: transparent;
   color: var(--text-primary);
   font: inherit;
@@ -6676,13 +6916,13 @@ label:has(> input[type='checkbox']) {
   transition: background var(--dur-fast) var(--ease), transform var(--dur-base) var(--ease);
 }
 .sf-habit:hover:not(:disabled) { background: var(--surface-inset); }
-.sf-habit:active:not(:disabled) { transform: scale(0.95); }
+.sf-habit:active:not(:disabled) { transform: scale(0.94); }
 .sf-habit:disabled { cursor: default; }
 .sf-habit-ring {
-  width: 60px;
-  height: 60px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
-  padding: 5px;
+  padding: 6px;
   background: conic-gradient(
     var(--sf-ring) var(--fill, 0deg),
     color-mix(in srgb, var(--sf-ring) 18%, var(--surface-inset)) 0
@@ -6700,10 +6940,10 @@ label:has(> input[type='checkbox']) {
   font-weight: 800;
   color: var(--text-primary);
 }
-.sf-habit.is-done .sf-habit-core { background: var(--sf-ring); color: #ffffff; }
+.sf-habit.is-done .sf-habit-core { background: var(--sf-ring); color: var(--text-on-accent); }
 .sf-habit-name {
   max-width: 100%;
-  font-size: 14.5px;
+  font-size: 14px;
   font-weight: 700;
   text-align: center;
   line-height: 1.25;
@@ -6711,16 +6951,22 @@ label:has(> input[type='checkbox']) {
 }
 .sf-habit-streak { font-size: 12.5px; font-weight: 700; color: var(--text-muted); }
 
-/* move */
+/* move: a card with some colour in it */
+.sf-move {
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(130% 140% at 100% 0%, color-mix(in srgb, var(--sf-c2) 22%, var(--surface-raised)), var(--surface-raised) 62%);
+}
 .sf-primary {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   width: 100%;
-  min-height: 52px;
+  min-height: 54px;
   border: none;
-  border-radius: 18px;
+  border-radius: 20px;
   background: var(--accent-strong);
   color: var(--text-on-accent);
   font: inherit;
@@ -6729,7 +6975,9 @@ label:has(> input[type='checkbox']) {
   text-decoration: none;
   cursor: pointer;
   box-shadow: var(--sf-shadow);
+  transition: transform var(--dur-base) var(--ease);
 }
+.sf-primary:active:not(:disabled) { transform: scale(0.98); }
 .sf-primary:disabled { opacity: 0.6; cursor: default; }
 .sf-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .sf-chip {
@@ -6748,7 +6996,6 @@ label:has(> input[type='checkbox']) {
   cursor: pointer;
 }
 .sf-chip:hover:not(:disabled) { border-color: var(--brand); }
-.sf-move { display: flex; flex-direction: column; }
 .sf-move-empty .sf-chips { margin-top: 8px; }
 .sf-last { margin: 12px 2px 0; font-size: 14.5px; color: var(--text-muted); }
 
@@ -6769,8 +7016,207 @@ label:has(> input[type='checkbox']) {
 .sty-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
 
 @media (max-width: 900px) {
-  .sf-greeting { font-size: 27px; }
+  .sf-greeting { font-size: 34px; }
+  .sf-ring { width: 100px; height: 100px; }
 }
+
+/* ── Soft: the rest of the app ─────────────────────────────────────────── */
+/* Section tabs become a segmented pill. */
+[data-style='soft'] .section-tabs {
+  padding: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  box-shadow: var(--sf-shadow);
+}
+[data-style='soft'] .section-tab { border-radius: var(--radius-pill); font-weight: 700; }
+[data-style='soft'] .section-tab.on {
+  background: var(--accent-strong);
+  color: var(--text-on-accent);
+}
+
+/* Plan: pill days on the strip, and events as soft rows with a colour edge. */
+[data-style='soft'] .cal-nav-btn,
+[data-style='soft'] .cal-today-btn { border-radius: var(--radius-pill); }
+[data-style='soft'] .cal-scope { border-radius: var(--radius-pill); }
+[data-style='soft'] .cal-scope-btn { border-radius: var(--radius-pill); }
+[data-style='soft'] .cal-strip { gap: 6px; }
+[data-style='soft'] .cal-day {
+  min-height: 72px;
+  border-radius: 22px;
+  background: var(--surface-raised);
+  box-shadow: var(--sf-shadow);
+  justify-content: center;
+}
+[data-style='soft'] .cal-day-num { font-family: var(--font-display); font-size: 20px; }
+[data-style='soft'] .cal-day.on {
+  background: var(--accent-strong);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--accent-strong) 35%, transparent);
+}
+[data-style='soft'] .cal-event {
+  position: relative;
+  margin-bottom: 8px;
+  padding: 12px 14px 12px 18px;
+  border-bottom: none;
+  border-radius: 18px;
+  background: var(--surface-inset);
+}
+[data-style='soft'] .cal-event::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 10px;
+  bottom: 10px;
+  width: 4px;
+  border-radius: 4px;
+  background: var(--brand);
+}
+[data-style='soft'] .cal-event:last-child { margin-bottom: 0; }
+[data-style='soft'] .cal-event-title { font-weight: 700; }
+.cal-tasks { margin-top: 12px; }
+
+/* Habits: a ring you tap, a labelled week, the streak in words. */
+.sh-card { display: flex; flex-direction: column; gap: 14px; }
+.sh-card:nth-child(4n + 1) { --sf-ring: var(--sf-c1); }
+.sh-card:nth-child(4n + 2) { --sf-ring: var(--sf-c2); }
+.sh-card:nth-child(4n + 3) { --sf-ring: var(--sf-c3); }
+.sh-card:nth-child(4n + 4) { --sf-ring: var(--sf-c4); }
+.sh-top { display: flex; align-items: center; gap: 14px; }
+.sh-ring {
+  flex: none;
+  width: 68px;
+  height: 68px;
+  padding: 6px;
+  border: none;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--sf-ring) var(--fill, 0deg),
+    color-mix(in srgb, var(--sf-ring) 18%, var(--surface-inset)) 0
+  );
+  cursor: pointer;
+  transition: transform var(--dur-base) var(--ease);
+}
+.sh-ring:active { transform: scale(0.92); }
+.sh-ring-core {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 800;
+}
+.sh-card.is-done .sh-ring-core { background: var(--sf-ring); color: var(--text-on-accent); }
+.sh-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sh-name {
+  align-self: flex-start;
+  min-height: 24px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.sh-name:hover { color: var(--link); }
+.sh-sub { font-size: 14px; color: var(--text-muted); }
+.sh-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.sh-day { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.sh-day-dot {
+  width: 100%;
+  max-width: 36px;
+  height: 10px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--sf-ring) 16%, var(--surface-inset));
+}
+.sh-day.is-done .sh-day-dot { background: var(--sf-ring); }
+.sh-day-name { font-size: 12.5px; font-weight: 700; color: var(--text-muted); }
+.sh-streak {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--pill-warm-fg);
+}
+
+/* You (Everything, in soft): who you are, then tiles with some colour. */
+.you-head { display: flex; align-items: center; gap: 16px; margin: 4px 0 20px; }
+.you-avatar { width: 64px; height: 64px; font-size: 26px; flex: none; }
+.you-text { min-width: 0; }
+.you-text .page-title { margin: 0; overflow-wrap: anywhere; }
+.you-email { margin: 4px 0 0; font-size: 15px; color: var(--text-muted); overflow-wrap: anywhere; }
+[data-style='soft'] .evy-item {
+  border: none;
+  border-radius: 24px;
+  background: var(--surface-raised);
+  box-shadow: var(--sf-shadow);
+}
+[data-style='soft'] .evy-item:hover { box-shadow: var(--sf-shadow-lift); }
+[data-style='soft'] .evy-list > li:nth-child(4n + 1) { --sf-ring: var(--sf-c1); }
+[data-style='soft'] .evy-list > li:nth-child(4n + 2) { --sf-ring: var(--sf-c2); }
+[data-style='soft'] .evy-list > li:nth-child(4n + 3) { --sf-ring: var(--sf-c3); }
+[data-style='soft'] .evy-list > li:nth-child(4n + 4) { --sf-ring: var(--sf-c4); }
+[data-style='soft'] .evy-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--sf-ring) 18%, var(--surface-raised));
+  color: var(--text-primary);
+}
+[data-style='soft'] .evy-label { font-weight: 800; }
+
+/* Landing: the serif carries the headline; cards float like the app's. */
+[data-style='soft'] .landing h1 { font-weight: 600; }
+[data-style='soft'] .landing-card h2 { font-size: 19px; font-weight: 600; }
+[data-style='soft'] .landing-card {
+  border-color: transparent;
+  border-radius: var(--sf-radius-card);
+  box-shadow: var(--sf-shadow);
+}
+
+/* Chat: rounder, with bigger suggestions a thumb can hit. */
+[data-style='soft'] .chat-empty-title { font-size: 26px; font-weight: 600; }
+[data-style='soft'] .chat-suggest { border-radius: 18px; min-height: 44px; }
+[data-style='soft'] .chat-bubble { border-radius: 20px; }
+
+/* Training: exercises as floating cards, the session named in the serif. */
+[data-style='soft'] .fit-block {
+  margin-top: 14px;
+  padding: 18px;
+  border: none;
+  border-radius: var(--sf-radius-card);
+  box-shadow: var(--sf-shadow);
+}
+[data-style='soft'] .fit-block-title,
+[data-style='soft'] .fit-active-title {
+  font-family: var(--font-display);
+  font-variation-settings: 'SOFT' 100;
+  font-weight: 600;
+}
+[data-style='soft'] .fit-block-title { font-size: 20px; }
+/* Title and its skip button on one row whatever the name's length, with
+   "Last: …" under both. */
+[data-style='soft'] .fit-block-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 8px;
+}
+[data-style='soft'] .fit-block-head > .fit-last { grid-column: 1 / -1; }
+[data-style='soft'] .fit-block-head > .icon-btn { grid-column: 2; grid-row: 1; }
+[data-style='soft'] .fit-active-title { font-size: 24px; }
+[data-style='soft'] .fit-opts { border-top-color: transparent; margin-top: 4px; padding-top: 4px; }
+[data-style='soft'] .fit-add-exercise { border-radius: 20px; }
+
+/* Settings: sections as soft cards with serif titles. */
+[data-style='soft'] .set-title { font-size: 19px; font-weight: 600; }
 
 /* ── Watch (Google Health) ──────────────────────────────────────────────── */
 /* Shown in both styles; soft's own card rules supply the float, and classic

@@ -8,6 +8,7 @@ import {
 } from '@/lib/hooks/events';
 import {
   CalendarDays,
+  Check,
   ChevronLeft,
   ChevronRight,
   MapPin,
@@ -24,6 +25,8 @@ import {
 } from '@/components/ui';
 import { PageHeader } from '@/components/PageHeader';
 import { WeekGrid } from '@/components/calendar/WeekGrid';
+import { useCompleteTask, useTasks } from '@/lib/hooks/tasks';
+import { useUiStyle } from '@/lib/theme/style';
 import { EventComposer } from '@/components/calendar/EventComposer';
 import { blankDraft, draftAtSlot, draftFor, type Draft } from '@/lib/event-draft';
 import { GoogleCalendarCard } from '@/components/connectors/GoogleCalendarCard';
@@ -55,6 +58,16 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
   const [scope, setScope] = useState<'day' | 'week'>(initialScope);
   const [draft, setDraft] = useState<Draft | null>(null);
   const { toast } = useToast();
+  const style = useUiStyle();
+
+  // Soft on a phone opens Plan as an agenda — the day strip and that day's
+  // list — because seven columns at 390px is four truncated ones. The grid is
+  // one tap away on "Week", and a desktop still opens on it.
+  useEffect(() => {
+    if (style === 'soft' && initialScope === 'week' && window.matchMedia?.('(max-width: 900px)').matches) {
+      setScope('day');
+    }
+  }, [style, initialScope]);
 
   // The "now" line and the live-event highlight are wrong the moment the clock
   // moves past them, so re-render on the minute rather than only on refetch.
@@ -318,6 +331,8 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
       </Card>
       )}
 
+      {style === 'soft' && scope === 'day' && <DayTasks dayKey={selectedDay} />}
+
       {/* One field per row. The old form put two datetime-local inputs side by
           side, which cannot shrink below ~260px each and pushed the page to
           537px wide on a 390px phone. */}
@@ -328,5 +343,63 @@ export function CalendarPanel({ initialScope = 'day' }: { initialScope?: 'day' |
         onCreated={setSelectedDay}
       />
     </>
+  );
+}
+
+/**
+ * Soft's agenda puts the day's tasks under its events: "what is on" and "what
+ * I said I would do" are one question when you are planning a day. Open work
+ * due that day plus what was ticked off on it, from the same working set every
+ * task surface reads. Renders nothing for a day with no tasks.
+ */
+function DayTasks({ dayKey }: { dayKey: string }) {
+  const tasks = useTasks();
+  const complete = useCompleteTask();
+  const rows = useMemo(
+    () =>
+      (tasks.data ?? [])
+        .filter((t) =>
+          t.status === 'DONE'
+            ? t.completedAt !== null && localDayKey(new Date(t.completedAt)) === dayKey
+            : t.status !== 'ARCHIVED' && t.dueAt !== null && localDayKey(new Date(t.dueAt)) === dayKey,
+        )
+        .sort((a, b) => (a.dueAt ?? '').localeCompare(b.dueAt ?? '')),
+    [tasks.data, dayKey],
+  );
+
+  if (!tasks.isSuccess || rows.length === 0) return null;
+
+  return (
+    <section className="sf-card cal-tasks" aria-labelledby="cal-tasks-title">
+      <header className="sf-card-head">
+        <h2 id="cal-tasks-title" className="sf-card-title">
+          To do
+        </h2>
+      </header>
+      <ul className="sf-tasks">
+        {rows.map((t) =>
+          t.status === 'DONE' ? (
+            <li key={t.id} className="sf-task is-done">
+              <span className="sf-tick done" aria-hidden>
+                <Check size={14} />
+              </span>
+              <span className="sf-task-title">{t.title}</span>
+            </li>
+          ) : (
+            <li key={t.id} className="sf-task">
+              <button
+                type="button"
+                className="sf-tick"
+                aria-label={`Complete "${t.title}"`}
+                onClick={() => complete.mutate(t.id)}
+              >
+                <Check size={14} aria-hidden />
+              </button>
+              <span className="sf-task-title">{t.title}</span>
+            </li>
+          ),
+        )}
+      </ul>
+    </section>
   );
 }

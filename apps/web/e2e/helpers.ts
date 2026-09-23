@@ -40,6 +40,13 @@ export const TEST_PASSWORD = 'e2e-password-123';
  * failures: a genuine error fails again immediately.
  */
 export async function register(page: Page, email = uniqueEmail()): Promise<string> {
+  // Soft is the default style, but most specs assert classic's Today and nav,
+  // so a registered account starts in classic unless a spec chose otherwise.
+  // Soft has its own spec ("soft style: …") that switches to it and sweeps
+  // every route. Written to storage, so the saved storageState carries it.
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('atlas-style')) localStorage.setItem('atlas-style', 'classic');
+  });
   // "/" is the public landing page now — the sign-in gate lives inside the
   // dashboard shell, so registration has to start from an app route.
   await page.goto('/today');

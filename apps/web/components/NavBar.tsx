@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CalendarDays, Dumbbell, Home, LayoutGrid, Repeat, Rewind } from 'lucide-react';
+import { CalendarDays, Dumbbell, Home, LayoutGrid, Plus, Repeat, Rewind } from 'lucide-react';
 import { SECTIONS, SOFT_NAV, sectionFor, softNavFor, type Section } from '@/lib/sections';
 import { useUiStyle } from '@/lib/theme/style';
+import { useAtlasUi } from '@/components/atlas/AtlasUiProvider';
 
 const ICONS = { home: Home, calendar: CalendarDays, rewind: Rewind } as const;
 const SOFT_ICONS = { home: Home, calendar: CalendarDays, repeat: Repeat, dumbbell: Dumbbell } as const;
@@ -77,7 +78,15 @@ export function NavBar({
   );
 }
 
-/** Soft style's destinations — see SOFT_NAV. "More" is the phone's way to everything else. */
+/**
+ * Soft style's destinations — see SOFT_NAV.
+ *
+ * On the phone the bar splits around a raised "+" in the middle: the one
+ * action you take from any screen is putting something into Atlas, so it gets
+ * the thumb's best spot instead of a text bar parked over every page's content.
+ * It opens the command bar, which captures, asks and jumps. "Everything else"
+ * is the avatar in the top bar, so the bar itself holds only destinations.
+ */
 function SoftNav({
   pathname,
   collapsed,
@@ -88,34 +97,42 @@ function SoftNav({
   withMore: boolean;
 }) {
   const active = softNavFor(pathname);
+  const { setCommandOpen } = useAtlasUi();
+  const half = Math.ceil(SOFT_NAV.length / 2);
+
+  const link = (item: (typeof SOFT_NAV)[number]) => {
+    const Icon = SOFT_ICONS[item.icon];
+    const isActive = active?.href === item.href;
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        className={`nav-link ${isActive ? 'active' : ''}`}
+        aria-current={isActive ? 'page' : undefined}
+        title={collapsed ? item.label : undefined}
+      >
+        <Icon className="nav-icon" size={20} aria-hidden />
+        <span className="nav-label">{item.label}</span>
+      </Link>
+    );
+  };
+
   return (
     <nav className="app-nav" aria-label="Sections">
-      {SOFT_NAV.map((item) => {
-        const Icon = SOFT_ICONS[item.icon];
-        const isActive = active?.href === item.href;
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`nav-link ${isActive ? 'active' : ''}`}
-            aria-current={isActive ? 'page' : undefined}
-            title={collapsed ? item.label : undefined}
-          >
-            <Icon className="nav-icon" size={20} aria-hidden />
-            <span className="nav-label">{item.label}</span>
-          </Link>
-        );
-      })}
+      {SOFT_NAV.slice(0, half).map(link)}
       {withMore && (
-        <Link
-          href="/everything"
-          className={`nav-link ${!active ? 'active' : ''}`}
-          aria-current={pathname === '/everything' ? 'page' : undefined}
+        <button
+          type="button"
+          className="nav-link sf-fab"
+          aria-label="Add or ask anything"
+          onClick={() => setCommandOpen(true)}
         >
-          <LayoutGrid className="nav-icon" size={20} aria-hidden />
-          <span className="nav-label">More</span>
-        </Link>
+          <span className="sf-fab-disc">
+            <Plus size={24} aria-hidden />
+          </span>
+        </button>
       )}
+      {SOFT_NAV.slice(half).map(link)}
     </nav>
   );
 }
