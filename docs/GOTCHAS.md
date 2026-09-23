@@ -734,3 +734,18 @@ next wake instead of skipping the day.
 **An absence of log lines is not evidence of health.** A check that reports
 nothing when it does not run looks identical to one that ran and found nothing
 wrong.
+
+## A long-lived local API turns a full e2e run red with 429s
+
+The whole suite runs from one IP against the global limit of 120 requests a
+minute. On a freshly started API it sits under that: 48 passed, with one 429 in
+the entire run. After an hour of repeated runs against the SAME API process, the
+identical suite, on identical code, produced 6 and then 8 failures — each one a
+row that never appeared because its `POST` was answered 429. Every failing test
+passed on its own, which is exactly what made it look like a flaky suite rather
+than an environmental one.
+
+Restarting the API brought it straight back to green. So before judging a full
+local run, **start the API fresh** — and never answer this by raising the limit
+or adding a test bypass to a production codebase. The limit is correct; the
+long-lived process was the variable.

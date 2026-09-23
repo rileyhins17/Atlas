@@ -10,14 +10,9 @@ import {
 import { useCreateJournalEntry, useJournal } from '@/lib/hooks/journal';
 import { useRoutine } from '@/lib/hooks/routine';
 import { dayBit, localDayKey } from '@/lib/dates';
+import { MOOD_SCALE } from '@/lib/mood';
 
-const FACES = [
-  { value: 1, label: 'Rough' },
-  { value: 2, label: 'Low' },
-  { value: 3, label: 'Okay' },
-  { value: 4, label: 'Good' },
-  { value: 5, label: 'Great' },
-];
+const FACES = MOOD_SCALE;
 
 /**
  * Twice a day: shortly after you wake, and shortly before you sleep.

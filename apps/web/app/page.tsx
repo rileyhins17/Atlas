@@ -75,7 +75,9 @@ export default function Landing() {
 
       <section className="landing-hero">
         <h1>
-          The life OS that actually
+          {/* The space is explicit: the <br> is hidden on a phone, and without
+              it the headline read "actuallyknows" there. */}
+          The life OS that actually{' '}
           <br />
           knows your life.
         </h1>

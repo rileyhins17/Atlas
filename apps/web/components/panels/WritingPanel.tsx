@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { Pin } from 'lucide-react';
 import { errorMessage } from '@/lib/api';
+import { MOOD_SCALE } from '@/lib/mood';
 import { useCreateJournalEntry, useJournal, useUpdateJournalEntry } from '@/lib/hooks/journal';
 import { useCreateNote, useDeleteNote, useNotes, useUpdateNote } from '@/lib/hooks/notes';
 import { WrittenCard, type Written } from './WrittenCard';
@@ -18,7 +19,6 @@ import {
 import { PageHeader } from '@/components/PageHeader';
 import { useSubmitLatch } from '@/lib/hooks/submit-latch';
 
-const MOODS = [1, 2, 3, 4, 5];
 
 /**
  * One place to write.
@@ -142,7 +142,7 @@ export function WritingPanel() {
               note would invite mood data that no trend can ever use. */}
           {!remember && (
             <div className="row wr-moods" role="group" aria-label="How was today?">
-              {MOODS.map((m) => (
+              {MOOD_SCALE.map(({ value: m, label }) => (
                 <button
                   key={m}
                   type="button"
@@ -151,11 +151,12 @@ export function WritingPanel() {
                   aria-label={`Mood ${m} out of 5`}
                   onClick={() => setMood((cur) => (cur === m ? null : m))}
                 >
-                  {m}
+                  <span className="wr-mood-num">{m}</span>
+                  <span className="wr-mood-word">{label}</span>
                 </button>
               ))}
               <span className="muted" style={{ fontSize: 12 }}>
-                out of 5, optional
+                optional
               </span>
             </div>
           )}

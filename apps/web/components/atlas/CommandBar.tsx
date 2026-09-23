@@ -52,6 +52,7 @@ const NAV_ICONS: Record<string, typeof Home> = {
   target: Target,
   repeat: Flame,
   dumbbell: Dumbbell,
+  chart: TrendingUp,
   pen: BookOpen,
   wallet: Wallet,
   settings: Settings,
@@ -61,6 +62,13 @@ const DESTINATIONS = NAV_DESTINATIONS.map((d) => ({
   ...d,
   icon: NAV_ICONS[d.icon] ?? Home,
 }));
+
+/** What the empty bar offers: one task, one event, one thing to remember. */
+const CAPTURE_EXAMPLES = [
+  'Call the dentist tomorrow at 3',
+  'Gym at 6pm',
+  'Remember: my shoe size is 8',
+];
 
 interface Item {
   id: string;
@@ -106,6 +114,12 @@ export function CommandBar() {
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Tapping an example moves focus to its row; hand it back to the input so
+  // the example can be edited straight away.
+  const [refocus, setRefocus] = useState(0);
+  useEffect(() => {
+    if (refocus > 0) inputRef.current?.focus();
+  }, [refocus]);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Reset per open so a stale query never flashes.
@@ -222,6 +236,24 @@ export function CommandBar() {
         hint: 'opens chat',
         run: () => openChat(trimmed),
       });
+    }
+
+    // Empty, it opens on examples rather than on a list of pages: "+" is for
+    // putting something IN, and the fastest way to learn that capture takes
+    // plain language is to be handed some. Tapping one fills the input — it
+    // never files anything on its own.
+    if (trimmed.length === 0) {
+      for (const example of CAPTURE_EXAMPLES) {
+        list.push({
+          id: `try-${example}`,
+          icon: Sparkles,
+          title: `Try “${example}”`,
+          run: () => {
+            setQuery(example);
+            setRefocus((n) => n + 1);
+          },
+        });
+      }
     }
 
     for (const d of navMatches.length > 0 || trimmed.length > 0 ? navMatches : DESTINATIONS) {

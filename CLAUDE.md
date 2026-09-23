@@ -164,6 +164,11 @@ What soft is, so it is not re-derived from the CSS:
   with that day's tasks under its events (`DayTasks` in `CalendarPanel`).
 - **Habits** render `SoftHabitCard`: a ring you tap, a labelled week, the streak in words — same
   controls and labels as the classic card.
+- **Both styles:** the command bar opens EMPTY on three example captures (tapping one fills the
+  input, never files it), then the pages. Set type and RPE fold behind one "Set type & effort" line
+  per exercise, and a chosen value keeps it open and named (`exercise-block.test.tsx`) — sixteen
+  chips under every exercise made a four-exercise session two phone screens of controls. Mood is
+  picked by word everywhere (`lib/mood.ts`: Rough · Low · Okay · Good · Great).
 
 `TodayView` is only the first-run gate plus a style switch: SoftToday, `ClassicToday` and the
 onboarding wizard are each a `next/dynamic` chunk (188 → 160 kB first load). Every soft rule is
@@ -171,7 +176,8 @@ scoped under `[data-style='soft']`; its token literals live in the token block. 
 `register()` helper pins classic**, because most specs assert classic's Today and nav; `soft
 style: …` in `life-os.spec.ts` switches to soft, exercises "+" and the avatar, and sweeps all
 thirteen routes in both themes for axe, tap targets and input size. The screenshot rig shoots soft
-as `p-s-*`, plus `s-01-today` at desktop width.
+as `p-s-*` — every route, "+" open, the chat, a workout under way, sign-in and the landing page —
+plus `s-*` at desktop width.
 
 **Navigation is three destinations along one axis — time.** Today · Week · Looking back, with
 "Everything" one level down. **Both navs must agree**: the sidebar is `display: none` below 901px,

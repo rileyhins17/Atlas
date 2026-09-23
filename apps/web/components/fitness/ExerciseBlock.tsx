@@ -22,7 +22,7 @@ import {
   type WeightUnit,
   type WorkoutDTO,
 } from '@atlas/shared';
-import { Check, Trophy, X } from 'lucide-react';
+import { Check, ChevronDown, Trophy, X } from 'lucide-react';
 import { useDeleteSet, useLastPerformance, useLogSet } from '@/lib/hooks/fitness';
 import { useWeightUnit } from '@/lib/hooks/settings';
 import { Button, IconButton, Input } from '@/components/ui';
@@ -84,6 +84,13 @@ export function ExerciseBlock({
   // signal a programme is steered by, and Atlas recorded none of it.
   const [rpe, setRpe] = useState<number | null>(null);
   const [showPlates, setShowPlates] = useState(false);
+  // Set type and effort are optional and used on a minority of sets, so they
+  // fold behind one line instead of putting sixteen chips under every
+  // exercise. Anything chosen keeps them open: an armed control is never
+  // hidden.
+  const [showOpts, setShowOpts] = useState(false);
+  const optsChosen = setType !== 'normal' || rpe !== null;
+  const optsOpen = showOpts || optsChosen;
 
   const previousBest = last.data?.bestWeightGrams ?? null;
   const lastLine =
@@ -282,6 +289,23 @@ export function ExerciseBlock({
       </form>
 
       <div className="fit-opts">
+        <button
+          type="button"
+          className="fit-opts-toggle"
+          aria-expanded={optsOpen}
+          // Cannot be closed while a choice is armed — see optsOpen.
+          disabled={optsChosen}
+          onClick={() => setShowOpts((v) => !v)}
+        >
+          <ChevronDown size={15} aria-hidden className={optsOpen ? 'open' : ''} />
+          {optsChosen
+            ? [setType !== 'normal' ? SET_TYPE_LABELS[setType] : null, rpe !== null ? `RPE ${formatRpe(rpe)}` : null]
+                .filter(Boolean)
+                .join(' · ')
+            : 'Set type & effort'}
+        </button>
+        {optsOpen && (
+        <>
         <div className="fit-chips" role="group" aria-label={`Set type for ${exerciseName}`}>
           {SET_TYPES.map((t) => (
             <button
@@ -317,6 +341,8 @@ export function ExerciseBlock({
             </button>
           ))}
         </div>
+        </>
+        )}
 
         {needsWeight && parsedWeight !== null && parsedWeight > 0 && (
           <div className="fit-plates">
