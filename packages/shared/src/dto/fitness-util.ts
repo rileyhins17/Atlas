@@ -122,13 +122,13 @@ export function stepFor(unit: WeightUnit): number {
   return unit === 'kg' ? 2.5 : 5;
 }
 
-/** "185 lb × 5", "45s", "5 km" — one set rendered for a summary line or the AI. */
+/** "185 lb × 5", "1m 30s", "5 km" — one set rendered for a summary line or the AI. */
 export function describeSet(
   set: WorkoutSetDTO,
   kind: ExerciseKind,
   unit: WeightUnit = 'lb',
 ): string {
-  if (kind === 'duration') return `${set.durationSec ?? 0}s`;
+  if (kind === 'duration') return formatSetDuration(set.durationSec ?? 0);
   if (kind === 'distance') {
     const m = set.distanceM ?? 0;
     return m >= 1000 ? `${Math.round(m / 100) / 10} km` : `${m} m`;
@@ -136,6 +136,46 @@ export function describeSet(
   if (kind === 'reps') return `${set.reps ?? 0} reps`;
   if (set.weightGrams == null) return `${set.reps ?? 0} reps`;
   return `${formatWeight(set.weightGrams, unit)} × ${set.reps ?? 0}`;
+}
+
+/**
+ * A set's duration, entered and shown as minutes and seconds.
+ *
+ * `describeSet` used to print raw seconds for EVERY duration exercise — a
+ * 20-minute row read as "1200s". Fine for a 30s plank, unreadable for
+ * anything a training session actually holds (Stair Climber, Elliptical,
+ * Incline Walk, Yoga), which is most of them.
+ */
+export function formatSetDuration(totalSec: number): string {
+  if (totalSec < 60) return `${totalSec}s`;
+  const { min, sec } = secondsToClock(totalSec);
+  return sec === 0 ? `${min}m` : `${min}m ${sec}s`;
+}
+
+/** 125 → { min: 2, sec: 5 }. Whatever the split was, it recombines exactly. */
+export function secondsToClock(totalSec: number): { min: number; sec: number } {
+  const safe = Math.max(0, Math.round(totalSec));
+  return { min: Math.floor(safe / 60), sec: safe % 60 };
+}
+
+/** The entry form's two steppers, recombined into the one integer that is stored. */
+export function clockToSeconds(min: number, sec: number): number {
+  return Math.max(0, Math.round(min) * 60 + Math.round(sec));
+}
+
+/**
+ * Distance is stored in whole metres, always — the same reason weight is
+ * stored in grams: a float accumulates rounding error, and it is one exercise
+ * kind, not a per-user preference, so there is nothing to convert AT rest.
+ * Entry alone works in km, because nobody types "2000" meaning 2 kilometres.
+ */
+export function kmToMeters(km: number): number {
+  return Math.max(0, Math.round(km * 1000));
+}
+
+/** 5012 → 5.012 (never rounded further — the entry field owns its own precision). */
+export function metersToKm(m: number): number {
+  return m / 1000;
 }
 
 /**

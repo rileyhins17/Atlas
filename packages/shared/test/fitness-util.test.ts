@@ -2,12 +2,17 @@ import { describe, expect, it } from 'vitest';
 import type { WorkoutSetDTO } from '../src/dto/fitness.js';
 import {
   bestWeightGrams,
+  clockToSeconds,
   countWorkingSets,
   describeSet,
+  formatSetDuration,
   formatVolume,
   gramsToKg,
   groupSetsByExercise,
   kgToGrams,
+  kmToMeters,
+  metersToKm,
+  secondsToClock,
   workoutVolumeGrams,
 } from '../src/dto/fitness-util.js';
 
@@ -136,6 +141,46 @@ describe('describeSet', () => {
 
   it('falls back to reps when a weight-based movement has no weight', () => {
     expect(describeSet(set({ weightGrams: null, reps: 10 }), 'weight_reps')).toBe('10 reps');
+  });
+
+  it('reads a long duration as minutes, not raw seconds', () => {
+    // A 20-minute row used to read as "1200s" — the whole point of formatting it.
+    expect(describeSet(set({ durationSec: 1_200 }), 'duration')).toBe('20m');
+    expect(describeSet(set({ durationSec: 90 }), 'duration')).toBe('1m 30s');
+  });
+});
+
+describe('formatSetDuration', () => {
+  it('stays in seconds under a minute, minutes past it', () => {
+    expect(formatSetDuration(45)).toBe('45s');
+    expect(formatSetDuration(60)).toBe('1m');
+    expect(formatSetDuration(1_200)).toBe('20m');
+    expect(formatSetDuration(90)).toBe('1m 30s');
+  });
+});
+
+describe('secondsToClock / clockToSeconds', () => {
+  it('round-trip exactly, whatever the split between the two fields was', () => {
+    expect(secondsToClock(125)).toEqual({ min: 2, sec: 5 });
+    expect(clockToSeconds(2, 5)).toBe(125);
+    // A stepper can push seconds past 59; the total is still correct.
+    expect(clockToSeconds(1, 90)).toBe(150);
+  });
+
+  it('never goes negative from a half-typed field', () => {
+    expect(clockToSeconds(-1, -5)).toBe(0);
+  });
+});
+
+describe('kmToMeters / metersToKm', () => {
+  it('round-trip a distance entered in km', () => {
+    expect(kmToMeters(5)).toBe(5_000);
+    expect(kmToMeters(0.4)).toBe(400);
+    expect(metersToKm(5_000)).toBe(5);
+  });
+
+  it('is always stored as a whole metre, however the km was typed', () => {
+    expect(kmToMeters(2.567)).toBe(2_567);
   });
 });
 
