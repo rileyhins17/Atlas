@@ -11,7 +11,9 @@ import {
   groupSetsByExercise,
   kgToGrams,
   kmToMeters,
+  measuresIn,
   metersToKm,
+  primaryMeasures,
   secondsToClock,
   workoutVolumeGrams,
 } from '../src/dto/fitness-util.js';
@@ -126,17 +128,21 @@ describe('gram conversions', () => {
   });
 });
 
+/** A set that holds ONLY what is passed, unlike `set`, which defaults to weight × reps. */
+const only = (over: Partial<WorkoutSetDTO>): WorkoutSetDTO =>
+  set({ weightGrams: null, reps: null, durationSec: null, distanceM: null, ...over });
+
 describe('describeSet', () => {
   it('renders each measurement kind in its own units', () => {
     // The unit is explicit now; it defaults to lb, matching the app default.
     expect(describeSet(set({ weightGrams: 80_000, reps: 5 }), 'weight_reps', 'kg')).toBe('80 kg × 5');
     expect(describeSet(set({ weightGrams: 45_359, reps: 5 }), 'weight_reps', 'lb')).toBe('100 lb × 5');
     expect(describeSet(set({ weightGrams: 45_359, reps: 5 }), 'weight_reps')).toBe('100 lb × 5');
-    expect(describeSet(set({ reps: 12 }), 'reps')).toBe('12 reps');
-    expect(describeSet(set({ durationSec: 45 }), 'duration')).toBe('45s');
-    expect(describeSet(set({ distanceM: 5_000 }), 'distance')).toBe('5 km');
+    expect(describeSet(only({ reps: 12 }), 'reps')).toBe('12 reps');
+    expect(describeSet(only({ durationSec: 45 }), 'duration')).toBe('45s');
+    expect(describeSet(only({ distanceM: 5_000 }), 'distance')).toBe('5 km');
     // Under a kilometre stays in metres rather than reading "0.4 km".
-    expect(describeSet(set({ distanceM: 400 }), 'distance')).toBe('400 m');
+    expect(describeSet(only({ distanceM: 400 }), 'distance')).toBe('400 m');
   });
 
   it('falls back to reps when a weight-based movement has no weight', () => {
@@ -145,8 +151,68 @@ describe('describeSet', () => {
 
   it('reads a long duration as minutes, not raw seconds', () => {
     // A 20-minute row used to read as "1200s" — the whole point of formatting it.
-    expect(describeSet(set({ durationSec: 1_200 }), 'duration')).toBe('20m');
-    expect(describeSet(set({ durationSec: 90 }), 'duration')).toBe('1m 30s');
+    expect(describeSet(only({ durationSec: 1_200 }), 'duration')).toBe('20m');
+    expect(describeSet(only({ durationSec: 90 }), 'duration')).toBe('1m 30s');
+  });
+
+  it('keeps a bodyweight set at zero load as a real set', () => {
+    expect(describeSet(only({ weightGrams: 0, reps: 5 }), 'weight_reps')).toBe('0 lb × 5');
+  });
+
+  /** A set may hold any mix of the four measures, and the line says all of them. */
+  it('shows the extra measures a set actually holds', () => {
+    // Added weight on a bodyweight movement reads like any other loaded set.
+    expect(describeSet(only({ weightGrams: 9_072, reps: 8 }), 'reps')).toBe('20 lb × 8');
+    // A weighted plank, a loaded carry, a sled push.
+    expect(describeSet(only({ weightGrams: 10_000, durationSec: 90 }), 'duration', 'kg')).toBe('10 kg × 1m 30s');
+    expect(describeSet(only({ weightGrams: 32_000, distanceM: 40 }), 'distance', 'kg')).toBe('32 kg × 40 m');
+    // Cardio with a time as well as a distance: no load, so no "×".
+    expect(describeSet(only({ distanceM: 2_000, durationSec: 510 }), 'distance')).toBe('2 km · 8m 30s');
+    // A load with nothing it was done for still says what it was.
+    expect(describeSet(only({ weightGrams: 20_000 }), 'reps', 'kg')).toBe('20 kg');
+  });
+
+  it('ignores an extra that is zero, which means "not recorded"', () => {
+    expect(describeSet(only({ weightGrams: 0, reps: 12 }), 'reps')).toBe('12 reps');
+    expect(describeSet(only({ distanceM: 5_000, durationSec: 0 }), 'distance')).toBe('5 km');
+  });
+
+  /** Recategorising a movement must not make its history lie ("0 m"). */
+  it('stays truthful about a set that no longer matches its movement', () => {
+    expect(describeSet(only({ durationSec: 60 }), 'distance')).toBe('1m');
+    expect(describeSet(only({ reps: 10 }), 'duration')).toBe('10 reps');
+    expect(describeSet(only({ reps: 10 }), 'distance')).toBe('10 reps');
+  });
+
+  it('still says something when a set holds nothing at all', () => {
+    expect(describeSet(only({}), 'weight_reps')).toBe('0 reps');
+    expect(describeSet(only({}), 'reps')).toBe('0 reps');
+    expect(describeSet(only({}), 'duration')).toBe('0s');
+    expect(describeSet(only({}), 'distance')).toBe('0 m');
+  });
+});
+
+describe('primaryMeasures', () => {
+  it('names what each kind is measured in, load first', () => {
+    expect(primaryMeasures('weight_reps')).toEqual(['weight', 'reps']);
+    expect(primaryMeasures('reps')).toEqual(['reps']);
+    expect(primaryMeasures('duration')).toEqual(['time']);
+    expect(primaryMeasures('distance')).toEqual(['distance']);
+  });
+});
+
+describe('measuresIn', () => {
+  it('lists the measures with a real value, in entry order', () => {
+    expect(measuresIn({ weightGrams: 9_000, reps: 8, durationSec: null, distanceM: 40 })).toEqual([
+      'weight',
+      'reps',
+      'distance',
+    ]);
+  });
+
+  it('treats zero and null alike: not recorded', () => {
+    expect(measuresIn({ weightGrams: 0, reps: null, durationSec: 0, distanceM: undefined })).toEqual([]);
+    expect(measuresIn({})).toEqual([]);
   });
 });
 

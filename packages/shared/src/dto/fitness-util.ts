@@ -122,30 +122,90 @@ export function stepFor(unit: WeightUnit): number {
   return unit === 'kg' ? 2.5 : 5;
 }
 
-/** "185 lb × 5", "1m 30s", "5 km" — one set rendered for a summary line or the AI. */
+/** What a set can record: its four columns, in a person's words. */
+export type SetMeasure = 'weight' | 'reps' | 'time' | 'distance';
+
+/** Entry-row order, load first. */
+export const SET_MEASURES: readonly SetMeasure[] = ['weight', 'reps', 'time', 'distance'];
+
+export const SET_MEASURE_LABELS: Record<SetMeasure, string> = {
+  weight: 'Weight',
+  reps: 'Reps',
+  time: 'Time',
+  distance: 'Distance',
+};
+
+/** What a movement is measured in by default. `kind` is a default, not a ceiling: any set may hold any mix. */
+export function primaryMeasures(kind: ExerciseKind): SetMeasure[] {
+  switch (kind) {
+    case 'weight_reps':
+      return ['weight', 'reps'];
+    case 'reps':
+      return ['reps'];
+    case 'duration':
+      return ['time'];
+    case 'distance':
+      return ['distance'];
+  }
+}
+
+/** The measures a set holds a real value for. Zero counts as "not recorded". */
+export function measuresIn(set: {
+  weightGrams?: number | null;
+  reps?: number | null;
+  durationSec?: number | null;
+  distanceM?: number | null;
+}): SetMeasure[] {
+  const held: SetMeasure[] = [];
+  if ((set.weightGrams ?? 0) > 0) held.push('weight');
+  if ((set.reps ?? 0) > 0) held.push('reps');
+  if ((set.durationSec ?? 0) > 0) held.push('time');
+  if ((set.distanceM ?? 0) > 0) held.push('distance');
+  return held;
+}
+
+function formatDistance(m: number): string {
+  return m >= 1000 ? `${Math.round(m / 100) / 10} km` : `${m} m`;
+}
+
+/** "185 lb × 5", "1m 30s", "32 kg × 40 m": one set, rendered from whatever it holds rather than only what its kind expects. */
 export function describeSet(
   set: WorkoutSetDTO,
   kind: ExerciseKind,
   unit: WeightUnit = 'lb',
 ): string {
-  if (kind === 'duration') return formatSetDuration(set.durationSec ?? 0);
-  if (kind === 'distance') {
-    const m = set.distanceM ?? 0;
-    return m >= 1000 ? `${Math.round(m / 100) / 10} km` : `${m} m`;
+  const primary = primaryMeasures(kind);
+  // A primary measure counts once recorded (0 lb is a set); an extra only with a value.
+  const holds = (measure: SetMeasure, value: number | null): value is number =>
+    value != null && (primary.includes(measure) || value > 0);
+
+  const load = holds('weight', set.weightGrams) ? formatWeight(set.weightGrams!, unit) : null;
+  const held = (['reps', 'time', 'distance'] as const).filter((m) =>
+    m === 'reps'
+      ? holds(m, set.reps)
+      : m === 'time'
+        ? holds(m, set.durationSec)
+        : holds(m, set.distanceM),
+  );
+  // What the movement is measured in leads; anything added follows it.
+  const work = [...held.filter((m) => primary.includes(m)), ...held.filter((m) => !primary.includes(m))].map(
+    (m, i) => {
+      if (m === 'time') return formatSetDuration(set.durationSec!);
+      if (m === 'distance') return formatDistance(set.distanceM!);
+      // Bare number only straight after a load ("185 lb × 5").
+      return load && i === 0 ? String(set.reps) : `${set.reps} reps`;
+    },
+  );
+
+  if (work.length === 0) {
+    if (load) return load;
+    // Nothing recorded at all: say so in the movement's own unit.
+    return kind === 'duration' ? '0s' : kind === 'distance' ? '0 m' : '0 reps';
   }
-  if (kind === 'reps') return `${set.reps ?? 0} reps`;
-  if (set.weightGrams == null) return `${set.reps ?? 0} reps`;
-  return `${formatWeight(set.weightGrams, unit)} × ${set.reps ?? 0}`;
+  return load ? `${load} × ${work.join(' · ')}` : work.join(' · ');
 }
 
-/**
- * A set's duration, entered and shown as minutes and seconds.
- *
- * `describeSet` used to print raw seconds for EVERY duration exercise — a
- * 20-minute row read as "1200s". Fine for a 30s plank, unreadable for
- * anything a training session actually holds (Stair Climber, Elliptical,
- * Incline Walk, Yoga), which is most of them.
- */
+/** A duration as "45s", "20m" or "1m 30s". */
 export function formatSetDuration(totalSec: number): string {
   if (totalSec < 60) return `${totalSec}s`;
   const { min, sec } = secondsToClock(totalSec);

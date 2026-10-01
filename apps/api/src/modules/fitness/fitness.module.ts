@@ -6,10 +6,10 @@ import { FitnessAiAdapter } from './fitness.ai.js';
 import { WorkoutTemplatesService } from './workout-templates.service.js';
 
 /**
- * Seeds the shared exercise catalog on boot. Idempotent (`skipDuplicates`), so
- * running it every start is cheap and multiple API replicas can race it safely.
- * Failure is logged, not fatal — a missing catalog degrades the picker, it does
- * not justify refusing to serve the app.
+ * Seeds the shared exercise catalog on boot and corrects rows that have drifted
+ * from it. Idempotent, so running it every start is cheap and multiple API
+ * replicas can race it safely. Failure is logged, not fatal — a missing catalog
+ * degrades the picker, it does not justify refusing to serve the app.
  */
 @Injectable()
 export class ExerciseCatalogSeeder implements OnApplicationBootstrap {
@@ -19,8 +19,9 @@ export class ExerciseCatalogSeeder implements OnApplicationBootstrap {
 
   async onApplicationBootstrap(): Promise<void> {
     try {
-      const added = await this.fitness.seedCatalog();
+      const { added, corrected } = await this.fitness.seedCatalog();
       if (added > 0) this.logger.log(`Seeded ${added} catalog exercises`);
+      if (corrected > 0) this.logger.log(`Corrected ${corrected} catalog exercises that had drifted`);
     } catch (err) {
       this.logger.warn(`Exercise catalog seed skipped: ${(err as Error).message}`);
     }

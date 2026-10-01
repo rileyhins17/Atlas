@@ -47,7 +47,12 @@ export function pickerSections({
   const filtered = exercises.filter(
     (e) => (!target || e.target === target) && (!equipment || e.equipment === equipment),
   );
-  const matches = (e: ExerciseDTO) => e.name.toLowerCase().includes(q);
+  // Every word must appear, in any order: "machine row" finds "Row (Machine)".
+  const words = q.split(/\s+/).filter(Boolean);
+  const matches = (e: ExerciseDTO) => {
+    const name = e.name.toLowerCase();
+    return words.every((w) => name.includes(w));
+  };
   const pool = q ? filtered.filter(matches) : filtered;
 
   // Searching is an explicit act: honour it with one flat, ranked list rather
@@ -55,15 +60,18 @@ export function pickerSections({
   if (q) {
     const priority = new Map<string, number>();
     template?.exercises.forEach((te, i) => priority.set(te.exerciseId, i));
+    // Whole phrase as a prefix first, then a name starting with any typed word, then the rest.
+    const closeness = (e: ExerciseDTO) => {
+      const name = e.name.toLowerCase();
+      return name.startsWith(q) ? 0 : words.some((w) => name.startsWith(w)) ? 1 : 2;
+    };
     const ranked = [...pool].sort((a, b) => {
       const ap = priority.has(a.id) ? 0 : recentExerciseIds.includes(a.id) ? 1 : 2;
       const bp = priority.has(b.id) ? 0 : recentExerciseIds.includes(b.id) ? 1 : 2;
       if (ap !== bp) return ap - bp;
-      // Prefix hits before mid-string hits: typing "bench" should surface
-      // "Bench Press" above "Close-Grip Bench Press".
-      const as = a.name.toLowerCase().startsWith(q) ? 0 : 1;
-      const bs = b.name.toLowerCase().startsWith(q) ? 0 : 1;
-      if (as !== bs) return as - bs;
+      const ac = closeness(a);
+      const bc = closeness(b);
+      if (ac !== bc) return ac - bc;
       return a.name.localeCompare(b.name);
     });
     return [{ title: null, exercises: ranked }];

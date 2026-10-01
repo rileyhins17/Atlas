@@ -2118,3 +2118,100 @@ test('a throttled session check is never mistaken for being signed out', async (
   throttled = false;
   await expect(page.locator('.sidebar-user-name')).toBeVisible({ timeout: 15_000 });
 });
+
+/**
+ * The row machine, typed on a phone. Three faults hid behind one another: the catalog filed it as a
+ * cardio erg (no weight, no reps), the native number spinner sat under the centre of each narrow
+ * box ("0187"), and a weight off the 2.5 step made "Log set" do nothing. Desktop width shows none
+ * of it, so this runs at 390px, key by key, and a click alone must change nothing.
+ */
+test('a machine row takes a weight and reps typed by hand on a phone, and every measure is one tap away', async ({ page }) => {
+  await go(page, '/fitness');
+  await resetFitness(page);
+  // The user's own setting: soft is the default style, and this is a phone.
+  await page.evaluate(() => localStorage.setItem('atlas-style', 'soft'));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+
+  await page.getByRole('button', { name: 'Push', exact: true }).click();
+  await expect(page.locator('.fit-active')).toBeVisible();
+
+  const pick = async (query: string, name: RegExp) => {
+    await page.getByRole('button', { name: /Add exercise/i }).click();
+    await page.getByLabel('Search exercises').fill(query);
+    await page.getByRole('option', { name }).first().click();
+  };
+  const block = (title: RegExp) => page.locator('.fit-block', { hasText: title }).first();
+
+  // The weight-stack row: weight and reps, no distance.
+  await pick('row (machine)', /^Row \(Machine\)/);
+  const row = block(/^Row \(Machine\)/);
+  const weight = row.getByRole('spinbutton', { name: /^Weight in lb/ });
+  const reps = row.getByRole('spinbutton', { name: /^Reps for/ });
+  await expect(weight).toBeVisible();
+  await expect(reps).toBeVisible();
+  await expect(row.getByRole('spinbutton', { name: /^Distance in km/ })).toHaveCount(0);
+
+  await weight.click();
+  await expect(weight).toHaveValue('');
+  await weight.pressSequentially('187'); // not a multiple of the 2.5 step
+  await expect(weight).toHaveValue('187');
+  await reps.click();
+  await expect(reps).toHaveValue('');
+  await reps.pressSequentially('8');
+  await expect(reps).toHaveValue('8');
+  await row.getByRole('button', { name: 'Log set' }).click();
+  await expect(row.locator('.fit-set-body')).toContainText('187 lb × 8');
+
+  // The rowing erg is its own movement, measured in how far.
+  await pick('rowing machine', /^Rowing Machine \(Erg\)/);
+  const erg = block(/^Rowing Machine \(Erg\)/);
+  const km = erg.getByRole('spinbutton', { name: /^Distance in km/ });
+  await km.click();
+  await expect(km).toHaveValue('');
+  await km.pressSequentially('2.5');
+  await erg.getByRole('button', { name: 'Log set' }).click();
+  await expect(erg.locator('.fit-set-body')).toContainText('2.5 km');
+
+  // A bodyweight movement opens on reps, and added weight is one tap away.
+  await pick('pull up', /^Pull Up (?!\()/);
+  const pull = block(/^Pull Up/);
+  await expect(pull.getByRole('spinbutton', { name: /^Weight in lb/ })).toHaveCount(0);
+  await pull.getByRole('button', { name: 'Weight', exact: true }).click();
+  const pullWeight = pull.getByRole('spinbutton', { name: /^Weight in lb/ });
+  await pullWeight.click();
+  await expect(pullWeight).toHaveValue('');
+  await pullWeight.pressSequentially('25');
+  const pullReps = pull.getByRole('spinbutton', { name: /^Reps for/ });
+  await pullReps.click();
+  await pullReps.pressSequentially('6');
+  await pull.getByRole('button', { name: 'Log set' }).click();
+  await expect(pull.locator('.fit-set-body')).toContainText('25 lb × 6');
+  // It stays weighted for the next set.
+  await expect(pull.getByRole('button', { name: 'Weight', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+
+  // Seconds are not held to the stepper's 15: 50 is a plank like any other.
+  await pick('plank', /^Plank /);
+  const plank = block(/^Plank/);
+  const seconds = plank.getByRole('spinbutton', { name: /^Seconds for/ });
+  await seconds.click();
+  await expect(seconds).toHaveValue('');
+  await seconds.pressSequentially('50');
+  await plank.getByRole('button', { name: 'Log set' }).click();
+  await expect(plank.locator('.fit-set-body')).toContainText('50s');
+
+  // The open session is where the "Also log" chips and every entry box live,
+  // and no sweep has ever looked at it: they all visit /fitness at rest. The
+  // whole list, not the serious ones.
+  const scan = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+    .analyze();
+  expect(scan.violations).toEqual([]);
+
+  // Leave nothing open behind us — an active session hides the start card for
+  // every spec that runs after this one.
+  await page.getByRole('button', { name: 'Finish' }).click();
+});

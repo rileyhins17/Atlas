@@ -76,6 +76,48 @@ describe('the seeded exercise catalog', () => {
     expect(byName.get('Squat (Barbell)')?.kind).toBe('weight_reps');
   });
 
+  /** "Row (Machine)" was the rowing erg (cardio, distance), under the name a lifter reads as the weight-stack row. */
+  it('keeps the row machine a weight × reps back exercise, and the erg its own thing', () => {
+    const byName = new Map(EXERCISE_CATALOG.map((e) => [e.name, e]));
+    expect(byName.get('Row (Machine)')).toMatchObject({
+      kind: 'weight_reps',
+      muscle: 'back',
+      target: 'lats',
+      equipment: 'machine',
+    });
+    expect(byName.get('Rowing Machine (Erg)')).toMatchObject({
+      kind: 'distance',
+      muscle: 'cardio',
+      equipment: 'cardio_machine',
+    });
+  });
+
+  /** `reps` asks for nothing but reps, so a loaded movement filed there has no weight box. Bands are not weight. */
+  it('never files a loaded movement under reps-only', () => {
+    const loaded = new Set([
+      'barbell',
+      'dumbbell',
+      'kettlebell',
+      'plate',
+      'medicine_ball',
+      'sled',
+      'cable',
+      'machine',
+      'smith',
+      'ez_bar',
+      'trap_bar',
+    ]);
+    const wrong = EXERCISE_CATALOG.filter((e) => e.kind === 'reps' && loaded.has(e.equipment));
+    expect(wrong.map((e) => `${e.name} (${e.equipment})`)).toEqual([]);
+  });
+
+  it('measures a carry by the distance it covered', () => {
+    const byName = new Map(EXERCISE_CATALOG.map((e) => [e.name, e]));
+    for (const name of ['Farmer Carry', 'Farmer Carry (Heavy)', 'Suitcase Carry', 'Sled Push', 'Sled Drag']) {
+      expect(byName.get(name)?.kind, name).toBe('distance');
+    }
+  });
+
   it('covers every group with a real spread of equipment', () => {
     for (const group of ['chest', 'back', 'legs', 'shoulders', 'arms', 'core'] as const) {
       const inGroup = EXERCISE_CATALOG.filter((e) => e.muscle === group);
