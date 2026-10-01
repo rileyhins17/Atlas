@@ -119,6 +119,40 @@ describe('pickerSections', () => {
     });
     expect(sections[0]!.exercises).toEqual([]);
   });
+
+  /** "machine row" is how a person says "Row (Machine)". */
+  describe('searching in any word order', () => {
+    const ROWS = [
+      ex('chest', 'Chest-Supported Row (Machine)'),
+      ex('machine', 'Row (Machine)'),
+      ex('erg', 'Rowing Machine (Erg)'),
+      ex('cable', 'Seated Row (Cable)'),
+      ex('curl', 'Bicep Curl (Machine)'),
+    ];
+    const search = (query: string) =>
+      pickerSections({ exercises: ROWS, template: null, recentExerciseIds: [], query })[0]!.exercises.map(
+        (e) => e.id,
+      );
+
+    it('finds the movement however the words are ordered', () => {
+      expect(search('machine row')).toContain('machine');
+      expect(search('row machine')).toContain('machine');
+      expect(search('row (machine)')).toContain('machine');
+    });
+
+    it('needs every word, so it still narrows', () => {
+      expect(search('machine row')).not.toContain('cable');
+      expect(search('machine row')).not.toContain('curl');
+    });
+
+    it('puts a name that starts with a typed word above one that merely contains it', () => {
+      expect(search('machine row')).toEqual(['machine', 'erg', 'chest']);
+    });
+
+    it('ignores extra spaces', () => {
+      expect(search('  machine   row ')).toEqual(search('machine row'));
+    });
+  });
 });
 
 describe('recentExerciseIds', () => {

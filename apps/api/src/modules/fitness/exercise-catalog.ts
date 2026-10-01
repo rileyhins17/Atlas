@@ -125,6 +125,8 @@ const BY_TARGET: Partial<Record<MuscleTarget, Row[]>> = {
     ['Pendlay Row', 'barbell'],
     ['Dumbbell Row', 'dumbbell'],
     ['Chest-Supported Row (Machine)', 'machine'],
+    // The weight-stack row. The rowing ergometer is "Rowing Machine (Erg)", under cardio.
+    ['Row (Machine)', 'machine'],
     ['Seated Row (Cable)', 'cable'],
     ['Wide-Grip Seated Row', 'cable'],
     ['T-Bar Row', 'barbell'],
@@ -150,7 +152,7 @@ const BY_TARGET: Partial<Record<MuscleTarget, Row[]>> = {
     ['Shrug (Smith Machine)', 'smith'],
     ['Shrug (Trap Bar)', 'trap_bar'],
     ['Shrug (Cable)', 'cable'],
-    ['Farmer Carry', 'dumbbell', 'duration'],
+    ['Farmer Carry', 'dumbbell', 'distance'],
     ['Upright Row (Barbell)', 'barbell'],
     ['Upright Row (Cable)', 'cable'],
     ['Power Shrug', 'barbell'],
@@ -262,7 +264,7 @@ const BY_TARGET: Partial<Record<MuscleTarget, Row[]>> = {
     ['Wrist Roller', 'other'],
     ['Dead Hang', 'bodyweight', 'duration'],
     ['Plate Pinch Hold', 'plate', 'duration'],
-    ['Farmer Carry (Heavy)', 'dumbbell', 'duration'],
+    ['Farmer Carry (Heavy)', 'dumbbell', 'distance'],
   ],
 
   // ── Legs ─────────────────────────────────────────────────────────────────
@@ -308,7 +310,7 @@ const BY_TARGET: Partial<Record<MuscleTarget, Row[]>> = {
     ['Glute-Ham Raise', 'bodyweight', 'reps'],
     ['Good Morning (Safety Bar)', 'barbell'],
     ['Cable Pull-Through', 'cable'],
-    ['Kettlebell Swing', 'kettlebell', 'reps'],
+    ['Kettlebell Swing', 'kettlebell'],
     ['Slider Leg Curl', 'bodyweight', 'reps'],
   ],
   glutes: [
@@ -392,20 +394,20 @@ const BY_TARGET: Partial<Record<MuscleTarget, Row[]>> = {
     ['Mountain Climber', 'bodyweight', 'duration'],
   ],
   obliques: [
-    ['Russian Twist', 'medicine_ball', 'reps'],
+    ['Russian Twist', 'medicine_ball'],
     ['Cable Woodchop', 'cable'],
     ['Pallof Press', 'cable'],
     ['Side Plank', 'bodyweight', 'duration'],
     ['Side Bend (Dumbbell)', 'dumbbell'],
     ['Bicycle Crunch', 'bodyweight', 'reps'],
     ['Landmine Twist', 'barbell'],
-    ['Suitcase Carry', 'dumbbell', 'duration'],
+    ['Suitcase Carry', 'dumbbell', 'distance'],
   ],
 
   // ── Neck, full body, conditioning ────────────────────────────────────────
   neck: [
-    ['Neck Curl', 'plate', 'reps'],
-    ['Neck Extension', 'plate', 'reps'],
+    ['Neck Curl', 'plate'],
+    ['Neck Extension', 'plate'],
     ['Neck Harness Extension', 'other'],
   ],
   full_body: [
@@ -417,12 +419,12 @@ const BY_TARGET: Partial<Record<MuscleTarget, Row[]>> = {
     ['Thruster', 'barbell'],
     ['Burpee', 'bodyweight', 'reps'],
     ['Turkish Get-Up', 'kettlebell'],
-    ['Man Maker', 'dumbbell', 'reps'],
+    ['Man Maker', 'dumbbell'],
     ['Sled Push', 'sled', 'distance'],
     ['Sled Drag', 'sled', 'distance'],
     ['Battle Ropes', 'other', 'duration'],
-    ['Devil Press', 'dumbbell', 'reps'],
-    ['Wall Ball', 'medicine_ball', 'reps'],
+    ['Devil Press', 'dumbbell'],
+    ['Wall Ball', 'medicine_ball'],
   ],
   cardio: [
     ['Run', 'other', 'distance'],
@@ -432,7 +434,7 @@ const BY_TARGET: Partial<Record<MuscleTarget, Row[]>> = {
     ['Cycling', 'other', 'distance'],
     ['Stationary Bike', 'cardio_machine', 'distance'],
     ['Assault Bike', 'cardio_machine', 'duration'],
-    ['Row (Machine)', 'cardio_machine', 'distance'],
+    ['Rowing Machine (Erg)', 'cardio_machine', 'distance'],
     ['Ski Erg', 'cardio_machine', 'distance'],
     ['Stair Climber', 'cardio_machine', 'duration'],
     ['Elliptical', 'cardio_machine', 'duration'],

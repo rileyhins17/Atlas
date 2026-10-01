@@ -107,7 +107,14 @@ docs/                architecture, data-model, roadmap, guides, ADRs, GOTCHAS.
 
 **Pure logic belongs in `packages/shared`, not in an app.** The fitness maths and the recurrence engine are shared so the UI and the API compute identically from one implementation.
 
-### Two rules that are easy to break
+### Three rules that are easy to break
+- **An exercise's `kind` is a default, not a ceiling.** It decides which boxes the entry row opens
+  with; weight, reps, time and distance are one tap away on any movement (`primaryMeasures`,
+  `resolveSetEntry`, "Also log"), and a set may hold any mix. A catalog entry that is wrong about one
+  movement — the rowing erg filed as "Row (Machine)" — must never leave someone unable to record what
+  they did, so never "fix" a wrong entry by removing a box. The code is also the authority for every
+  shared catalog row: `seedCatalog` corrects `muscle`/`target`/`equipment`/`kind` on API boot, so
+  recategorising a movement reaches databases that already have it, with no migration.
 - **Weight is stored as integer grams, always.** `lb`/`kg` is a display preference
   (`User.weightUnit`, default `lb`) applied at the edge by `gramsToUnit`/`unitToGrams`. Never store
   a float: summing volume over a session accumulates error, and switching units must never rewrite
@@ -217,7 +224,7 @@ of the design work in v10 came from reading those PNGs, not the source.
 
 ## Current state
 
-Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **1275 unit tests** · **e2e 47/47** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop.
+Green at the last commit: build 6/6 · typecheck 10/10 · lint clean · **1478 unit tests** · **e2e 52/52** (Playwright + axe) · axe clean on **all thirteen routes** at phone width, plus Today, Looking back and the week grid at desktop.
 
 **Wearables are the ninth domain: Fitbit and Pixel Watch through the Google Health API**
 (the Fitbit Web API was shut down in Sept 2026). Read-only; sleep, steps, resting heart rate,

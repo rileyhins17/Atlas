@@ -141,18 +141,22 @@ export class FitnessService {
   // ── Exercises ─────────────────────────────────────────────────────────────
 
   /**
-   * Seed the shared catalog once, inserting only names that aren't there yet.
+   * Seed the shared catalog, inserting names that aren't there yet and bringing
+   * the ones that are back in line with the code.
    *
-   * `skipDuplicates` CANNOT do this job: the guard would be `@@unique([userId,
+   * `skipDuplicates` CANNOT do the inserting: the guard would be `@@unique([userId,
    * name])`, and Postgres treats NULLs as distinct, so two catalog rows with
    * `userId = null` and the same name never collide. Relying on it duplicated
    * the whole catalog on every boot (verified: 64 rows for 32 exercises). The
    * name check has to be explicit.
+   *
+   * The code is the authority for every shared row, so a catalog edit reaches
+   * databases that already have it. A user's own additions are never touched.
    */
-  async seedCatalog(): Promise<number> {
+  async seedCatalog(): Promise<{ added: number; corrected: number }> {
     const existing = await this.prisma.client.exercise.findMany({
       where: { userId: null },
-      select: { id: true, name: true, target: true, equipment: true },
+      select: { id: true, name: true, muscle: true, target: true, equipment: true, kind: true },
     });
     const byName = new Map(existing.map((e) => [e.name, e]));
 
@@ -166,23 +170,27 @@ export class FitnessService {
       added = result.count;
     }
 
-    // Classify the entries that were seeded before `target` and `equipment`
-    // existed. Without this the forty-eight original movements stay unfiled
-    // forever, so the very exercises everybody already uses are the ones the
-    // new filters cannot find — which would be a worse first impression than
-    // not having the filters. Shared rows only: a user's own additions are
-    // theirs to describe, and overwriting them would be presumptuous.
-    const stale = EXERCISE_CATALOG.map((e) => {
+    const drifted = EXERCISE_CATALOG.flatMap((e) => {
       const row = byName.get(e.name);
-      if (!row || (row.target !== null && row.equipment !== null)) return null;
-      return this.prisma.client.exercise.update({
-        where: { id: row.id },
-        data: { target: e.target, equipment: e.equipment, muscle: e.muscle },
-      });
-    }).filter((x): x is NonNullable<typeof x> => x !== null);
-    if (stale.length > 0) await this.prisma.client.$transaction(stale);
+      if (
+        !row ||
+        (row.muscle === e.muscle &&
+          row.target === e.target &&
+          row.equipment === e.equipment &&
+          row.kind === e.kind)
+      ) {
+        return [];
+      }
+      return [
+        this.prisma.client.exercise.update({
+          where: { id: row.id },
+          data: { muscle: e.muscle, target: e.target, equipment: e.equipment, kind: e.kind },
+        }),
+      ];
+    });
+    if (drifted.length > 0) await this.prisma.client.$transaction(drifted);
 
-    return added;
+    return { added, corrected: drifted.length };
   }
 
   /** The shared catalog plus this user's own additions, alphabetical. */

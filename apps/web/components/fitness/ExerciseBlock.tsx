@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import {
   RPE_CHOICES,
+  SET_MEASURES,
+  SET_MEASURE_LABELS,
   SET_TYPES,
   SET_TYPE_LABELS,
   SET_TYPE_MARKS,
@@ -10,14 +12,18 @@ import {
   describePlates,
   describeRecord,
   formatRpe,
+  measuresIn,
+  metersToKm,
   platesFor,
+  primaryMeasures,
   describeSet,
   exerciseRecords,
   gramsToUnit,
   recordsBrokenBy,
+  secondsToClock,
   stepFor,
-  unitToGrams,
   type ExerciseDTO,
+  type SetMeasure,
   type SetType,
   type WeightUnit,
   type WorkoutDTO,
@@ -25,6 +31,7 @@ import {
 import { Check, ChevronDown, Trophy, X } from 'lucide-react';
 import { useDeleteSet, useLastPerformance, useLogSet } from '@/lib/hooks/fitness';
 import { useWeightUnit } from '@/lib/hooks/settings';
+import { resolveSetEntry } from '@/lib/set-entry';
 import { Button, IconButton, Input } from '@/components/ui';
 
 /**
@@ -71,10 +78,23 @@ export function ExerciseBlock({
 
   // Seed from this session's most recent set, else last session's, else blank.
   const seed = sets.at(-1) ?? last.data?.sets.at(-1) ?? null;
+  // `kind` picks the boxes the form opens with; every other measure is one tap away under "Also log".
+  const primary = primaryMeasures(kind);
+  const offered = kind === 'weight_reps' ? [] : SET_MEASURES.filter((m) => !primary.includes(m));
   const [weight, setWeight] = useState(
     seed?.weightGrams != null ? String(gramsToUnit(seed.weightGrams, unit)) : '',
   );
   const [reps, setReps] = useState(seed?.reps != null ? String(seed.reps) : '');
+  const seedClock = seed?.durationSec != null ? secondsToClock(seed.durationSec) : null;
+  const [durMin, setDurMin] = useState(seedClock ? String(seedClock.min) : '');
+  const [durSec, setDurSec] = useState(seedClock ? String(seedClock.sec) : '');
+  const [distanceKm, setDistanceKm] = useState(
+    seed?.distanceM != null ? String(metersToKm(seed.distanceM)) : '',
+  );
+  // Seeded from the last set, so a weighted pull-up stays weighted.
+  const [extras, setExtras] = useState<SetMeasure[]>(() =>
+    seed ? measuresIn(seed).filter((m) => !primary.includes(m)) : [],
+  );
   // What KIND of set, rather than a warm-up boolean. A drop set and a set taken
   // to failure are both work and both different from an ordinary one, and a
   // tracker that cannot say which knows less than the person using it.
@@ -117,14 +137,23 @@ export function ExerciseBlock({
           .join(' · ')
       : null;
 
-  const needsWeight = kind === 'weight_reps';
-  const parsedWeight = weight.trim() === '' ? null : Number(weight);
-  const parsedReps = reps.trim() === '' ? null : Number(reps);
-  const valid =
-    (!needsWeight || (parsedWeight !== null && Number.isFinite(parsedWeight) && parsedWeight >= 0)) &&
-    parsedReps !== null &&
-    Number.isFinite(parsedReps) &&
-    parsedReps > 0;
+  const shown = SET_MEASURES.filter((m) => primary.includes(m) || extras.includes(m));
+  const has = (m: SetMeasure) => shown.includes(m);
+
+  const { valid, measurements } = resolveSetEntry(
+    kind,
+    shown,
+    { weight, reps, minutes: durMin, seconds: durSec, km: distanceKm },
+    unit,
+  );
+
+  // Plate arithmetic is for a loaded bar, so only a weight-and-reps lift gets it.
+  const plateTarget =
+    kind === 'weight_reps' && weight.trim() !== '' && Number(weight) > 0 ? Number(weight) : null;
+
+  function toggleExtra(measure: SetMeasure) {
+    setExtras((prev) => (prev.includes(measure) ? prev.filter((m) => m !== measure) : [...prev, measure]));
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -132,10 +161,7 @@ export function ExerciseBlock({
     log.mutate(
       {
         exerciseId,
-        ...(needsWeight && parsedWeight !== null
-          ? { weightGrams: unitToGrams(parsedWeight, unit) }
-          : {}),
-        reps: parsedReps!,
+        ...measurements,
         setType,
         warmup: setType === 'warmup',
         rpe,
@@ -215,7 +241,8 @@ export function ExerciseBlock({
         </ol>
       )}
 
-      <form className="fit-entry" onSubmit={submit}>
+      {/* noValidate: native step checks silently refused real values (187 lb on a 2.5 step); resolveSetEntry decides. */}
+      <form className="fit-entry" onSubmit={submit} noValidate>
         {/* Steppers, not just a keypad. Logging mid-set with one thumb and
             chalky hands is the real context: a plate-sized bump is one tap,
             and the field is still there to type into when the jump is odd. */}
@@ -225,7 +252,7 @@ export function ExerciseBlock({
             fired a decrement instead: the box filled with "0" and your digits
             landed after it, giving 0185 for 185. The inputs carry their own
             aria-label, so nothing is lost by dropping the wrapper. */}
-        {needsWeight && (
+        {has('weight') && (
           <div className="fit-field">
             <span aria-hidden>{unit}</span>
             <div className="fit-stepper">
@@ -255,40 +282,151 @@ export function ExerciseBlock({
             </div>
           </div>
         )}
-        <div className="fit-field">
-          <span aria-hidden>reps</span>
-          <div className="fit-stepper">
-            <button
-              type="button"
-              aria-label={`Fewer reps for ${exerciseName}`}
-              onClick={() => setReps(bump(reps, -1, 1))}
-            >
-              −
-            </button>
-            <Input
-              type="number"
-              inputMode="numeric"
-              step="1"
-              min="1"
-              aria-label={`Reps for ${exerciseName}`}
-              value={reps}
-              onChange={(e) => setReps(e.target.value)}
-            />
-            <button
-              type="button"
-              aria-label={`More reps for ${exerciseName}`}
-              onClick={() => setReps(bump(reps, 1, 1))}
-            >
-              +
-            </button>
+        {has('reps') && (
+          <div className="fit-field">
+            <span aria-hidden>reps</span>
+            <div className="fit-stepper">
+              <button
+                type="button"
+                aria-label={`Fewer reps for ${exerciseName}`}
+                onClick={() => setReps(bump(reps, -1, 1))}
+              >
+                −
+              </button>
+              <Input
+                type="number"
+                inputMode="numeric"
+                step="1"
+                min="1"
+                aria-label={`Reps for ${exerciseName}`}
+                value={reps}
+                onChange={(e) => setReps(e.target.value)}
+              />
+              <button
+                type="button"
+                aria-label={`More reps for ${exerciseName}`}
+                onClick={() => setReps(bump(reps, 1, 1))}
+              >
+                +
+              </button>
+            </div>
           </div>
-        </div>
+        )}
+        {/* Duration is two fields, not a clock string; clockToSeconds recombines them and tolerates seconds past 59. */}
+        {has('time') && (
+          <>
+            <div className="fit-field">
+              <span aria-hidden>min</span>
+              <div className="fit-stepper">
+                <button
+                  type="button"
+                  aria-label={`Fewer minutes for ${exerciseName}`}
+                  onClick={() => setDurMin(bump(durMin, -1, 0))}
+                >
+                  −
+                </button>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  step="1"
+                  min="0"
+                  aria-label={`Minutes for ${exerciseName}`}
+                  value={durMin}
+                  onChange={(e) => setDurMin(e.target.value)}
+                />
+                <button
+                  type="button"
+                  aria-label={`More minutes for ${exerciseName}`}
+                  onClick={() => setDurMin(bump(durMin, 1, 0))}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+            <div className="fit-field">
+              <span aria-hidden>sec</span>
+              <div className="fit-stepper">
+                <button
+                  type="button"
+                  aria-label={`Fewer seconds for ${exerciseName}`}
+                  onClick={() => setDurSec(bump(durSec, -15, 0))}
+                >
+                  −
+                </button>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  step="15"
+                  min="0"
+                  aria-label={`Seconds for ${exerciseName}`}
+                  value={durSec}
+                  onChange={(e) => setDurSec(e.target.value)}
+                />
+                <button
+                  type="button"
+                  aria-label={`More seconds for ${exerciseName}`}
+                  onClick={() => setDurSec(bump(durSec, 15, 0))}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+        {/* Distance is entered in km and stored in whole metres (kmToMeters); 0.1 km is the useful step. */}
+        {has('distance') && (
+          <div className="fit-field">
+            <span aria-hidden>km</span>
+            <div className="fit-stepper">
+              <button
+                type="button"
+                aria-label={`Less distance for ${exerciseName}`}
+                onClick={() => setDistanceKm(bump(distanceKm, -0.1, 0))}
+              >
+                −
+              </button>
+              <Input
+                type="number"
+                inputMode="decimal"
+                step="0.1"
+                min="0"
+                aria-label={`Distance in km for ${exerciseName}`}
+                value={distanceKm}
+                onChange={(e) => setDistanceKm(e.target.value)}
+              />
+              <button
+                type="button"
+                aria-label={`More distance for ${exerciseName}`}
+                onClick={() => setDistanceKm(bump(distanceKm, 0.1, 0))}
+              >
+                +
+              </button>
+            </div>
+          </div>
+        )}
         <Button type="submit" disabled={!valid || log.isPending}>
           <Check size={14} aria-hidden /> Log set
         </Button>
       </form>
 
       <div className="fit-opts">
+        {/* The measures this movement is not filed under; absent on a weight × reps lift. */}
+        {offered.length > 0 && (
+          <div className="fit-chips" role="group" aria-label={`Also log for ${exerciseName}`}>
+            <span className="fit-opts-label">Also log</span>
+            {offered.map((m) => (
+              <button
+                key={m}
+                type="button"
+                className={`chip ${extras.includes(m) ? 'active' : ''}`}
+                aria-pressed={extras.includes(m)}
+                onClick={() => toggleExtra(m)}
+              >
+                {SET_MEASURE_LABELS[m]}
+              </button>
+            ))}
+          </div>
+        )}
         <button
           type="button"
           className="fit-opts-toggle"
@@ -344,7 +482,7 @@ export function ExerciseBlock({
         </>
         )}
 
-        {needsWeight && parsedWeight !== null && parsedWeight > 0 && (
+        {plateTarget !== null && (
           <div className="fit-plates">
             <button
               type="button"
@@ -354,7 +492,7 @@ export function ExerciseBlock({
             >
               What goes on the bar?
             </button>
-            {showPlates && <PlateHint target={parsedWeight} unit={unit} />}
+            {showPlates && <PlateHint target={plateTarget} unit={unit} />}
           </div>
         )}
       </div>
